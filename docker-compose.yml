@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: greatsales-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: greatsales
+      POSTGRES_PASSWORD: greatsales
+      POSTGRES_DB: greatsales
+    ports:
+      - "5433:5432"
+    volumes:
+      - greatsales_pgdata:/var/lib/postgresql/data
+  redis:
+    image: redis:7
+    container_name: greatsales-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+
+volumes:
+  greatsales_pgdata:

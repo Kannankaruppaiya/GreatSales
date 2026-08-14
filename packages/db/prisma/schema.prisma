@@ -1,0 +1,623 @@
+// GreatSales CRM — Prisma schema (PostgreSQL)
+// Design source: DB-SCHEMA-CHECKLIST.md. All POC gaps filled.
+// Conventions: cuid ids, tenantId on tenant-owned tables, soft-delete (deletedAt),
+// timestamps, indexes on FKs + filter columns. RLS applied post-migration (SQL).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // direct connection for migrations (bypass pooler/RDS Proxy)
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+enum CustomerCategory {
+  Platinum
+  Gold
+  Silver
+  Brass
+}
+
+enum PaymentTerms {
+  Immediate
+  Credit15
+  Credit30
+  Credit45
+  CashOnDelivery
+  AdvancePayment
+}
+
+enum DealStage {
+  NewEnquiries
+  NeedsAnalysis
+  TrialsAndSampleTests
+  ProposalsAndPriceQuote
+  NegotiationOralConfirmation
+  ClosedWon
+  ClosedLost
+  NoRequirementOrCold
+  TrialProblem
+}
+
+enum LeadStatus {
+  Platinum
+  Gold
+  Silver
+  Bronze
+}
+
+enum PayZone {
+  RedZone
+  YellowZone
+  GreenZone
+  Blacklist
+}
+
+enum OrderStatus {
+  Draft
+  Confirmed
+  Dispatched
+  Delivered
+  Completed
+  Cancelled
+}
+
+enum PaymentStatus {
+  Pending
+  PartiallyPaid
+  Paid
+  Overdue
+}
+
+enum EntityType {
+  Customer
+  Lead
+  Order
+  Payment
+  Projection
+}
+
+enum NotificationType {
+  FollowUpDue
+  PaymentReminder
+  LeadAssigned
+  CustomerAssigned
+  OrderUpdate
+  System
+}
+
+// ============================================================
+// 1. TENANT & ORG
+// ============================================================
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  plan      String   @default("free")
+  limits    Json     @default("{}")
+  config    Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  users         User[]
+  teams         Team[]
+  roles         Role[]
+  customers     Customer[]
+  principals    Principal[]
+  products      Product[]
+  mappings      Mapping[]
+  salesTargets  SalesTarget[]
+  projections   Projection[]
+  leads         Lead[]
+  salesOrders   SalesOrder[]
+  payments      Payment[]
+  followUps     FollowUp[]
+  activities    Activity[]
+  notifications Notification[]
+  attachments   Attachment[]
+  auditLogs     AuditLog[]
+  importJobs    ImportJob[]
+
+  @@index([deletedAt])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  name         String
+  email        String
+  username     String
+  passwordHash String
+  roleId       String
+  managerId    String?  // self-relation → reporting manager
+  teamId       String?
+  active       Boolean  @default(true)
+  lastIp       String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
+  role     Role    @relation(fields: [roleId], references: [id])
+  manager  User?   @relation("UserManager", fields: [managerId], references: [id])
+  reports  User[]  @relation("UserManager")
+  team     Team?   @relation("TeamMembers", fields: [teamId], references: [id])
+  managedTeams Team[] @relation("TeamManager")
+
+  customers      Customer[]
+  mappings       Mapping[]
+  salesTargets   SalesTarget[]
+  leads          Lead[]
+  salesOrders    SalesOrder[]
+  followUps      FollowUp[]
+  activities     Activity[]
+  notifications  Notification[]
+  attachments    Attachment[]
+  auditLogs      AuditLog[]
+  orderStatusChanges OrderStatusHistory[]
+
+  @@unique([tenantId, email])
+  @@unique([tenantId, username])
+  @@index([tenantId])
+  @@index([managerId])
+  @@index([teamId])
+  @@index([deletedAt])
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  managerId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id])
+  manager User   @relation("TeamManager", fields: [managerId], references: [id])
+  members User[] @relation("TeamMembers")
+
+  @@index([tenantId])
+  @@index([managerId])
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  isSystem  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
+  users       User[]
+  permissions RolePermission[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model Permission {
+  id     String @id @default(cuid())
+  key    String @unique // e.g. "customer.create"
+  module String
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+// ============================================================
+// 2. CUSTOMERS
+// ============================================================
+model Industry {
+  id            String     @id @default(cuid())
+  name          String
+  subIndustries Json       @default("[]")
+  customers     Customer[]
+}
+
+model Customer {
+  id            String            @id @default(cuid())
+  tenantId      String
+  name          String
+  category      CustomerCategory?
+  industryId    String?
+  subIndustry   String?
+  area          String?
+  paymentTerms  PaymentTerms?
+  payZone       PayZone?
+  salespersonId String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  deletedAt     DateTime?
+
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  industry    Industry?         @relation(fields: [industryId], references: [id])
+  salesperson User              @relation(fields: [salespersonId], references: [id])
+  contacts    CustomerContact[]
+  mappings    Mapping[]
+  salesOrders SalesOrder[]
+  payments    Payment[]
+
+  @@index([tenantId])
+  @@index([salespersonId])
+  @@index([category])
+  @@index([deletedAt])
+}
+
+model CustomerContact {
+  id          String   @id @default(cuid())
+  customerId  String
+  name        String
+  designation String?
+  phone       String?
+  email       String?
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+}
+
+// ============================================================
+// 3. PRODUCTS & PRINCIPALS
+// ============================================================
+model Principal {
+  id        String    @id @default(cuid())
+  tenantId  String
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  products Product[]
+
+  @@index([tenantId])
+}
+
+model Product {
+  id          String    @id @default(cuid())
+  tenantId    String
+  principalId String
+  name        String
+  unit        String?
+  basePrice   Decimal?  @db.Decimal(14, 2)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant     Tenant           @relation(fields: [tenantId], references: [id])
+  principal  Principal        @relation(fields: [principalId], references: [id])
+  mappings   Mapping[]
+  orderItems SalesOrderItem[]
+
+  @@index([tenantId])
+  @@index([principalId])
+}
+
+model Mapping {
+  id            String    @id @default(cuid())
+  tenantId      String
+  customerId    String
+  productId     String
+  salespersonId String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  customer    Customer     @relation(fields: [customerId], references: [id])
+  product     Product      @relation(fields: [productId], references: [id])
+  salesperson User         @relation(fields: [salespersonId], references: [id])
+  projections Projection[]
+
+  @@unique([customerId, productId])
+  @@index([tenantId])
+  @@index([salespersonId])
+}
+
+// ============================================================
+// 4. TARGETS & PROJECTIONS (CORE)
+// ============================================================
+model SalesTarget {
+  id            String   @id @default(cuid())
+  tenantId      String
+  salespersonId String
+  period        String   // YYYY-MM
+  targetValue   Decimal  @db.Decimal(14, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id])
+  salesperson User   @relation(fields: [salespersonId], references: [id])
+
+  @@unique([salespersonId, period])
+  @@index([tenantId])
+  @@index([period])
+}
+
+model Projection {
+  id           String    @id @default(cuid())
+  tenantId     String
+  mappingId    String
+  period       String    // YYYY-MM
+  committedQty Decimal   @default(0) @db.Decimal(14, 2)
+  achievedQty  Decimal   @default(0) @db.Decimal(14, 2)
+  price        Decimal?  @db.Decimal(14, 2)
+  status       DealStage @default(NewEnquiries)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  mapping Mapping @relation(fields: [mappingId], references: [id])
+
+  @@unique([mappingId, period])
+  @@index([tenantId])
+  @@index([period])
+}
+
+// ============================================================
+// 5. LEADS (NEW SALES)
+// ============================================================
+model Lead {
+  id            String     @id @default(cuid())
+  tenantId      String
+  customerName  String
+  salespersonId String
+  stage         DealStage  @default(NewEnquiries)
+  leadStatus    LeadStatus?
+  industryId    String?
+  area          String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime?
+
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
+  salesperson User           @relation(fields: [salespersonId], references: [id])
+  products    LeadProduct[]
+  activities  LeadActivity[]
+
+  @@index([tenantId])
+  @@index([salespersonId])
+  @@index([stage])
+}
+
+model LeadProduct {
+  id          String   @id @default(cuid())
+  leadId      String
+  productName String
+  brand       String?
+  value       Decimal? @db.Decimal(14, 2)
+
+  lead Lead @relation(fields: [leadId], references: [id])
+
+  @@index([leadId])
+}
+
+model LeadActivity {
+  id     String   @id @default(cuid())
+  leadId String
+  date   DateTime @default(now())
+  note   String
+
+  lead Lead @relation(fields: [leadId], references: [id])
+
+  @@index([leadId])
+}
+
+// ============================================================
+// 6. ORDERS & PAYMENTS
+// ============================================================
+model SalesOrder {
+  id            String      @id @default(cuid())
+  tenantId      String
+  customerId    String
+  salespersonId String
+  date          DateTime    @default(now())
+  status        OrderStatus @default(Draft)
+  total         Decimal     @default(0) @db.Decimal(14, 2)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  deletedAt     DateTime?
+
+  tenant        Tenant               @relation(fields: [tenantId], references: [id])
+  customer      Customer             @relation(fields: [customerId], references: [id])
+  salesperson   User                 @relation(fields: [salespersonId], references: [id])
+  items         SalesOrderItem[]
+  statusHistory OrderStatusHistory[]
+
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([salespersonId])
+}
+
+model SalesOrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  qty       Decimal @db.Decimal(14, 2)
+  price     Decimal @db.Decimal(14, 2)
+
+  order   SalesOrder @relation(fields: [orderId], references: [id])
+  product Product    @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model OrderStatusHistory {
+  id          String      @id @default(cuid())
+  orderId     String
+  status      OrderStatus
+  changedById String
+  at          DateTime    @default(now())
+
+  order     SalesOrder @relation(fields: [orderId], references: [id])
+  changedBy User       @relation(fields: [changedById], references: [id])
+
+  @@index([orderId])
+}
+
+model Payment {
+  id         String        @id @default(cuid())
+  tenantId   String
+  customerId String
+  invoiceNo  String
+  amount     Decimal       @db.Decimal(14, 2)
+  dueDate    DateTime?
+  agingDays  Int?
+  payZone    PayZone?
+  status     PaymentStatus @default(Pending)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  deletedAt  DateTime?
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id])
+  customer  Customer          @relation(fields: [customerId], references: [id])
+  followups PaymentFollowup[]
+
+  @@unique([tenantId, invoiceNo])
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([status])
+}
+
+model PaymentFollowup {
+  id               String    @id @default(cuid())
+  paymentId        String
+  date             DateTime  @default(now())
+  note             String
+  nextFollowupDate DateTime?
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@index([paymentId])
+}
+
+// ============================================================
+// 7. CROSS-CUTTING
+// ============================================================
+model FollowUp {
+  id            String     @id @default(cuid())
+  tenantId      String
+  entityType    EntityType
+  entityId      String
+  salespersonId String
+  dueDate       DateTime
+  done          Boolean    @default(false)
+  note          String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id])
+  salesperson User   @relation(fields: [salespersonId], references: [id])
+
+  @@index([tenantId])
+  @@index([salespersonId])
+  @@index([dueDate, done])
+}
+
+model Activity {
+  id         String     @id @default(cuid())
+  tenantId   String
+  entityType EntityType
+  entityId   String
+  userId     String
+  type       String
+  note       String?
+  at         DateTime   @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([entityType, entityId])
+}
+
+model Notification {
+  id       String           @id @default(cuid())
+  tenantId String
+  userId   String
+  type     NotificationType
+  title    String
+  body     String?
+  read     Boolean          @default(false)
+  at       DateTime         @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId, read])
+}
+
+model Attachment {
+  id           String     @id @default(cuid())
+  tenantId     String
+  entityType   EntityType
+  entityId     String
+  s3Key        String
+  fileName     String
+  size         Int
+  uploadedById String
+  createdAt    DateTime   @default(now())
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id])
+  uploadedBy User   @relation(fields: [uploadedById], references: [id])
+
+  @@index([tenantId])
+  @@index([entityType, entityId])
+}
+
+model AuditLog {
+  id       String   @id @default(cuid())
+  tenantId String
+  userId   String?
+  action   String
+  entity   String
+  entityId String
+  before   Json?
+  after    Json?
+  at       DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([entity, entityId])
+}
+
+model ImportJob {
+  id        String   @id @default(cuid())
+  tenantId  String
+  type      String
+  status    String   @default("pending")
+  total     Int      @default(0)
+  errors    Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+}
