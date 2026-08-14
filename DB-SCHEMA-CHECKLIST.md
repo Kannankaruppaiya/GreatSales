@@ -183,9 +183,9 @@
 - [ ] Relations + indexes + unique constraints
 - [ ] `docker-compose.yml` — local Postgres
 - [ ] First migration (`prisma migrate dev`)
-- [ ] Seed script (POC demo data → rows)
-- [ ] RLS policies (SQL, post-migration)
-- [ ] Prisma client export from `packages/db`
+- [x] Seed script (2 tenants, full graph) — `prisma/seed.ts` ✅
+- [x] RLS policies (SQL, post-migration) — `20260815000000_rls_policies`, verified ✅
+- [x] Prisma client export from `packages/db`
 
 ---
 

@@ -91,18 +91,40 @@ enum NotificationType {
   System
 }
 
+// Platform-layer enums (operator-side)
+enum TenantStatus {
+  Trial
+  Active
+  Suspended
+  Churned
+}
+
+enum PlatformRole {
+  SuperAdmin
+  Ops
+  Support
+  Billing
+  ReadOnly
+}
+
 // ============================================================
 // 1. TENANT & ORG
 // ============================================================
 model Tenant {
-  id        String   @id @default(cuid())
-  name      String
-  plan      String   @default("free")
-  limits    Json     @default("{}")
-  config    Json     @default("{}")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
+  id               String       @id @default(cuid())
+  name             String
+  plan             String       @default("free")
+  limits           Json         @default("{}")
+  config           Json         @default("{}")
+  status           TenantStatus @default(Trial)
+  region           String?      // data residency, e.g. "uk", "in", "us"
+  industry         String?      // tenant company's own industry (metadata)
+  contractStart    DateTime?
+  contractEnd      DateTime?
+  accountManagerId String?      // operator-side owner → PlatformUser
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  deletedAt        DateTime?
 
   users         User[]
   teams         Team[]
@@ -122,8 +144,12 @@ model Tenant {
   attachments   Attachment[]
   auditLogs     AuditLog[]
   importJobs    ImportJob[]
+  featureFlags  TenantFeatureFlag[]
+
+  accountManager PlatformUser? @relation(fields: [accountManagerId], references: [id])
 
   @@index([deletedAt])
+  @@index([status])
 }
 
 model User {
@@ -620,4 +646,75 @@ model ImportJob {
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
+}
+
+// ============================================================
+// 8. PLATFORM LAYER (operator-side — NOT tenant-scoped, NO tenant RLS)
+// PlatformUser + PlatformAuditLog are deliberately kept OUT of the tenant
+// `User` table so tenant RLS never touches them. Access = super-admin console
+// only; the tenant app role (greatsales_app) is REVOKED on these (see migration).
+// ============================================================
+model PlatformUser {
+  id               String       @id @default(cuid())
+  name             String
+  email            String       @unique
+  passwordHash     String
+  role             PlatformRole @default(Support)
+  active           Boolean      @default(true)
+  twoFactorEnabled Boolean      @default(false)
+  twoFactorSecret  String?
+  lastIp           String?
+  lastLoginAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  deletedAt        DateTime?
+
+  auditLogs      PlatformAuditLog[]
+  managedTenants Tenant[]
+
+  @@index([deletedAt])
+}
+
+model PlatformAuditLog {
+  id             String   @id @default(cuid())
+  platformUserId String?
+  action         String   // e.g. "tenant.suspend", "tenant.impersonate"
+  targetType     String   // "Tenant" | "PlatformUser" | ...
+  targetId       String?
+  tenantId       String?  // which tenant was affected (if any)
+  metadata       Json?
+  ip             String?
+  at             DateTime @default(now())
+
+  platformUser PlatformUser? @relation(fields: [platformUserId], references: [id])
+
+  @@index([platformUserId])
+  @@index([targetType, targetId])
+  @@index([tenantId])
+}
+
+model FeatureFlag {
+  id             String   @id @default(cuid())
+  key            String   @unique // e.g. "new-dashboard"
+  description    String?
+  enabledGlobal  Boolean  @default(false)
+  rolloutPercent Int      @default(0) // 0-100 gradual rollout
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenantOverrides TenantFeatureFlag[]
+}
+
+model TenantFeatureFlag {
+  id            String  @id @default(cuid())
+  tenantId      String
+  featureFlagId String
+  enabled       Boolean
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  featureFlag FeatureFlag @relation(fields: [featureFlagId], references: [id])
+
+  @@unique([tenantId, featureFlagId])
+  @@index([tenantId])
+  @@index([featureFlagId])
 }
