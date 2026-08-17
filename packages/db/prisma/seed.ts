@@ -3,15 +3,17 @@
  * Idempotent: wipes tenant data (dev DB only) then reinserts.
  * Creates TWO tenants (Acme, Globex) so RLS tenant-isolation can be verified.
  *
- * NOTE: passwordHash here is a placeholder. The Auth module (argon2/bcrypt)
- * replaces this — do NOT rely on these hashes for real login.
+ * NOTE: every seeded user shares the dev password "Passw0rd!" (argon2id hash
+ * below). For local testing only — never a real credential.
  */
 import { PrismaClient, DealStage, OrderStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// Placeholder — real hashing lands with the Auth module.
-const PW = "$2b$10$seedplaceholderhashseedplaceholderhashseedplaceholderha";
+// Real argon2id hash of "Passw0rd!" so the Auth module's login is testable
+// end-to-end. Regenerate via @node-rs/argon2 `hash("Passw0rd!")` if rotated.
+const PW =
+  "$argon2id$v=19$m=19456,t=2,p=1$YMotFINPtldbJwk7BTyfWA$TlIBiSz3th5+VSEv55i/QkkxiTJSfHY+hhVvt4eSh3Q";
 
 // Permission catalog (global, tenant-agnostic keys).
 const PERMISSIONS: { key: string; module: string }[] = [
