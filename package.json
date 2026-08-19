@@ -16,5 +16,12 @@
   "packageManager": "pnpm@9.0.0",
   "engines": {
     "node": ">=18"
+  },
+  "pnpm": {
+    "overrides": {
+      "@expo/metro-runtime": "6.1.2",
+      "react": "19.1.0",
+      "react-dom": "19.1.0"
+    }
   }
 }

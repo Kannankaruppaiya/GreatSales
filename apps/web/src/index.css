@@ -1,1 +1,119 @@
 @import "tailwindcss";
+
+/* ------------------------------------------------------------------ *
+ * GreatSales — Commercial Production-Grade Enterprise Design System
+ * Inspired by Zoho CRM, Salesforce Lightning, & HubSpot
+ * ------------------------------------------------------------------ */
+@theme {
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1f5f9;
+  --color-surface-3: #e2e8f0;
+  
+  --color-ink: #0f172a;
+  --color-ink-2: #334155;
+  --color-muted: #64748b;
+  --color-faint: #94a3b8;
+  --color-line: #e2e8f0;
+  --color-line-2: #f8fafc;
+
+  /* Enterprise Emerald Brand Accent */
+  --color-brand: #059669;
+  --color-brand-hover: #047857;
+  --color-brand-ink: #064e3b;
+  --color-brand-soft: #ecfdf5;
+  --color-brand-accent: #10b981;
+
+  /* Risk & Status Colors */
+  --color-amber: #d97706;
+  --color-amber-soft: #fffbeb;
+  --color-red: #dc2626;
+  --color-red-soft: #fef2f2;
+  --color-blue: #2563eb;
+  --color-blue-soft: #eff6ff;
+  --color-violet: #7c3aed;
+  --color-violet-soft: #f5f3ff;
+
+  --font-sans: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
+  --shadow-card-hover: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  --shadow-pop: 0 20px 40px -8px rgba(15, 23, 42, 0.18);
+}
+
+* {
+  border-color: var(--color-line);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
+}
+
+/* Brand selection */
+::selection {
+  background-color: #d1fae5;
+  color: #064e3b;
+}
+
+input, textarea, select {
+  caret-color: var(--color-brand);
+}
+
+/* Tabular numbers for financial accuracy */
+.nums, [data-tabular], .tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Clean accessible focus ring */
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 1px;
+}
+
+/* Sleek data scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Print Styles */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  aside, header, button, .no-print {
+    display: none !important;
+  }
+}

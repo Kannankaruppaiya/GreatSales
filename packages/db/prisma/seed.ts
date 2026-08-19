@@ -6,7 +6,7 @@
  * NOTE: every seeded user shares the dev password "Passw0rd!" (argon2id hash
  * below). For local testing only — never a real credential.
  */
-import { PrismaClient, DealStage, OrderStatus } from "@prisma/client";
+import { PrismaClient, DealStage, ProjStatus, OrderStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -161,10 +161,10 @@ async function seedTenant(k: string, name: string, region: string, accountManage
   // Customers (assigned to sales1)
   await prisma.customer.create({
     data: {
-      id: `cust_1_${k}`, tenantId: t, name: `${name} Customer One`, category: "Gold",
-      industryId: "ind_pharma", area: "North", paymentTerms: "Credit30", payZone: "GreenZone",
-      salespersonId: `user_sales1_${k}`,
-      contacts: { create: [{ name: "Primary Contact", designation: "Purchase Head", phone: "9000000001", email: `buyer@${k}.test`, isPrimary: true }] },
+      id: `cust_1_${k}`, tenantId: t, name: `${name} Customer One`, division: "LUB", category: "Gold", type: "Existing",
+      industryId: "ind_pharma", area: "North", paymentTerms: "Credit30", payZone: "GreenZone", outstanding: "40000.00",
+      salespersonId: `user_sales1_${k}`, collectorId: `user_sales1_${k}`,
+      contacts: { create: [{ name: "Primary Contact", designation: "Purchase Head", phone: "9000000001", mobile: "9000000001", whatsapp: "9000000001", sameAsMobile: true, email: `buyer@${k}.test`, isPrimary: true }] },
     },
   });
 
@@ -172,7 +172,7 @@ async function seedTenant(k: string, name: string, region: string, accountManage
   await prisma.mapping.create({ data: { id: `map_1_${k}`, tenantId: t, customerId: `cust_1_${k}`, productId: `prod_a_${k}`, salespersonId: `user_sales1_${k}` } });
   await prisma.salesTarget.create({ data: { tenantId: t, salespersonId: `user_sales1_${k}`, period: "2026-08", targetValue: "500000.00" } });
   await prisma.projection.create({
-    data: { tenantId: t, mappingId: `map_1_${k}`, period: "2026-08", committedQty: "1000", achievedQty: "600", price: "100.00", status: DealStage.NegotiationOralConfirmation },
+    data: { tenantId: t, mappingId: `map_1_${k}`, period: "2026-08", committedQty: "1000", achievedQty: "600", price: "100.00", probability: 80, status: ProjStatus.PartiallyConfirmed },
   });
 
   // Lead
@@ -188,17 +188,19 @@ async function seedTenant(k: string, name: string, region: string, accountManage
   // Order + payment
   const order = await prisma.salesOrder.create({
     data: {
-      tenantId: t, customerId: `cust_1_${k}`, salespersonId: `user_sales1_${k}`,
-      status: OrderStatus.Confirmed, total: "100000.00",
-      items: { create: [{ productId: `prod_a_${k}`, qty: "1000", price: "100.00" }] },
-      statusHistory: { create: [{ status: OrderStatus.Confirmed, changedById: `user_sales1_${k}` }] },
+      tenantId: t, code: `SO-${k.toUpperCase()}-001`, customerId: `cust_1_${k}`, salespersonId: `user_sales1_${k}`,
+      createdById: `user_sales1_${k}`, status: OrderStatus.Acknowledged, total: "100000.00",
+      items: { create: [{ productId: `prod_a_${k}`, qty: "1000", price: "100.00", unit: "kg" }] },
+      statusHistory: { create: [{ status: OrderStatus.Acknowledged, changedById: `user_sales1_${k}` }] },
     },
   });
   await prisma.payment.create({
     data: {
-      tenantId: t, customerId: `cust_1_${k}`, invoiceNo: `INV-${k}-001`, amount: "100000.00",
-      dueDate: new Date("2026-09-15"), payZone: "GreenZone", status: "Pending",
-      followups: { create: [{ note: "Invoice sent, awaiting payment.", nextFollowupDate: new Date("2026-09-01") }] },
+      tenantId: t, refNo: `PAY-${k.toUpperCase()}-001`, customerId: `cust_1_${k}`, customerName: `${name} Customer One`,
+      salespersonId: `user_sales1_${k}`, invoiceNo: `INV-${k}-001`, invoiceDate: new Date("2026-08-15"),
+      amount: "100000.00", received: "60000.00", pending: "40000.00",
+      dueDate: new Date("2026-09-15"), payZone: "GreenZone", nextFollowUp: new Date("2026-09-01"), mail1: true, status: "PartiallyPaid",
+      followups: { create: [{ note: "Invoice sent, awaiting balance.", nextFollowupDate: new Date("2026-09-01") }] },
     },
   });
 

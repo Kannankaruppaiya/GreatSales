@@ -1,159 +1,115 @@
-# Turborepo starter
+# GreatSales CRM
 
-This Turborepo starter is maintained by the Turborepo core team.
+> Commercial, production-grade **multi-tenant sales CRM** — recurring sales
+> projection-vs-achievement tracking, leads, orders, payments and follow-ups for
+> distribution/field-sales teams.
 
-## Using this example
+GreatSales is a SaaS product built as **two surfaces on one backend**:
 
-Run the following command:
+| Surface | Users | Stack |
+|---|---|---|
+| **Mobile app** | Salespeople (offline-first, field use) | React Native / Expo + PowerSync |
+| **Web console** | Tenant Admin + Management (RBAC) | React 19 + Vite + Tailwind v4 |
+| **API** | Both | NestJS modular monolith + Prisma |
+| **Platform console** | Us (SaaS operator) — Phase 2 | separate auth, cross-tenant |
 
-```sh
-npx create-turbo@latest
+Security is **role-at-API + Row-Level-Security-at-DB** (two layers), never
+route-based. See [SECURITY.md](SECURITY.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
+
+---
+
+## Monorepo layout
+
+Turborepo + pnpm workspaces (100% TypeScript).
+
+```
+GreatSales/
+├─ apps/
+│  ├─ api/       NestJS API (Prisma, JWT+RBAC, RLS-scoped)   → :3000  /api/v1
+│  ├─ web/       React + Vite admin/mgmt console              → :5174
+│  └─ mobile/    Expo (React Native) salesperson app
+├─ packages/
+│  ├─ db/        Prisma schema, migrations, seed, RLS policies (@greatsales/db)
+│  ├─ shared/    zod contracts + inferred types (@greatsales/shared)
+│  ├─ ui/        shared React component stubs
+│  ├─ eslint-config/
+│  └─ typescript-config/
+└─ docker-compose.yml   local Postgres (:5433) + Redis (:6380)
 ```
 
-## What's inside?
+## Documentation map
 
-This Turborepo includes the following packages/apps:
+| Doc | What it covers |
+|---|---|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, data flow, tenant isolation, sync |
+| [SECURITY.md](SECURITY.md) | RLS contract, secrets, auth, vulnerability reporting |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Local setup, branching, commits, PR workflow |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Environments, AWS CDK deploy, release process |
+| [DB-SCHEMA-CHECKLIST.md](DB-SCHEMA-CHECKLIST.md) | Data model spec (28+ models, RLS, gaps filled) |
+| [ADMIN-CAPABILITIES.md](ADMIN-CAPABILITIES.md) | Tenant Admin + Platform Super-Admin capability spec |
+| [CHANGELOG.md](CHANGELOG.md) | Notable changes per release |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Team conduct expectations |
+| [LICENSE.md](LICENSE.md) | Proprietary license — all rights reserved |
 
-### Apps and Packages
+---
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+## Quick start (local development)
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+**Prerequisites:** Node 24 LTS (nvm-windows: `24.19.0`), pnpm 9, Docker Desktop.
 
-### Utilities
+```bash
+# 1. install
+pnpm install
 
-This Turborepo has some additional tools already setup for you:
+# 2. start local Postgres (:5433) + Redis (:6380)
+docker compose up -d
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+# 3. configure env (see CONTRIBUTING.md for full detail)
+#    packages/db/.env  -> DATABASE_URL/DIRECT_URL as superuser `greatsales`
+#    apps/api/.env     -> DATABASE_URL as `greatsales_app`, DIRECT_URL as `greatsales`
 
-### Build
+# 4. database: generate client, run migrations, seed
+pnpm --filter @greatsales/db db:generate
+pnpm --filter @greatsales/db db:deploy
+pnpm --filter @greatsales/db db:seed
 
-To build all apps and packages, run the following command:
+# 5. build the shared contracts package (API consumes dist, not raw TS)
+pnpm --filter @greatsales/shared build
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+# 6. run
+pnpm --filter api build && node apps/api/dist/main.js   # API  :3000
+pnpm --filter web dev                                     # Web  :5174
+pnpm --filter mobile start                                # Expo
 ```
 
-Without global `turbo`, use your package manager:
+> ⚠️ **Windows port gotcha:** host `5432` is usually taken by a native
+> `postgres.exe`, so Docker maps Postgres to **5433** and Redis to **6380**.
+> Full env / gotcha notes are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+Seed users share the dev password **`Passw0rd!`**. Login requires
+`{ tenantId, email, password }` — email is unique **per tenant**.
+
+## Common scripts
+
+Run from the repo root (Turborepo fans out across workspaces):
+
+```bash
+pnpm dev            # dev servers
+pnpm build          # build everything
+pnpm lint           # lint
+pnpm check-types    # typecheck
+pnpm format         # prettier
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+Per-workspace: `pnpm --filter <web|api|mobile|@greatsales/db|@greatsales/shared> <script>`.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+---
 
-```sh
-turbo build --filter=docs
-```
+## Status
 
-Without global `turbo`:
+Actively developed. Web console and API walking-skeleton are built and verified;
+feature modules and API↔web wiring are in progress. See [CHANGELOG.md](CHANGELOG.md).
 
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
+## License
 
-### Develop
-
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+Proprietary — © GreatWorks ([greatworks.in](https://greatworks.in/)). All rights reserved. See [LICENSE.md](LICENSE.md).

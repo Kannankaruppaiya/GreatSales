@@ -29,9 +29,23 @@ enum PaymentTerms {
   Credit30
   Credit45
   CashOnDelivery
-  AdvancePayment
+  Advance50Balance // "Advance 50% + Balance Delivery"
+  AdvancePayment // 100% Advance Payment
 }
 
+// LUB / WES — which business line a record belongs to.
+enum Division {
+  LUB
+  WES
+}
+
+// Customer/Lead classification.
+enum CustomerType {
+  Existing
+  New
+}
+
+// New-sales pipeline stages (Lead.stage). 9 stages, mirrors frontend DEAL_STAGES.
 enum DealStage {
   NewEnquiries
   NeedsAnalysis
@@ -42,6 +56,33 @@ enum DealStage {
   ClosedLost
   NoRequirementOrCold
   TrialProblem
+}
+
+// Recurring-projection line statuses (Projection.status). 13 values, mirrors
+// frontend PROJ_STATUSES — distinct from the Lead DealStage pipeline.
+enum ProjStatus {
+  ProjectionCreated
+  FollowUpPending
+  CustomerInterested
+  WaitingApproval
+  POExpected
+  POReceived
+  OrderPlaced
+  PartiallyConfirmed
+  Confirmed
+  Completed
+  DeferredToNextMonth
+  Lost
+  Cancelled
+}
+
+// How goods move for a sales order (SalesOrder.deliveryMode).
+enum DeliveryMode {
+  TransportLR // Transport (LR)
+  Courier
+  CompanyVehicle
+  CustomerPickup
+  HandDelivery
 }
 
 enum LeadStatus {
@@ -58,12 +99,15 @@ enum PayZone {
   Blacklist
 }
 
+// Sales-order lifecycle (SalesOrder.status). 6 stages + Cancelled, mirrors
+// frontend SO_STATUSES.
 enum OrderStatus {
-  Draft
-  Confirmed
-  Dispatched
-  Delivered
-  Completed
+  Created
+  Acknowledged
+  DeliveryPartnerAssigned
+  DeliveredFromWarehouse
+  DeliveredToCustomer
+  CustomerReceiptConfirmed
   Cancelled
 }
 
@@ -117,11 +161,11 @@ model Tenant {
   limits           Json         @default("{}")
   config           Json         @default("{}")
   status           TenantStatus @default(Trial)
-  region           String?      // data residency, e.g. "uk", "in", "us"
-  industry         String?      // tenant company's own industry (metadata)
+  region           String? // data residency, e.g. "uk", "in", "us"
+  industry         String? // tenant company's own industry (metadata)
   contractStart    DateTime?
   contractEnd      DateTime?
-  accountManagerId String?      // operator-side owner → PlatformUser
+  accountManagerId String? // operator-side owner → PlatformUser
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   deletedAt        DateTime?
@@ -140,6 +184,7 @@ model Tenant {
   payments      Payment[]
   followUps     FollowUp[]
   activities    Activity[]
+  remarks       Remark[]
   notifications Notification[]
   attachments   Attachment[]
   auditLogs     AuditLog[]
@@ -153,39 +198,43 @@ model Tenant {
 }
 
 model User {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   tenantId     String
   name         String
   email        String
   username     String
   passwordHash String
   roleId       String
-  managerId    String?  // self-relation → reporting manager
+  managerId    String? // self-relation → reporting manager
   teamId       String?
-  active       Boolean  @default(true)
+  active       Boolean   @default(true)
   lastIp       String?
   lastLoginAt  DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  tenant   Tenant  @relation(fields: [tenantId], references: [id])
-  role     Role    @relation(fields: [roleId], references: [id])
-  manager  User?   @relation("UserManager", fields: [managerId], references: [id])
-  reports  User[]  @relation("UserManager")
-  team     Team?   @relation("TeamMembers", fields: [teamId], references: [id])
+  tenant       Tenant @relation(fields: [tenantId], references: [id])
+  role         Role   @relation(fields: [roleId], references: [id])
+  manager      User?  @relation("UserManager", fields: [managerId], references: [id])
+  reports      User[] @relation("UserManager")
+  team         Team?  @relation("TeamMembers", fields: [teamId], references: [id])
   managedTeams Team[] @relation("TeamManager")
 
-  customers      Customer[]
-  mappings       Mapping[]
-  salesTargets   SalesTarget[]
-  leads          Lead[]
-  salesOrders    SalesOrder[]
-  followUps      FollowUp[]
-  activities     Activity[]
-  notifications  Notification[]
-  attachments    Attachment[]
-  auditLogs      AuditLog[]
+  customers          Customer[]
+  collectorCustomers Customer[]           @relation("CustomerCollector")
+  mappings           Mapping[]
+  salesTargets       SalesTarget[]
+  leads              Lead[]
+  salesOrders        SalesOrder[]
+  createdOrders      SalesOrder[]         @relation("OrderCreatedBy")
+  paymentsOwned      Payment[]            @relation("PaymentOwner")
+  followUps          FollowUp[]
+  activities         Activity[]
+  remarks            Remark[]
+  notifications      Notification[]
+  attachments        Attachment[]
+  auditLogs          AuditLog[]
   orderStatusChanges OrderStatusHistory[]
 
   @@unique([tenantId, email])
@@ -197,12 +246,12 @@ model User {
 }
 
 model Team {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   tenantId  String
   name      String
   managerId String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   tenant  Tenant @relation(fields: [tenantId], references: [id])
@@ -262,13 +311,18 @@ model Customer {
   id            String            @id @default(cuid())
   tenantId      String
   name          String
-  category      CustomerCategory?
+  division      Division?
+  category      CustomerCategory? // "tier" on the frontend
+  type          CustomerType? // Existing | New
   industryId    String?
   subIndustry   String?
   area          String?
   paymentTerms  PaymentTerms?
   payZone       PayZone?
+  outstanding   Decimal           @default(0) @db.Decimal(14, 2)
+  active        Boolean           @default(true)
   salespersonId String
+  collectorId   String? // payment collector (may differ from salesperson)
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   deletedAt     DateTime?
@@ -276,6 +330,7 @@ model Customer {
   tenant      Tenant            @relation(fields: [tenantId], references: [id])
   industry    Industry?         @relation(fields: [industryId], references: [id])
   salesperson User              @relation(fields: [salespersonId], references: [id])
+  collector   User?             @relation("CustomerCollector", fields: [collectorId], references: [id])
   contacts    CustomerContact[]
   mappings    Mapping[]
   salesOrders SalesOrder[]
@@ -283,20 +338,24 @@ model Customer {
 
   @@index([tenantId])
   @@index([salespersonId])
+  @@index([collectorId])
   @@index([category])
   @@index([deletedAt])
 }
 
 model CustomerContact {
-  id          String   @id @default(cuid())
-  customerId  String
-  name        String
-  designation String?
-  phone       String?
-  email       String?
-  isPrimary   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  customerId   String
+  name         String
+  designation  String?
+  phone        String?
+  mobile       String?
+  whatsapp     String?
+  sameAsMobile Boolean  @default(true)
+  email        String?
+  isPrimary    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   customer Customer @relation(fields: [customerId], references: [id])
 
@@ -314,8 +373,9 @@ model Principal {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id])
-  products Product[]
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  products     Product[]
+  leadProducts LeadProduct[]
 
   @@index([tenantId])
 }
@@ -325,17 +385,22 @@ model Product {
   tenantId    String
   principalId String
   name        String
+  sku         String?
+  division    Division?
   unit        String?
-  basePrice   Decimal?  @db.Decimal(14, 2)
+  basePrice   Decimal?  @db.Decimal(14, 2) // "listPrice" on the frontend
+  active      Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  tenant     Tenant           @relation(fields: [tenantId], references: [id])
-  principal  Principal        @relation(fields: [principalId], references: [id])
-  mappings   Mapping[]
-  orderItems SalesOrderItem[]
+  tenant       Tenant           @relation(fields: [tenantId], references: [id])
+  principal    Principal        @relation(fields: [principalId], references: [id])
+  mappings     Mapping[]
+  orderItems   SalesOrderItem[]
+  leadProducts LeadProduct[]
 
+  @@unique([tenantId, sku])
   @@index([tenantId])
   @@index([principalId])
 }
@@ -346,6 +411,7 @@ model Mapping {
   customerId    String
   productId     String
   salespersonId String
+  customPrice   Decimal?  @db.Decimal(14, 2) // agreed price override for this customer×product
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
@@ -368,7 +434,7 @@ model SalesTarget {
   id            String   @id @default(cuid())
   tenantId      String
   salespersonId String
-  period        String   // YYYY-MM
+  period        String // YYYY-MM
   targetValue   Decimal  @db.Decimal(14, 2)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -382,41 +448,61 @@ model SalesTarget {
 }
 
 model Projection {
-  id           String    @id @default(cuid())
+  id           String     @id @default(cuid())
   tenantId     String
   mappingId    String
-  period       String    // YYYY-MM
-  committedQty Decimal   @default(0) @db.Decimal(14, 2)
-  achievedQty  Decimal   @default(0) @db.Decimal(14, 2)
-  price        Decimal?  @db.Decimal(14, 2)
-  status       DealStage @default(NewEnquiries)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  period       String // YYYY-MM ("month" on the frontend)
+  committedQty Decimal    @default(0) @db.Decimal(14, 2) // "projectedQty" on the frontend
+  achievedQty  Decimal    @default(0) @db.Decimal(14, 2)
+  price        Decimal?   @db.Decimal(14, 2)
+  customPrice  Decimal?   @db.Decimal(14, 2)
+  probability  Int? // 0–100 win confidence (weighted pipeline)
+  status       ProjStatus @default(ProjectionCreated)
+  nextFollowUp DateTime?
+  targetDate   DateTime?
+  salesOrderId String? // linked SO once the projection converts
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id])
-  mapping Mapping @relation(fields: [mappingId], references: [id])
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  mapping    Mapping     @relation(fields: [mappingId], references: [id])
+  salesOrder SalesOrder? @relation(fields: [salesOrderId], references: [id])
 
   @@unique([mappingId, period])
   @@index([tenantId])
   @@index([period])
+  @@index([salesOrderId])
 }
 
 // ============================================================
 // 5. LEADS (NEW SALES)
 // ============================================================
 model Lead {
-  id            String     @id @default(cuid())
-  tenantId      String
-  customerName  String
-  salespersonId String
-  stage         DealStage  @default(NewEnquiries)
-  leadStatus    LeadStatus?
-  industryId    String?
-  area          String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  deletedAt     DateTime?
+  id             String            @id @default(cuid())
+  tenantId       String
+  customerName   String // "name" on the frontend
+  division       Division?
+  tier           CustomerCategory? // Platinum | Gold | Silver | Brass
+  type           CustomerType? // Existing | New
+  salespersonId  String
+  stage          DealStage         @default(NewEnquiries)
+  leadStatus     LeadStatus?
+  industryId     String?
+  subIndustry    String?
+  area           String?
+  address        String?
+  contactName    String?
+  phone          String?
+  whatsapp       String?
+  sameAsMobile   Boolean           @default(true)
+  email          String?
+  nextFollowUp   DateTime?
+  expClose       DateTime? // expected close date
+  stageUpdatedAt DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  deletedAt      DateTime?
 
   tenant      Tenant         @relation(fields: [tenantId], references: [id])
   salesperson User           @relation(fields: [salespersonId], references: [id])
@@ -431,13 +517,22 @@ model Lead {
 model LeadProduct {
   id          String   @id @default(cuid())
   leadId      String
+  principalId String?
+  productId   String?
   productName String
   brand       String?
+  qty         Decimal? @db.Decimal(14, 2)
+  unit        String?
+  price       Decimal? @db.Decimal(14, 2)
   value       Decimal? @db.Decimal(14, 2)
 
-  lead Lead @relation(fields: [leadId], references: [id])
+  lead      Lead       @relation(fields: [leadId], references: [id])
+  principal Principal? @relation(fields: [principalId], references: [id])
+  product   Product?   @relation(fields: [productId], references: [id])
 
   @@index([leadId])
+  @@index([principalId])
+  @@index([productId])
 }
 
 model LeadActivity {
@@ -455,23 +550,40 @@ model LeadActivity {
 // 6. ORDERS & PAYMENTS
 // ============================================================
 model SalesOrder {
-  id            String      @id @default(cuid())
-  tenantId      String
-  customerId    String
-  salespersonId String
-  date          DateTime    @default(now())
-  status        OrderStatus @default(Draft)
-  total         Decimal     @default(0) @db.Decimal(14, 2)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  deletedAt     DateTime?
+  id                   String        @id @default(cuid())
+  tenantId             String
+  code                 String // human-facing SO number
+  customerId           String
+  salespersonId        String
+  createdById          String? // who raised the order
+  date                 DateTime      @default(now())
+  status               OrderStatus   @default(Created)
+  total                Decimal       @default(0) @db.Decimal(14, 2)
+  isUrgent             Boolean       @default(false)
+  paymentTerms         String?
+  advanceAmount        Decimal?      @db.Decimal(14, 2)
+  advanceRef           String?
+  deliveryMode         DeliveryMode?
+  deliveryAddress      String?
+  expectedDelivery     DateTime?
+  transporterName      String?
+  lrNumber             String?
+  deliveryInstructions String?
+  cancelReason         String?
+  cancelledAt          DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  deletedAt            DateTime?
 
   tenant        Tenant               @relation(fields: [tenantId], references: [id])
   customer      Customer             @relation(fields: [customerId], references: [id])
   salesperson   User                 @relation(fields: [salespersonId], references: [id])
+  createdBy     User?                @relation("OrderCreatedBy", fields: [createdById], references: [id])
   items         SalesOrderItem[]
   statusHistory OrderStatusHistory[]
+  projections   Projection[]
 
+  @@unique([tenantId, code])
   @@index([tenantId])
   @@index([customerId])
   @@index([salespersonId])
@@ -483,6 +595,7 @@ model SalesOrderItem {
   productId String
   qty       Decimal @db.Decimal(14, 2)
   price     Decimal @db.Decimal(14, 2)
+  unit      String?
 
   order   SalesOrder @relation(fields: [orderId], references: [id])
   product Product    @relation(fields: [productId], references: [id])
@@ -495,6 +608,7 @@ model OrderStatusHistory {
   id          String      @id @default(cuid())
   orderId     String
   status      OrderStatus
+  note        String?
   changedById String
   at          DateTime    @default(now())
 
@@ -505,26 +619,40 @@ model OrderStatusHistory {
 }
 
 model Payment {
-  id         String        @id @default(cuid())
-  tenantId   String
-  customerId String
-  invoiceNo  String
-  amount     Decimal       @db.Decimal(14, 2)
-  dueDate    DateTime?
-  agingDays  Int?
-  payZone    PayZone?
-  status     PaymentStatus @default(Pending)
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  deletedAt  DateTime?
+  id            String        @id @default(cuid())
+  tenantId      String
+  refNo         String? // human-facing payment reference
+  customerId    String? // nullable: manual payment not linked to a customer record
+  customerName  String? // fallback label when customerId is null
+  salespersonId String? // "ownerId" on the frontend
+  invoiceNo     String?
+  invoiceDate   DateTime?
+  amount        Decimal       @db.Decimal(14, 2)
+  received      Decimal       @default(0) @db.Decimal(14, 2)
+  pending       Decimal?      @db.Decimal(14, 2)
+  dueDate       DateTime?
+  agingDays     Int?
+  payZone       PayZone?
+  delayReason   String?
+  nextFollowUp  DateTime?
+  mail1         Boolean       @default(false)
+  mail2         Boolean       @default(false)
+  mail3         Boolean       @default(false)
+  mail4         Boolean       @default(false)
+  status        PaymentStatus @default(Pending)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
 
-  tenant    Tenant            @relation(fields: [tenantId], references: [id])
-  customer  Customer          @relation(fields: [customerId], references: [id])
-  followups PaymentFollowup[]
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  customer    Customer?         @relation(fields: [customerId], references: [id])
+  salesperson User?             @relation("PaymentOwner", fields: [salespersonId], references: [id])
+  followups   PaymentFollowup[]
 
   @@unique([tenantId, invoiceNo])
   @@index([tenantId])
   @@index([customerId])
+  @@index([salespersonId])
   @@index([status])
 }
 
@@ -546,9 +674,12 @@ model PaymentFollowup {
 model FollowUp {
   id            String     @id @default(cuid())
   tenantId      String
-  entityType    EntityType
-  entityId      String
-  salespersonId String
+  entityType    EntityType // "kind" on the frontend (projection|lead|payment)
+  entityId      String // "targetId" on the frontend
+  salespersonId String // "ownerId" on the frontend
+  title         String?
+  subtitle      String?
+  amount        Decimal?   @db.Decimal(14, 2)
   dueDate       DateTime
   done          Boolean    @default(false)
   note          String?
@@ -575,6 +706,25 @@ model Activity {
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([entityType, entityId])
+}
+
+// Free-text remarks/notes attached to a Projection, Lead, Payment, Order or
+// Customer. Mirrors the frontend RemarkEntry[] embedded on those records, but
+// normalized so remarks are queryable and audit-friendly.
+model Remark {
+  id         String     @id @default(cuid())
+  tenantId   String
+  entityType EntityType
+  entityId   String
+  userId     String? // author (may be null for system-generated notes)
+  text       String
+  at         DateTime   @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User?  @relation(fields: [userId], references: [id])
 
   @@index([tenantId])
   @@index([entityType, entityId])
@@ -678,10 +828,10 @@ model PlatformUser {
 model PlatformAuditLog {
   id             String   @id @default(cuid())
   platformUserId String?
-  action         String   // e.g. "tenant.suspend", "tenant.impersonate"
-  targetType     String   // "Tenant" | "PlatformUser" | ...
+  action         String // e.g. "tenant.suspend", "tenant.impersonate"
+  targetType     String // "Tenant" | "PlatformUser" | ...
   targetId       String?
-  tenantId       String?  // which tenant was affected (if any)
+  tenantId       String? // which tenant was affected (if any)
   metadata       Json?
   ip             String?
   at             DateTime @default(now())
