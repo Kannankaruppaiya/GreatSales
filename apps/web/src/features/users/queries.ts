@@ -39,12 +39,13 @@ export function usersQueryFn(p: UserParams, cursor: string | undefined) {
   );
 }
 
-export function useUsers(params: UserParams = {}) {
+export function useUsers(params: UserParams = {}, opts: { enabled?: boolean } = {}) {
   return useInfiniteQuery({
     queryKey: userKeys.list(params),
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => usersQueryFn(params, pageParam),
     getNextPageParam: (last) => last.nextCursor ?? undefined,
+    enabled: opts.enabled ?? true,
   });
 }
 

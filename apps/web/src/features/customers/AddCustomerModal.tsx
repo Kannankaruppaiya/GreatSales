@@ -1,14 +1,18 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Building2 } from "lucide-react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
 import { ApiError } from "@/lib/api";
+import { CUSTOMER_TIERS, INDUSTRIAL_AREAS } from "@/data/constants";
 import {
-  CUSTOMER_TIERS,
-  INDUSTRIAL_AREAS,
-  PAYMENT_TERMS,
-  PAY_ZONES,
-} from "@/data/constants";
+  PAYMENT_TERMS_VALUES,
+  PAYMENT_TERMS_LABELS,
+  PAY_ZONE_VALUES,
+  PAY_ZONE_LABELS,
+  type PaymentTermsValue,
+  type PayZoneValue,
+} from "@/features/customers/types";
 import { useCreateCustomer } from "@/features/customers/queries";
+import { useUsers, flattenUsers } from "@/features/users/queries";
 
 export interface CustomerFkOption {
   id: string;
@@ -20,7 +24,7 @@ const CUSTOMER_TYPES = ["Existing", "New"] as const;
 export function AddCustomerModal({
   open,
   onClose,
-  salespeople = [],
+  salespeople,
   collectors = [],
   industries = [],
 }: {
@@ -32,6 +36,25 @@ export function AddCustomerModal({
 }) {
   const create = useCreateCustomer();
 
+  // When the caller doesn't supply salesperson options (the global Topbar
+  // Quick-Create → Customer entry in layout.tsx — and DashboardPage.tsx /
+  // ProjectionsPage.mock.tsx, which mount this modal the same bare way —
+  // has no loaded customer rows to derive them from), fetch users directly
+  // so Create still works instead of always showing "no salespersons".
+  // CustomersPage passes its own rows-derived list, which takes priority
+  // and skips this fetch entirely (no /users endpoint hit is fired there).
+  const needsOwnFetch = salespeople === undefined;
+  const usersQuery = useUsers({}, { enabled: needsOwnFetch && open });
+  const fetchedSalespeople = useMemo(
+    () =>
+      flattenUsers(usersQuery.data)
+        .filter((u) => u.roleName === "sales")
+        .map((u) => ({ id: u.id, name: u.name })),
+    [usersQuery.data],
+  );
+  const salespersonOptions = salespeople ?? fetchedSalespeople;
+  const salespeopleLoading = needsOwnFetch && usersQuery.isLoading;
+
   const [name, setName] = useState("");
   const [salespersonId, setSalespersonId] = useState("");
   const [category, setCategory] = useState<string>(CUSTOMER_TIERS[0]);
@@ -39,12 +62,12 @@ export function AddCustomerModal({
   const [industryId, setIndustryId] = useState("");
   const [subIndustry, setSubIndustry] = useState("");
   const [area, setArea] = useState<string>(INDUSTRIAL_AREAS[0]);
-  const [paymentTerms, setPaymentTerms] = useState<string>(PAYMENT_TERMS[2]); // 30 Days Credit
-  const [payZone, setPayZone] = useState<string>(PAY_ZONES[0]);
+  const [paymentTerms, setPaymentTerms] = useState<PaymentTermsValue>("Credit30");
+  const [payZone, setPayZone] = useState<PayZoneValue>("GreenZone");
   const [collectorId, setCollectorId] = useState("");
   const [outstanding, setOutstanding] = useState<string>("");
 
-  const selectedSalespersonId = salespersonId || salespeople[0]?.id || "";
+  const selectedSalespersonId = salespersonId || salespersonOptions[0]?.id || "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,8 +97,8 @@ export function AddCustomerModal({
       setIndustryId("");
       setSubIndustry("");
       setArea(INDUSTRIAL_AREAS[0]);
-      setPaymentTerms(PAYMENT_TERMS[2]);
-      setPayZone(PAY_ZONES[0]);
+      setPaymentTerms("Credit30");
+      setPayZone("GreenZone");
       setCollectorId("");
       setOutstanding("");
       onClose();
@@ -143,13 +166,15 @@ export function AddCustomerModal({
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
               Salesperson *
             </label>
-            {salespeople.length === 0 ? (
+            {salespeopleLoading ? (
+              <p className="text-[11px] text-muted">Loading salespersons…</p>
+            ) : salespersonOptions.length === 0 ? (
               <p className="text-[11px] text-muted">
                 No salespersons yet — add a customer for an existing salesperson first.
               </p>
             ) : (
               <Select value={selectedSalespersonId} onChange={(e) => setSalespersonId(e.target.value)}>
-                {salespeople.map((s) => (
+                {salespersonOptions.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
                   </option>
@@ -235,10 +260,13 @@ export function AddCustomerModal({
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
               Payment Terms
             </label>
-            <Select value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)}>
-              {PAYMENT_TERMS.map((t) => (
+            <Select
+              value={paymentTerms}
+              onChange={(e) => setPaymentTerms(e.target.value as PaymentTermsValue)}
+            >
+              {PAYMENT_TERMS_VALUES.map((t) => (
                 <option key={t} value={t}>
-                  {t}
+                  {PAYMENT_TERMS_LABELS[t]}
                 </option>
               ))}
             </Select>
@@ -247,10 +275,10 @@ export function AddCustomerModal({
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
               Payment Risk Zone
             </label>
-            <Select value={payZone} onChange={(e) => setPayZone(e.target.value)}>
-              {PAY_ZONES.map((z) => (
+            <Select value={payZone} onChange={(e) => setPayZone(e.target.value as PayZoneValue)}>
+              {PAY_ZONE_VALUES.map((z) => (
                 <option key={z} value={z}>
-                  {z}
+                  {PAY_ZONE_LABELS[z]}
                 </option>
               ))}
             </Select>

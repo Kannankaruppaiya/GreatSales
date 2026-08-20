@@ -53,3 +53,45 @@ export interface CustomerCreate {
 }
 
 export type CustomerUpdate = Partial<CustomerCreate>;
+
+/**
+ * `paymentTerms` / `payZone` are raw DB enum strings on the wire (see
+ * packages/shared/src/enums.ts — PaymentTermsSchema / PayZoneSchema); the API
+ * rejects anything else with a 400. The web shows friendly labels in
+ * `<select>`s, so each `<option value>` here is the raw value itself and the
+ * label map only supplies the visible text — there is no separate
+ * label→raw translation step for a mismatch to hide behind.
+ *
+ * `category` (CUSTOMER_TIERS in data/constants.ts) and `type` ("Existing" /
+ * "New") were checked against CustomerCategorySchema / CustomerTypeSchema in
+ * the same file and already match the raw DB values exactly, so they need no
+ * bridge.
+ */
+export const PAYMENT_TERMS_VALUES = [
+  "Immediate",
+  "Credit15",
+  "Credit30",
+  "Credit45",
+  "CashOnDelivery",
+  "Advance50Balance",
+  "AdvancePayment",
+] as const;
+export type PaymentTermsValue = (typeof PAYMENT_TERMS_VALUES)[number];
+export const PAYMENT_TERMS_LABELS: Record<PaymentTermsValue, string> = {
+  Immediate: "Immediate",
+  Credit15: "15 Days Credit",
+  Credit30: "30 Days Credit",
+  Credit45: "45 Days Credit",
+  CashOnDelivery: "Cash on Delivery",
+  Advance50Balance: "Advance 50% + Balance Delivery",
+  AdvancePayment: "100% Advance Payment",
+};
+
+export const PAY_ZONE_VALUES = ["RedZone", "YellowZone", "GreenZone", "Blacklist"] as const;
+export type PayZoneValue = (typeof PAY_ZONE_VALUES)[number];
+export const PAY_ZONE_LABELS: Record<PayZoneValue, string> = {
+  RedZone: "Red Zone",
+  YellowZone: "Yellow Zone",
+  GreenZone: "Green Zone",
+  Blacklist: "Blacklist",
+};

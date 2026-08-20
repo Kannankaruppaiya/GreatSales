@@ -36,7 +36,10 @@ export default function CustomersPage() {
 
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [editCustomer, setEditCustomer] = useState<CustomerRow | null>(null);
-  const [selectedDrawerCustId, setSelectedDrawerCustId] = useState<string | null>(null);
+  // The full row, not just an id — the drawer is handed it directly so it
+  // never has to re-resolve a filtered/paginated row via its own fallback
+  // fetch (which only sees an unfiltered first page).
+  const [selectedDrawerCustomer, setSelectedDrawerCustomer] = useState<CustomerRow | null>(null);
   const [showReassign, setShowReassign] = useState(false);
 
   const canEdit = role !== "mgmt";
@@ -157,7 +160,7 @@ export default function CustomersPage() {
                     <td className="py-2.5 px-3">
                       <button
                         type="button"
-                        onClick={() => setSelectedDrawerCustId(c.id)}
+                        onClick={() => setSelectedDrawerCustomer(c)}
                         className="font-bold text-ink hover:text-brand hover:underline cursor-pointer text-left block"
                       >
                         {c.name}
@@ -183,7 +186,7 @@ export default function CustomersPage() {
                       <div className="flex items-center justify-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => setSelectedDrawerCustId(c.id)}
+                          onClick={() => setSelectedDrawerCustomer(c)}
                           className="text-brand hover:underline font-bold text-xs cursor-pointer"
                         >
                           360 View
@@ -226,8 +229,9 @@ export default function CustomersPage() {
 
       {/* Customer 360 Drawer */}
       <CustomerDrawer
-        customerId={selectedDrawerCustId}
-        onClose={() => setSelectedDrawerCustId(null)}
+        customerId={selectedDrawerCustomer?.id ?? null}
+        customer={selectedDrawerCustomer ?? undefined}
+        onClose={() => setSelectedDrawerCustomer(null)}
       />
 
       {/* Modals */}

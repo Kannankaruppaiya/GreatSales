@@ -4,12 +4,21 @@ import { useAuthRole } from "@/store/auth";
 import { ApiError } from "@/lib/api";
 import { Button, Skeleton } from "@/components/ui";
 import { useCustomers, useDeleteCustomer, flattenCustomers } from "@/features/customers/queries";
+import type { CustomerRow } from "@/features/customers/types";
 
 /**
  * Customer 360 slide-over. Rendered from several pages (CustomersPage, the
  * global layout quick-view, Dashboard, FollowUps, Payments, the mock
  * Projections page) so its prop shape (`customerId: string | null`) stays
  * unchanged — only this component's internals were rewired to the real API.
+ *
+ * `customer` is an optional row a caller can pass directly (CustomersPage
+ * does — it already has the row from its own filtered/paginated list).
+ * There is no GET /customers/:id endpoint, so a caller that only has an id
+ * (the other call sites below) falls back to an unfiltered, first-page
+ * `useCustomers()` fetch + `.find()` — which will legitimately miss a row
+ * that's filtered out or beyond page 1 of that fallback fetch. Passing
+ * `customer` avoids that gap entirely.
  *
  * The recurring-projections / sales-orders / payments tabs the old mock
  * drawer showed are dropped here: they read `trackerStore.projections` /
@@ -20,24 +29,29 @@ import { useCustomers, useDeleteCustomer, flattenCustomers } from "@/features/cu
  */
 export function CustomerDrawer({
   customerId,
+  customer: customerProp,
   onClose,
 }: {
   customerId: string | null;
+  customer?: CustomerRow;
   onClose: () => void;
 }) {
   const role = useAuthRole();
-  // Gated on `customerId` being set: this drawer is mounted unconditionally
-  // from `layout.tsx` on every page, so an ungated query would fetch the
-  // customers list on every route even while the drawer is closed.
-  const q = useCustomers({}, { enabled: !!customerId });
+  // Only fall back to the unfiltered list fetch when the caller didn't
+  // already hand us the row. Gated on `customerId` being set too: this
+  // drawer is mounted unconditionally from `layout.tsx` on every page, so an
+  // ungated query would fetch the customers list on every route even while
+  // the drawer is closed.
+  const needsFetch = !customerProp && !!customerId;
+  const q = useCustomers({}, { enabled: needsFetch });
   const del = useDeleteCustomer();
   const [deleteError, setDeleteError] = useState("");
 
-  const customers = useMemo(() => flattenCustomers(q.data), [q.data]);
-  const customer = useMemo(
-    () => customers.find((c) => c.id === customerId) ?? null,
-    [customers, customerId]
-  );
+  const fetchedCustomers = useMemo(() => flattenCustomers(q.data), [q.data]);
+  const customer =
+    customerProp ?? (needsFetch ? (fetchedCustomers.find((c) => c.id === customerId) ?? null) : null);
+  const isLoading = needsFetch && q.isLoading;
+  const isError = needsFetch && q.isError;
 
   if (!customerId) return null;
 
@@ -65,9 +79,24 @@ export function CustomerDrawer({
 
       {/* Drawer Panel */}
       <div className="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-surface border-l border-line shadow-2xl flex flex-col animate-in slide-in-from-right duration-250">
-        {q.isLoading ? (
+        {isLoading ? (
           <div className="p-4">
             <Skeleton className="h-32 w-full rounded-xl" />
+          </div>
+        ) : isError ? (
+          <div className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-red">Failed to load customer</span>
+              <button
+                onClick={onClose}
+                className="grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-ink cursor-pointer transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-xs text-muted">
+              {q.error instanceof ApiError ? q.error.message : "Something went wrong."}
+            </p>
           </div>
         ) : !customer ? (
           <div className="p-4 space-y-3">

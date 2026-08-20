@@ -2,9 +2,17 @@ import { useState } from "react";
 import { Building2 } from "lucide-react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { CUSTOMER_TIERS, INDUSTRIAL_AREAS, PAYMENT_TERMS, PAY_ZONES } from "@/data/constants";
+import { CUSTOMER_TIERS, INDUSTRIAL_AREAS } from "@/data/constants";
 import { useUpdateCustomer } from "@/features/customers/queries";
-import type { CustomerRow } from "@/features/customers/types";
+import {
+  PAYMENT_TERMS_VALUES,
+  PAYMENT_TERMS_LABELS,
+  PAY_ZONE_VALUES,
+  PAY_ZONE_LABELS,
+  type PaymentTermsValue,
+  type PayZoneValue,
+  type CustomerRow,
+} from "@/features/customers/types";
 import type { CustomerFkOption } from "@/features/customers/AddCustomerModal";
 
 const CUSTOMER_TYPES = ["Existing", "New"] as const;
@@ -35,8 +43,12 @@ export function EditCustomerModal({
   const [industryId, setIndustryId] = useState(customer.industryId || "");
   const [subIndustry, setSubIndustry] = useState(customer.subIndustry || "");
   const [area, setArea] = useState(customer.area || "");
-  const [paymentTerms, setPaymentTerms] = useState(customer.paymentTerms || PAYMENT_TERMS[2]);
-  const [payZone, setPayZone] = useState(customer.payZone || PAY_ZONES[0]);
+  const [paymentTerms, setPaymentTerms] = useState<PaymentTermsValue>(
+    (customer.paymentTerms as PaymentTermsValue) || "Credit30",
+  );
+  const [payZone, setPayZone] = useState<PayZoneValue>(
+    (customer.payZone as PayZoneValue) || "GreenZone",
+  );
   const [collectorId, setCollectorId] = useState(customer.collectorId || "");
   const [outstanding, setOutstanding] = useState(String(customer.outstanding ?? ""));
   const [active, setActive] = useState(customer.active);
@@ -209,10 +221,13 @@ export function EditCustomerModal({
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
               Payment Terms
             </label>
-            <Select value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)}>
-              {PAYMENT_TERMS.map((t) => (
+            <Select
+              value={paymentTerms}
+              onChange={(e) => setPaymentTerms(e.target.value as PaymentTermsValue)}
+            >
+              {PAYMENT_TERMS_VALUES.map((t) => (
                 <option key={t} value={t}>
-                  {t}
+                  {PAYMENT_TERMS_LABELS[t]}
                 </option>
               ))}
             </Select>
@@ -221,10 +236,10 @@ export function EditCustomerModal({
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
               Payment Risk Zone
             </label>
-            <Select value={payZone} onChange={(e) => setPayZone(e.target.value)}>
-              {PAY_ZONES.map((z) => (
+            <Select value={payZone} onChange={(e) => setPayZone(e.target.value as PayZoneValue)}>
+              {PAY_ZONE_VALUES.map((z) => (
                 <option key={z} value={z}>
-                  {z}
+                  {PAY_ZONE_LABELS[z]}
                 </option>
               ))}
             </Select>
