@@ -18,13 +18,13 @@ import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
 import { StatusBadge } from "@/components/StatusBadge";
-import { AddCustomerModal } from "@/components/modals/AddCustomerModal";
+import { AddCustomerModal } from "@/features/customers/AddCustomerModal";
 import { AddMappingModal } from "@/components/modals/AddMappingModal";
 import { RemarksModal } from "@/components/modals/RemarksModal";
-import { FollowUpModal } from "@/components/modals/FollowUpModal";
-import { CreateSalesOrderModal } from "@/components/modals/CreateSalesOrderModal";
-import { SalesOrderDetailModal } from "@/components/modals/SalesOrderDetailModal";
-import { CustomerDrawer } from "@/components/CustomerDrawer";
+import { FollowUpModal } from "@/features/followups/FollowUpModal";
+import { CreateSalesOrderModal } from "@/features/orders/CreateSalesOrderModal";
+import { SalesOrderDetailModal } from "@/features/orders/SalesOrderDetailModal";
+import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
 import { toast } from "@/store/toastStore";
 import type { Customer, Principal, Product, Projection, SalesOrder, User } from "@/data/types";
 

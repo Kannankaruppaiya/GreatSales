@@ -14,9 +14,9 @@ import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
 import { StatusBadge } from "@/components/StatusBadge";
-import { CreateSalesOrderModal } from "@/components/modals/CreateSalesOrderModal";
-import { SalesOrderDetailModal } from "@/components/modals/SalesOrderDetailModal";
-import { InvoicePrintModal } from "@/components/InvoicePrintModal";
+import { CreateSalesOrderModal } from "@/features/orders/CreateSalesOrderModal";
+import { SalesOrderDetailModal } from "@/features/orders/SalesOrderDetailModal";
+import { InvoicePrintModal } from "@/features/orders/InvoicePrintModal";
 import type { SalesOrder } from "@/data/types";
 
 function fmtDur(ms: number | null): string {

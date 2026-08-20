@@ -16,8 +16,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
 import { TierBadge } from "@/components/StatusBadge";
 import { AddMappingModal } from "@/components/modals/AddMappingModal";
-import { CreateSalesOrderModal } from "@/components/modals/CreateSalesOrderModal";
-import { FollowUpModal } from "@/components/modals/FollowUpModal";
+import { CreateSalesOrderModal } from "@/features/orders/CreateSalesOrderModal";
+import { FollowUpModal } from "@/features/followups/FollowUpModal";
 import type { Projection } from "@/data/types";
 
 export function CustomerDrawer({

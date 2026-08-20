@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import UsersPage from "@/pages/UsersPage";
+import UsersPage from "@/features/users/UsersPage";
 import { useAuth } from "@/store/auth";
 import { useTrackerStore } from "@/store/trackerStore";
 

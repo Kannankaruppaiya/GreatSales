@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useManagementStore } from "@/store/managementStore";
+import { useManagementStore } from "@/features/management/managementStore";
 
 const CURRENCIES = ["INR (₹)", "USD ($)", "GBP (£)", "EUR (€)"];
 

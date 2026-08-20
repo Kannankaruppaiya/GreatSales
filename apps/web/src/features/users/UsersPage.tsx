@@ -6,8 +6,8 @@ import { useAuthRole } from "@/store/auth";
 import { useMockOwnerId } from "@/lib/mockOwner";
 import { cn } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
-import { EditUserModal } from "@/components/modals/EditUserModal";
-import { ReassignCustomersModal } from "@/components/modals/ReassignCustomersModal";
+import { EditUserModal } from "@/features/users/EditUserModal";
+import { ReassignCustomersModal } from "@/features/customers/ReassignCustomersModal";
 import type { User } from "@/data/types";
 
 export default function UsersPage() {

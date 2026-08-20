@@ -2,8 +2,8 @@ import { useEffect } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { useUi } from "@/store/ui";
 import { useIsOwner } from "@/store/auth";
-import { useManagementStore } from "@/store/managementStore";
-import { switchManagement } from "@/store/managementActions";
+import { useManagementStore } from "@/features/management/managementStore";
+import { switchManagement } from "@/features/management/managementActions";
 
 export function ManagementProvider({ children }: { children: React.ReactNode }) {
   const { managementId } = useParams();

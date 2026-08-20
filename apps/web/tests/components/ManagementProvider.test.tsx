@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
-import { ManagementProvider } from "@/components/ManagementProvider";
+import { ManagementProvider } from "@/features/management/ManagementProvider";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import { useAuth } from "@/store/auth";
-import { useManagementStore, emptyDataset } from "@/store/managementStore";
+import { useManagementStore, emptyDataset } from "@/features/management/managementStore";
 
 function seedAuth(role: "super_admin" | "admin") {
   useAuth.setState({

@@ -6,9 +6,9 @@ import { useAuthRole } from "@/store/auth";
 import { useMockOwnerId } from "@/lib/mockOwner";
 import { Button, Card } from "@/components/ui";
 import { TierBadge } from "@/components/StatusBadge";
-import { AddCustomerModal } from "@/components/modals/AddCustomerModal";
-import { EditCustomerModal } from "@/components/modals/EditCustomerModal";
-import { CustomerDrawer } from "@/components/CustomerDrawer";
+import { AddCustomerModal } from "@/features/customers/AddCustomerModal";
+import { EditCustomerModal } from "@/features/customers/EditCustomerModal";
+import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
 import { toast } from "@/store/toastStore";
 import type { Customer } from "@/data/types";
 

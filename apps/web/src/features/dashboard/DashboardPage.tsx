@@ -15,12 +15,12 @@ import { cn } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CompareLegend, GroupedBars } from "@/components/charts";
-import { LeadDetailModal } from "@/components/modals/LeadDetailModal";
-import { FollowUpModal } from "@/components/modals/FollowUpModal";
-import { CustomerDrawer } from "@/components/CustomerDrawer";
-import { AddLeadModal } from "@/components/modals/AddLeadModal";
-import { AddCustomerModal } from "@/components/modals/AddCustomerModal";
-import { CreateSalesOrderModal } from "@/components/modals/CreateSalesOrderModal";
+import { LeadDetailModal } from "@/features/leads/LeadDetailModal";
+import { FollowUpModal } from "@/features/followups/FollowUpModal";
+import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
+import { AddLeadModal } from "@/features/leads/AddLeadModal";
+import { AddCustomerModal } from "@/features/customers/AddCustomerModal";
+import { CreateSalesOrderModal } from "@/features/orders/CreateSalesOrderModal";
 import { toast } from "@/store/toastStore";
 import type { Lead, Projection } from "@/data/types";
 

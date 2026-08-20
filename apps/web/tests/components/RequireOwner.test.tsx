@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
-import { RequireOwner } from "@/components/RequireOwner";
+import { RequireOwner } from "@/features/auth/RequireOwner";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import { useAuth } from "@/store/auth";
 

@@ -16,11 +16,11 @@ import { useMockOwnerId } from "@/lib/mockOwner";
 import { inr, lakhs } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
-import { AddPaymentModal } from "@/components/modals/AddPaymentModal";
-import { ImportPaymentsModal } from "@/components/modals/ImportPaymentsModal";
-import { PaymentDetailModal } from "@/components/modals/PaymentDetailModal";
+import { AddPaymentModal } from "@/features/payments/AddPaymentModal";
+import { ImportPaymentsModal } from "@/features/payments/ImportPaymentsModal";
+import { PaymentDetailModal } from "@/features/payments/PaymentDetailModal";
 import { RemarksModal } from "@/components/modals/RemarksModal";
-import { CustomerDrawer } from "@/components/CustomerDrawer";
+import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
 import { toast } from "@/store/toastStore";
 import type { Payment } from "@/data/types";
 

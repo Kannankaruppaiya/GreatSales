@@ -8,10 +8,10 @@ import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
 import { StatusBadge } from "@/components/StatusBadge";
-import { LeadDetailModal } from "@/components/modals/LeadDetailModal";
-import { PaymentDetailModal } from "@/components/modals/PaymentDetailModal";
-import { FollowUpModal } from "@/components/modals/FollowUpModal";
-import { CustomerDrawer } from "@/components/CustomerDrawer";
+import { LeadDetailModal } from "@/features/leads/LeadDetailModal";
+import { PaymentDetailModal } from "@/features/payments/PaymentDetailModal";
+import { FollowUpModal } from "@/features/followups/FollowUpModal";
+import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
 import { toast } from "@/store/toastStore";
 import type { Lead, Payment, Projection } from "@/data/types";
 

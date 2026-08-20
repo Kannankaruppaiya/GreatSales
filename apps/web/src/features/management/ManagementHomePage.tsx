@@ -19,11 +19,11 @@ import {
   ChevronRight,
   Mail,
 } from "lucide-react";
-import { useManagementStore } from "@/store/managementStore";
+import { useManagementStore } from "@/features/management/managementStore";
 import { useTrackerStore } from "@/store/trackerStore";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import { useAuth } from "@/store/auth";
-import { CreateManagementModal } from "@/components/modals/CreateManagementModal";
+import { CreateManagementModal } from "@/features/management/CreateManagementModal";
 import { inr, lakhs, pct } from "@/lib/format";
 import { MONTHS } from "@/data/constants";
 import { GroupedBars, CompareLegend } from "@/components/charts";

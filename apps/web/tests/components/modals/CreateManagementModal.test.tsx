@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { CreateManagementModal } from "@/components/modals/CreateManagementModal";
-import { useManagementStore } from "@/store/managementStore";
+import { CreateManagementModal } from "@/features/management/CreateManagementModal";
+import { useManagementStore } from "@/features/management/managementStore";
 import { DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 
 const navigateMock = vi.fn();

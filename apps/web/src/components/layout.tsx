@@ -28,13 +28,13 @@ import { useAuthRole, useAuthUser, useAuth } from "@/store/auth";
 import { cn } from "@/lib/utils";
 import { Avatar, Badge, Select } from "@/components/ui";
 import { CommandPaletteModal } from "@/components/CommandPaletteModal";
-import { ManagementSwitcher } from "@/components/ManagementSwitcher";
-import { CustomerDrawer } from "@/components/CustomerDrawer";
+import { ManagementSwitcher } from "@/features/management/ManagementSwitcher";
+import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
 import { ToastContainer } from "@/components/Toast";
-import { AddCustomerModal } from "@/components/modals/AddCustomerModal";
-import { AddLeadModal } from "@/components/modals/AddLeadModal";
-import { AddPaymentModal } from "@/components/modals/AddPaymentModal";
-import { CreateSalesOrderModal } from "@/components/modals/CreateSalesOrderModal";
+import { AddCustomerModal } from "@/features/customers/AddCustomerModal";
+import { AddLeadModal } from "@/features/leads/AddLeadModal";
+import { AddPaymentModal } from "@/features/payments/AddPaymentModal";
+import { CreateSalesOrderModal } from "@/features/orders/CreateSalesOrderModal";
 
 const ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,

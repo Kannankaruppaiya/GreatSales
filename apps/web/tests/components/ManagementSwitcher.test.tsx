@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { ManagementSwitcher } from "@/components/ManagementSwitcher";
+import { ManagementSwitcher } from "@/features/management/ManagementSwitcher";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import { useAuth } from "@/store/auth";
-import { useManagementStore } from "@/store/managementStore";
+import { useManagementStore } from "@/features/management/managementStore";
 
 function seedAuth(role: "super_admin" | "admin") {
   useAuth.setState({

@@ -5,8 +5,8 @@ import { useUi } from "@/store/ui";
 import { useAuthRole } from "@/store/auth";
 import { inr } from "@/lib/format";
 import { Button, Card } from "@/components/ui";
-import { AddPrincipalModal } from "@/components/modals/AddPrincipalModal";
-import { AddProductModal } from "@/components/modals/AddProductModal";
+import { AddPrincipalModal } from "@/features/products/AddPrincipalModal";
+import { AddProductModal } from "@/features/products/AddProductModal";
 
 export default function ProductsPage() {
   const { principalId } = useUi();

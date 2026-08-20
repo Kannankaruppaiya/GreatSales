@@ -1,5 +1,5 @@
 import { useTrackerStore } from "@/store/trackerStore";
-import { useManagementStore, emptyDataset, type TrackerData } from "@/store/managementStore";
+import { useManagementStore, emptyDataset, type TrackerData } from "@/features/management/managementStore";
 import { useUi } from "@/store/ui";
 
 export function snapshotTracker(): TrackerData {
