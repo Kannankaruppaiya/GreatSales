@@ -12,8 +12,8 @@ import { ApiError } from "@/lib/api";
 import { useAuth } from "@/store/auth";
 import "./index.css";
 
-// An expired/invalid access token surfaces as ApiError(401). Phase 0 has no silent
-// refresh: clear the session so ProtectedRoute bounces the user to /login.
+// A 401 that surfaces here means refresh already failed (api.ts self-heals otherwise).
+// Clear any residual session so ProtectedRoute bounces to /login.
 function onApiError(err: unknown) {
   if (err instanceof ApiError && err.status === 401) {
     useAuth.getState().logout();

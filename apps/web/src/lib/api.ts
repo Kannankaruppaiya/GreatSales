@@ -24,16 +24,50 @@ export function setTokenGetter(fn: () => string | null): void {
   tokenGetter = fn;
 }
 
+let refreshHandler: (() => Promise<string | null>) | null = null;
+let inFlightRefresh: Promise<string | null> | null = null;
+
+/** Registered by the auth store; returns a fresh access token or null on failure. */
+export function setRefreshHandler(fn: () => Promise<string | null>): void {
+  refreshHandler = fn;
+}
+
+/** Single-flight: concurrent 401s await the same refresh. */
+function refreshOnce(): Promise<string | null> {
+  if (!refreshHandler) return Promise.resolve(null);
+  if (!inFlightRefresh) {
+    inFlightRefresh = refreshHandler().finally(() => {
+      inFlightRefresh = null;
+    });
+  }
+  return inFlightRefresh;
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
+  return doFetch<T>(path, init, false);
+}
+
+async function doFetch<T>(
+  path: string,
+  init: RequestInit,
+  isRetry: boolean,
+  overrideToken?: string,
+): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Content-Type", "application/json");
-  const token = tokenGetter();
+  const token = overrideToken ?? tokenGetter();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const res = await fetch(`${env.API_BASE_URL}${path}`, { ...init, headers });
+
+  if (res.status === 401 && !isRetry) {
+    const fresh = await refreshOnce();
+    if (fresh) return doFetch<T>(path, init, true, fresh);
+  }
+
   const text = await res.text();
   const body: unknown = text ? JSON.parse(text) : null;
 

@@ -7,10 +7,15 @@
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { apiFetch, setTokenGetter } from "@/lib/api";
+import { apiFetch, setTokenGetter, setRefreshHandler } from "@/lib/api";
 import { mapRole } from "@/lib/authRole";
+import { env } from "@/lib/config";
 import type { Role } from "@/data/constants";
-import type { AuthUser, LoginResponse } from "@/features/projections/types";
+import type {
+  AuthTokens,
+  AuthUser,
+  LoginResponse,
+} from "@/features/projections/types";
 
 /** Thrown when a `sales`-role user tries to sign in on the web (mobile-only). */
 export class SalesWebLoginError extends Error {
@@ -57,6 +62,35 @@ export const useAuth = create<AuthState>()(
 
 // Wire the api client to always read the freshest token from this store.
 setTokenGetter(() => useAuth.getState().accessToken);
+
+// On 401, exchange the refresh token for a new pair via a raw fetch (never apiFetch,
+// to avoid recursing into refresh). Returns the new access token, or null → logout.
+// The API's POST /auth/refresh only re-issues the token pair (AuthTokens), not the
+// user profile, so the stored `user` is left untouched here.
+setRefreshHandler(async () => {
+  const rt = useAuth.getState().refreshToken;
+  if (!rt) return null;
+  try {
+    const res = await fetch(`${env.API_BASE_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken: rt }),
+    });
+    if (!res.ok) {
+      useAuth.getState().logout();
+      return null;
+    }
+    const data = (await res.json()) as AuthTokens;
+    useAuth.setState({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+    });
+    return data.accessToken;
+  } catch {
+    useAuth.getState().logout();
+    return null;
+  }
+});
 
 /* ── Derived session selectors (computed, never persisted) ── */
 export const useIsAuthed = (): boolean => useAuth((s) => !!s.accessToken);

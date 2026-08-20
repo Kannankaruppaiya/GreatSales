@@ -4,6 +4,7 @@ const apiFetch = vi.fn();
 vi.mock("@/lib/api", () => ({
   apiFetch: (...a: unknown[]) => apiFetch(...a),
   setTokenGetter: vi.fn(),
+  setRefreshHandler: vi.fn(),
 }));
 
 import { useAuth, SalesWebLoginError } from "@/store/auth";

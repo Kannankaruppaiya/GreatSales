@@ -90,8 +90,11 @@ export interface AuthUser {
   role: string | null;
 }
 
-export interface LoginResponse {
+export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
+}
+
+export interface LoginResponse extends AuthTokens {
   user: AuthUser;
 }
