@@ -1,9 +1,26 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "@/App";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import { useAuth } from "@/store/auth";
+
+// `App` is normally wrapped in a QueryClientProvider by main.tsx. This test
+// renders `<App />` directly (bypassing main.tsx), and since Task 4 the
+// globally-mounted `CustomerDrawer` (rendered from `layout.tsx` on every
+// route) calls a react-query hook, so a provider is required here too —
+// same fix as tests/pages/UsersPage.addUser.test.tsx.
+function renderApp(initialEntries: string[]) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <MemoryRouter initialEntries={initialEntries}>
+        <App />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
 
 describe("App routing", () => {
   beforeEach(() => {
@@ -24,20 +41,12 @@ describe("App routing", () => {
   });
 
   it("owner hitting / lands on the management home", async () => {
-    render(
-      <MemoryRouter initialEntries={["/"]}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderApp(["/"]);
     expect(await screen.findByText(/super admin hub/i)).toBeInTheDocument();
   });
 
   it("opening a management renders the dashboard shell", async () => {
-    render(
-      <MemoryRouter initialEntries={[`/managements/${DEFAULT_MANAGEMENT_ID}/dashboard`]}>
-        <App />
-      </MemoryRouter>,
-    );
+    renderApp([`/managements/${DEFAULT_MANAGEMENT_ID}/dashboard`]);
     expect(await screen.findByText(/executive overview/i)).toBeInTheDocument();
   });
 });

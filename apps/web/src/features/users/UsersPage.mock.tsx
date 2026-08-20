@@ -204,10 +204,16 @@ export default function UsersPage() {
       )}
 
       {assignUser && (
+        // Dead file (kept only for Task 10 to delete) — ReassignCustomersModal
+        // was rewired to the real CustomerRow/salesperson-option shape in
+        // Task 4; this old mock page no longer has that data available. Pass
+        // an empty customer list to keep tsc green; this branch never renders
+        // (nothing imports UsersPage.mock.tsx).
         <ReassignCustomersModal
           open={!!assignUser}
           onClose={() => setAssignUser(null)}
-          initialTargetUser={assignUser}
+          customers={[]}
+          initialTargetSalespersonId={assignUser.id}
         />
       )}
     </div>

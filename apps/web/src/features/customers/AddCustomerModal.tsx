@@ -1,120 +1,87 @@
 import { useState } from "react";
-import { Building2, Plus, Trash2 } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
+import { ApiError } from "@/lib/api";
 import {
   CUSTOMER_TIERS,
   INDUSTRIAL_AREAS,
   PAYMENT_TERMS,
   PAY_ZONES,
-  type CustomerTier,
-  type PayZone,
 } from "@/data/constants";
-import { useTrackerStore } from "@/store/trackerStore";
-import { useMockOwnerId } from "@/lib/mockOwner";
+import { useCreateCustomer } from "@/features/customers/queries";
 
-interface ProductRowState {
-  principalId: string;
-  productId: string;
-  price: number;
+export interface CustomerFkOption {
+  id: string;
+  name: string;
 }
+
+const CUSTOMER_TYPES = ["Existing", "New"] as const;
 
 export function AddCustomerModal({
   open,
   onClose,
+  salespeople = [],
+  collectors = [],
+  industries = [],
 }: {
   open: boolean;
   onClose: () => void;
+  salespeople?: CustomerFkOption[];
+  collectors?: CustomerFkOption[];
+  industries?: CustomerFkOption[];
 }) {
-  const { principals, products, users, addCustomer } = useTrackerStore();
-  const ownerId = useMockOwnerId();
-  const salespeople = users.filter((u) => u.role === "sales");
+  const create = useCreateCustomer();
 
   const [name, setName] = useState("");
-  const [tier, setTier] = useState<CustomerTier>("Platinum");
+  const [salespersonId, setSalespersonId] = useState("");
+  const [category, setCategory] = useState<string>(CUSTOMER_TIERS[0]);
+  const [type, setType] = useState<string>(CUSTOMER_TYPES[0]);
+  const [industryId, setIndustryId] = useState("");
+  const [subIndustry, setSubIndustry] = useState("");
   const [area, setArea] = useState<string>(INDUSTRIAL_AREAS[0]);
-  const [contactName, setContactName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
-  const [sameAsMobile, setSameAsMobile] = useState(true);
-  const [assignedOwnerId, setAssignedOwnerId] = useState(salespeople[0]?.id || ownerId);
   const [paymentTerms, setPaymentTerms] = useState<string>(PAYMENT_TERMS[2]); // 30 Days Credit
-  const [payZone, setPayZone] = useState<PayZone>("Green Zone");
+  const [payZone, setPayZone] = useState<string>(PAY_ZONES[0]);
+  const [collectorId, setCollectorId] = useState("");
+  const [outstanding, setOutstanding] = useState<string>("");
 
-  const firstPr = principals[0]?.id || "pr_castrol";
-  const firstProd = products.find((p) => p.principalId === firstPr) || products[0];
+  const selectedSalespersonId = salespersonId || salespeople[0]?.id || "";
 
-  const [productRows, setProductRows] = useState<ProductRowState[]>([
-    {
-      principalId: firstPr,
-      productId: firstProd?.id || "",
-      price: firstProd?.listPrice || 380,
-    },
-  ]);
-
-  const handlePrincipalChange = (idx: number, prId: string) => {
-    const prods = products.filter((p) => p.principalId === prId);
-    const prod = prods[0];
-    const updated = [...productRows];
-    updated[idx] = {
-      principalId: prId,
-      productId: prod?.id || "",
-      price: prod?.listPrice || 0,
-    };
-    setProductRows(updated);
-  };
-
-  const handleProductChange = (idx: number, prodId: string) => {
-    const prod = products.find((p) => p.id === prodId);
-    const updated = [...productRows];
-    updated[idx].productId = prodId;
-    if (prod) updated[idx].price = prod.listPrice || 0;
-    setProductRows(updated);
-  };
-
-  const handleAddProductRow = () => {
-    const prId = principals[0]?.id || "";
-    const prods = products.filter((p) => p.principalId === prId);
-    const prod = prods[0] || products[0];
-    setProductRows([
-      ...productRows,
-      {
-        principalId: prId,
-        productId: prod?.id || "",
-        price: prod?.listPrice || 0,
-      },
-    ]);
-  };
-
-  const handleRemoveProductRow = (idx: number) => {
-    setProductRows(productRows.filter((_, i) => i !== idx));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !selectedSalespersonId) return;
 
-    addCustomer(
-      {
+    try {
+      await create.mutateAsync({
         name: name.trim(),
+        salespersonId: selectedSalespersonId,
         division: "LUB",
-        tier,
-        type: "Existing",
-        industry: "Automotive & Heavy Eng",
+        category,
+        type,
+        industryId: industryId || null,
+        subIndustry: subIndustry.trim() || null,
         area,
-        contactName: contactName.trim() || "Manager",
-        phone: phone.trim() || "+91 98400 00000",
-        whatsapp: sameAsMobile ? phone.trim() : whatsapp.trim(),
-        sameAsMobile,
-        ownerId: assignedOwnerId,
-        collectorId: assignedOwnerId,
         paymentTerms,
         payZone,
+        outstanding: outstanding.trim() ? Number(outstanding) : undefined,
+        collectorId: collectorId || null,
         active: true,
-      },
-      productRows.filter((p) => p.productId).map((p) => ({ productId: p.productId, price: p.price }))
-    );
+      });
 
-    onClose();
+      setName("");
+      setSalespersonId("");
+      setCategory(CUSTOMER_TIERS[0]);
+      setType(CUSTOMER_TYPES[0]);
+      setIndustryId("");
+      setSubIndustry("");
+      setArea(INDUSTRIAL_AREAS[0]);
+      setPaymentTerms(PAYMENT_TERMS[2]);
+      setPayZone(PAY_ZONES[0]);
+      setCollectorId("");
+      setOutstanding("");
+      onClose();
+    } catch {
+      // Surfaced inline below via create.error.
+    }
   };
 
   return (
@@ -127,21 +94,24 @@ export function AddCustomerModal({
           <span>Add New Customer Account</span>
         </div>
       }
-      description="Create a client record with tier categorization and initial product mappings"
+      description="Create a client record and assign it to a salesperson"
       maxWidth="max-w-2xl"
       footer={
         <>
           <Button variant="outline" size="sm" onClick={onClose} type="button">
             Cancel
           </Button>
-          <Button size="sm" onClick={handleSubmit} disabled={!name.trim()}>
-            Create Customer
+          <Button
+            size="sm"
+            onClick={handleSubmit}
+            disabled={!name.trim() || !selectedSalespersonId || create.isPending}
+          >
+            {create.isPending ? "Creating…" : "Create Customer"}
           </Button>
         </>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-        {/* Name & Type */}
         <div className="grid grid-cols-3 gap-3">
           <div className="col-span-2">
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
@@ -156,9 +126,9 @@ export function AddCustomerModal({
           </div>
           <div>
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Customer Category
+              Category
             </label>
-            <Select value={tier} onChange={(e) => setTier(e.target.value as CustomerTier)}>
+            <Select value={category} onChange={(e) => setCategory(e.target.value)}>
               {CUSTOMER_TIERS.map((t) => (
                 <option key={t} value={t}>
                   {t}
@@ -168,52 +138,84 @@ export function AddCustomerModal({
           </div>
         </div>
 
-        {/* Contact, Phone, WhatsApp */}
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Contact Person
+              Salesperson *
             </label>
-            <Input
-              placeholder="e.g. Mr. K. Sundaram"
-              value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
-            />
+            {salespeople.length === 0 ? (
+              <p className="text-[11px] text-muted">
+                No salespersons yet — add a customer for an existing salesperson first.
+              </p>
+            ) : (
+              <Select value={selectedSalespersonId} onChange={(e) => setSalespersonId(e.target.value)}>
+                {salespeople.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </Select>
+            )}
           </div>
           <div>
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Mobile Number
+              Collector
             </label>
-            <Input
-              placeholder="+91 98400 12345"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
+            {collectors.length === 0 ? (
+              <p className="text-[11px] text-muted">No collectors yet.</p>
+            ) : (
+              <Select value={collectorId} onChange={(e) => setCollectorId(e.target.value)}>
+                <option value="">— None —</option>
+                {collectors.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            )}
           </div>
           <div>
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              WhatsApp
+              Customer Type
             </label>
-            <Input
-              disabled={sameAsMobile}
-              placeholder="+91 98400 12345"
-              value={sameAsMobile ? phone : whatsapp}
-              onChange={(e) => setWhatsapp(e.target.value)}
-            />
-            <label className="flex items-center gap-1.5 text-[11px] text-muted mt-1 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={sameAsMobile}
-                onChange={(e) => setSameAsMobile(e.target.checked)}
-                className="h-3 w-3 accent-brand"
-              />
-              Same as mobile
-            </label>
+            <Select value={type} onChange={(e) => setType(e.target.value)}>
+              {CUSTOMER_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </Select>
           </div>
         </div>
 
-        {/* Area, Payment Terms, Salesperson */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+              Industry
+            </label>
+            {industries.length === 0 ? (
+              <p className="text-[11px] text-muted">No industries yet.</p>
+            ) : (
+              <Select value={industryId} onChange={(e) => setIndustryId(e.target.value)}>
+                <option value="">— None —</option>
+                {industries.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+              Sub-industry
+            </label>
+            <Input
+              placeholder="e.g. Tier-1 Engine & Transmission"
+              value={subIndustry}
+              onChange={(e) => setSubIndustry(e.target.value)}
+            />
+          </div>
           <div>
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
               Territory / Area
@@ -226,6 +228,9 @@ export function AddCustomerModal({
               ))}
             </Select>
           </div>
+        </div>
+
+        <div className="grid grid-cols-4 gap-3">
           <div>
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
               Payment Terms
@@ -240,21 +245,9 @@ export function AddCustomerModal({
           </div>
           <div>
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Salesperson
-            </label>
-            <Select value={assignedOwnerId} onChange={(e) => setAssignedOwnerId(e.target.value)}>
-              {salespeople.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
               Payment Risk Zone
             </label>
-            <Select value={payZone} onChange={(e) => setPayZone(e.target.value as PayZone)}>
+            <Select value={payZone} onChange={(e) => setPayZone(e.target.value)}>
               {PAY_ZONES.map((z) => (
                 <option key={z} value={z}>
                   {z}
@@ -262,79 +255,25 @@ export function AddCustomerModal({
               ))}
             </Select>
           </div>
-        </div>
-
-        {/* Dynamic Product Mapping Rows */}
-        <div className="rounded-xl border border-line bg-surface-2 p-3.5 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-ink uppercase tracking-wider">
-              Principal & Sub Product Mappings (Optional)
-            </span>
-            <Button type="button" size="xs" variant="secondary" onClick={handleAddProductRow}>
-              <Plus className="h-3 w-3 mr-1" /> Add Product
-            </Button>
-          </div>
-
-          <div className="space-y-2">
-            {productRows.map((row, idx) => {
-              const rowProds = products.filter((p) => p.principalId === row.principalId);
-              return (
-                <div key={idx} className="flex items-center gap-2 text-xs">
-                  {/* Principal */}
-                  <Select
-                    value={row.principalId}
-                    onChange={(e) => handlePrincipalChange(idx, e.target.value)}
-                    className="w-36"
-                  >
-                    {principals.map((pr) => (
-                      <option key={pr.id} value={pr.id}>
-                        {pr.name}
-                      </option>
-                    ))}
-                  </Select>
-
-                  {/* Sub-product */}
-                  <Select
-                    value={row.productId}
-                    onChange={(e) => handleProductChange(idx, e.target.value)}
-                    className="flex-1"
-                  >
-                    {rowProds.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </Select>
-
-                  {/* Agreed Price */}
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="Rate ₹"
-                    value={row.price || ""}
-                    onChange={(e) => {
-                      const updated = [...productRows];
-                      updated[idx].price = Number(e.target.value);
-                      setProductRows(updated);
-                    }}
-                    className="w-24 tabular-nums text-right font-bold"
-                  />
-
-                  {productRows.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveProductRow(idx)}
-                      className="text-muted hover:text-red p-1 cursor-pointer"
-                      title="Remove row"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+          <div className="col-span-2">
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+              Opening Outstanding ₹ (Optional)
+            </label>
+            <Input
+              type="number"
+              step="0.01"
+              placeholder="e.g. 0"
+              value={outstanding}
+              onChange={(e) => setOutstanding(e.target.value)}
+            />
           </div>
         </div>
+
+        {create.isError && (
+          <p className="text-[11.5px] font-medium text-red">
+            {create.error instanceof ApiError ? create.error.message : "Failed to create customer."}
+          </p>
+        )}
       </form>
     </Dialog>
   );

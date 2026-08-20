@@ -1,34 +1,39 @@
 import { useState } from "react";
 import { UserCheck } from "lucide-react";
 import { Button, Dialog, Select } from "@/components/ui";
-import { useTrackerStore } from "@/store/trackerStore";
-import type { User } from "@/data/types";
+import { ApiError } from "@/lib/api";
+import { useUpdateCustomer } from "@/features/customers/queries";
+import type { CustomerRow } from "@/features/customers/types";
+import type { CustomerFkOption } from "@/features/customers/AddCustomerModal";
 
 export function ReassignCustomersModal({
   open,
   onClose,
-  initialTargetUser,
+  customers,
+  salespeople = [],
+  initialTargetSalespersonId,
 }: {
   open: boolean;
   onClose: () => void;
-  initialTargetUser?: User | null;
+  customers: CustomerRow[];
+  salespeople?: CustomerFkOption[];
+  initialTargetSalespersonId?: string;
 }) {
-  const { users, customers, reassignCustomers } = useTrackerStore();
-  const salespeople = users.filter((u) => u.role === "sales");
+  const update = useUpdateCustomer();
 
-  const [targetUserId, setTargetUserId] = useState(
-    initialTargetUser?.id || salespeople[0]?.id || ""
+  const [targetSalespersonId, setTargetSalespersonId] = useState(
+    initialTargetSalespersonId || salespeople[0]?.id || ""
   );
   const [search, setSearch] = useState("");
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(new Set());
-
-  const userMap = new Map(users.map((u) => [u.id, u]));
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const filteredCustomers = customers.filter(
     (c) =>
       !search ||
       c.name.toLowerCase().includes(search.toLowerCase()) ||
-      (c.contactName || "").toLowerCase().includes(search.toLowerCase())
+      (c.primaryContactName || "").toLowerCase().includes(search.toLowerCase())
   );
 
   const toggleCustomer = (id: string) => {
@@ -44,17 +49,27 @@ export function ReassignCustomersModal({
     setSelectedCustomerIds(next);
   };
 
-  const clearSelection = () => {
-    setSelectedCustomerIds(new Set());
+  const clearSelection = () => setSelectedCustomerIds(new Set());
+
+  const handleApply = async () => {
+    if (selectedCustomerIds.size === 0 || !targetSalespersonId) return;
+    setError("");
+    setIsSubmitting(true);
+    try {
+      await Promise.all(
+        Array.from(selectedCustomerIds).map((id) =>
+          update.mutateAsync({ id, patch: { salespersonId: targetSalespersonId } })
+        )
+      );
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to reassign one or more accounts.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleApply = () => {
-    if (selectedCustomerIds.size === 0 || !targetUserId) return;
-    reassignCustomers(Array.from(selectedCustomerIds), targetUserId);
-    onClose();
-  };
-
-  const targetName = userMap.get(targetUserId)?.name || "Salesperson";
+  const targetName = salespeople.find((s) => s.id === targetSalespersonId)?.name || "Salesperson";
 
   return (
     <Dialog
@@ -76,9 +91,11 @@ export function ReassignCustomersModal({
           <Button
             size="sm"
             onClick={handleApply}
-            disabled={selectedCustomerIds.size === 0 || !targetUserId}
+            disabled={selectedCustomerIds.size === 0 || !targetSalespersonId || isSubmitting}
           >
-            Assign {selectedCustomerIds.size} Accounts to {targetName}
+            {isSubmitting
+              ? "Assigning…"
+              : `Assign ${selectedCustomerIds.size} Accounts to ${targetName}`}
           </Button>
         </>
       }
@@ -89,13 +106,17 @@ export function ReassignCustomersModal({
           <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
             Target Salesperson
           </label>
-          <Select value={targetUserId} onChange={(e) => setTargetUserId(e.target.value)}>
-            {salespeople.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({customers.filter((c) => c.ownerId === s.id).length} accounts)
-              </option>
-            ))}
-          </Select>
+          {salespeople.length === 0 ? (
+            <p className="text-[11px] text-muted">No salespersons available yet.</p>
+          ) : (
+            <Select value={targetSalespersonId} onChange={(e) => setTargetSalespersonId(e.target.value)}>
+              {salespeople.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({customers.filter((c) => c.salespersonId === s.id).length} accounts)
+                </option>
+              ))}
+            </Select>
+          )}
         </div>
 
         {/* Customer Search & Quick Actions */}
@@ -134,7 +155,6 @@ export function ReassignCustomersModal({
           ) : (
             filteredCustomers.map((c) => {
               const isSelected = selectedCustomerIds.has(c.id);
-              const currentOwner = userMap.get(c.ownerId)?.name || "Unassigned";
 
               return (
                 <label
@@ -151,20 +171,22 @@ export function ReassignCustomersModal({
                     <div>
                       <div className="font-bold text-ink text-xs">{c.name}</div>
                       <div className="text-[11px] text-muted">
-                        {c.tier} · {c.area}
+                        {c.category || "—"} · {c.area || "—"}
                       </div>
                     </div>
                   </div>
 
                   <div className="text-right text-[11px]">
                     <span className="text-muted block">Current:</span>
-                    <span className="font-semibold text-ink">{currentOwner}</span>
+                    <span className="font-semibold text-ink">{c.salespersonName || "Unassigned"}</span>
                   </div>
                 </label>
               );
             })
           )}
         </div>
+
+        {error && <p className="text-[11.5px] font-medium text-red">{error}</p>}
       </div>
     </Dialog>
   );

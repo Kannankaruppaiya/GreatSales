@@ -1,54 +1,72 @@
 import { useState } from "react";
 import { Building2 } from "lucide-react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
-import {
-  CUSTOMER_TIERS,
-  PAYMENT_TERMS,
-  type CustomerTier,
-} from "@/data/constants";
-import type { Customer } from "@/data/types";
-import { useTrackerStore } from "@/store/trackerStore";
+import { ApiError } from "@/lib/api";
+import { CUSTOMER_TIERS, INDUSTRIAL_AREAS, PAYMENT_TERMS, PAY_ZONES } from "@/data/constants";
+import { useUpdateCustomer } from "@/features/customers/queries";
+import type { CustomerRow } from "@/features/customers/types";
+import type { CustomerFkOption } from "@/features/customers/AddCustomerModal";
+
+const CUSTOMER_TYPES = ["Existing", "New"] as const;
 
 export function EditCustomerModal({
   open,
   onClose,
   customer,
+  salespeople = [],
+  collectors = [],
+  industries = [],
 }: {
   open: boolean;
   onClose: () => void;
-  customer: Customer | null;
+  customer: CustomerRow | null;
+  salespeople?: CustomerFkOption[];
+  collectors?: CustomerFkOption[];
+  industries?: CustomerFkOption[];
 }) {
-  const { users, updateCustomer } = useTrackerStore();
-  const salespeople = users.filter((u) => u.role === "sales");
+  const update = useUpdateCustomer();
 
   if (!customer) return null;
 
   const [name, setName] = useState(customer.name);
-  const [tier, setTier] = useState<CustomerTier>(customer.tier || "Platinum");
-  const [contactName, setContactName] = useState(customer.contactName || "");
-  const [phone, setPhone] = useState(customer.phone || customer.mobile || "");
-  const [whatsapp, setWhatsapp] = useState(customer.whatsapp || "");
-  const [sameAsMobile, setSameAsMobile] = useState(customer.sameAsMobile ?? (!customer.whatsapp || customer.whatsapp === customer.phone));
-  const [ownerId, setOwnerId] = useState(customer.ownerId);
+  const [salespersonId, setSalespersonId] = useState(customer.salespersonId);
+  const [category, setCategory] = useState(customer.category || CUSTOMER_TIERS[0]);
+  const [type, setType] = useState(customer.type || CUSTOMER_TYPES[0]);
+  const [industryId, setIndustryId] = useState(customer.industryId || "");
+  const [subIndustry, setSubIndustry] = useState(customer.subIndustry || "");
+  const [area, setArea] = useState(customer.area || "");
   const [paymentTerms, setPaymentTerms] = useState(customer.paymentTerms || PAYMENT_TERMS[2]);
+  const [payZone, setPayZone] = useState(customer.payZone || PAY_ZONES[0]);
+  const [collectorId, setCollectorId] = useState(customer.collectorId || "");
+  const [outstanding, setOutstanding] = useState(String(customer.outstanding ?? ""));
+  const [active, setActive] = useState(customer.active);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !salespersonId) return;
 
-    updateCustomer(customer.id, {
-      name: name.trim(),
-      tier,
-      contactName: contactName.trim(),
-      phone: phone.trim(),
-      whatsapp: sameAsMobile ? phone.trim() : whatsapp.trim(),
-      sameAsMobile,
-      ownerId,
-      collectorId: ownerId,
-      paymentTerms,
-    });
-
-    onClose();
+    try {
+      await update.mutateAsync({
+        id: customer.id,
+        patch: {
+          name: name.trim(),
+          salespersonId,
+          category,
+          type,
+          industryId: industryId || null,
+          subIndustry: subIndustry.trim() || null,
+          area: area || null,
+          paymentTerms,
+          payZone,
+          collectorId: collectorId || null,
+          outstanding: outstanding.trim() ? Number(outstanding) : undefined,
+          active,
+        },
+      });
+      onClose();
+    } catch {
+      // Surfaced inline below via update.error.
+    }
   };
 
   return (
@@ -62,14 +80,18 @@ export function EditCustomerModal({
         </div>
       }
       description="Update customer details and salesperson allocation"
-      maxWidth="max-w-md"
+      maxWidth="max-w-lg"
       footer={
         <>
           <Button variant="outline" size="sm" onClick={onClose} type="button">
             Cancel
           </Button>
-          <Button size="sm" onClick={handleSubmit} disabled={!name.trim()}>
-            Save Changes
+          <Button
+            size="sm"
+            onClick={handleSubmit}
+            disabled={!name.trim() || !salespersonId || update.isPending}
+          >
+            {update.isPending ? "Saving…" : "Save Changes"}
           </Button>
         </>
       }
@@ -87,17 +109,102 @@ export function EditCustomerModal({
           />
         </div>
 
+        <div className="grid grid-cols-3 gap-2.5">
+          <div>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+              Category
+            </label>
+            <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+              {CUSTOMER_TIERS.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+              Type
+            </label>
+            <Select value={type} onChange={(e) => setType(e.target.value)}>
+              {CUSTOMER_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+              Territory / Area
+            </label>
+            <Select value={area} onChange={(e) => setArea(e.target.value)}>
+              {INDUSTRIAL_AREAS.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-2.5">
           <div>
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Contact Person
+              Salesperson *
             </label>
-            <Input
-              placeholder="e.g. Mr. Sundaram"
-              value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
-            />
+            {salespeople.length === 0 ? (
+              <p className="text-[11px] text-muted">No salespersons available.</p>
+            ) : (
+              <Select value={salespersonId} onChange={(e) => setSalespersonId(e.target.value)}>
+                {salespeople.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </Select>
+            )}
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <div>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+              Collector
+            </label>
+            {collectors.length === 0 ? (
+              <p className="text-[11px] text-muted">No collectors available.</p>
+            ) : (
+              <Select value={collectorId} onChange={(e) => setCollectorId(e.target.value)}>
+                <option value="">— None —</option>
+                {collectors.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+              Industry
+            </label>
+            {industries.length === 0 ? (
+              <p className="text-[11px] text-muted">No industries available.</p>
+            ) : (
+              <Select value={industryId} onChange={(e) => setIndustryId(e.target.value)}>
+                <option value="">— None —</option>
+                {industries.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
           <div>
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
               Payment Terms
@@ -110,67 +217,55 @@ export function EditCustomerModal({
               ))}
             </Select>
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2.5">
           <div>
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Mobile
+              Payment Risk Zone
             </label>
-            <Input
-              placeholder="+91 98400 12345"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              WhatsApp
-            </label>
-            <Input
-              disabled={sameAsMobile}
-              placeholder="+91 98400 12345"
-              value={sameAsMobile ? phone : whatsapp}
-              onChange={(e) => setWhatsapp(e.target.value)}
-            />
-            <label className="flex items-center gap-1.5 text-[11px] text-muted mt-1 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={sameAsMobile}
-                onChange={(e) => setSameAsMobile(e.target.checked)}
-                className="h-3 w-3 accent-brand"
-              />
-              Same as mobile
-            </label>
+            <Select value={payZone} onChange={(e) => setPayZone(e.target.value)}>
+              {PAY_ZONES.map((z) => (
+                <option key={z} value={z}>
+                  {z}
+                </option>
+              ))}
+            </Select>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2.5">
           <div>
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Category
+              Outstanding ₹
             </label>
-            <Select value={tier} onChange={(e) => setTier(e.target.value as CustomerTier)}>
-              {CUSTOMER_TIERS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </Select>
+            <Input
+              type="number"
+              step="0.01"
+              value={outstanding}
+              onChange={(e) => setOutstanding(e.target.value)}
+            />
           </div>
           <div>
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Salesperson
+              Sub-industry
             </label>
-            <Select value={ownerId} onChange={(e) => setOwnerId(e.target.value)}>
-              {salespeople.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </Select>
+            <Input value={subIndustry} onChange={(e) => setSubIndustry(e.target.value)} />
           </div>
         </div>
+
+        <label className="flex items-center gap-2 text-xs font-semibold text-ink pt-1 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={active}
+            onChange={(e) => setActive(e.target.checked)}
+            className="h-4 w-4 rounded accent-brand cursor-pointer"
+          />
+          Active Account
+        </label>
+
+        {update.isError && (
+          <p className="text-[11.5px] font-medium text-red">
+            {update.error instanceof ApiError ? update.error.message : "Failed to save customer."}
+          </p>
+        )}
       </form>
     </Dialog>
   );
