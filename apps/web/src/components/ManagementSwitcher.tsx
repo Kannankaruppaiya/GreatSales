@@ -3,9 +3,10 @@ import { Link } from "react-router-dom";
 import { ChevronDown, Building2, LayoutGrid } from "lucide-react";
 import { useUi } from "../store/ui";
 import { useManagementStore } from "../store/managementStore";
+import { useIsOwner } from "../store/auth";
 
 export function ManagementSwitcher() {
-  const isOwner = useUi((s) => s.isOwner);
+  const isOwner = useIsOwner();
   const activeManagementId = useUi((s) => s.activeManagementId);
   const managements = useManagementStore((s) => s.managements);
   const [open, setOpen] = useState(false);

@@ -16,7 +16,7 @@ import { DELIVERY_MODES, PAYMENT_TERMS, type DeliveryMode } from "../../data/con
 import { inr } from "../../lib/format";
 import { cn } from "../../lib/utils";
 import { useTrackerStore } from "../../store/trackerStore";
-import { useUi } from "../../store/ui";
+import { useMockOwnerId } from "../../lib/mockOwner";
 
 export function CreateSalesOrderModal({
   open,
@@ -36,7 +36,7 @@ export function CreateSalesOrderModal({
   fromProjectionId?: string;
 }) {
   const { customers, products, users, createSalesOrder } = useTrackerStore();
-  const { ownerId } = useUi();
+  const ownerId = useMockOwnerId();
 
   const [customerId, setCustomerId] = useState(initialCustomerId || customers[0]?.id || "");
   const [productId, setProductId] = useState(initialProductId || products[0]?.id || "");

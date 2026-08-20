@@ -3,7 +3,8 @@ import { Plus, Target, Trash2 } from "lucide-react";
 import { Button, Dialog, Input, Select } from "../ui";
 import { DEAL_STAGES, type DealStage } from "../../data/constants";
 import { useTrackerStore } from "../../store/trackerStore";
-import { useUi } from "../../store/ui";
+import { useAuthRole } from "../../store/auth";
+import { useMockOwnerId } from "../../lib/mockOwner";
 import { inr } from "../../lib/format";
 import type { Lead, LeadProduct } from "../../data/types";
 
@@ -18,7 +19,8 @@ export function LeadDetailModal({
 }) {
   const { principals, products, users, updateLeadStage, addLeadRemark } =
     useTrackerStore();
-  const { role, ownerId } = useUi();
+  const role = useAuthRole();
+  const ownerId = useMockOwnerId();
   const salespeople = users.filter((u) => u.role === "sales");
 
   if (!lead) return null;

@@ -14,12 +14,14 @@ import {
   UserCheck,
 } from "lucide-react";
 import { useTrackerStore } from "../store/trackerStore";
-import { useUi } from "../store/ui";
-import { Button, Card, CardHeader, MetricCard, PageHeader, Select } from "../components/ui";
-import { ROLES } from "../data/constants";
+import { Button, Card, CardHeader, MetricCard, PageHeader } from "../components/ui";
+import { roleLabel } from "../data/constants";
+import { useAuthRole } from "../store/auth";
+import { useMockOwnerId } from "../lib/mockOwner";
 
 export default function DataPage() {
-  const { role, ownerId, setRole } = useUi();
+  const role = useAuthRole();
+  const ownerId = useMockOwnerId();
   const {
     customers,
     products,
@@ -57,7 +59,7 @@ export default function DataPage() {
     <div className="space-y-5 max-w-5xl">
       <PageHeader
         title="Data & Tenant Governance"
-        subtitle="System settings, local reactive state metrics, role simulation, and database management"
+        subtitle="System settings, local reactive state metrics, session role, and database management"
       />
 
       {/* Status banner */}
@@ -121,28 +123,20 @@ export default function DataPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-        {/* Role & Persona Switcher */}
+        {/* Active Session Role (read-only — derived from the signed-in JWT) */}
         <Card className="overflow-hidden">
           <CardHeader
             title="Active Session Persona"
-            hint="Switch between Administrator, Management & Sales roles"
+            hint="Determined by your signed-in account role"
           />
           <div className="p-5 space-y-4">
             <div>
               <label className="text-xs font-bold text-ink uppercase tracking-wider block mb-1.5">
                 Current Access Role
               </label>
-              <Select
-                value={role}
-                onChange={(e) => setRole(e.target.value as any)}
-                className="w-full text-xs font-bold"
-              >
-                {ROLES.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </Select>
+              <div className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs font-bold text-ink">
+                {roleLabel(role)}
+              </div>
             </div>
 
             <div className="rounded-xl bg-surface-2 p-3.5 border border-line text-xs space-y-1.5">

@@ -5,7 +5,8 @@ import { SO_STATUSES, type SoStatus } from "../../data/constants";
 import { inr } from "../../lib/format";
 import { cn } from "../../lib/utils";
 import { useTrackerStore } from "../../store/trackerStore";
-import { useUi } from "../../store/ui";
+import { useAuthRole } from "../../store/auth";
+import { useMockOwnerId } from "../../lib/mockOwner";
 import type { SalesOrder } from "../../data/types";
 
 function fmtDT(iso?: string | null): string {
@@ -30,7 +31,8 @@ export function SalesOrderDetailModal({
   order: SalesOrder | null;
 }) {
   const { users, advanceSalesOrder, cancelSalesOrder } = useTrackerStore();
-  const { role, ownerId } = useUi();
+  const role = useAuthRole();
+  const ownerId = useMockOwnerId();
 
   if (!order) return null;
 

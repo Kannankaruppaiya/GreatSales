@@ -8,6 +8,8 @@ import {
 import { MONTHS, projTone } from "../data/constants";
 import { useTrackerStore } from "../store/trackerStore";
 import { useUi } from "../store/ui";
+import { useAuthRole } from "../store/auth";
+import { useMockOwnerId } from "../lib/mockOwner";
 import { inr, lakhs } from "../lib/format";
 import { cn } from "../lib/utils";
 import { Button, Card } from "../components/ui";
@@ -23,7 +25,9 @@ import { toast } from "../store/toastStore";
 import type { Lead, Projection } from "../data/types";
 
 export default function DashboardPage() {
-  const { role, month, principalId, ownerFilter, ownerId } = useUi();
+  const { month, principalId, ownerFilter } = useUi();
+  const role = useAuthRole();
+  const ownerId = useMockOwnerId();
   const { customers, products, principals, projections, leads, users, addProjectionRemark, setProjectionFollowUp } =
     useTrackerStore();
 

@@ -1,12 +1,16 @@
 /* Domain vocabulary — mirrors the POC spec so screens speak the same
  * language the business already uses. */
 
-export type Role = "sales" | "admin" | "mgmt";
+/** Web login roles: super_admin | admin | mgmt.
+ *  "sales" exists as a data/type value (for existing seed data & user records)
+ *  but salespersons do NOT have a web login — they use the GreatSales Mobile App. */
+export type Role = "super_admin" | "admin" | "mgmt" | "sales";
 
 export const ROLES: { value: Role; label: string }[] = [
+  { value: "super_admin", label: "Super Admin" },
   { value: "admin", label: "Administrator" },
-  { value: "sales", label: "Salesperson" },
   { value: "mgmt", label: "Management" },
+  // "sales" intentionally omitted — mobile-only role
 ];
 
 export const roleLabel = (r: Role) =>
@@ -256,9 +260,26 @@ export function zoneTone(z: string): Tone {
   return "neutral";
 }
 
-/** Navigation per role — web app serves admin + management only.
- * Salespeople use the mobile app; the sales web frontend was removed. */
+/** Navigation per role.
+ *  super_admin  → management switcher home + all admin pages.
+ *  admin        → full operations dashboard inside a management.
+ *  mgmt         → read-only analytics inside a management.
+ *
+ *  Note: Salespersons (sales role) use the GreatSales Mobile App only.
+ *        They do NOT have a web interface. */
 export const NAVS: Partial<Record<Role, { key: string; label: string }[]>> = {
+  super_admin: [
+    { key: "dashboard", label: "Dashboard" },
+    { key: "projections", label: "Recurring Projections" },
+    { key: "leads", label: "New Sales Customers" },
+    { key: "orders", label: "Sales Orders" },
+    { key: "payments", label: "Payments Follow-up" },
+    { key: "followups", label: "Follow-ups" },
+    { key: "customers", label: "Customers" },
+    { key: "products", label: "Products" },
+    { key: "users", label: "Users" },
+    { key: "data", label: "Data" },
+  ],
   admin: [
     { key: "dashboard", label: "Dashboard" },
     { key: "projections", label: "Recurring Projections" },
@@ -282,3 +303,4 @@ export const NAVS: Partial<Record<Role, { key: string; label: string }[]>> = {
     { key: "products", label: "Products" },
   ],
 };
+

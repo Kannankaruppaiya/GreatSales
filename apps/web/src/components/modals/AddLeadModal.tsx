@@ -12,7 +12,7 @@ import {
 import { inr, lakhs } from "../../lib/format";
 import type { LeadProduct } from "../../data/types";
 import { useTrackerStore } from "../../store/trackerStore";
-import { useUi } from "../../store/ui";
+import { useMockOwnerId } from "../../lib/mockOwner";
 
 export function AddLeadModal({
   open,
@@ -22,7 +22,7 @@ export function AddLeadModal({
   onClose: () => void;
 }) {
   const { principals, products, users, addLead } = useTrackerStore();
-  const { ownerId } = useUi();
+  const ownerId = useMockOwnerId();
   const salespeople = users.filter((u) => u.role === "sales");
 
   const [name, setName] = useState("");

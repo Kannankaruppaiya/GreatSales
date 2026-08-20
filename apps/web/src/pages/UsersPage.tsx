@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { roleLabel } from "../data/constants";
 import { useTrackerStore } from "../store/trackerStore";
-import { useUi } from "../store/ui";
+import { useAuthRole } from "../store/auth";
+import { useMockOwnerId } from "../lib/mockOwner";
 import { cn } from "../lib/utils";
 import { Button, Card } from "../components/ui";
 import { EditUserModal } from "../components/modals/EditUserModal";
@@ -10,7 +11,8 @@ import { ReassignCustomersModal } from "../components/modals/ReassignCustomersMo
 import type { User } from "../data/types";
 
 export default function UsersPage() {
-  const { role, ownerId } = useUi();
+  const role = useAuthRole();
+  const ownerId = useMockOwnerId();
   const { users, customers, toggleUserActive } = useTrackerStore();
 
   const [editUser, setEditUser] = useState<User | null>(null);

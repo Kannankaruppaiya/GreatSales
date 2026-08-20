@@ -5,7 +5,8 @@ import { PAY_ZONES, type PayZone } from "../../data/constants";
 import { inr } from "../../lib/format";
 import { cn } from "../../lib/utils";
 import { useTrackerStore } from "../../store/trackerStore";
-import { useUi } from "../../store/ui";
+import { useAuthRole } from "../../store/auth";
+import { useMockOwnerId } from "../../lib/mockOwner";
 import type { Payment } from "../../data/types";
 
 export function PaymentDetailModal({
@@ -19,7 +20,8 @@ export function PaymentDetailModal({
 }) {
   const { users, updatePaymentZone, updatePaymentField, togglePaymentMail, addPaymentRemark } =
     useTrackerStore();
-  const { role, ownerId } = useUi();
+  const role = useAuthRole();
+  const ownerId = useMockOwnerId();
   const salespeople = users.filter((u) => u.role === "sales");
 
   if (!payment) return null;

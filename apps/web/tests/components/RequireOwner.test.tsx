@@ -3,6 +3,23 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { RequireOwner } from "../../src/components/RequireOwner";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "../../src/store/ui";
+import { useAuth } from "../../src/store/auth";
+
+function seedAuth(role: "super_admin" | "admin") {
+  useAuth.setState({
+    accessToken: "test",
+    refreshToken: "test",
+    user: {
+      id: "u1",
+      tenantId: "tenant_acme",
+      name: "User",
+      email: "user@acme.test",
+      username: "user",
+      roleId: `role_${role}`,
+      role,
+    },
+  });
+}
 
 function renderAt() {
   return render(
@@ -23,7 +40,10 @@ function renderAt() {
 }
 
 describe("RequireOwner", () => {
-  beforeEach(() => useUi.setState({ isOwner: true, activeManagementId: DEFAULT_MANAGEMENT_ID }));
+  beforeEach(() => {
+    useUi.setState({ activeManagementId: DEFAULT_MANAGEMENT_ID });
+    seedAuth("super_admin");
+  });
 
   it("renders children for an owner", () => {
     renderAt();
@@ -31,7 +51,8 @@ describe("RequireOwner", () => {
   });
 
   it("redirects a non-owner to their management dashboard", () => {
-    useUi.setState({ isOwner: false, activeManagementId: DEFAULT_MANAGEMENT_ID });
+    useUi.setState({ activeManagementId: DEFAULT_MANAGEMENT_ID });
+    seedAuth("admin");
     renderAt();
     expect(screen.getByText("dashboard")).toBeInTheDocument();
   });

@@ -1,12 +1,13 @@
 import { useEffect } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { useUi } from "../store/ui";
+import { useIsOwner } from "../store/auth";
 import { useManagementStore } from "../store/managementStore";
 import { switchManagement } from "../store/managementActions";
 
 export function ManagementProvider({ children }: { children: React.ReactNode }) {
   const { managementId } = useParams();
-  const isOwner = useUi((s) => s.isOwner);
+  const isOwner = useIsOwner();
   const activeManagementId = useUi((s) => s.activeManagementId);
   const known = useManagementStore((s) => s.managements.some((m) => m.id === managementId));
 

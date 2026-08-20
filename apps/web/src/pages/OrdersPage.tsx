@@ -8,6 +8,8 @@ import {
 import { SO_STATUSES, soTone } from "../data/constants";
 import { useTrackerStore } from "../store/trackerStore";
 import { useUi } from "../store/ui";
+import { useAuthRole } from "../store/auth";
+import { useMockOwnerId } from "../lib/mockOwner";
 import { inr } from "../lib/format";
 import { cn } from "../lib/utils";
 import { Button, Card } from "../components/ui";
@@ -43,7 +45,9 @@ function fmtDT(iso?: string | null): string {
 }
 
 export default function OrdersPage() {
-  const { role, ownerFilter, ownerId } = useUi();
+  const { ownerFilter } = useUi();
+  const role = useAuthRole();
+  const ownerId = useMockOwnerId();
   const { orders, users } = useTrackerStore();
 
   const [search, setSearch] = useState("");

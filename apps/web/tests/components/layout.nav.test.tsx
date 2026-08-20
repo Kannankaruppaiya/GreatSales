@@ -3,11 +3,25 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { Sidebar } from "../../src/components/layout";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "../../src/store/ui";
+import { useAuth } from "../../src/store/auth";
 
 describe("Sidebar links", () => {
-  beforeEach(() =>
-    useUi.setState({ role: "admin", activeManagementId: DEFAULT_MANAGEMENT_ID, sidebarOpen: true }),
-  );
+  beforeEach(() => {
+    useUi.setState({ activeManagementId: DEFAULT_MANAGEMENT_ID, sidebarOpen: true });
+    useAuth.setState({
+      accessToken: "test",
+      refreshToken: "test",
+      user: {
+        id: "u1",
+        tenantId: "tenant_acme",
+        name: "Admin",
+        email: "admin@acme.test",
+        username: "admin",
+        roleId: "role_admin",
+        role: "admin",
+      },
+    });
+  });
 
   it("prefixes nav links with the active management id", () => {
     render(

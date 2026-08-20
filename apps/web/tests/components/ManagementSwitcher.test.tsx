@@ -4,11 +4,29 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { ManagementSwitcher } from "../../src/components/ManagementSwitcher";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "../../src/store/ui";
+import { useAuth } from "../../src/store/auth";
 import { useManagementStore } from "../../src/store/managementStore";
+
+function seedAuth(role: "super_admin" | "admin") {
+  useAuth.setState({
+    accessToken: "test",
+    refreshToken: "test",
+    user: {
+      id: "u1",
+      tenantId: "tenant_acme",
+      name: "User",
+      email: "user@acme.test",
+      username: "user",
+      roleId: `role_${role}`,
+      role,
+    },
+  });
+}
 
 describe("ManagementSwitcher", () => {
   beforeEach(() => {
-    useUi.setState({ isOwner: true, activeManagementId: DEFAULT_MANAGEMENT_ID });
+    useUi.setState({ activeManagementId: DEFAULT_MANAGEMENT_ID });
+    seedAuth("super_admin");
     useManagementStore.setState({
       managements: [
         {
@@ -33,7 +51,7 @@ describe("ManagementSwitcher", () => {
   });
 
   it("hides for non-owners", () => {
-    useUi.setState({ isOwner: false });
+    seedAuth("admin");
     const { container } = render(
       <MemoryRouter>
         <ManagementSwitcher />

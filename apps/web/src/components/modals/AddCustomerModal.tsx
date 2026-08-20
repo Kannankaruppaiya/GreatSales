@@ -10,7 +10,7 @@ import {
   type PayZone,
 } from "../../data/constants";
 import { useTrackerStore } from "../../store/trackerStore";
-import { useUi } from "../../store/ui";
+import { useMockOwnerId } from "../../lib/mockOwner";
 
 interface ProductRowState {
   principalId: string;
@@ -26,7 +26,7 @@ export function AddCustomerModal({
   onClose: () => void;
 }) {
   const { principals, products, users, addCustomer } = useTrackerStore();
-  const { ownerId } = useUi();
+  const ownerId = useMockOwnerId();
   const salespeople = users.filter((u) => u.role === "sales");
 
   const [name, setName] = useState("");

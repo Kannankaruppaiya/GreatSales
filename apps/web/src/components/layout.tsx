@@ -24,6 +24,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { NAVS, MONTHS, roleLabel } from "../data/constants";
 import { useTrackerStore } from "../store/trackerStore";
 import { useUi } from "../store/ui";
+import { useAuthRole, useAuthUser, useAuth } from "../store/auth";
 import { cn } from "../lib/utils";
 import { Avatar, Badge, Select } from "./ui";
 import { CommandPaletteModal } from "./CommandPaletteModal";
@@ -50,15 +51,17 @@ const ICONS: Record<string, LucideIcon> = {
 
 export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => void }) {
   const navigate = useNavigate();
-  const { role, ownerId, sidebarOpen, logout, setSidebar, activeManagementId } = useUi();
-  const { users, projections, leads, payments } = useTrackerStore();
+  const { sidebarOpen, setSidebar, activeManagementId } = useUi();
+  const role = useAuthRole();
+  const user = useAuthUser();
+  const logout = useAuth((s) => s.logout);
+  const { projections, leads, payments } = useTrackerStore();
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
   const nav = NAVS[role] ?? NAVS.admin ?? [];
-  const me = users.find((u) => u.id === ownerId) || users.find((u) => u.role === role) || users[0];
 
   // Calculate overdue follow-ups count for live notification badge
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -158,10 +161,10 @@ export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => 
         {/* User Card */}
         <div className="border-t border-line/80 p-3 bg-surface-2/40">
           <div className="flex items-center gap-2.5 rounded-xl p-2 bg-surface border border-line shadow-xs">
-            <Avatar name={me?.name ?? "User"} />
+            <Avatar name={user?.name ?? "User"} />
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[13px] font-bold text-ink leading-none">{me?.name}</div>
-              <div className="truncate text-[11px] text-muted font-medium mt-0.5">{me?.email}</div>
+              <div className="truncate text-[13px] font-bold text-ink leading-none">{user?.name}</div>
+              <div className="truncate text-[11px] text-muted font-medium mt-0.5">{user?.email}</div>
             </div>
             <button
               onClick={handleLogout}
@@ -198,7 +201,6 @@ export function Topbar({
   onOpenQuickCreate: (type: "customer" | "lead" | "order" | "invoice") => void;
 }) {
   const {
-    role,
     month,
     principalId,
     ownerFilter,
@@ -207,6 +209,7 @@ export function Topbar({
     setOwnerFilter,
     toggleSidebar,
   } = useUi();
+  const role = useAuthRole();
   const { principals, users, projections, leads, payments } = useTrackerStore();
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);

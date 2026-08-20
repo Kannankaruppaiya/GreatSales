@@ -11,6 +11,8 @@ import {
 import { PAY_ZONES, type PayZone } from "../data/constants";
 import { useTrackerStore } from "../store/trackerStore";
 import { useUi } from "../store/ui";
+import { useAuthRole } from "../store/auth";
+import { useMockOwnerId } from "../lib/mockOwner";
 import { inr, lakhs } from "../lib/format";
 import { cn } from "../lib/utils";
 import { Button, Card } from "../components/ui";
@@ -56,7 +58,9 @@ const ZONE_CLASSES: Record<string, string> = {
 };
 
 export default function PaymentsPage() {
-  const { role, ownerFilter, ownerId } = useUi();
+  const { ownerFilter } = useUi();
+  const role = useAuthRole();
+  const ownerId = useMockOwnerId();
   const {
     payments,
     customers,

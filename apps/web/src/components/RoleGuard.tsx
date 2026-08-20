@@ -1,6 +1,6 @@
 import { ShieldAlert, ArrowLeft, Home } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useUi } from "../store/ui";
+import { useAuthRole } from "../store/auth";
 import { roleLabel, type Role } from "../data/constants";
 import { Button, Card, PageHeader } from "./ui";
 
@@ -11,7 +11,7 @@ export function RoleGuard({
   allowedRoles: Role[];
   children: React.ReactNode;
 }) {
-  const { role } = useUi();
+  const role = useAuthRole();
   const navigate = useNavigate();
 
   const isAllowed = allowedRoles.includes(role);

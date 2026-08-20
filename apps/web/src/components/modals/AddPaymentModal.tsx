@@ -3,7 +3,7 @@ import { Receipt } from "lucide-react";
 import { Button, Dialog, Input, Select } from "../ui";
 import { PAY_ZONES, type PayZone } from "../../data/constants";
 import { useTrackerStore } from "../../store/trackerStore";
-import { useUi } from "../../store/ui";
+import { useMockOwnerId } from "../../lib/mockOwner";
 
 export function AddPaymentModal({
   open,
@@ -13,7 +13,7 @@ export function AddPaymentModal({
   onClose: () => void;
 }) {
   const { customers, users, addPayment } = useTrackerStore();
-  const { ownerId } = useUi();
+  const ownerId = useMockOwnerId();
   const salespeople = users.filter((u) => u.role === "sales");
 
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));

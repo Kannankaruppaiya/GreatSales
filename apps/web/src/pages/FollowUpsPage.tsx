@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { MONTHS, projTone } from "../data/constants";
 import { useTrackerStore } from "../store/trackerStore";
 import { useUi } from "../store/ui";
+import { useAuthRole } from "../store/auth";
+import { useMockOwnerId } from "../lib/mockOwner";
 import { inr } from "../lib/format";
 import { cn } from "../lib/utils";
 import { Button, Card } from "../components/ui";
@@ -34,7 +36,9 @@ function fmtDateLabel(d: string, todayStr: string): { label: string; isOver: boo
 }
 
 export default function FollowUpsPage() {
-  const { role, month, ownerFilter, ownerId, principalId } = useUi();
+  const { month, ownerFilter, principalId } = useUi();
+  const role = useAuthRole();
+  const ownerId = useMockOwnerId();
   const {
     projections,
     leads,

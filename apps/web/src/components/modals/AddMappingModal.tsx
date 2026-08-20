@@ -3,6 +3,8 @@ import { Repeat } from "lucide-react";
 import { Button, Dialog, Input, Select } from "../ui";
 import { useTrackerStore } from "../../store/trackerStore";
 import { useUi } from "../../store/ui";
+import { useAuthRole } from "../../store/auth";
+import { useMockOwnerId } from "../../lib/mockOwner";
 
 export function AddMappingModal({
   open,
@@ -14,7 +16,9 @@ export function AddMappingModal({
   initialCustomerId?: string;
 }) {
   const { customers, principals, products, users, addProjection, projections } = useTrackerStore();
-  const { month, ownerId, role } = useUi();
+  const { month } = useUi();
+  const ownerId = useMockOwnerId();
+  const role = useAuthRole();
   const salespeople = users.filter((u) => u.role === "sales");
 
   const [customerId, setCustomerId] = useState(initialCustomerId || customers[0]?.id || "");

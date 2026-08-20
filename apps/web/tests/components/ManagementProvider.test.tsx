@@ -3,7 +3,24 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { ManagementProvider } from "../../src/components/ManagementProvider";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "../../src/store/ui";
+import { useAuth } from "../../src/store/auth";
 import { useManagementStore, emptyDataset } from "../../src/store/managementStore";
+
+function seedAuth(role: "super_admin" | "admin") {
+  useAuth.setState({
+    accessToken: "test",
+    refreshToken: "test",
+    user: {
+      id: "u1",
+      tenantId: "tenant_acme",
+      name: "User",
+      email: "user@acme.test",
+      username: "user",
+      roleId: `role_${role}`,
+      role,
+    },
+  });
+}
 
 function renderAt(path: string) {
   return render(
@@ -25,7 +42,8 @@ function renderAt(path: string) {
 
 describe("ManagementProvider", () => {
   beforeEach(() => {
-    useUi.setState({ isOwner: true, activeManagementId: DEFAULT_MANAGEMENT_ID });
+    useUi.setState({ activeManagementId: DEFAULT_MANAGEMENT_ID });
+    seedAuth("super_admin");
     useManagementStore.setState({
       managements: [
         {
@@ -68,7 +86,8 @@ describe("ManagementProvider", () => {
   });
 
   it("blocks a non-owner from another management (never switches to it)", () => {
-    useUi.setState({ isOwner: false, activeManagementId: DEFAULT_MANAGEMENT_ID });
+    useUi.setState({ activeManagementId: DEFAULT_MANAGEMENT_ID });
+    seedAuth("admin");
     renderAt("/managements/m_acme/dashboard");
     // Blocked: redirected back to their own management, never switched to m_acme.
     expect(useUi.getState().activeManagementId).toBe(DEFAULT_MANAGEMENT_ID);

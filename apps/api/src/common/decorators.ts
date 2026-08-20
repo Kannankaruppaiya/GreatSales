@@ -3,7 +3,7 @@ import {
   ExecutionContext,
   SetMetadata,
 } from '@nestjs/common';
-import type { RequestUser } from '@greatsales/shared';
+import type { PermissionKey, RequestUser } from '@greatsales/shared';
 
 /** Marks a route as not requiring authentication (skips the global JWT guard). */
 export const IS_PUBLIC_KEY = 'isPublic';
@@ -18,3 +18,12 @@ export const CurrentUser = createParamDecorator(
     return ctx.switchToHttp().getRequest().user;
   },
 );
+
+/**
+ * Declares the RBAC permission keys a route requires. Enforced by
+ * {@link PermissionsGuard}, which checks them against the caller's role grants.
+ * No decorator (or an empty list) means any authenticated user may call it.
+ */
+export const PERMISSIONS_KEY = 'requiredPermissions';
+export const RequirePermissions = (...perms: PermissionKey[]) =>
+  SetMetadata(PERMISSIONS_KEY, perms);

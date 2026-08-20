@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { useTrackerStore } from "../store/trackerStore";
 import { useUi } from "../store/ui";
+import { useAuthRole } from "../store/auth";
+import { useMockOwnerId } from "../lib/mockOwner";
 import { Button, Card } from "../components/ui";
 import { TierBadge } from "../components/StatusBadge";
 import { AddCustomerModal } from "../components/modals/AddCustomerModal";
@@ -11,7 +13,9 @@ import { toast } from "../store/toastStore";
 import type { Customer } from "../data/types";
 
 export default function CustomersPage() {
-  const { role, ownerFilter, ownerId } = useUi();
+  const { ownerFilter } = useUi();
+  const role = useAuthRole();
+  const ownerId = useMockOwnerId();
   const { customers, projections, users, deleteCustomer } = useTrackerStore();
 
   const [search, setSearch] = useState("");

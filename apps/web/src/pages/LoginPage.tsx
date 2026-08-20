@@ -1,51 +1,157 @@
-import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation, useParams, Link } from "react-router-dom";
 import {
   ArrowRight,
   BarChart3,
   Building2,
-  CheckCircle2,
+  Crown,
   Loader2,
   Lock,
   Mail,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   TrendingUp,
   Users,
 } from "lucide-react";
-import type { Role } from "../data/constants";
-import { useUi } from "../store/ui";
+import { DEFAULT_MANAGEMENT_ID } from "../store/ui";
+import { useAuth, SalesWebLoginError } from "../store/auth";
+import { ApiError } from "../lib/api";
+import { env } from "../lib/config";
 import { Button, Input } from "../components/ui";
 
-export default function LoginPage() {
-  const login = useUi((s) => s.login);
+export type LoginRole = "super_admin" | "admin" | "mgmt" | "sales";
+
+interface RoleConfig {
+  id: LoginRole;
+  label: string;
+  badge: string;
+  badgeColor: string;
+  icon: React.ElementType;
+  route: string;
+  defaultEmail: string;
+  destination: string;
+  title: string;
+  description: string;
+}
+
+const ROLE_CONFIGS: Record<LoginRole, RoleConfig> = {
+  super_admin: {
+    id: "super_admin",
+    label: "Super Admin",
+    badge: "GLOBAL OWNER",
+    badgeColor: "bg-purple-500/10 text-purple-600 border-purple-300 dark:border-purple-800",
+    icon: Crown,
+    route: "/super-admin/login",
+    defaultEmail: "superadmin@greatsales.in",
+    destination: "/managements",
+    title: "Super Admin Portal",
+    description: "Full multi-tenant authority. Access and oversee all company workspaces and global governance.",
+  },
+  admin: {
+    id: "admin",
+    label: "Administrator",
+    badge: "TENANT ADMIN",
+    badgeColor: "bg-emerald-500/10 text-emerald-600 border-emerald-300 dark:border-emerald-800",
+    icon: ShieldCheck,
+    route: "/admin/login",
+    defaultEmail: "admin@greatsales.in",
+    destination: `/managements/${DEFAULT_MANAGEMENT_ID}/dashboard`,
+    title: "Administrator Portal",
+    description: "Operational management. Full authority over users, master data, customer assignments, and pipelines.",
+  },
+  mgmt: {
+    id: "mgmt",
+    label: "Management",
+    badge: "EXECUTIVE VIEW",
+    badgeColor: "bg-blue-500/10 text-blue-600 border-blue-300 dark:border-blue-800",
+    icon: Users,
+    route: "/management/login",
+    defaultEmail: "mgmt@greatsales.in",
+    destination: `/managements/${DEFAULT_MANAGEMENT_ID}/dashboard`,
+    title: "Management Portal",
+    description: "Executive oversight. Real-time dashboards, recurring projection grids, and analytics (Read-Only).",
+  },
+  sales: {
+    id: "sales",
+    label: "Sales (Mobile)",
+    badge: "FIELD APP ONLY",
+    badgeColor: "bg-amber-500/10 text-amber-700 border-amber-300 dark:border-amber-800",
+    icon: Smartphone,
+    route: "/sales/login",
+    defaultEmail: "salesperson@greatsales.in",
+    destination: "",
+    title: "Sales Representative Portal",
+    description: "Sales representatives operate exclusively through the GreatSales Mobile application for field efficiency.",
+  },
+};
+
+function resolveRoleFromPath(pathname: string, roleParam?: string): LoginRole {
+  if (roleParam === "super-admin" || roleParam === "super_admin" || roleParam === "superadmin") return "super_admin";
+  if (roleParam === "admin" || roleParam === "administrator") return "admin";
+  if (roleParam === "mgmt" || roleParam === "management" || roleParam === "manager") return "mgmt";
+  if (roleParam === "sales" || roleParam === "salesperson") return "sales";
+
+  if (pathname.includes("super-admin") || pathname.includes("superadmin")) return "super_admin";
+  if (pathname.includes("admin")) return "admin";
+  if (pathname.includes("management") || pathname.includes("mgmt")) return "mgmt";
+  if (pathname.includes("sales")) return "sales";
+
+  return "admin";
+}
+
+interface LoginPageProps {
+  initialRole?: LoginRole;
+}
+
+/** Seeded demo emails per web role (the API authenticates these against tenant_acme). */
+const DEMO_EMAIL_BY_ROLE: Partial<Record<LoginRole, string>> = {
+  admin: env.DEMO_EMAIL,
+  mgmt: env.DEMO_EMAIL.replace(/^admin@/, "manager@"),
+};
+
+export default function LoginPage({ initialRole }: LoginPageProps) {
+  const login = useAuth((s) => s.login);
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || "/dashboard";
+  const { roleParam } = useParams<{ roleParam?: string }>();
 
-  const [workspace, setWorkspace] = useState("greatsales");
-  const [email, setEmail] = useState("admin@greatsales.test");
-  const [password, setPassword] = useState("Passw0rd!");
-  const [role, setRole] = useState<Role>("admin");
+  const activeRole: LoginRole = initialRole || resolveRoleFromPath(location.pathname, roleParam);
+  const config = ROLE_CONFIGS[activeRole] || ROLE_CONFIGS.admin;
+  const demoEmail = DEMO_EMAIL_BY_ROLE[activeRole] ?? config.defaultEmail;
+
+  const [tenantId, setTenantId] = useState(env.DEMO_TENANT_ID);
+  const [email, setEmail] = useState(demoEmail);
+  const [password, setPassword] = useState(env.DEMO_PASSWORD);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const performLogin = (targetRole: Role) => {
-    setBusy(true);
-    setTimeout(() => {
-      login(targetRole);
-      setBusy(false);
-      navigate(from, { replace: true });
-    }, 300);
-  };
+  // Update the prefilled email when the active role changes
+  useEffect(() => {
+    setEmail(demoEmail);
+  }, [demoEmail]);
 
-  const submit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    performLogin(role);
+    if (activeRole === "sales" || activeRole === "super_admin") return;
+
+    setBusy(true);
+    setError(null);
+    try {
+      await login(tenantId, email, password);
+      navigate(config.destination, { replace: true });
+    } catch (err) {
+      if (err instanceof SalesWebLoginError) setError(err.message);
+      else if (err instanceof ApiError) setError(err.message);
+      else setError("Could not reach the API. Is it running?");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr] bg-canvas">
-      {/* Brand Hero Panel */}
+    <div className="grid min-h-screen lg:grid-cols-[1.15fr_1fr] bg-canvas">
+      {/* ── Brand Hero Panel ── */}
       <div className="relative hidden overflow-hidden bg-gradient-to-br from-brand-ink via-slate-900 to-brand-ink lg:flex lg:flex-col lg:justify-between lg:p-14 lg:text-white">
         <div
           className="pointer-events-none absolute inset-0 opacity-15"
@@ -55,6 +161,7 @@ export default function LoginPage() {
           }}
         />
 
+        {/* Logo */}
         <div className="relative flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-brand to-emerald-400 text-white font-black shadow-lg shadow-brand/30">
             <Sparkles className="h-5 w-5" />
@@ -66,19 +173,19 @@ export default function LoginPage() {
                 PRO
               </span>
             </div>
-            <p className="text-xs text-white/60 font-medium">B2B Distribution Sales & Receivables Intelligence</p>
+            <p className="text-xs text-white/60 font-medium">B2B Distribution Sales &amp; Receivables Intelligence</p>
           </div>
         </div>
 
+        {/* Hero copy */}
         <div className="relative max-w-lg space-y-6">
           <h1 className="text-4xl font-extrabold leading-tight tracking-tight">
             Commit. Track. <br />
-            <span className="text-emerald-300">
-              Achieve Growth.
-            </span>
+            <span className="text-emerald-300">Achieve Growth.</span>
           </h1>
           <p className="text-[15px] leading-relaxed text-white/70">
-            The unified recurring-sales projection, pipeline acceleration, and receivables platform. One source of truth from sales reps in the field to executive leadership.
+            The unified recurring-sales projection, pipeline acceleration, and receivables platform. One source of truth
+            from sales reps in the field to executive leadership.
           </p>
 
           <div className="grid grid-cols-1 gap-4 pt-2">
@@ -96,7 +203,7 @@ export default function LoginPage() {
               {
                 icon: ShieldCheck,
                 title: "Role-Aware Multi-Tenant Control",
-                desc: "Granular access isolation for Sales, Admin, and Executive Management.",
+                desc: "Dedicated portals for Super Admin, Tenant Administrator, and Executive Management.",
               },
             ].map((f) => (
               <div key={f.title} className="flex items-start gap-3.5 rounded-xl bg-white/5 border border-white/10 p-3.5 backdrop-blur-xs">
@@ -118,9 +225,10 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Form Panel */}
+      {/* ── Form Panel ── */}
       <div className="flex items-center justify-center px-6 py-12">
-        <div className="w-full max-w-[420px] space-y-6">
+        <div className="w-full max-w-[440px] space-y-6">
+
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center gap-2.5">
             <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand text-white font-extrabold shadow-sm">
@@ -132,119 +240,178 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {/* ── Role Navigation Tabs (Direct URL routes) ── */}
           <div>
-            <h2 className="text-2xl font-extrabold text-ink tracking-tight font-sans">
-              Sign in to your account
-            </h2>
-            <p className="mt-1 text-xs font-medium text-muted">
-              Select your persona below for instant access or enter credentials.
+            <label className="text-[11px] font-bold uppercase tracking-wider text-muted block mb-2">
+              Select Portal URL
+            </label>
+            <div className="grid grid-cols-3 gap-1.5 p-1 bg-surface-2 rounded-xl border border-line">
+              {(["super_admin", "admin", "mgmt"] as LoginRole[]).map((rKey) => {
+                const rConf = ROLE_CONFIGS[rKey];
+                const isActive = activeRole === rKey;
+                const Icon = rConf.icon;
+
+                return (
+                  <Link
+                    key={rKey}
+                    to={rConf.route}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-all ${
+                      isActive
+                        ? "bg-surface text-ink shadow-xs border border-line"
+                        : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    <Icon className={`h-3.5 w-3.5 ${isActive ? "text-brand" : "text-muted"}`} />
+                    <span className="truncate">{rConf.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── Active Portal Header ── */}
+          <div className="p-4 rounded-xl border border-line bg-surface space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-lg bg-surface-2 border border-line">
+                  <config.icon className="h-4 w-4 text-brand" />
+                </div>
+                <div>
+                  <h2 className="text-base font-extrabold text-ink font-sans">
+                    {config.title}
+                  </h2>
+                  <span className={`inline-block rounded border px-1.5 py-0.2 text-[9px] font-extrabold tracking-wider uppercase ${config.badgeColor}`}>
+                    {config.badge}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-muted leading-relaxed">
+              {config.description}
             </p>
           </div>
 
-          {/* 1-Click Fast Persona Selector */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-muted block">
-              1-Click Fast Demo Login
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { role: "admin" as Role, label: "Admin", subtitle: "Full Governance", icon: ShieldCheck },
-                { role: "mgmt" as Role, label: "Management", subtitle: "Read-Only View", icon: Users },
-              ].map((p) => (
-                <button
-                  key={p.role}
-                  type="button"
-                  onClick={() => {
-                    setRole(p.role);
-                    performLogin(p.role);
-                  }}
-                  className={`rounded-xl border p-2.5 text-left transition-all cursor-pointer group shadow-xs hover:scale-[1.02] ${
-                    role === p.role
-                      ? "border-brand bg-brand-soft/40 ring-1 ring-brand/50"
-                      : "border-line bg-surface hover:border-brand/40"
-                  }`}
+          {/* ── Sales Role Special Screen ── */}
+          {activeRole === "sales" ? (
+            <div className="space-y-4 rounded-xl border border-amber-200 bg-amber-50/60 p-5 text-center dark:border-amber-900/40 dark:bg-amber-950/20">
+              <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-amber-500/10 text-amber-700">
+                <Smartphone className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-ink">Mobile App Required for Sales</h3>
+                <p className="text-xs text-muted leading-relaxed">
+                  Sales representatives use the GreatSales Mobile application for daily field visits, projection submissions, and offline order logging.
+                </p>
+              </div>
+              <div className="pt-2 flex flex-col gap-2">
+                <Link
+                  to="/admin/login"
+                  className="inline-flex items-center justify-center h-9 px-4 rounded-lg bg-brand text-white text-xs font-bold shadow-xs hover:bg-brand-ink transition-colors"
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <p.icon className={`h-4 w-4 ${role === p.role ? "text-brand-ink" : "text-muted group-hover:text-brand"}`} />
-                    {role === p.role && <CheckCircle2 className="h-3.5 w-3.5 text-brand" />}
-                  </div>
-                  <div className="text-xs font-bold text-ink">{p.label}</div>
-                  <div className="text-[10px] text-muted truncate">{p.subtitle}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative flex items-center justify-center">
-            <div className="w-full border-t border-line" />
-            <span className="bg-canvas px-3 text-[11px] font-bold uppercase tracking-wider text-muted">
-              Or Sign In With Workspace Credentials
-            </span>
-          </div>
-
-          <form onSubmit={submit} className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-bold text-ink">Workspace Tenant</label>
-              <div className="flex items-stretch overflow-hidden rounded-lg border border-line focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 bg-surface shadow-xs">
-                <span className="grid place-items-center px-3 text-muted">
-                  <Building2 className="h-4 w-4" />
-                </span>
-                <input
-                  value={workspace}
-                  onChange={(e) => setWorkspace(e.target.value)}
-                  className="h-9 flex-1 bg-surface pr-2 text-xs font-semibold text-ink focus:outline-none"
-                  placeholder="greatsales"
-                />
-                <span className="grid place-items-center bg-surface-2 px-3 text-[11px] font-bold text-muted border-l border-line">
-                  .greatsales.app
-                </span>
+                  Go to Administrator Portal
+                </Link>
+                <Link
+                  to="/super-admin/login"
+                  className="inline-flex items-center justify-center h-9 px-4 rounded-lg border border-line bg-surface text-ink text-xs font-bold hover:bg-surface-2 transition-colors"
+                >
+                  Go to Super Admin Portal
+                </Link>
               </div>
             </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-bold text-ink">Email Address</label>
-              <div className="relative">
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@company.com"
-                  className="pl-9 text-xs font-semibold"
-                />
-                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted pointer-events-none" />
+          ) : activeRole === "super_admin" ? (
+            <div className="space-y-3 rounded-xl border border-purple-200 bg-purple-50/60 p-5 text-center dark:border-purple-900/40 dark:bg-purple-950/20">
+              <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-purple-500/10 text-purple-700">
+                <Crown className="h-6 w-6" />
               </div>
+              <h3 className="text-sm font-bold text-ink">Platform Sign-In Coming Soon</h3>
+              <p className="text-xs text-muted leading-relaxed">
+                Super Admin uses a dedicated platform sign-in (arriving in Phase 0.5). For now,
+                use the Administrator portal.
+              </p>
+              <Link
+                to="/admin/login"
+                className="inline-flex items-center justify-center h-9 px-4 rounded-lg bg-brand text-white text-xs font-bold hover:bg-brand-ink transition-colors"
+              >
+                Go to Administrator Portal
+              </Link>
             </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-bold text-ink">Password</label>
-              <div className="relative">
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="pl-9 text-xs font-semibold"
-                />
-                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted pointer-events-none" />
+          ) : (
+            /* ── Credential Form ── */
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-ink">Tenant ID</label>
+                <div className="flex items-stretch overflow-hidden rounded-lg border border-line focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 bg-surface shadow-xs">
+                  <span className="grid place-items-center px-3 text-muted">
+                    <Building2 className="h-4 w-4" />
+                  </span>
+                  <input
+                    value={tenantId}
+                    onChange={(e) => setTenantId(e.target.value)}
+                    className="h-9 flex-1 bg-surface pr-2 text-xs font-semibold text-ink focus:outline-none"
+                    placeholder="tenant_acme"
+                    required
+                  />
+                </div>
               </div>
-            </div>
 
-            <Button type="submit" className="w-full h-10 font-bold" disabled={busy}>
-              {busy ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Authenticating Session…
-                </>
-              ) : (
-                <>
-                  Enter Workspace <ArrowRight className="h-4 w-4 ml-1.5" />
-                </>
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-ink">Email Address</label>
+                <div className="relative">
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@company.com"
+                    className="pl-9 text-xs font-semibold"
+                    required
+                  />
+                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted pointer-events-none" />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-ink">Password</label>
+                <div className="relative">
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="pl-9 text-xs font-semibold"
+                    required
+                  />
+                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted pointer-events-none" />
+                </div>
+              </div>
+
+              {error && (
+                <div className="rounded-lg border border-red/40 bg-red-soft px-3 py-2 text-xs text-red">
+                  {error}
+                </div>
               )}
-            </Button>
-          </form>
 
-          <p className="text-center text-[11.5px] text-muted font-medium">
-            Protected with role-based access control & token persistence.
-          </p>
+              <Button type="submit" className="w-full h-10 font-bold" disabled={busy}>
+                {busy ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Authenticating {config.label}…
+                  </>
+                ) : (
+                  <>
+                    Sign In to {config.label} <ArrowRight className="h-4 w-4 ml-1.5" />
+                  </>
+                )}
+              </Button>
+            </form>
+          )}
+
+          <div className="pt-2 text-center border-t border-line space-y-1">
+            <p className="text-[11.5px] text-muted font-medium">
+              Direct Route: <code className="rounded bg-surface-2 px-1.5 py-0.5 text-ink font-mono text-[11px]">{config.route}</code>
+            </p>
+            <p className="text-[11px] text-muted/70">
+              Target Destination: {config.destination || "Mobile App"}
+            </p>
+          </div>
         </div>
       </div>
     </div>
