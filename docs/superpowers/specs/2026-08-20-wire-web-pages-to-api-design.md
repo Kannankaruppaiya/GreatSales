@@ -8,8 +8,20 @@
 ## Goal
 
 Move the remaining `apps/web` pages off mock data (`store/trackerStore.ts`) and onto
-the real NestJS API, following the proven ProjectionsPage wiring pattern. Data-first:
-all pages wired now; visual polish is a **separate later cycle**.
+the real NestJS API, following the proven ProjectionsPage wiring pattern, at a
+**production-grade** bar. Data-first: all pages wired now; visual polish is a
+**separate later cycle**.
+
+This is **Cycle 1** of a two-cycle plan:
+
+- **Cycle 1 (this spec):** wire all pages to the logged-in tenant's data + session
+  hardening (token refresh), real pagination, and dead-code cleanup. Ship-able,
+  production-grade for single-tenant admin use.
+- **Cycle 2 (separate brainstorm→spec→plan, next):** reconcile the multi-management
+  switcher with real per-tenant auth — platform-user login + super-admin tenant
+  selection/impersonation. **Requires API changes** (the API today derives tenant
+  strictly from the JWT `tid` claim with no override, and `/auth/login` authenticates
+  a tenant `User`, not the `PlatformUser` that owns managements). Out of scope here.
 
 ## Context / current state
 
@@ -62,11 +74,30 @@ Rejected alternatives:
 - Mutation error → inline/toast (e.g. duplicate email/sku → server `ConflictException`
   message surfaced to the form).
 
-## Pagination
+## Session hardening — token refresh (production-grade)
 
-List APIs are cursor-paginated (`{ items, nextCursor }`). CRM worksheets use a **large
-default page size** (limit ~200) plus a "load more" affordance when `nextCursor` is
-present. Kanban boards and tables render the loaded set one-shot.
+The API exposes `POST /auth/refresh` and the auth store already persists `refreshToken`,
+but the web client never uses it — so an expired access token silently breaks every
+request. Cycle 1 closes this:
+
+- `lib/api.ts` gains 401 handling: on a 401, call `/auth/refresh` **once** with the
+  stored refresh token, update the auth store with the new pair, and retry the original
+  request a single time.
+- Concurrent 401s share **one** in-flight refresh (a single refresh promise) so a burst
+  of requests doesn't fire N refreshes.
+- If refresh fails (or there is no refresh token), clear the session (`logout`) and
+  redirect to `/login`.
+- The refresh call itself must not recurse into refresh-on-401.
+- Tests: 401 → refresh → retry succeeds; refresh failure → logout; concurrent 401s →
+  single refresh.
+
+## Pagination (production-grade)
+
+List APIs are cursor-paginated (`{ items, nextCursor }`). Wire lists with react-query
+**`useInfiniteQuery`**, requesting a reasonable page size (e.g. 50) and following
+`nextCursor`. Surface a "load more" control (or scroll-triggered fetch) while
+`hasNextPage`; flatten pages for rendering. This replaces the earlier `limit ~200`
+stopgap so large tenants stay correct and bounded.
 
 ## Sequencing (simplest → riskiest)
 
@@ -79,6 +110,11 @@ present. Kanban boards and tables render the loaded set one-shot.
 7. **Leads** — Kanban stage moves.
 8. **Dashboard** — aggregates last (depends on all others).
 
+Token refresh (session hardening) lands **first**, before the pages, since every wired
+page depends on it. After all pages are wired and verified, a final **cleanup step**
+removes every `features/*/<Name>Page.mock.tsx` (kept as a dev safety net during wiring)
+so no dead code ships.
+
 ## Testing
 
 Per page: vitest (RTL + jsdom) mocking `apiFetch` — assert (a) list renders from API
@@ -88,18 +124,23 @@ after each page. The 25 existing tests must stay green (no regression).
 
 ## Boundaries (explicitly out of scope)
 
-- **Multi-management switcher stays mock.** The real JWT is single-tenant; wiring covers
-  the logged-in tenant's data only. Reconciling the management switcher with real
-  per-tenant auth is a future cycle.
+- **Multi-management switcher stays mock — deferred to Cycle 2.** The real JWT is
+  single-tenant; Cycle 1 wiring covers the logged-in tenant's data only. Reconciling the
+  switcher with real per-tenant auth (platform-user login + super-admin tenant selection)
+  requires API changes and is its own brainstorm→spec→plan cycle.
 - **Visual polish is a separate later cycle** (data-first, per decision).
-- **No API changes.** Backend is used as-is (94 tests green). The documented
+- **No API changes in Cycle 1.** Backend is used as-is (94 tests green). The documented
   permission-key defaults (product read=`order.read`/write=`user.manage`;
   follow-up read=`projection.read`/write=`projection.write`; payments write admin-only)
   stand.
 
 ## Success criteria
 
-- All 8 pages read live data from the API (no `trackerStore` reads on the wired pages).
+- Token refresh works: an expired access token is transparently refreshed and the request
+  retried; refresh failure logs out cleanly. No spurious logouts under normal use.
+- All 8 pages read live data from the API (no `trackerStore` reads on the wired pages),
+  paginated via `useInfiniteQuery`.
 - Create/update/delete flows persist through the API and reflect after invalidation.
+- No dead `*.mock.tsx` files remain in the tree.
 - `pnpm --filter web test` and `tsc --noEmit` green; no regression in existing tests.
 - Live-verified in the browser (network trace) for at least the mutation path of each page.
