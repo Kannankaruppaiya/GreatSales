@@ -1,27 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   FileSpreadsheet,
   LayoutList,
-  Loader2,
   Plus,
   Printer,
 } from "lucide-react";
+import { SO_STATUSES, soTone } from "@/data/constants";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useUi } from "@/store/ui";
 import { useAuthRole } from "@/store/auth";
+import { useMockOwnerId } from "@/lib/mockOwner";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
 import { StatusBadge } from "@/components/StatusBadge";
-import { QueryBoundary } from "@/components/common/QueryBoundary";
 import { CreateSalesOrderModal } from "@/features/orders/CreateSalesOrderModal";
-import { SalesOrderDetailModal } from "@/features/orders/SalesOrderDetailModal";
-import { InvoicePrintModal } from "@/features/orders/InvoicePrintModal";
-import { useOrders, flattenOrders } from "@/features/orders/queries";
-import {
-  ORDER_STATUS_VALUES,
-  ORDER_STATUS_LABELS,
-  type OrderStatusValue,
-  type OrderRow,
-} from "@/features/orders/types";
+import { SalesOrderDetailModal } from "@/features/orders/SalesOrderDetailModal.mock";
+import { InvoicePrintModal } from "@/features/orders/InvoicePrintModal.mock";
+import type { SalesOrder } from "@/data/types";
 
 function fmtDur(ms: number | null): string {
   if (ms == null || isNaN(ms)) return "—";
@@ -48,90 +44,75 @@ function fmtDT(iso?: string | null): string {
   });
 }
 
-/** Raw-enum-keyed tone map for the status badge — mirrors data/constants.ts
- * soTone(), but keyed by the wire's raw OrderStatusValue instead of the old
- * mock's display-label strings (see features/orders/types.ts doc comment on
- * why status is a raw DB enum on the wire). */
-function orderTone(status: string): "won" | "lost" | "open" | "hot" {
-  if (status === "Cancelled") return "lost";
-  if (status === "CustomerReceiptConfirmed") return "won";
-  if (status === "Created") return "open";
-  return "hot";
-}
-
 export default function OrdersPage() {
+  const { ownerFilter } = useUi();
   const role = useAuthRole();
-  const canEdit = role !== "mgmt";
+  const ownerId = useMockOwnerId();
+  const { orders, users } = useTrackerStore();
 
   const [search, setSearch] = useState("");
-  const [statusChip, setStatusChip] = useState<string>("ALL");
-  const [ownerId, setOwnerId] = useState("ALL");
+  const [statusChip, setStatusChip] = useState("ALL");
   const [tab, setTab] = useState<"list" | "report">("list");
   const [showCreateSo, setShowCreateSo] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<OrderRow | null>(null);
-  const [printOrder, setPrintOrder] = useState<OrderRow | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
+  const [printOrder, setPrintOrder] = useState<SalesOrder | null>(null);
 
-  const params = {
-    search: search.trim() || undefined,
-    status: statusChip === "ALL" ? undefined : statusChip,
-    ownerId: ownerId === "ALL" ? undefined : ownerId,
-  };
-  const q = useOrders(params);
-  const orders = flattenOrders(q.data);
+  const isReadOnly = role === "mgmt";
+  const showSp = role !== "sales";
+  const userMap = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
 
-  // Salesperson filter options — no dedicated endpoint, derived from the
-  // loaded rows (same pattern as PaymentsPage's salespersonOptions). Also
-  // handed to CreateSalesOrderModal below; customers/products are
-  // deliberately NOT derived from rows and left to that modal's own
-  // "no options handed down" fallback fetch (useCustomers/useProducts),
-  // since a new order can target a customer/product that has never
-  // appeared on an existing order — a rows-derived list here would silently
-  // exclude those. See task-7-report.md "FK options" for the full rationale.
-  const salespersonOptions = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const o of orders) {
-      if (o.salespersonId) m.set(o.salespersonId, o.salespersonName || o.salespersonId);
-    }
-    return [...m.entries()].map(([id, name]) => ({ id, name }));
-  }, [orders]);
+  // Filter scoped orders
+  const scopedOrders = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return orders
+      .filter((o) => {
+        if (role === "sales" && o.ownerId !== ownerId) return false;
+        if (ownerFilter !== "ALL" && o.ownerId !== ownerFilter) return false;
+        if (statusChip !== "ALL" && o.status !== statusChip) return false;
+        if (q) {
+          const cMatch = (o.customerName || "").toLowerCase().includes(q);
+          const codeMatch = (o.code || "").toLowerCase().includes(q);
+          const trMatch = (o.transporterName || "").toLowerCase().includes(q);
+          if (!cMatch && !codeMatch && !trMatch) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  }, [orders, role, ownerId, ownerFilter, statusChip, search]);
 
-  // Fulfilment report only aggregates over ALL filtered orders (not just one
-  // page), the same reason PaymentsPage auto-fetches every page before
-  // computing its KPI/aging totals. Unlike Payments, this stays opt-in to
-  // the Report tab (rather than always running) so the List tab's manual
-  // "Load more" stays meaningful — see task-7-report.md concerns.
-  useEffect(() => {
-    if (tab === "report" && q.hasNextPage && !q.isFetchingNextPage) {
-      q.fetchNextPage();
-    }
-  }, [tab, q.hasNextPage, q.isFetchingNextPage, q.fetchNextPage]);
-  const reportStillLoading = tab === "report" && (q.isLoading || q.hasNextPage === true);
-
-  // Fulfilment SLA metrics — pure grouping over the server's statusHistory
-  // entries (raw OrderStatusValue keys); none of this recomputes total/
-  // lineTotal, only timestamps already returned by the API.
-  const reportOrders = useMemo(() => orders.filter((o) => o.status !== "Cancelled"), [orders]);
+  // Fulfillment report metrics
+  const reportOrders = useMemo(() => {
+    return orders.filter((o) => {
+      if (role === "sales" && o.ownerId !== ownerId) return false;
+      if (ownerFilter !== "ALL" && o.ownerId !== ownerFilter) return false;
+      return o.status !== "Cancelled";
+    });
+  }, [orders, role, ownerId, ownerFilter]);
 
   const durAck: number[] = [];
   const durPrep: number[] = [];
   const durTransit: number[] = [];
   const durTotal: number[] = [];
+  const durRecv: number[] = [];
   let delayedCount = 0;
 
   reportOrders.forEach((so) => {
     const created = so.createdAt ? new Date(so.createdAt).getTime() : 0;
-    const ackEntry = so.statusHistory.find((h) => h.status === "Acknowledged");
-    const prepEntry = so.statusHistory.find((h) => h.status === "DeliveredFromWarehouse");
-    const delvEntry = so.statusHistory.find((h) => h.status === "DeliveredToCustomer");
+    const ackEntry = so.history?.find((h) => h.status === "Acknowledged");
+    const prepEntry = so.history?.find((h) => h.status === "Delivered from Warehouse");
+    const delvEntry = so.history?.find((h) => h.status === "Delivered to Customer");
+    const recvEntry = so.history?.find((h) => h.status === "Customer Receipt Confirmed");
 
-    const ackTime = ackEntry ? new Date(ackEntry.at).getTime() : 0;
-    const prepTime = prepEntry ? new Date(prepEntry.at).getTime() : 0;
-    const delvTime = delvEntry ? new Date(delvEntry.at).getTime() : 0;
+    const ackTime = ackEntry ? new Date(ackEntry.timestamp).getTime() : 0;
+    const prepTime = prepEntry ? new Date(prepEntry.timestamp).getTime() : 0;
+    const delvTime = delvEntry ? new Date(delvEntry.timestamp).getTime() : 0;
+    const recvTime = recvEntry ? new Date(recvEntry.timestamp).getTime() : 0;
 
     if (ackTime && created) durAck.push(ackTime - created);
     if (prepTime && ackTime) durPrep.push(prepTime - ackTime);
     if (delvTime && prepTime) durTransit.push(delvTime - prepTime);
     if (delvTime && created) durTotal.push(delvTime - created);
+    if (recvTime && delvTime) durRecv.push(recvTime - delvTime);
 
     if (so.expectedDelivery && delvTime && delvTime > new Date(so.expectedDelivery).getTime()) {
       delayedCount++;
@@ -155,7 +136,7 @@ export default function OrdersPage() {
                   : "border-line bg-surface text-muted hover:border-muted/50 hover:text-ink"
               )}
             >
-              <LayoutList className="h-3 w-3" /> Orders ({orders.length})
+              <LayoutList className="h-3 w-3" /> Orders ({scopedOrders.length})
             </button>
             <button
               onClick={() => setTab("report")}
@@ -170,7 +151,7 @@ export default function OrdersPage() {
             </button>
           </div>
 
-          {canEdit && tab === "list" && (
+          {!isReadOnly && tab === "list" && (
             <div className="ml-auto">
               <Button size="sm" onClick={() => setShowCreateSo(true)}>
                 <Plus className="h-3.5 w-3.5 mr-1" /> + Create Sales Order
@@ -191,23 +172,8 @@ export default function OrdersPage() {
                 className="rounded-xl border border-line bg-surface px-3 py-1.5 text-xs text-ink placeholder:text-muted focus:outline-brand focus:border-brand w-64 shadow-2xs"
               />
 
-              {salespersonOptions.length > 0 && (
-                <select
-                  value={ownerId}
-                  onChange={(e) => setOwnerId(e.target.value)}
-                  className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
-                >
-                  <option value="ALL">All salespersons</option>
-                  {salespersonOptions.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-
               <div className="flex items-center gap-1.5 overflow-x-auto">
-                {(["ALL", ...ORDER_STATUS_VALUES] as const).map((c) => (
+                {["ALL", ...SO_STATUSES].map((c) => (
                   <button
                     key={c}
                     onClick={() => setStatusChip(c)}
@@ -218,7 +184,7 @@ export default function OrdersPage() {
                         : "border-line bg-surface text-muted hover:border-muted/50 hover:text-ink"
                     )}
                   >
-                    {c === "ALL" ? "All" : ORDER_STATUS_LABELS[c as OrderStatusValue]}
+                    {c === "ALL" ? "All" : c}
                   </button>
                 ))}
               </div>
@@ -226,31 +192,33 @@ export default function OrdersPage() {
 
             {/* Orders Table */}
             <div className="overflow-x-auto max-h-[68vh]">
-              <QueryBoundary
-                isLoading={q.isLoading}
-                isError={q.isError}
-                error={q.error}
-                isEmpty={orders.length === 0}
-                emptyLabel="No sales orders yet. Click &ldquo;+ Create Sales Order&rdquo; to issue one."
-              >
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs">
+                  <tr>
+                    <th className="py-2.5 px-3">SO no.</th>
+                    <th className="py-2.5 px-3 min-w-[180px]">Customer</th>
+                    <th className="py-2.5 px-3 min-w-[180px]">Product SKU</th>
+                    <th className="py-2.5 px-3 text-right">Qty</th>
+                    <th className="py-2.5 px-3 text-right font-bold text-ink">Value</th>
+                    {showSp && <th className="py-2.5 px-3">Salesperson</th>}
+                    <th className="py-2.5 px-3">Issued</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line/60">
+                  {scopedOrders.length === 0 ? (
                     <tr>
-                      <th className="py-2.5 px-3">SO no.</th>
-                      <th className="py-2.5 px-3 min-w-[180px]">Customer</th>
-                      <th className="py-2.5 px-3 min-w-[180px]">Product SKU</th>
-                      <th className="py-2.5 px-3 text-right">Qty</th>
-                      <th className="py-2.5 px-3 text-right font-bold text-ink">Value</th>
-                      <th className="py-2.5 px-3">Salesperson</th>
-                      <th className="py-2.5 px-3">Issued</th>
-                      <th className="py-2.5 px-3">Status</th>
-                      <th className="py-2.5 px-3 text-center">Actions</th>
+                      <td colSpan={9} className="py-16 text-center text-xs text-muted">
+                        No sales orders yet. Confirm a projection line and click &ldquo;+ Create SO&rdquo;.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line/60">
-                    {orders.map((so) => {
-                      const firstLine = so.items[0];
-                      const totalQty = so.items.reduce((s, l) => s + l.qty, 0);
+                  ) : (
+                    scopedOrders.map((so) => {
+                      const firstLine = so.lines[0];
+                      const totalQty = so.lines.reduce((s, l) => s + l.qty, 0);
+                      const totalVal = so.lines.reduce((s, l) => s + l.qty * l.price, 0);
+                      const sp = userMap.get(so.ownerId)?.name || "—";
 
                       return (
                         <tr key={so.id} className="hover:bg-surface-2/70 transition-colors">
@@ -258,22 +226,18 @@ export default function OrdersPage() {
                           <td className="py-2.5 px-3 font-bold text-ink">{so.customerName}</td>
                           <td className="py-2.5 px-3 text-muted">
                             {firstLine ? firstLine.productName : "—"}
-                            {so.items.length > 1 && ` (+${so.items.length - 1} more)`}
+                            {so.lines.length > 1 && ` (+${so.lines.length - 1} more)`}
                           </td>
                           <td className="py-2.5 px-3 text-right tabular-nums font-semibold">{totalQty}</td>
-                          {/* total is server-computed — rendered as-is, never recomputed. */}
                           <td className="py-2.5 px-3 text-right tabular-nums font-bold text-ink">
-                            {inr(so.total)}
+                            {inr(totalVal)}
                           </td>
-                          <td className="py-2.5 px-3 text-muted">{so.salespersonName || "—"}</td>
+                          {showSp && <td className="py-2.5 px-3 text-muted">{sp}</td>}
                           <td className="py-2.5 px-3 text-muted text-[11px] tabular-nums">
                             {fmtDT(so.createdAt)}
                           </td>
                           <td className="py-2.5 px-3">
-                            <StatusBadge
-                              label={ORDER_STATUS_LABELS[so.status as OrderStatusValue] ?? so.status}
-                              tone={orderTone(so.status)}
-                            />
+                            <StatusBadge label={so.status} tone={soTone(so.status)} />
                           </td>
                           <td className="py-2.5 px-3 text-center">
                             <div className="flex items-center justify-center gap-1.5">
@@ -296,40 +260,17 @@ export default function OrdersPage() {
                           </td>
                         </tr>
                       );
-                    })}
-                  </tbody>
-                </table>
-              </QueryBoundary>
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
-
-            {q.hasNextPage && (
-              <div className="p-3 border-t border-line flex justify-center">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => q.fetchNextPage()}
-                  disabled={q.isFetchingNextPage}
-                >
-                  {q.isFetchingNextPage && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
-                  Load more
-                </Button>
-              </div>
-            )}
           </div>
         ) : (
-          /* Fulfilment Report Tab — aggregates over every filtered order, so
-             all remaining pages are fetched first (see the effect above);
-             this banner is the only state where the numbers are partial. */
+          /* Fulfilment Report Tab */
           <div className="p-4 space-y-4">
-            {reportStillLoading && (
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Loading full report… ({orders.length} orders so far)
-              </div>
-            )}
-
-            {/* 4 KPI Cards */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {/* 5 KPI Cards */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               <div className="rounded-xl border border-line bg-surface p-3 shadow-xs">
                 <div className="text-[10.5px] font-bold uppercase tracking-wider text-muted">Avg acknowledgement time</div>
                 <div className="text-lg font-black text-ink mt-1 tabular-nums">{fmtDur(avg(durAck))}</div>
@@ -341,6 +282,10 @@ export default function OrdersPage() {
               <div className="rounded-xl border border-line bg-surface p-3 shadow-xs">
                 <div className="text-[10.5px] font-bold uppercase tracking-wider text-muted">Avg transit time</div>
                 <div className="text-lg font-black text-ink mt-1 tabular-nums">{fmtDur(avg(durTransit))}</div>
+              </div>
+              <div className="rounded-xl border border-brand/40 bg-brand-soft p-3 shadow-xs">
+                <div className="text-[10.5px] font-bold uppercase tracking-wider text-brand-ink">Avg order → delivery</div>
+                <div className="text-lg font-black text-brand-ink mt-1 tabular-nums">{fmtDur(avg(durTotal))}</div>
               </div>
               <div
                 className={cn(
@@ -372,26 +317,30 @@ export default function OrdersPage() {
                     <th className="py-2.5 px-3">Delivered</th>
                     <th className="py-2.5 px-3 text-right">Transit time</th>
                     <th className="py-2.5 px-3 text-right font-bold text-ink">Order→Delivery</th>
+                    <th className="py-2.5 px-3">Customer receipt</th>
+                    <th className="py-2.5 px-3 text-right">Confirm lag</th>
                     <th className="py-2.5 px-3 text-center">SLA</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/60">
                   {reportOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="py-12 text-center text-xs text-muted">
+                      <td colSpan={13} className="py-12 text-center text-xs text-muted">
                         No orders to report yet.
                       </td>
                     </tr>
                   ) : (
                     reportOrders.map((so) => {
                       const created = so.createdAt ? new Date(so.createdAt).getTime() : 0;
-                      const ackEntry = so.statusHistory.find((h) => h.status === "Acknowledged");
-                      const prepEntry = so.statusHistory.find((h) => h.status === "DeliveredFromWarehouse");
-                      const delvEntry = so.statusHistory.find((h) => h.status === "DeliveredToCustomer");
+                      const ackEntry = so.history?.find((h) => h.status === "Acknowledged");
+                      const prepEntry = so.history?.find((h) => h.status === "Delivered from Warehouse");
+                      const delvEntry = so.history?.find((h) => h.status === "Delivered to Customer");
+                      const recvEntry = so.history?.find((h) => h.status === "Customer Receipt Confirmed");
 
-                      const ackTime = ackEntry ? new Date(ackEntry.at).getTime() : 0;
-                      const prepTime = prepEntry ? new Date(prepEntry.at).getTime() : 0;
-                      const delvTime = delvEntry ? new Date(delvEntry.at).getTime() : 0;
+                      const ackTime = ackEntry ? new Date(ackEntry.timestamp).getTime() : 0;
+                      const prepTime = prepEntry ? new Date(prepEntry.timestamp).getTime() : 0;
+                      const delvTime = delvEntry ? new Date(delvEntry.timestamp).getTime() : 0;
+                      const recvTime = recvEntry ? new Date(recvEntry.timestamp).getTime() : 0;
 
                       const isDelayed =
                         so.expectedDelivery &&
@@ -403,20 +352,24 @@ export default function OrdersPage() {
                           <td className="py-2 px-3 font-bold text-ink tabular-nums">{so.code}</td>
                           <td className="py-2 px-3 font-semibold text-ink">{so.customerName}</td>
                           <td className="py-2 px-3 text-muted text-[11px] tabular-nums">{fmtDT(so.createdAt)}</td>
-                          <td className="py-2 px-3 text-muted text-[11px] tabular-nums">{fmtDT(ackEntry?.at)}</td>
+                          <td className="py-2 px-3 text-muted text-[11px] tabular-nums">{fmtDT(ackEntry?.timestamp)}</td>
                           <td className="py-2 px-3 text-right tabular-nums text-muted">
                             {fmtDur(ackTime && created ? ackTime - created : null)}
                           </td>
-                          <td className="py-2 px-3 text-muted text-[11px] tabular-nums">{fmtDT(prepEntry?.at)}</td>
+                          <td className="py-2 px-3 text-muted text-[11px] tabular-nums">{fmtDT(prepEntry?.timestamp)}</td>
                           <td className="py-2 px-3 text-right tabular-nums text-muted">
                             {fmtDur(prepTime && ackTime ? prepTime - ackTime : null)}
                           </td>
-                          <td className="py-2 px-3 text-muted text-[11px] tabular-nums">{fmtDT(delvEntry?.at)}</td>
+                          <td className="py-2 px-3 text-muted text-[11px] tabular-nums">{fmtDT(delvEntry?.timestamp)}</td>
                           <td className="py-2 px-3 text-right tabular-nums text-muted">
                             {fmtDur(delvTime && prepTime ? delvTime - prepTime : null)}
                           </td>
                           <td className="py-2 px-3 text-right tabular-nums font-bold text-ink">
                             {fmtDur(delvTime && created ? delvTime - created : null)}
+                          </td>
+                          <td className="py-2 px-3 text-muted text-[11px] tabular-nums">{fmtDT(recvEntry?.timestamp)}</td>
+                          <td className="py-2 px-3 text-right tabular-nums text-muted">
+                            {fmtDur(recvTime && delvTime ? recvTime - delvTime : null)}
                           </td>
                           <td className="py-2 px-3 text-center">
                             {isDelayed ? (
@@ -442,14 +395,8 @@ export default function OrdersPage() {
         )}
       </Card>
 
-      {/* Modals — customers/products are intentionally NOT passed to
-          CreateSalesOrderModal (see the salespersonOptions comment above);
-          it falls back to its own real-catalog fetch. */}
-      <CreateSalesOrderModal
-        open={showCreateSo}
-        onClose={() => setShowCreateSo(false)}
-        salespeople={salespersonOptions}
-      />
+      {/* Modals */}
+      <CreateSalesOrderModal open={showCreateSo} onClose={() => setShowCreateSo(false)} />
 
       {selectedOrder && (
         <SalesOrderDetailModal

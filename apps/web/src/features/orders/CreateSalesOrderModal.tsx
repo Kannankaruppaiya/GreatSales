@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Building2,
   CheckCircle2,
@@ -12,15 +12,53 @@ import {
   Zap,
 } from "lucide-react";
 import { Button, Dialog, Input, Select, Textarea } from "@/components/ui";
-import { DELIVERY_MODES, PAYMENT_TERMS, type DeliveryMode } from "@/data/constants";
+import { ApiError } from "@/lib/api";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { useTrackerStore } from "@/store/trackerStore";
-import { useMockOwnerId } from "@/lib/mockOwner";
+import { useCreateOrder } from "@/features/orders/queries";
+import { DELIVERY_MODE_VALUES, DELIVERY_MODE_LABELS, type DeliveryModeValue } from "@/features/orders/types";
+import { useCustomers, flattenCustomers } from "@/features/customers/queries";
+import { useProducts, flattenProducts } from "@/features/products/queries";
+import { useUsers, flattenUsers } from "@/features/users/queries";
+
+export interface OrderCustomerOption {
+  id: string;
+  name: string;
+  paymentTerms?: string | null;
+  area?: string | null;
+  primaryContactName?: string | null;
+}
+
+export interface OrderProductOption {
+  id: string;
+  name: string;
+  principalName?: string | null;
+  price?: number | null;
+  unit?: string | null;
+}
+
+export interface OrderSalespersonOption {
+  id: string;
+  name: string;
+}
+
+/**
+ * `code` (the SO number) is a required client-supplied field on
+ * OrderCreateSchema — there is no server auto-generation (see
+ * packages/shared/src/order.ts). This seeds a timestamp-based default the
+ * user can override, since the old mock modal had no such field (the
+ * tracker store generated it internally).
+ */
+function defaultCode(): string {
+  return `SO-${Date.now()}`;
+}
 
 export function CreateSalesOrderModal({
   open,
   onClose,
+  customers,
+  products,
+  salespeople,
   initialCustomerId,
   initialProductId,
   initialQty = 10,
@@ -29,28 +67,81 @@ export function CreateSalesOrderModal({
 }: {
   open: boolean;
   onClose: () => void;
+  customers?: OrderCustomerOption[];
+  products?: OrderProductOption[];
+  salespeople?: OrderSalespersonOption[];
   initialCustomerId?: string;
   initialProductId?: string;
   initialQty?: number;
   initialPrice?: number;
   fromProjectionId?: string;
 }) {
-  const { customers, products, users, createSalesOrder } = useTrackerStore();
-  const ownerId = useMockOwnerId();
+  const create = useCreateOrder();
 
-  const [customerId, setCustomerId] = useState(initialCustomerId || customers[0]?.id || "");
-  const [productId, setProductId] = useState(initialProductId || products[0]?.id || "");
+  // Same "no options handed down" fallback as AddCustomerModal / AddPaymentModal
+  // — the global Topbar Quick-Create → Sales Order entry in layout.tsx and
+  // DashboardPage.tsx mount this modal bare (no rows-derived options to pass),
+  // so fetch customers/products/salespeople directly instead of always
+  // showing empty pickers. OrdersPage passes its own rows-derived
+  // salespeople list (so that one skips its fetch below) but deliberately
+  // leaves customers/products undefined — a rows-derived list there would
+  // silently exclude any customer/product that has never appeared on an
+  // existing order, so this fallback fetch is the only source for those two.
+  const needsOwnFetch = customers === undefined;
+  const needsOwnSalespeopleFetch = salespeople === undefined;
+  const customersQuery = useCustomers({}, { enabled: needsOwnFetch && open });
+  const productsQuery = useProducts({}, { enabled: needsOwnFetch && open });
+  const usersQuery = useUsers({}, { enabled: needsOwnSalespeopleFetch && open });
+
+  const fetchedCustomers = useMemo(
+    () =>
+      flattenCustomers(customersQuery.data).map((c) => ({
+        id: c.id,
+        name: c.name,
+        paymentTerms: c.paymentTerms,
+        area: c.area,
+        primaryContactName: c.primaryContactName,
+      })),
+    [customersQuery.data],
+  );
+  const fetchedProducts = useMemo(
+    () =>
+      flattenProducts(productsQuery.data).map((p) => ({
+        id: p.id,
+        name: p.name,
+        principalName: p.principalName,
+        price: p.basePrice,
+        unit: p.unit,
+      })),
+    [productsQuery.data],
+  );
+  const fetchedSalespeople = useMemo(
+    () =>
+      flattenUsers(usersQuery.data)
+        .filter((u) => u.roleName === "sales")
+        .map((u) => ({ id: u.id, name: u.name })),
+    [usersQuery.data],
+  );
+
+  const customerOptions = customers ?? fetchedCustomers;
+  const productOptions = products ?? fetchedProducts;
+  const salespersonOptions = salespeople ?? fetchedSalespeople;
+  const optionsLoading = needsOwnFetch && (customersQuery.isLoading || productsQuery.isLoading);
+  const salespeopleLoading = needsOwnSalespeopleFetch && usersQuery.isLoading;
+
+  const [code, setCode] = useState(defaultCode);
+  const [customerId, setCustomerId] = useState(initialCustomerId || customerOptions[0]?.id || "");
+  const [salespersonId, setSalespersonId] = useState(salespersonOptions[0]?.id || "");
+  const [productId, setProductId] = useState(initialProductId || productOptions[0]?.id || "");
   const [qty, setQty] = useState<number>(initialQty || 10);
-  const selectedProduct = products.find((p) => p.id === productId);
-  const [price, setPrice] = useState<number>(initialPrice || selectedProduct?.listPrice || 100);
+  const selectedProduct = productOptions.find((p) => p.id === productId);
+  const [price, setPrice] = useState<number>(initialPrice ?? selectedProduct?.price ?? 100);
 
-  const customer = customers.find((c) => c.id === customerId);
+  const customer = customerOptions.find((c) => c.id === customerId);
 
   const [deliveryAddress, setDeliveryAddress] = useState("");
-  const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("Transport (LR)");
-  const [paymentTerm, setPaymentTerm] = useState<string>(
-    customer?.paymentTerms || PAYMENT_TERMS[2] // 30 Days Credit
-  );
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryModeValue>("TransportLR");
+  const [paymentTerms, setPaymentTerms] = useState<string>("");
   const [isUrgent, setIsUrgent] = useState(false);
   const [urgentDateTime, setUrgentDateTime] = useState("");
   const [remarks, setRemarks] = useState("");
@@ -63,16 +154,29 @@ export function CreateSalesOrderModal({
     if (initialPrice != null) setPrice(initialPrice);
   }, [initialCustomerId, initialProductId, initialQty, initialPrice, open]);
 
+  // Pick up a fetched/derived default customer once options arrive (initial
+  // state above only had a chance to see customerOptions from props).
+  useEffect(() => {
+    if (!customerId && customerOptions.length > 0) setCustomerId(customerOptions[0].id);
+  }, [customerOptions, customerId]);
+  useEffect(() => {
+    if (!productId && productOptions.length > 0) setProductId(productOptions[0].id);
+  }, [productOptions, productId]);
+  useEffect(() => {
+    if (!salespersonId && salespersonOptions.length > 0) setSalespersonId(salespersonOptions[0].id);
+  }, [salespersonOptions, salespersonId]);
+
   // Sync customer payment terms & area address if empty
   useEffect(() => {
     if (customer) {
-      if (customer.paymentTerms) {
-        setPaymentTerm(customer.paymentTerms);
+      if (customer.paymentTerms && !paymentTerms) {
+        setPaymentTerms(customer.paymentTerms);
       }
       if (!deliveryAddress && customer.area) {
         setDeliveryAddress(`${customer.name}, ${customer.area}`);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer]);
 
   // Calculate financials
@@ -85,45 +189,50 @@ export function CreateSalesOrderModal({
   const handleUseCustomerAddress = () => {
     if (customer) {
       setDeliveryAddress(
-        [customer.name, customer.contactName ? `Attn: ${customer.contactName}` : null, customer.area]
+        [customer.name, customer.primaryContactName ? `Attn: ${customer.primaryContactName}` : null, customer.area]
           .filter(Boolean)
           .join(", ")
       );
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerId || !productId || qty <= 0 || price < 0) return;
+    if (!code.trim() || !customerId || !salespersonId || !productId || qty <= 0 || price < 0) return;
 
-    createSalesOrder(
-      {
+    try {
+      await create.mutateAsync({
+        code: code.trim(),
         customerId,
-        customerName: customer?.name,
-        ownerId: customer?.ownerId || ownerId,
-        status: "Created",
-        lines: [
+        salespersonId,
+        items: [
           {
             productId,
-            productName: selectedProduct?.name || "Product",
-            principalName: selectedProduct?.principalName,
             qty,
             price,
-            unit: selectedProduct?.unit,
+            unit: selectedProduct?.unit ?? undefined,
           },
         ],
         isUrgent,
-        paymentTerm,
+        paymentTerms: paymentTerms.trim() || null,
         deliveryMode,
-        deliveryAddress: deliveryAddress.trim() || undefined,
+        deliveryAddress: deliveryAddress.trim() || null,
         expectedDelivery: isUrgent ? urgentDateTime || null : null,
-        deliveryInstructions: remarks.trim() || undefined,
-        createdBy: users.find((u) => u.id === (customer?.ownerId || ownerId))?.name,
-      },
-      fromProjectionId
-    );
+        deliveryInstructions: remarks.trim() || null,
+      });
 
-    onClose();
+      setCode(defaultCode());
+      setQty(initialQty || 10);
+      setDeliveryAddress("");
+      setDeliveryMode("TransportLR");
+      setPaymentTerms("");
+      setIsUrgent(false);
+      setUrgentDateTime("");
+      setRemarks("");
+      onClose();
+    } catch {
+      // Surfaced inline below via create.error.
+    }
   };
 
   return (
@@ -152,11 +261,6 @@ export function CreateSalesOrderModal({
           <span className="inline-flex items-center gap-1.5 text-xs text-muted">
             <Building2 className="h-3 w-3 text-muted" />
             <span className="font-semibold text-ink">{customer.name}</span>
-            {customer.tier && (
-              <span className="rounded bg-surface-2 px-1.5 py-0.2 text-[10px] font-bold text-muted border border-line">
-                {customer.tier} Tier
-              </span>
-            )}
             {selectedProduct && (
               <>
                 <span className="text-muted/60">·</span>
@@ -185,11 +289,11 @@ export function CreateSalesOrderModal({
             <Button
               size="sm"
               onClick={handleSubmit}
-              disabled={!customerId || !productId || qty <= 0}
+              disabled={!code.trim() || !customerId || !salespersonId || !productId || qty <= 0 || create.isPending}
               className="font-bold shadow-xs gap-1.5"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Create Sales Order
+              {create.isPending ? "Creating…" : "Create Sales Order"}
             </Button>
           </div>
         </div>
@@ -205,6 +309,46 @@ export function CreateSalesOrderModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
+              <label className="text-xs font-semibold text-ink block mb-1.5">
+                SO Code <span className="text-red">*</span>
+              </label>
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                required
+                placeholder="SO-1001"
+                className="font-bold h-9"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-ink block mb-1.5">
+                Salesperson <span className="text-red">*</span>
+              </label>
+              {salespeopleLoading ? (
+                <p className="text-[11px] text-muted py-2">Loading salespersons…</p>
+              ) : salespersonOptions.length === 0 ? (
+                <p className="text-[11px] text-muted py-2">No salespersons yet.</p>
+              ) : (
+                <Select
+                  value={salespersonId}
+                  onChange={(e) => setSalespersonId(e.target.value)}
+                  required
+                  className="w-full"
+                  selectClassName="h-9 font-medium"
+                >
+                  {salespersonOptions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
               <label className="text-xs font-semibold text-ink flex items-center justify-between mb-1.5">
                 <span>Customer <span className="text-red">*</span></span>
                 {customer?.area && (
@@ -213,19 +357,25 @@ export function CreateSalesOrderModal({
                   </span>
                 )}
               </label>
-              <Select
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                required
-                className="w-full"
-                selectClassName="h-9 font-medium"
-              >
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.tier ? `(${c.tier})` : ""}
-                  </option>
-                ))}
-              </Select>
+              {optionsLoading ? (
+                <p className="text-[11px] text-muted py-2">Loading customers…</p>
+              ) : customerOptions.length === 0 ? (
+                <p className="text-[11px] text-muted py-2">No customers yet.</p>
+              ) : (
+                <Select
+                  value={customerId}
+                  onChange={(e) => setCustomerId(e.target.value)}
+                  required
+                  className="w-full"
+                  selectClassName="h-9 font-medium"
+                >
+                  {customerOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
             </div>
 
             <div>
@@ -237,23 +387,29 @@ export function CreateSalesOrderModal({
                   </span>
                 )}
               </label>
-              <Select
-                value={productId}
-                onChange={(e) => {
-                  setProductId(e.target.value);
-                  const prod = products.find((p) => p.id === e.target.value);
-                  if (prod) setPrice(prod.listPrice);
-                }}
-                required
-                className="w-full"
-                selectClassName="h-9 font-medium"
-              >
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} · {p.principalName || "Standard"} (₹{p.listPrice}/{p.unit})
-                  </option>
-                ))}
-              </Select>
+              {optionsLoading ? (
+                <p className="text-[11px] text-muted py-2">Loading products…</p>
+              ) : productOptions.length === 0 ? (
+                <p className="text-[11px] text-muted py-2">No products yet.</p>
+              ) : (
+                <Select
+                  value={productId}
+                  onChange={(e) => {
+                    setProductId(e.target.value);
+                    const prod = productOptions.find((p) => p.id === e.target.value);
+                    if (prod?.price != null) setPrice(prod.price);
+                  }}
+                  required
+                  className="w-full"
+                  selectClassName="h-9 font-medium"
+                >
+                  {productOptions.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} {p.principalName ? `· ${p.principalName}` : ""} {p.price != null ? `(₹${p.price}/${p.unit || "unit"})` : ""}
+                    </option>
+                  ))}
+                </Select>
+              )}
             </div>
           </div>
         </div>
@@ -297,9 +453,9 @@ export function CreateSalesOrderModal({
             <div className="sm:col-span-4">
               <label className="text-xs font-semibold text-ink flex items-center justify-between mb-1.5">
                 <span>Unit Rate (₹) <span className="text-red">*</span></span>
-                {selectedProduct?.listPrice && price !== selectedProduct.listPrice && (
+                {selectedProduct?.price != null && price !== selectedProduct.price && (
                   <span className="text-[10px] text-muted line-through">
-                    List ₹{selectedProduct.listPrice}
+                    List ₹{selectedProduct.price}
                   </span>
                 )}
               </label>
@@ -320,7 +476,9 @@ export function CreateSalesOrderModal({
               </div>
             </div>
 
-            {/* Financial Summary Box */}
+            {/* Financial Summary Box — client-side preview only; the API
+                computes and returns the authoritative total/lineTotal on the
+                created OrderRow (see features/orders/types.ts). */}
             <div className="sm:col-span-5 rounded-lg border border-brand/20 bg-brand-soft/40 p-2.5 flex flex-col justify-between">
               <div className="flex items-center justify-between text-[11px] text-muted">
                 <span>Subtotal ({qty || 0} {unitName})</span>
@@ -404,15 +562,18 @@ export function CreateSalesOrderModal({
               <label className="text-xs font-semibold text-ink block mb-1.5">
                 Mode of Delivery
               </label>
+              {/* `<option value>` is the raw DB enum value (DeliveryModeValue);
+                  only the visible text uses DELIVERY_MODE_LABELS — see the
+                  file doc comment in features/orders/types.ts. */}
               <Select
                 value={deliveryMode}
-                onChange={(e) => setDeliveryMode(e.target.value as DeliveryMode)}
+                onChange={(e) => setDeliveryMode(e.target.value as DeliveryModeValue)}
                 className="w-full"
                 selectClassName="h-9 font-medium"
               >
-                {DELIVERY_MODES.map((m) => (
+                {DELIVERY_MODE_VALUES.map((m) => (
                   <option key={m} value={m}>
-                    {m}
+                    {DELIVERY_MODE_LABELS[m]}
                   </option>
                 ))}
               </Select>
@@ -422,18 +583,14 @@ export function CreateSalesOrderModal({
               <label className="text-xs font-semibold text-ink block mb-1.5">
                 Payment Terms
               </label>
-              <Select
-                value={paymentTerm}
-                onChange={(e) => setPaymentTerm(e.target.value)}
-                className="w-full"
-                selectClassName="h-9 font-medium"
-              >
-                {PAYMENT_TERMS.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </Select>
+              {/* Free text on the wire (OrderCreateSchema.paymentTerms is
+                  z.string(), not an enum) — no VALUES/LABELS bridge here. */}
+              <Input
+                value={paymentTerms}
+                onChange={(e) => setPaymentTerms(e.target.value)}
+                placeholder="e.g. 30 Days Credit"
+                className="h-9 font-medium"
+              />
             </div>
           </div>
 
@@ -475,8 +632,13 @@ export function CreateSalesOrderModal({
             className="text-xs resize-none"
           />
         </div>
+
+        {create.isError && (
+          <p className="text-[11.5px] font-medium text-red">
+            {create.error instanceof ApiError ? create.error.message : "Failed to create sales order."}
+          </p>
+        )}
       </form>
     </Dialog>
   );
 }
-

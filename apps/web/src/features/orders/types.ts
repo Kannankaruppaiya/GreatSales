@@ -1,0 +1,159 @@
+/**
+ * Wire types for the orders (sales order) API. These mirror the
+ * `@greatsales/shared` OrderRow / OrderListResponse contracts; kept as a
+ * local copy so the Vite build does not need to consume the CJS `shared`
+ * dist. The API is the source of truth — keep this in sync with
+ * packages/shared/src/order.ts.
+ *
+ * `total` and `items[].lineTotal` are computed server-side from the order's
+ * items (see the order-engine) — they are never part of OrderCreate/
+ * OrderUpdate and must be rendered exactly as received, never recomputed or
+ * sent back to the API. `statusHistory` is likewise a read-only nested list;
+ * a status change is driven by OrderUpdate.status (+ optional statusNote),
+ * which the API appends to the trail itself.
+ */
+
+export interface OrderItemInput {
+  productId: string;
+  qty: number;
+  price: number;
+  unit?: string | null;
+}
+
+export interface OrderItemRow {
+  id: string;
+  productId: string;
+  productName: string;
+  qty: number;
+  price: number;
+  unit: string | null;
+  lineTotal: number;
+}
+
+export interface OrderStatusHistoryRow {
+  id: string;
+  status: string;
+  note: string | null;
+  changedById: string;
+  changedByName: string;
+  at: string;
+}
+
+export interface OrderRow {
+  id: string;
+  code: string;
+  customerId: string;
+  customerName: string;
+  salespersonId: string;
+  salespersonName: string;
+  createdById: string | null;
+  date: string;
+  status: string;
+  total: number;
+  isUrgent: boolean;
+  paymentTerms: string | null;
+  advanceAmount: number | null;
+  advanceRef: string | null;
+  deliveryMode: string | null;
+  deliveryAddress: string | null;
+  expectedDelivery: string | null;
+  transporterName: string | null;
+  lrNumber: string | null;
+  deliveryInstructions: string | null;
+  cancelReason: string | null;
+  cancelledAt: string | null;
+  items: OrderItemRow[];
+  statusHistory: OrderStatusHistoryRow[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrderListResponse {
+  items: OrderRow[];
+  nextCursor: string | null;
+}
+
+export interface OrderCreate {
+  code: string;
+  customerId: string;
+  salespersonId: string;
+  items: OrderItemInput[];
+  status?: string;
+  date?: string;
+  isUrgent?: boolean;
+  paymentTerms?: string | null;
+  advanceAmount?: number | null;
+  advanceRef?: string | null;
+  deliveryMode?: string | null;
+  deliveryAddress?: string | null;
+  expectedDelivery?: string | null;
+  transporterName?: string | null;
+  lrNumber?: string | null;
+  deliveryInstructions?: string | null;
+}
+
+export interface OrderUpdate {
+  status?: string;
+  statusNote?: string | null;
+  cancelReason?: string | null;
+  isUrgent?: boolean;
+  paymentTerms?: string | null;
+  advanceAmount?: number | null;
+  advanceRef?: string | null;
+  deliveryMode?: string | null;
+  deliveryAddress?: string | null;
+  expectedDelivery?: string | null;
+  transporterName?: string | null;
+  lrNumber?: string | null;
+  deliveryInstructions?: string | null;
+}
+
+/**
+ * `status` and `deliveryMode` are raw DB enum strings on the wire (see
+ * packages/shared/src/enums.ts — OrderStatusSchema / DeliveryModeSchema);
+ * the API rejects anything else with a 400. The web shows friendly labels
+ * in `<select>`s / status chips, so each `<option value>` / advance-button
+ * value here is the raw value itself — there is no separate label→raw
+ * translation step for a mismatch to hide behind. Mirrors the identical
+ * bridge in features/customers/types.ts and features/payments/types.ts.
+ *
+ * `paymentTerms` on the order contract is a FREE STRING (`z.string()` in
+ * OrderCreateSchema/OrderUpdateSchema — NOT an enum, unlike the customer
+ * contract's PaymentTermsSchema), so it intentionally has no VALUES/LABELS
+ * bridge here — it's rendered/edited as plain text.
+ */
+export const ORDER_STATUS_VALUES = [
+  "Created",
+  "Acknowledged",
+  "DeliveryPartnerAssigned",
+  "DeliveredFromWarehouse",
+  "DeliveredToCustomer",
+  "CustomerReceiptConfirmed",
+  "Cancelled",
+] as const;
+export type OrderStatusValue = (typeof ORDER_STATUS_VALUES)[number];
+export const ORDER_STATUS_LABELS: Record<OrderStatusValue, string> = {
+  Created: "Created",
+  Acknowledged: "Acknowledged",
+  DeliveryPartnerAssigned: "Delivery Partner Assigned",
+  DeliveredFromWarehouse: "Delivered from Warehouse",
+  DeliveredToCustomer: "Delivered to Customer",
+  CustomerReceiptConfirmed: "Customer Receipt Confirmed",
+  Cancelled: "Cancelled",
+};
+
+export const DELIVERY_MODE_VALUES = [
+  "TransportLR",
+  "Courier",
+  "CompanyVehicle",
+  "CustomerPickup",
+  "HandDelivery",
+] as const;
+export type DeliveryModeValue = (typeof DELIVERY_MODE_VALUES)[number];
+export const DELIVERY_MODE_LABELS: Record<DeliveryModeValue, string> = {
+  TransportLR: "Transport (LR)",
+  Courier: "Courier",
+  CompanyVehicle: "Company Vehicle",
+  CustomerPickup: "Customer Pickup",
+  HandDelivery: "Hand Delivery",
+};

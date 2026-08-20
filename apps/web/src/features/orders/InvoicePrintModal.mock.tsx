@@ -1,18 +1,8 @@
 import { Printer } from "lucide-react";
 import { Button, Dialog } from "@/components/ui";
 import { inr } from "@/lib/format";
-import type { OrderRow } from "@/features/orders/types";
-import { DELIVERY_MODE_LABELS, type DeliveryModeValue } from "@/features/orders/types";
+import type { SalesOrder } from "@/data/types";
 
-/**
- * Reads the fetched OrderRow as-is — `total` (order-engine's `computeTotal`,
- * a pre-tax sum of qty×price — see apps/api/src/orders/order-engine.ts) and
- * `items[].lineTotal` are server-computed and printed exactly as received,
- * never recomputed from qty/price. GST is a display-only 18% markup added on
- * top of that server total, matching the same convention CreateSalesOrderModal
- * previews at order-creation time (subtotal + 18% GST = grand total) — the
- * order contract itself carries no GST field.
- */
 export function InvoicePrintModal({
   open,
   onClose,
@@ -20,13 +10,13 @@ export function InvoicePrintModal({
 }: {
   open: boolean;
   onClose: () => void;
-  order: OrderRow | null;
+  order: SalesOrder | null;
 }) {
   if (!order) return null;
 
-  const subTotal = order.total;
-  const gstValue = Math.round(subTotal * 0.18);
-  const grandTotal = subTotal + gstValue;
+  const totalValue = order.lines.reduce((s, l) => s + l.qty * l.price, 0);
+  const gstValue = Math.round(totalValue * 0.18);
+  const grandTotal = totalValue + gstValue;
 
   const handlePrint = () => {
     window.print();
@@ -66,7 +56,7 @@ export function InvoicePrintModal({
             <div className="text-sm font-extrabold text-emerald-800">SALES ORDER</div>
             <div className="font-mono font-bold text-xs text-slate-900 mt-0.5">{order.code}</div>
             <div className="text-[11px] text-slate-500 mt-0.5">
-              Date: {order.date ? order.date.slice(0, 10) : new Date().toISOString().slice(0, 10)}
+              Date: {order.createdAt ? order.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10)}
             </div>
           </div>
         </div>
@@ -77,18 +67,11 @@ export function InvoicePrintModal({
             <div className="font-bold text-[10px] uppercase tracking-wider text-slate-400">Customer / Buyer</div>
             <div className="font-bold text-slate-900">{order.customerName}</div>
             <div className="text-slate-600 text-[11px]">{order.deliveryAddress || "Standard Plant Delivery"}</div>
-            <div className="text-slate-500 text-[11px]">Payment Terms: {order.paymentTerms || "—"}</div>
+            <div className="text-slate-500 text-[11px]">Payment Terms: {order.paymentTerm || order.paymentTerms || "30 Days Credit"}</div>
           </div>
           <div className="rounded-lg bg-slate-50 p-3 border border-slate-100 space-y-1">
             <div className="font-bold text-[10px] uppercase tracking-wider text-slate-400">Logistics & Dispatch</div>
-            <div className="text-slate-700">
-              Mode:{" "}
-              <b className="text-slate-900">
-                {order.deliveryMode
-                  ? (DELIVERY_MODE_LABELS[order.deliveryMode as DeliveryModeValue] ?? order.deliveryMode)
-                  : "Standard Road Freight"}
-              </b>
-            </div>
+            <div className="text-slate-700">Mode: <b className="text-slate-900">{order.deliveryMode || "Standard Road Freight"}</b></div>
             <div className="text-slate-700">Transporter: <b className="text-slate-900">{order.transporterName || "Internal Fleet"}</b></div>
             <div className="text-slate-700">Priority: <b className="text-emerald-700">{order.isUrgent ? "Urgent / Express" : "Standard"}</b></div>
           </div>
@@ -106,15 +89,17 @@ export function InvoicePrintModal({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {order.items.map((l, i) => (
-              <tr key={l.id}>
+            {order.lines.map((l, i) => (
+              <tr key={i}>
                 <td className="py-2 px-3 text-slate-400">{i + 1}</td>
-                <td className="py-2 px-3 font-semibold text-slate-900">{l.productName}</td>
+                <td className="py-2 px-3 font-semibold text-slate-900">
+                  {l.productName}
+                  {l.principalName && <span className="text-slate-400 text-[11px]"> · {l.principalName}</span>}
+                </td>
                 <td className="py-2 px-3 text-right tabular-nums font-semibold">{l.qty} {l.unit || "Ltr"}</td>
                 <td className="py-2 px-3 text-right tabular-nums">{l.price.toFixed(2)}</td>
-                {/* lineTotal is server-computed — printed as-is, never qty*price. */}
                 <td className="py-2 px-3 text-right tabular-nums font-bold text-slate-900">
-                  {l.lineTotal.toFixed(2)}
+                  {(l.qty * l.price).toFixed(2)}
                 </td>
               </tr>
             ))}
@@ -122,7 +107,7 @@ export function InvoicePrintModal({
           <tfoot className="bg-slate-50 border-t border-slate-200 text-xs">
             <tr>
               <td colSpan={4} className="py-1.5 px-3 text-right font-semibold text-slate-600">Sub Total:</td>
-              <td className="py-1.5 px-3 text-right tabular-nums font-bold">{inr(subTotal)}</td>
+              <td className="py-1.5 px-3 text-right tabular-nums font-bold">{inr(totalValue)}</td>
             </tr>
             <tr>
               <td colSpan={4} className="py-1.5 px-3 text-right font-semibold text-slate-600">GST @ 18%:</td>
@@ -130,7 +115,6 @@ export function InvoicePrintModal({
             </tr>
             <tr className="border-t border-slate-300">
               <td colSpan={4} className="py-2 px-3 text-right font-extrabold text-slate-900">Grand Total:</td>
-              {/* order.total, printed as-is — server-computed, never recomputed. */}
               <td className="py-2 px-3 text-right tabular-nums font-black text-emerald-800 text-sm">{inr(grandTotal)}</td>
             </tr>
           </tfoot>

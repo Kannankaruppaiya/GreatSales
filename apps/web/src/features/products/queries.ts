@@ -39,12 +39,13 @@ export function productsQueryFn(p: ProductParams, cursor: string | undefined) {
   );
 }
 
-export function useProducts(params: ProductParams = {}) {
+export function useProducts(params: ProductParams = {}, opts: { enabled?: boolean } = {}) {
   return useInfiniteQuery({
     queryKey: productKeys.list(params),
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) => productsQueryFn(params, pageParam),
     getNextPageParam: (last) => last.nextCursor ?? undefined,
+    enabled: opts.enabled ?? true,
   });
 }
 

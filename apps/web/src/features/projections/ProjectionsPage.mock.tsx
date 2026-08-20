@@ -23,7 +23,7 @@ import { AddMappingModal } from "@/components/modals/AddMappingModal";
 import { RemarksModal } from "@/components/modals/RemarksModal";
 import { ProjectionFollowUpModal } from "@/features/projections/ProjectionFollowUpModal";
 import { CreateSalesOrderModal } from "@/features/orders/CreateSalesOrderModal";
-import { SalesOrderDetailModal } from "@/features/orders/SalesOrderDetailModal";
+import { SalesOrderDetailModal } from "@/features/orders/SalesOrderDetailModal.mock";
 import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
 import { toast } from "@/store/toastStore";
 import type { Customer, Principal, Product, Projection, SalesOrder, User } from "@/data/types";

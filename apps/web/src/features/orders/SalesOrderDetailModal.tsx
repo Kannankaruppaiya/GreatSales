@@ -1,13 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Package } from "lucide-react";
 import { Button, Dialog, Input } from "@/components/ui";
-import { SO_STATUSES, type SoStatus } from "@/data/constants";
+import { ApiError } from "@/lib/api";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { useTrackerStore } from "@/store/trackerStore";
 import { useAuthRole } from "@/store/auth";
-import { useMockOwnerId } from "@/lib/mockOwner";
-import type { SalesOrder } from "@/data/types";
+import { useUpdateOrder } from "@/features/orders/queries";
+import {
+  ORDER_STATUS_VALUES,
+  ORDER_STATUS_LABELS,
+  DELIVERY_MODE_LABELS,
+  type OrderStatusValue,
+  type OrderRow,
+  type DeliveryModeValue,
+} from "@/features/orders/types";
 
 function fmtDT(iso?: string | null): string {
   if (!iso) return "—";
@@ -21,6 +27,17 @@ function fmtDT(iso?: string | null): string {
   });
 }
 
+/**
+ * The 6 non-cancelled stages of the fulfilment lifecycle, in order — used to
+ * render the progression timeline and to compute "next status" for the
+ * advance button. `Cancelled` is a terminal side-branch, not part of the
+ * linear progression, so it's excluded here (see ORDER_STATUS_VALUES for the
+ * full raw-enum list).
+ */
+const TIMELINE_STATUSES = ORDER_STATUS_VALUES.filter(
+  (s) => s !== "Cancelled",
+) as Exclude<OrderStatusValue, "Cancelled">[];
+
 export function SalesOrderDetailModal({
   open,
   onClose,
@@ -28,38 +45,83 @@ export function SalesOrderDetailModal({
 }: {
   open: boolean;
   onClose: () => void;
-  order: SalesOrder | null;
+  order: OrderRow | null;
 }) {
-  const { users, advanceSalesOrder, cancelSalesOrder } = useTrackerStore();
   const role = useAuthRole();
-  const ownerId = useMockOwnerId();
+  const update = useUpdateOrder();
 
-  if (!order) return null;
-
-  const [transporterInput, setTransporterInput] = useState(order.transporterName || "");
+  // The `order` prop is a snapshot the parent captured on row-click — it
+  // does not re-render after a mutation invalidates the orders list (the
+  // parent's `selectedOrder` state isn't wired back up to the refetched
+  // rows). So a successful status advance/cancel updates this local copy
+  // directly from the mutation's response instead, which keeps the timeline
+  // and status badge live across a multi-step advance without needing the
+  // modal to close and reopen. Resets whenever a different order is opened.
+  const [liveOrder, setLiveOrder] = useState<OrderRow | null>(order);
+  const [transporterInput, setTransporterInput] = useState(order?.transporterName || "");
   const [cancelReasonInput, setCancelReasonInput] = useState("");
   const [showCancelPrompt, setShowCancelPrompt] = useState(false);
 
+  useEffect(() => {
+    setLiveOrder(order);
+    setTransporterInput(order?.transporterName || "");
+  }, [order]);
+
+  if (!liveOrder) return null;
+
   const canEdit = role !== "mgmt";
-  const isCancelled = order.status === "Cancelled";
-  const isDelivered = order.status === "Customer Receipt Confirmed";
+  const isCancelled = liveOrder.status === "Cancelled";
+  const isDelivered = liveOrder.status === "CustomerReceiptConfirmed";
 
-  const totalVal = order.lines.reduce((s, l) => s + l.qty * l.price, 0);
-  const totalQty = order.lines.reduce((s, l) => s + l.qty, 0);
-  const salesperson = users.find((u) => u.id === order.ownerId)?.name || "Sales Rep";
-  const currentUser = users.find((u) => u.id === ownerId)?.name || "User";
+  // total/lineTotal are server-computed (see features/orders/types.ts) —
+  // rendered exactly as received, never recomputed.
+  const totalVal = liveOrder.total;
+  const totalQty = liveOrder.items.reduce((s, l) => s + l.qty, 0);
 
-  const handleAdvance = (nextStatus: SoStatus) => {
-    advanceSalesOrder(order.id, nextStatus, undefined, currentUser, {
-      partner: transporterInput || undefined,
-    });
+  const currentIdx = TIMELINE_STATUSES.indexOf(liveOrder.status as (typeof TIMELINE_STATUSES)[number]);
+  const nextStatus: OrderStatusValue | null =
+    currentIdx >= 0 && currentIdx < TIMELINE_STATUSES.length - 1
+      ? TIMELINE_STATUSES[currentIdx + 1]
+      : null;
+
+  const handleAdvance = async () => {
+    if (!nextStatus) return;
+    // Transporter capture only makes sense at the "assign delivery partner"
+    // step; when supplied it also becomes the status-history note so the
+    // trail records who was assigned, not just that the status changed.
+    const isAssigningTransporter = nextStatus === "DeliveryPartnerAssigned" && transporterInput.trim();
+    try {
+      const updated = await update.mutateAsync({
+        id: liveOrder.id,
+        patch: {
+          status: nextStatus,
+          ...(isAssigningTransporter
+            ? {
+                transporterName: transporterInput.trim(),
+                statusNote: `Transporter assigned: ${transporterInput.trim()}`,
+              }
+            : {}),
+        },
+      });
+      setLiveOrder(updated);
+    } catch {
+      // Surfaced inline below via update.error.
+    }
   };
 
-  const handleCancel = (e: React.FormEvent) => {
+  const handleCancel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cancelReasonInput.trim()) return;
-    cancelSalesOrder(order.id, cancelReasonInput.trim(), currentUser);
-    setShowCancelPrompt(false);
+    try {
+      const updated = await update.mutateAsync({
+        id: liveOrder.id,
+        patch: { status: "Cancelled", cancelReason: cancelReasonInput.trim() },
+      });
+      setLiveOrder(updated);
+      setShowCancelPrompt(false);
+    } catch {
+      // Surfaced inline below via update.error.
+    }
   };
 
   return (
@@ -69,10 +131,10 @@ export function SalesOrderDetailModal({
       title={
         <div className="flex items-center gap-2">
           <Package className="h-4 w-4 text-brand" />
-          <span>Sales Order: {order.code}</span>
+          <span>Sales Order: {liveOrder.code}</span>
         </div>
       }
-      description={`${order.customerName} · Total ${inr(totalVal)} · Status: ${order.status}`}
+      description={`${liveOrder.customerName} · Total ${inr(totalVal)} · Status: ${ORDER_STATUS_LABELS[liveOrder.status as OrderStatusValue] ?? liveOrder.status}`}
       maxWidth="max-w-2xl"
       footer={
         <>
@@ -87,20 +149,24 @@ export function SalesOrderDetailModal({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-xl border border-line bg-surface-2 p-2.5">
             <div className="text-[10px] font-bold uppercase tracking-wider text-muted">Customer & Rep</div>
-            <div className="font-bold text-ink truncate mt-0.5">{order.customerName}</div>
-            <div className="text-[11px] text-muted truncate">By {salesperson}</div>
+            <div className="font-bold text-ink truncate mt-0.5">{liveOrder.customerName}</div>
+            <div className="text-[11px] text-muted truncate">By {liveOrder.salespersonName}</div>
           </div>
           <div className="rounded-xl border border-line bg-surface-2 p-2.5">
             <div className="text-[10px] font-bold uppercase tracking-wider text-muted">Delivery Mode</div>
-            <div className="font-bold text-ink mt-0.5">{order.deliveryMode || "Standard"}</div>
-            <div className="text-[11px] text-brand font-semibold">{order.paymentTerm || order.paymentTerms || "30 Days Credit"}</div>
+            <div className="font-bold text-ink mt-0.5">
+              {liveOrder.deliveryMode
+                ? (DELIVERY_MODE_LABELS[liveOrder.deliveryMode as DeliveryModeValue] ?? liveOrder.deliveryMode)
+                : "Standard"}
+            </div>
+            <div className="text-[11px] text-brand font-semibold">{liveOrder.paymentTerms || "—"}</div>
           </div>
           <div className="rounded-xl border border-line bg-surface-2 p-2.5">
             <div className="text-[10px] font-bold uppercase tracking-wider text-muted">Priority & Date</div>
             <div className="font-bold text-ink mt-0.5">
-              {order.isUrgent ? <span className="text-red font-bold">Urgent Delivery</span> : "Normal Delivery"}
+              {liveOrder.isUrgent ? <span className="text-red font-bold">Urgent Delivery</span> : "Normal Delivery"}
             </div>
-            <div className="text-[11px] text-muted">Exp: {fmtDT(order.expectedDelivery)}</div>
+            <div className="text-[11px] text-muted">Exp: {fmtDT(liveOrder.expectedDelivery)}</div>
           </div>
           <div className="rounded-xl border border-brand/40 bg-brand-soft p-2.5">
             <div className="text-[10px] font-bold uppercase tracking-wider text-brand-ink">Order Value</div>
@@ -116,10 +182,10 @@ export function SalesOrderDetailModal({
           </div>
 
           <div className="grid grid-cols-6 gap-1 text-center">
-            {SO_STATUSES.map((st, idx) => {
-              const hist = order.history?.find((h) => h.status === st);
+            {TIMELINE_STATUSES.map((st, idx) => {
+              const hist = liveOrder.statusHistory.find((h) => h.status === st);
               const isPast = !!hist;
-              const isCurrent = order.status === st;
+              const isCurrent = liveOrder.status === st;
 
               return (
                 <div key={st} className="space-y-1">
@@ -134,10 +200,10 @@ export function SalesOrderDetailModal({
                     )}
                   />
                   <div className="text-[10px] font-bold text-ink leading-tight">
-                    {idx + 1}. {st}
+                    {idx + 1}. {ORDER_STATUS_LABELS[st]}
                   </div>
                   <div className="text-[9.5px] text-muted leading-tight">
-                    {hist ? fmtDT(hist.timestamp) : "—"}
+                    {hist ? fmtDT(hist.at) : "—"}
                   </div>
                 </div>
               );
@@ -146,55 +212,30 @@ export function SalesOrderDetailModal({
         </div>
 
         {/* Action Controls to Advance Order */}
-        {canEdit && !isCancelled && !isDelivered && (
+        {canEdit && !isCancelled && !isDelivered && nextStatus && (
           <div className="rounded-xl border border-line bg-surface-2 p-3.5 space-y-3">
             <div className="font-bold text-xs text-ink uppercase tracking-wider">
               Advance Order Fulfilment State
             </div>
 
-            {order.status === "Created" && (
-              <div className="flex items-center justify-between">
-                <span className="text-muted">Acknowledge sales order and queue for warehouse picking:</span>
-                <Button size="sm" onClick={() => handleAdvance("Acknowledged")}>
-                  Acknowledge Order
-                </Button>
+            {nextStatus === "DeliveryPartnerAssigned" && (
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <Input
+                  placeholder="Transporter Name (e.g. VRL Logistics)"
+                  value={transporterInput}
+                  onChange={(e) => setTransporterInput(e.target.value)}
+                />
               </div>
             )}
 
-            {order.status === "Acknowledged" && (
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    placeholder="Transporter Name (e.g. VRL Logistics)"
-                    value={transporterInput}
-                    onChange={(e) => setTransporterInput(e.target.value)}
-                  />
-                </div>
-                <div className="flex justify-end">
-                  <Button size="sm" onClick={() => handleAdvance("Delivered from Warehouse")}>
-                    Confirm Left Warehouse
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {order.status === "Delivered from Warehouse" && (
-              <div className="flex items-center justify-between">
-                <span className="text-muted">Mark as delivered to customer doorstep:</span>
-                <Button size="sm" onClick={() => handleAdvance("Delivered to Customer")}>
-                  Confirm Delivered to Customer
-                </Button>
-              </div>
-            )}
-
-            {order.status === "Delivered to Customer" && (
-              <div className="flex items-center justify-between">
-                <span className="text-muted">Confirm customer physical goods receipt & sign-off:</span>
-                <Button size="sm" onClick={() => handleAdvance("Customer Receipt Confirmed")}>
-                  Confirm Customer Receipt
-                </Button>
-              </div>
-            )}
+            <div className="flex items-center justify-between">
+              <span className="text-muted">
+                Advance to <strong className="text-ink">{ORDER_STATUS_LABELS[nextStatus]}</strong>:
+              </span>
+              <Button size="sm" onClick={handleAdvance} disabled={update.isPending}>
+                {update.isPending ? "Saving…" : `Mark as ${ORDER_STATUS_LABELS[nextStatus]}`}
+              </Button>
+            </div>
 
             <div className="pt-2 border-t border-line flex items-center justify-between">
               <span className="text-muted">Need to cancel order due to stock out or client change?</span>
@@ -222,11 +263,17 @@ export function SalesOrderDetailModal({
                   <Button size="xs" variant="outline" type="button" onClick={() => setShowCancelPrompt(false)}>
                     Back
                   </Button>
-                  <Button size="xs" variant="danger" type="submit">
+                  <Button size="xs" variant="danger" type="submit" disabled={update.isPending}>
                     Confirm Cancellation
                   </Button>
                 </div>
               </form>
+            )}
+
+            {update.isError && (
+              <p className="text-[11.5px] font-medium text-red">
+                {update.error instanceof ApiError ? update.error.message : "Failed to update order."}
+              </p>
             )}
           </div>
         )}
@@ -235,23 +282,24 @@ export function SalesOrderDetailModal({
         {isCancelled && (
           <div className="rounded-xl border border-red/40 bg-red-soft p-3 text-red">
             <div className="font-bold text-xs">Order Cancelled</div>
-            <div className="text-xs mt-0.5">{order.cancelReason || "No cancellation reason logged."}</div>
+            <div className="text-xs mt-0.5">{liveOrder.cancelReason || "No cancellation reason logged."}</div>
           </div>
         )}
 
-        {/* Order Product Lines */}
+        {/* Order Product Lines — qty/price/lineTotal rendered exactly as
+            the API returned them (lineTotal is server-computed). */}
         <div className="rounded-xl border border-line bg-surface p-3.5 space-y-2">
           <div className="text-xs font-bold text-ink uppercase tracking-wider">Ordered Products</div>
           <div className="divide-y divide-line/60">
-            {order.lines.map((l, i) => (
-              <div key={i} className="py-2 flex items-center justify-between text-xs">
+            {liveOrder.items.map((l) => (
+              <div key={l.id} className="py-2 flex items-center justify-between text-xs">
                 <div>
                   <div className="font-bold text-ink">{l.productName}</div>
                   <div className="text-muted text-[11px]">
                     {l.qty} {l.unit || "units"} @ ₹{l.price}/{l.unit || "unit"}
                   </div>
                 </div>
-                <div className="font-bold text-ink tabular-nums">{inr(l.qty * l.price)}</div>
+                <div className="font-bold text-ink tabular-nums">{inr(l.lineTotal)}</div>
               </div>
             ))}
           </div>
