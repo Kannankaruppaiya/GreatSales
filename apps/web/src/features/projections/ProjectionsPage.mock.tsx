@@ -21,7 +21,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { AddCustomerModal } from "@/features/customers/AddCustomerModal";
 import { AddMappingModal } from "@/components/modals/AddMappingModal";
 import { RemarksModal } from "@/components/modals/RemarksModal";
-import { FollowUpModal } from "@/features/followups/FollowUpModal";
+import { ProjectionFollowUpModal } from "@/features/projections/ProjectionFollowUpModal";
 import { CreateSalesOrderModal } from "@/features/orders/CreateSalesOrderModal";
 import { SalesOrderDetailModal } from "@/features/orders/SalesOrderDetailModal";
 import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
@@ -861,7 +861,7 @@ export default function ProjectionsPage() {
       )}
 
       {selectedFuProj && (
-        <FollowUpModal
+        <ProjectionFollowUpModal
           open={!!selectedFuProj}
           onClose={() => setSelectedFuProj(null)}
           title={`${custLookup.get(selectedFuProj.customerId)?.name} · ${prodLookup.get(selectedFuProj.productId)?.name}`}

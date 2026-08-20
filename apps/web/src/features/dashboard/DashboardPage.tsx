@@ -16,7 +16,7 @@ import { Button, Card } from "@/components/ui";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CompareLegend, GroupedBars } from "@/components/charts";
 import { LeadDetailModal } from "@/features/leads/LeadDetailModal";
-import { FollowUpModal } from "@/features/followups/FollowUpModal";
+import { ProjectionFollowUpModal } from "@/features/projections/ProjectionFollowUpModal";
 import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
 import { AddLeadModal } from "@/features/leads/AddLeadModal";
 import { AddCustomerModal } from "@/features/customers/AddCustomerModal";
@@ -566,7 +566,7 @@ export default function DashboardPage() {
       )}
 
       {selectedFuProj && (
-        <FollowUpModal
+        <ProjectionFollowUpModal
           open={!!selectedFuProj}
           onClose={() => setSelectedFuProj(null)}
           title={`${custMap.get(selectedFuProj.customerId)?.name} · ${prodMap.get(selectedFuProj.productId)?.name}`}
