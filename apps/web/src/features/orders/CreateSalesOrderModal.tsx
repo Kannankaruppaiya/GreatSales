@@ -166,7 +166,11 @@ export function CreateSalesOrderModal({
     if (!salespersonId && salespersonOptions.length > 0) setSalespersonId(salespersonOptions[0].id);
   }, [salespersonOptions, salespersonId]);
 
-  // Sync customer payment terms & area address if empty
+  // Sync customer payment terms & area address if empty. Deps intentionally
+  // omit paymentTerms/deliveryAddress — this is a one-time default-fill on
+  // customer selection, not a continuous sync, so it must not re-run just
+  // because the user edited one of those fields afterward. Same shape as
+  // the original mock's identical effect (also keyed on [customer] alone).
   useEffect(() => {
     if (customer) {
       if (customer.paymentTerms && !paymentTerms) {
@@ -176,7 +180,6 @@ export function CreateSalesOrderModal({
         setDeliveryAddress(`${customer.name}, ${customer.area}`);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer]);
 
   // Calculate financials

@@ -32,10 +32,13 @@ describe("CreateSalesOrderModal enum payloads", () => {
     renderModal();
 
     // Default delivery mode is already "Transport (LR)" (raw TransportLR) —
-    // explicitly change it away from the default so this test exercises the
-    // label→raw mapping mechanism, not just the default.
+    // explicitly change it to "Company Vehicle" (raw CompanyVehicle), a
+    // label that DIFFERS from its raw value (unlike "Courier", whose label
+    // and raw value are both literally "Courier" — that choice would pass
+    // whether the code sent the raw value or the label, so it can't catch a
+    // label-vs-raw regression). CompanyVehicle actually discriminates.
     const deliveryModeSelect = screen.getByDisplayValue("Transport (LR)");
-    await userEvent.selectOptions(deliveryModeSelect, "Courier");
+    await userEvent.selectOptions(deliveryModeSelect, "Company Vehicle");
 
     await userEvent.click(screen.getByRole("button", { name: /create sales order/i }));
 
@@ -44,8 +47,8 @@ describe("CreateSalesOrderModal enum payloads", () => {
     const body = JSON.parse(postCall![1]!.body as string);
     // OrderCreateSchema only accepts raw DB enum strings (DeliveryModeSchema
     // in packages/shared/src/enums.ts) — sending the display label
-    // ("Courier") happens to collide here, so also assert TransportLR maps.
-    expect(body.deliveryMode).toBe("Courier");
+    // ("Company Vehicle") would 400.
+    expect(body.deliveryMode).toBe("CompanyVehicle");
     // total must never be sent — it's server-computed from items.
     expect(body.total).toBeUndefined();
   });

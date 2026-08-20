@@ -116,6 +116,7 @@ export default function OrdersPage() {
   const durPrep: number[] = [];
   const durTransit: number[] = [];
   const durTotal: number[] = [];
+  const durRecv: number[] = [];
   let delayedCount = 0;
 
   reportOrders.forEach((so) => {
@@ -123,15 +124,18 @@ export default function OrdersPage() {
     const ackEntry = so.statusHistory.find((h) => h.status === "Acknowledged");
     const prepEntry = so.statusHistory.find((h) => h.status === "DeliveredFromWarehouse");
     const delvEntry = so.statusHistory.find((h) => h.status === "DeliveredToCustomer");
+    const recvEntry = so.statusHistory.find((h) => h.status === "CustomerReceiptConfirmed");
 
     const ackTime = ackEntry ? new Date(ackEntry.at).getTime() : 0;
     const prepTime = prepEntry ? new Date(prepEntry.at).getTime() : 0;
     const delvTime = delvEntry ? new Date(delvEntry.at).getTime() : 0;
+    const recvTime = recvEntry ? new Date(recvEntry.at).getTime() : 0;
 
     if (ackTime && created) durAck.push(ackTime - created);
     if (prepTime && ackTime) durPrep.push(prepTime - ackTime);
     if (delvTime && prepTime) durTransit.push(delvTime - prepTime);
     if (delvTime && created) durTotal.push(delvTime - created);
+    if (recvTime && delvTime) durRecv.push(recvTime - delvTime);
 
     if (so.expectedDelivery && delvTime && delvTime > new Date(so.expectedDelivery).getTime()) {
       delayedCount++;
@@ -328,8 +332,8 @@ export default function OrdersPage() {
               </div>
             )}
 
-            {/* 4 KPI Cards */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {/* 5 KPI Cards */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               <div className="rounded-xl border border-line bg-surface p-3 shadow-xs">
                 <div className="text-[10.5px] font-bold uppercase tracking-wider text-muted">Avg acknowledgement time</div>
                 <div className="text-lg font-black text-ink mt-1 tabular-nums">{fmtDur(avg(durAck))}</div>
@@ -341,6 +345,10 @@ export default function OrdersPage() {
               <div className="rounded-xl border border-line bg-surface p-3 shadow-xs">
                 <div className="text-[10.5px] font-bold uppercase tracking-wider text-muted">Avg transit time</div>
                 <div className="text-lg font-black text-ink mt-1 tabular-nums">{fmtDur(avg(durTransit))}</div>
+              </div>
+              <div className="rounded-xl border border-brand/40 bg-brand-soft p-3 shadow-xs">
+                <div className="text-[10.5px] font-bold uppercase tracking-wider text-brand-ink">Avg order → delivery</div>
+                <div className="text-lg font-black text-brand-ink mt-1 tabular-nums">{fmtDur(avg(durTotal))}</div>
               </div>
               <div
                 className={cn(
@@ -372,13 +380,15 @@ export default function OrdersPage() {
                     <th className="py-2.5 px-3">Delivered</th>
                     <th className="py-2.5 px-3 text-right">Transit time</th>
                     <th className="py-2.5 px-3 text-right font-bold text-ink">Order→Delivery</th>
+                    <th className="py-2.5 px-3">Customer receipt</th>
+                    <th className="py-2.5 px-3 text-right">Confirm lag</th>
                     <th className="py-2.5 px-3 text-center">SLA</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/60">
                   {reportOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="py-12 text-center text-xs text-muted">
+                      <td colSpan={13} className="py-12 text-center text-xs text-muted">
                         No orders to report yet.
                       </td>
                     </tr>
@@ -388,10 +398,12 @@ export default function OrdersPage() {
                       const ackEntry = so.statusHistory.find((h) => h.status === "Acknowledged");
                       const prepEntry = so.statusHistory.find((h) => h.status === "DeliveredFromWarehouse");
                       const delvEntry = so.statusHistory.find((h) => h.status === "DeliveredToCustomer");
+                      const recvEntry = so.statusHistory.find((h) => h.status === "CustomerReceiptConfirmed");
 
                       const ackTime = ackEntry ? new Date(ackEntry.at).getTime() : 0;
                       const prepTime = prepEntry ? new Date(prepEntry.at).getTime() : 0;
                       const delvTime = delvEntry ? new Date(delvEntry.at).getTime() : 0;
+                      const recvTime = recvEntry ? new Date(recvEntry.at).getTime() : 0;
 
                       const isDelayed =
                         so.expectedDelivery &&
@@ -417,6 +429,10 @@ export default function OrdersPage() {
                           </td>
                           <td className="py-2 px-3 text-right tabular-nums font-bold text-ink">
                             {fmtDur(delvTime && created ? delvTime - created : null)}
+                          </td>
+                          <td className="py-2 px-3 text-muted text-[11px] tabular-nums">{fmtDT(recvEntry?.at)}</td>
+                          <td className="py-2 px-3 text-right tabular-nums text-muted">
+                            {fmtDur(recvTime && delvTime ? recvTime - delvTime : null)}
                           </td>
                           <td className="py-2 px-3 text-center">
                             {isDelayed ? (
