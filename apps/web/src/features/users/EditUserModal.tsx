@@ -1,64 +1,82 @@
 import { useState } from "react";
 import { UserPlus, Users } from "lucide-react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
-import { ROLES, type Role } from "@/data/constants";
-import type { User } from "@/data/types";
-import { useTrackerStore } from "@/store/trackerStore";
+import { ApiError } from "@/lib/api";
+import { useCreateUser, useUpdateUser } from "@/features/users/queries";
+import type { UserRow } from "@/features/users/types";
+
+export interface RoleOption {
+  id: string;
+  name: string;
+}
 
 export function EditUserModal({
   open,
   onClose,
   user,
+  roleOptions = [],
 }: {
   open: boolean;
   onClose: () => void;
-  user: User | null;
+  user: UserRow | null;
+  roleOptions?: RoleOption[];
 }) {
-  const { addUser, updateUser, users } = useTrackerStore();
+  const create = useCreateUser();
+  const update = useUpdateUser();
 
   const isNew = !user;
   const [name, setName] = useState(user?.name || "");
   const [username, setUsername] = useState(user?.username || "");
   const [email, setEmail] = useState(user?.email || "");
-  const [password, setPassword] = useState(user?.password || "password123");
-  const [role, setRole] = useState<Role>(user?.role || "sales");
+  const [password, setPassword] = useState("");
+  const [roleId, setRoleId] = useState(user?.roleId || "");
   const [active, setActive] = useState(user ? user.active : true);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const selectedRoleId = roleId || roleOptions[0]?.id || "";
+  const mutation = isNew ? create : update;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanU = username.trim().toLowerCase();
-    if (!name.trim() || !cleanU || !email.trim()) {
-      setError("Name, username and email are all required.");
+    if (!name.trim() || !cleanU || !email.trim() || !selectedRoleId) {
+      setError("Name, username, email and role are all required.");
+      return;
+    }
+    if (isNew && !password.trim()) {
+      setError("Password is required for a new user.");
       return;
     }
 
-    if (isNew && users.some((u) => u.username?.toLowerCase() === cleanU)) {
-      setError("A user with this username already exists.");
-      return;
+    try {
+      if (isNew) {
+        await create.mutateAsync({
+          name: name.trim(),
+          username: cleanU,
+          email: email.trim(),
+          password: password.trim(),
+          roleId: selectedRoleId,
+          active,
+        });
+      } else {
+        await update.mutateAsync({
+          id: user.id,
+          patch: {
+            name: name.trim(),
+            username: cleanU,
+            email: email.trim(),
+            roleId: selectedRoleId,
+            active,
+            // Never send an empty password on update — omit it entirely
+            // so a blank field means "leave unchanged", not "clear it".
+            ...(password.trim() ? { password: password.trim() } : {}),
+          },
+        });
+      }
+      onClose();
+    } catch {
+      // Surfaced inline below via create.error/update.error.
     }
-
-    if (isNew) {
-      addUser({
-        name: name.trim(),
-        username: cleanU,
-        email: email.trim(),
-        password,
-        role,
-        active,
-      });
-    } else {
-      updateUser(user.id, {
-        name: name.trim(),
-        username: cleanU,
-        email: email.trim(),
-        password,
-        role,
-        active,
-      });
-    }
-
-    onClose();
   };
 
   return (
@@ -78,8 +96,12 @@ export function EditUserModal({
           <Button variant="outline" size="sm" onClick={onClose} type="button">
             Cancel
           </Button>
-          <Button size="sm" onClick={handleSubmit} disabled={!name.trim() || !username.trim()}>
-            {isNew ? "Create User" : "Save Changes"}
+          <Button
+            size="sm"
+            onClick={handleSubmit}
+            disabled={!name.trim() || !username.trim() || !selectedRoleId || mutation.isPending}
+          >
+            {mutation.isPending ? "Saving…" : isNew ? "Create User" : "Save Changes"}
           </Button>
         </>
       }
@@ -117,12 +139,16 @@ export function EditUserModal({
           </div>
           <div>
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Password
+              Password {isNew ? "*" : ""}
             </label>
             <Input
               type="password"
+              placeholder={isNew ? "" : "Leave blank to keep current"}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError("");
+              }}
             />
           </div>
         </div>
@@ -144,13 +170,19 @@ export function EditUserModal({
           <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
             Access Role *
           </label>
-          <Select value={role} onChange={(e) => setRole(e.target.value as Role)}>
-            {ROLES.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-          </Select>
+          {roleOptions.length === 0 ? (
+            <p className="text-[11px] text-muted">
+              No roles available yet — add a user for an existing role first.
+            </p>
+          ) : (
+            <Select value={selectedRoleId} onChange={(e) => setRoleId(e.target.value)}>
+              {roleOptions.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </Select>
+          )}
         </div>
 
         <label className="flex items-center gap-2 text-xs font-semibold text-ink pt-2 cursor-pointer">
@@ -164,6 +196,12 @@ export function EditUserModal({
         </label>
 
         {error && <p className="text-xs text-red font-medium pt-1">{error}</p>}
+
+        {mutation.isError && (
+          <p className="text-[11.5px] font-medium text-red">
+            {mutation.error instanceof ApiError ? mutation.error.message : "Failed to save user."}
+          </p>
+        )}
       </form>
     </Dialog>
   );
