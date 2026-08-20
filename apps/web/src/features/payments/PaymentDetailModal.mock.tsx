@@ -1,68 +1,60 @@
 import { useState } from "react";
 import { Receipt } from "lucide-react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
-import { ApiError } from "@/lib/api";
+import { PAY_ZONES, type PayZone } from "@/data/constants";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useTrackerStore } from "@/store/trackerStore";
 import { useAuthRole } from "@/store/auth";
-import { useUpdatePayment } from "@/features/payments/queries";
-import {
-  PAY_ZONE_VALUES,
-  PAY_ZONE_LABELS,
-  PAYMENT_STATUS_LABELS,
-  type PayZoneValue,
-  type PaymentRow,
-} from "@/features/payments/types";
-import type { PaymentFkOption } from "@/features/payments/AddPaymentModal";
+import { useMockOwnerId } from "@/lib/mockOwner";
+import type { Payment } from "@/data/types";
 
+/**
+ * Pre-API-wiring copy of PaymentDetailModal, kept only so PaymentsPage.mock.tsx
+ * and FollowUpsPage.mock.tsx (both unrouted reference copies from before Task 6)
+ * still typecheck against the mock `Payment` shape + trackerStore. The live app
+ * uses features/payments/PaymentDetailModal.tsx (PaymentRow + useUpdatePayment)
+ * instead. Do not wire this copy to anything new — see task-6-report.md.
+ */
 export function PaymentDetailModal({
   open,
   onClose,
   payment,
-  salespeople = [],
 }: {
   open: boolean;
   onClose: () => void;
-  payment: PaymentRow | null;
-  salespeople?: PaymentFkOption[];
+  payment: Payment | null;
 }) {
-  const update = useUpdatePayment();
+  const { users, updatePaymentZone, updatePaymentField, togglePaymentMail, addPaymentRemark } =
+    useTrackerStore();
   const role = useAuthRole();
+  const ownerId = useMockOwnerId();
+  const salespeople = users.filter((u) => u.role === "sales");
 
   if (!payment) return null;
 
-  const canEdit = role !== "mgmt";
-  const statusLabel = PAYMENT_STATUS_LABELS[payment.status as keyof typeof PAYMENT_STATUS_LABELS] ?? payment.status;
-
-  const [payZone, setPayZone] = useState<PayZoneValue>(
-    (payment.payZone as PayZoneValue) || "GreenZone",
-  );
-  const [salespersonId, setSalespersonId] = useState(payment.salespersonId || "");
+  const [zone, setZone] = useState<PayZone>(payment.zone || "Green Zone");
+  const [assignedOwnerId, setAssignedOwnerId] = useState(payment.ownerId);
   const [delayReason, setDelayReason] = useState(payment.delayReason || "");
   const [nextFollowUp, setNextFollowUp] = useState(payment.nextFollowUp || "");
+  const [newRemark, setNewRemark] = useState("");
 
-  const handleSave = async () => {
-    const patch: Record<string, unknown> = {};
-    if (payZone !== payment.payZone) patch.payZone = payZone;
-    if (salespersonId !== (payment.salespersonId || "")) patch.salespersonId = salespersonId || null;
-    if (delayReason !== (payment.delayReason || "")) patch.delayReason = delayReason || null;
-    if (nextFollowUp !== (payment.nextFollowUp || "")) patch.nextFollowUp = nextFollowUp || null;
+  const canEdit = role !== "mgmt";
+  const currentUser = users.find((u) => u.id === ownerId)?.name || "User";
 
-    if (Object.keys(patch).length === 0) {
-      onClose();
-      return;
-    }
-
-    try {
-      await update.mutateAsync({ id: payment.id, patch });
-      onClose();
-    } catch {
-      // Surfaced inline below via update.error.
-    }
+  const handleSave = () => {
+    if (zone !== payment.zone) updatePaymentZone(payment.id, zone);
+    if (assignedOwnerId !== payment.ownerId) updatePaymentField(payment.id, "ownerId", assignedOwnerId);
+    if (delayReason !== payment.delayReason) updatePaymentField(payment.id, "delayReason", delayReason);
+    if (nextFollowUp !== payment.nextFollowUp) updatePaymentField(payment.id, "nextFollowUp", nextFollowUp || null);
+    onClose();
   };
 
-  const toggleMail = (mk: "mail1" | "mail2" | "mail3" | "mail4") => {
-    update.mutate({ id: payment.id, patch: { [mk]: !payment[mk] } });
+  const handleAddRemark = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRemark.trim()) return;
+    addPaymentRemark(payment.id, newRemark.trim(), currentUser);
+    setNewRemark("");
   };
 
   return (
@@ -72,10 +64,10 @@ export function PaymentDetailModal({
       title={
         <div className="flex items-center gap-2">
           <Receipt className="h-4 w-4 text-brand" />
-          <span>Invoice Details: {payment.refNo || "—"}</span>
+          <span>Invoice Details: {payment.refNo}</span>
         </div>
       }
-      description={`${payment.customerName || "Customer"} · Pending ${inr(payment.pending)} · ${statusLabel}`}
+      description={`${payment.customerName} · Pending ${inr(payment.pending)}`}
       maxWidth="max-w-lg"
       footer={
         <>
@@ -83,20 +75,18 @@ export function PaymentDetailModal({
             Cancel
           </Button>
           {canEdit && (
-            <Button size="sm" onClick={handleSave} disabled={update.isPending}>
-              {update.isPending ? "Saving…" : "Save Changes"}
+            <Button size="sm" onClick={handleSave}>
+              Save Changes
             </Button>
           )}
         </>
       }
     >
       <div className="space-y-4 text-xs">
-        {/* Invoice Key Financials — amount/received/pending/status/agingDays
-            are all server-computed or server-supplied and rendered here
-            exactly as received; nothing on this screen recomputes them. */}
+        {/* Invoice Key Financials */}
         <div className="grid grid-cols-3 gap-2.5">
           <div className="rounded-xl border border-line bg-surface-2 p-3 text-center">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Invoice Amount</div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Opening Amount</div>
             <div className="text-sm font-bold text-ink mt-0.5 tabular-nums">{inr(payment.amount)}</div>
           </div>
           <div className="rounded-xl border border-line bg-brand-soft p-3 text-center">
@@ -105,20 +95,9 @@ export function PaymentDetailModal({
           </div>
           <div className="rounded-xl border border-line bg-surface-2 p-3 text-center">
             <div className="text-[11px] font-bold uppercase tracking-wider text-muted">Received</div>
-            <div className="text-sm font-bold text-ink mt-0.5 tabular-nums">{inr(payment.received)}</div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2.5 text-[11px] text-muted">
-          <div>
-            Status:{" "}
-            <span className="font-bold text-ink">{statusLabel}</span>
-          </div>
-          <div>
-            Aging:{" "}
-            <span className="font-bold text-ink tabular-nums">
-              {payment.agingDays != null ? `${payment.agingDays}d` : "—"}
-            </span>
+            <div className="text-sm font-bold text-ink mt-0.5 tabular-nums">
+              {payment.received ? inr(payment.received) : "₹0"}
+            </div>
           </div>
         </div>
 
@@ -129,8 +108,7 @@ export function PaymentDetailModal({
               Salesperson Allocation
             </label>
             {canEdit ? (
-              <Select value={salespersonId} onChange={(e) => setSalespersonId(e.target.value)}>
-                <option value="">— Unassigned —</option>
+              <Select value={assignedOwnerId} onChange={(e) => setAssignedOwnerId(e.target.value)}>
                 {salespeople.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -139,7 +117,7 @@ export function PaymentDetailModal({
               </Select>
             ) : (
               <div className="font-semibold text-ink p-2 rounded-lg bg-surface border border-line">
-                {payment.salespersonName || "—"}
+                {salespeople.find((s) => s.id === assignedOwnerId)?.name || "—"}
               </div>
             )}
           </div>
@@ -148,16 +126,16 @@ export function PaymentDetailModal({
               Risk Zone Classification
             </label>
             {canEdit ? (
-              <Select value={payZone} onChange={(e) => setPayZone(e.target.value as PayZoneValue)}>
-                {PAY_ZONE_VALUES.map((z) => (
+              <Select value={zone} onChange={(e) => setZone(e.target.value as PayZone)}>
+                {PAY_ZONES.map((z) => (
                   <option key={z} value={z}>
-                    {PAY_ZONE_LABELS[z]}
+                    {z}
                   </option>
                 ))}
               </Select>
             ) : (
               <div className="font-semibold text-ink p-2 rounded-lg bg-surface border border-line">
-                {PAY_ZONE_LABELS[(payment.payZone as PayZoneValue) || "GreenZone"]}
+                {zone}
               </div>
             )}
           </div>
@@ -189,7 +167,7 @@ export function PaymentDetailModal({
           </div>
         </div>
 
-        {/* 4 Email Reminder Chips — each toggle PATCHes immediately */}
+        {/* 4 Email Reminder Chips */}
         <div className="rounded-xl border border-line bg-surface p-3 space-y-2">
           <div className="text-xs font-bold text-ink uppercase tracking-wider">
             Email Payment Reminders Sent
@@ -199,8 +177,8 @@ export function PaymentDetailModal({
               <button
                 key={mk}
                 type="button"
-                disabled={!canEdit || update.isPending}
-                onClick={() => toggleMail(mk)}
+                disabled={!canEdit}
+                onClick={() => togglePaymentMail(payment.id, mk)}
                 className={cn(
                   "flex-1 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer",
                   payment[mk]
@@ -214,38 +192,48 @@ export function PaymentDetailModal({
           </div>
         </div>
 
-        {/* Follow-up log — read-only here (nested on the payment row; the
-            FollowUps API is the write path, out of scope for this task). */}
+        {/* Remarks Log */}
         <div className="rounded-xl border border-line bg-surface p-3.5 space-y-2.5">
           <span className="text-xs font-bold text-ink uppercase tracking-wider block">
-            Follow-up Log ({payment.followups.length})
+            Payment Remarks ({payment.remarks?.length || 0})
           </span>
 
+          {canEdit && (
+            <form onSubmit={handleAddRemark} className="flex gap-2">
+              <Input
+                placeholder="Log payment update or promise date…"
+                value={newRemark}
+                onChange={(e) => setNewRemark(e.target.value)}
+                className="flex-1"
+              />
+              <Button size="sm" type="submit" disabled={!newRemark.trim()}>
+                Add Note
+              </Button>
+            </form>
+          )}
+
           <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
-            {payment.followups.length === 0 ? (
-              <p className="text-[11px] text-muted">No follow-ups logged yet.</p>
-            ) : (
-              payment.followups.map((f) => (
-                <div
-                  key={f.id}
-                  className="rounded-lg border border-line bg-surface-2/60 p-2 text-xs text-ink space-y-0.5"
-                >
-                  <div className="flex items-center justify-between text-[10.5px] text-muted">
-                    <span className="font-semibold">{f.date}</span>
-                    {f.nextFollowupDate && <span>Next: {f.nextFollowupDate}</span>}
-                  </div>
-                  <div>{f.note}</div>
+            {(payment.remarks || []).map((r, i) => (
+              <div
+                key={i}
+                className="rounded-lg border border-line bg-surface-2/60 p-2 text-xs text-ink space-y-0.5"
+              >
+                <div className="flex items-center justify-between text-[10.5px] text-muted">
+                  <span className="font-semibold">{r.userName || r.user || "Accountant"}</span>
+                  <span>
+                    {new Date(r.timestamp || r.date || Date.now()).toLocaleString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
                 </div>
-              ))
-            )}
+                <div>{r.text}</div>
+              </div>
+            ))}
           </div>
         </div>
-
-        {update.isError && (
-          <p className="text-[11.5px] font-medium text-red">
-            {update.error instanceof ApiError ? update.error.message : "Failed to save changes."}
-          </p>
-        )}
       </div>
     </Dialog>
   );

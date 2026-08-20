@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
 import { StatusBadge } from "@/components/StatusBadge";
 import { LeadDetailModal } from "@/features/leads/LeadDetailModal";
-import { PaymentDetailModal } from "@/features/payments/PaymentDetailModal";
+import { PaymentDetailModal } from "@/features/payments/PaymentDetailModal.mock";
 import { ProjectionFollowUpModal } from "@/features/projections/ProjectionFollowUpModal";
 import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
 import { toast } from "@/store/toastStore";

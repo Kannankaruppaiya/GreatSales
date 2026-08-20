@@ -1,0 +1,47 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient } from "@tanstack/react-query";
+import * as api from "../../../src/lib/api";
+import { paymentKeys } from "../../../src/features/payments/queries";
+
+describe("payments queries", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it("list requests /payments with cursor + limit 50", async () => {
+    const spy = vi
+      .spyOn(api, "apiFetch")
+      .mockResolvedValue({ items: [], nextCursor: null });
+    // exercise the queryFn shape the hook builds:
+    const { paymentsQueryFn } = await import("../../../src/features/payments/queries");
+    await paymentsQueryFn({ search: "anand" }, undefined);
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining("/payments?"));
+    expect(spy.mock.calls[0][0]).toContain("limit=50");
+    expect(spy.mock.calls[0][0]).toContain("search=anand");
+  });
+
+  it("list forwards status/customerId/ownerId filters as raw query params", async () => {
+    const spy = vi
+      .spyOn(api, "apiFetch")
+      .mockResolvedValue({ items: [], nextCursor: null });
+    const { paymentsQueryFn } = await import("../../../src/features/payments/queries");
+    await paymentsQueryFn(
+      { status: "Overdue", customerId: "cust_1", ownerId: "u_1" },
+      undefined,
+    );
+    const url = spy.mock.calls[0][0] as string;
+    expect(url).toContain("status=Overdue");
+    expect(url).toContain("customerId=cust_1");
+    expect(url).toContain("ownerId=u_1");
+  });
+
+  it("exposes a stable query key", () => {
+    expect(paymentKeys.list({ search: "x" })).toEqual(["payments", { search: "x" }]);
+  });
+
+  it("create invalidates the payments list", async () => {
+    const qc = new QueryClient();
+    const inv = vi.spyOn(qc, "invalidateQueries");
+    const { onPaymentMutationSuccess } = await import("../../../src/features/payments/queries");
+    onPaymentMutationSuccess(qc);
+    expect(inv).toHaveBeenCalledWith({ queryKey: ["payments"] });
+  });
+});
