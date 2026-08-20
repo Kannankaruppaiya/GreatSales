@@ -9,7 +9,6 @@ import {
   Lock,
   Mail,
   ShieldCheck,
-  Smartphone,
   Sparkles,
   TrendingUp,
   Users,
@@ -20,7 +19,7 @@ import { ApiError } from "@/lib/api";
 import { env } from "@/lib/config";
 import { Button, Input } from "@/components/ui";
 
-export type LoginRole = "super_admin" | "admin" | "mgmt" | "sales";
+export type LoginRole = "super_admin" | "admin" | "mgmt";
 
 interface RoleConfig {
   id: LoginRole;
@@ -72,30 +71,16 @@ const ROLE_CONFIGS: Record<LoginRole, RoleConfig> = {
     title: "Management Portal",
     description: "Executive oversight. Real-time dashboards, recurring projection grids, and analytics (Read-Only).",
   },
-  sales: {
-    id: "sales",
-    label: "Sales (Mobile)",
-    badge: "FIELD APP ONLY",
-    badgeColor: "bg-amber-500/10 text-amber-700 border-amber-300 dark:border-amber-800",
-    icon: Smartphone,
-    route: "/sales/login",
-    defaultEmail: "salesperson@greatsales.in",
-    destination: "",
-    title: "Sales Representative Portal",
-    description: "Sales representatives operate exclusively through the GreatSales Mobile application for field efficiency.",
-  },
 };
 
 function resolveRoleFromPath(pathname: string, roleParam?: string): LoginRole {
   if (roleParam === "super-admin" || roleParam === "super_admin" || roleParam === "superadmin") return "super_admin";
   if (roleParam === "admin" || roleParam === "administrator") return "admin";
   if (roleParam === "mgmt" || roleParam === "management" || roleParam === "manager") return "mgmt";
-  if (roleParam === "sales" || roleParam === "salesperson") return "sales";
 
   if (pathname.includes("super-admin") || pathname.includes("superadmin")) return "super_admin";
   if (pathname.includes("admin")) return "admin";
   if (pathname.includes("management") || pathname.includes("mgmt")) return "mgmt";
-  if (pathname.includes("sales")) return "sales";
 
   return "admin";
 }
@@ -133,7 +118,7 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (activeRole === "sales" || activeRole === "super_admin") return;
+    if (activeRole === "super_admin") return;
 
     setBusy(true);
     setError(null);
@@ -291,34 +276,8 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
             </p>
           </div>
 
-          {/* ── Sales Role Special Screen ── */}
-          {activeRole === "sales" ? (
-            <div className="space-y-4 rounded-xl border border-amber-200 bg-amber-50/60 p-5 text-center dark:border-amber-900/40 dark:bg-amber-950/20">
-              <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-amber-500/10 text-amber-700">
-                <Smartphone className="h-6 w-6" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-sm font-bold text-ink">Mobile App Required for Sales</h3>
-                <p className="text-xs text-muted leading-relaxed">
-                  Sales representatives use the GreatSales Mobile application for daily field visits, projection submissions, and offline order logging.
-                </p>
-              </div>
-              <div className="pt-2 flex flex-col gap-2">
-                <Link
-                  to="/admin/login"
-                  className="inline-flex items-center justify-center h-9 px-4 rounded-lg bg-brand text-white text-xs font-bold shadow-xs hover:bg-brand-ink transition-colors"
-                >
-                  Go to Administrator Portal
-                </Link>
-                <Link
-                  to="/super-admin/login"
-                  className="inline-flex items-center justify-center h-9 px-4 rounded-lg border border-line bg-surface text-ink text-xs font-bold hover:bg-surface-2 transition-colors"
-                >
-                  Go to Super Admin Portal
-                </Link>
-              </div>
-            </div>
-          ) : activeRole === "super_admin" ? (
+          {/* ── Active Portal Body ── */}
+          {activeRole === "super_admin" ? (
             <div className="space-y-3 rounded-xl border border-purple-200 bg-purple-50/60 p-5 text-center dark:border-purple-900/40 dark:bg-purple-950/20">
               <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-purple-500/10 text-purple-700">
                 <Crown className="h-6 w-6" />

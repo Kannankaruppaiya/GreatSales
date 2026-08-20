@@ -166,7 +166,6 @@ export default function App() {
         <Route path="/admin/login" element={<PublicAuthRoute initialRole="admin" />} />
         <Route path="/management/login" element={<PublicAuthRoute initialRole="mgmt" />} />
         <Route path="/mgmt/login" element={<Navigate to="/management/login" replace />} />
-        <Route path="/sales/login" element={<PublicAuthRoute initialRole="sales" />} />
 
         {/* Direct Role Entry Routes */}
         <Route path="/super-admin" element={<RoleDirectRoute role="super_admin" />} />
@@ -174,7 +173,6 @@ export default function App() {
         <Route path="/admin" element={<RoleDirectRoute role="admin" />} />
         <Route path="/management" element={<RoleDirectRoute role="mgmt" />} />
         <Route path="/mgmt" element={<Navigate to="/management" replace />} />
-        <Route path="/sales" element={<Navigate to="/sales/login" replace />} />
 
         {/* Workspaces & Management Hub */}
         <Route
