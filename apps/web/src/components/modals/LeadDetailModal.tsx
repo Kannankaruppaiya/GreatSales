@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Plus, Target, Trash2 } from "lucide-react";
-import { Button, Dialog, Input, Select } from "../ui";
-import { DEAL_STAGES, type DealStage } from "../../data/constants";
-import { useTrackerStore } from "../../store/trackerStore";
-import { useAuthRole } from "../../store/auth";
-import { useMockOwnerId } from "../../lib/mockOwner";
-import { inr } from "../../lib/format";
-import type { Lead, LeadProduct } from "../../data/types";
+import { Button, Dialog, Input, Select } from "@/components/ui";
+import { DEAL_STAGES, type DealStage } from "@/data/constants";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useAuthRole } from "@/store/auth";
+import { useMockOwnerId } from "@/lib/mockOwner";
+import { inr } from "@/lib/format";
+import type { Lead, LeadProduct } from "@/data/types";
 
 export function LeadDetailModal({
   open,

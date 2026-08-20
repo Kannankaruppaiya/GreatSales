@@ -1,5 +1,5 @@
-import { cn } from "../lib/utils";
-import type { CustomerTier, Division, PayZone, Tone } from "../data/constants";
+import { cn } from "@/lib/utils";
+import type { CustomerTier, Division, PayZone, Tone } from "@/data/constants";
 
 const toneClass: Record<Tone, string> = {
   won: "bg-brand-soft text-brand-ink border-brand/20",

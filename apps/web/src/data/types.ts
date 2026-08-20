@@ -7,7 +7,7 @@ import type {
   ProjStatus,
   Role,
   SoStatus,
-} from "./constants";
+} from "@/data/constants";
 
 export interface RemarkEntry {
   id?: string;

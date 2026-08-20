@@ -1,23 +1,23 @@
 import { useMemo, useState } from "react";
 import { Download, Loader2, RefreshCw } from "lucide-react";
-import { MONTHS, projTone } from "../data/constants";
-import { useUi } from "../store/ui";
-import { useAuth } from "../store/auth";
+import { MONTHS, projTone } from "@/data/constants";
+import { useUi } from "@/store/ui";
+import { useAuth } from "@/store/auth";
 import {
   useProjections,
   useUpdateProjection,
   type ProjectionParams,
-} from "../features/projections/queries";
+} from "@/features/projections/queries";
 import {
   PROJ_STATUS_LABELS,
   PROJ_STATUS_VALUES,
   type ProjStatusValue,
-} from "../features/projections/types";
-import { inr } from "../lib/format";
-import { cn } from "../lib/utils";
-import { Button, Card, Input, Select } from "../components/ui";
-import { StatusBadge } from "../components/StatusBadge";
-import { ApiError } from "../lib/api";
+} from "@/features/projections/types";
+import { inr } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { Button, Card, Input, Select } from "@/components/ui";
+import { StatusBadge } from "@/components/StatusBadge";
+import { ApiError } from "@/lib/api";
 
 type LineFilter = ProjectionParams["lineFilter"];
 

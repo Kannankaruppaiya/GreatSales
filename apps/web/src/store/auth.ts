@@ -7,10 +7,10 @@
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { apiFetch, setTokenGetter } from "../lib/api";
-import { mapRole } from "../lib/authRole";
-import type { Role } from "../data/constants";
-import type { AuthUser, LoginResponse } from "../features/projections/types";
+import { apiFetch, setTokenGetter } from "@/lib/api";
+import { mapRole } from "@/lib/authRole";
+import type { Role } from "@/data/constants";
+import type { AuthUser, LoginResponse } from "@/features/projections/types";
 
 /** Thrown when a `sales`-role user tries to sign in on the web (mobile-only). */
 export class SalesWebLoginError extends Error {

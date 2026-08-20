@@ -14,11 +14,11 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { DEFAULT_MANAGEMENT_ID } from "../store/ui";
-import { useAuth, SalesWebLoginError } from "../store/auth";
-import { ApiError } from "../lib/api";
-import { env } from "../lib/config";
-import { Button, Input } from "../components/ui";
+import { DEFAULT_MANAGEMENT_ID } from "@/store/ui";
+import { useAuth, SalesWebLoginError } from "@/store/auth";
+import { ApiError } from "@/lib/api";
+import { env } from "@/lib/config";
+import { Button, Input } from "@/components/ui";
 
 export type LoginRole = "super_admin" | "admin" | "mgmt" | "sales";
 

@@ -18,7 +18,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Button, Card, PageHeader } from "../components/ui";
+import { Button, Card, PageHeader } from "@/components/ui";
 
 export default function NotFoundPage() {
   const navigate = useNavigate();

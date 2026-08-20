@@ -7,8 +7,8 @@ import {
   POC_PRODUCTS,
   POC_PROJECTIONS,
   POC_USERS,
-} from "./pocSeedData";
-import type { Lead } from "./types";
+} from "@/data/pocSeedData";
+import type { Lead } from "@/data/types";
 
 export const CURRENT_MONTH = "2026-08";
 

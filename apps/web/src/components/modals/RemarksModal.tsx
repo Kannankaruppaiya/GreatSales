@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { MessageSquare, Send, User } from "lucide-react";
-import { Button, Dialog, Textarea } from "../ui";
-import type { RemarkEntry } from "../../data/types";
+import { Button, Dialog, Textarea } from "@/components/ui";
+import type { RemarkEntry } from "@/data/types";
 
 export function RemarksModal({
   open,

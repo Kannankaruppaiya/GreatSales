@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { useManagementStore, emptyDataset } from "../../src/store/managementStore";
-import { DEFAULT_MANAGEMENT_ID } from "../../src/store/ui";
+import { useManagementStore, emptyDataset } from "@/store/managementStore";
+import { DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 
 const baseState = () => ({
   managements: [

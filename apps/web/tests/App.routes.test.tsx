@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import App from "../src/App";
-import { useUi, DEFAULT_MANAGEMENT_ID } from "../src/store/ui";
-import { useAuth } from "../src/store/auth";
+import App from "@/App";
+import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
+import { useAuth } from "@/store/auth";
 
 describe("App routing", () => {
   beforeEach(() => {

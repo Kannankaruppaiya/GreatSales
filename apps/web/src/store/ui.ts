@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { CURRENT_MONTH } from "../data/mock";
+import { CURRENT_MONTH } from "@/data/mock";
 
 /** The pre-existing seeded company — the default management every session opens with.
  *  Value is a human-readable slug (matches the slug of "GreatSales Industrial Corp"). */

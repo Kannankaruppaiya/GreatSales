@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { CreateManagementModal } from "../../../src/components/modals/CreateManagementModal";
-import { useManagementStore } from "../../../src/store/managementStore";
-import { DEFAULT_MANAGEMENT_ID } from "../../../src/store/ui";
+import { CreateManagementModal } from "@/components/modals/CreateManagementModal";
+import { useManagementStore } from "@/store/managementStore";
+import { DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 
 const navigateMock = vi.fn();
 vi.mock("react-router-dom", async (orig) => {

@@ -10,8 +10,8 @@ import type {
   RemarkEntry,
   SalesOrder,
   User,
-} from "../data/types";
-import type { DealStage, PayZone, SoStatus } from "../data/constants";
+} from "@/data/types";
+import type { DealStage, PayZone, SoStatus } from "@/data/constants";
 import {
   POC_CUSTOMERS,
   POC_LEADS,
@@ -21,7 +21,7 @@ import {
   POC_PRODUCTS,
   POC_PROJECTIONS,
   POC_USERS,
-} from "../data/pocSeedData";
+} from "@/data/pocSeedData";
 
 export interface WorkspaceProfile {
   name: string;

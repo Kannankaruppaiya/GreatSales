@@ -1,16 +1,16 @@
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
-import { useTrackerStore } from "../store/trackerStore";
-import { useUi } from "../store/ui";
-import { useAuthRole } from "../store/auth";
-import { useMockOwnerId } from "../lib/mockOwner";
-import { Button, Card } from "../components/ui";
-import { TierBadge } from "../components/StatusBadge";
-import { AddCustomerModal } from "../components/modals/AddCustomerModal";
-import { EditCustomerModal } from "../components/modals/EditCustomerModal";
-import { CustomerDrawer } from "../components/CustomerDrawer";
-import { toast } from "../store/toastStore";
-import type { Customer } from "../data/types";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useUi } from "@/store/ui";
+import { useAuthRole } from "@/store/auth";
+import { useMockOwnerId } from "@/lib/mockOwner";
+import { Button, Card } from "@/components/ui";
+import { TierBadge } from "@/components/StatusBadge";
+import { AddCustomerModal } from "@/components/modals/AddCustomerModal";
+import { EditCustomerModal } from "@/components/modals/EditCustomerModal";
+import { CustomerDrawer } from "@/components/CustomerDrawer";
+import { toast } from "@/store/toastStore";
+import type { Customer } from "@/data/types";
 
 export default function CustomersPage() {
   const { ownerFilter } = useUi();

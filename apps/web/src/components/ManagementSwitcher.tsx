@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, Building2, LayoutGrid } from "lucide-react";
-import { useUi } from "../store/ui";
-import { useManagementStore } from "../store/managementStore";
-import { useIsOwner } from "../store/auth";
+import { useUi } from "@/store/ui";
+import { useManagementStore } from "@/store/managementStore";
+import { useIsOwner } from "@/store/auth";
 
 export function ManagementSwitcher() {
   const isOwner = useIsOwner();

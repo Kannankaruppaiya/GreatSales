@@ -1,5 +1,5 @@
-import { inr, lakhs, pct } from "../lib/format";
-import { cn } from "../lib/utils";
+import { inr, lakhs, pct } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 /* Lightweight, dependency-free SVG/CSS charts tuned for a data-dense
  * B2B dashboard. Committed = brand green, Achieved = amber accent. */

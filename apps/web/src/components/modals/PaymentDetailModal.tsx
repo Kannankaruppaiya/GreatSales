@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Receipt } from "lucide-react";
-import { Button, Dialog, Input, Select } from "../ui";
-import { PAY_ZONES, type PayZone } from "../../data/constants";
-import { inr } from "../../lib/format";
-import { cn } from "../../lib/utils";
-import { useTrackerStore } from "../../store/trackerStore";
-import { useAuthRole } from "../../store/auth";
-import { useMockOwnerId } from "../../lib/mockOwner";
-import type { Payment } from "../../data/types";
+import { Button, Dialog, Input, Select } from "@/components/ui";
+import { PAY_ZONES, type PayZone } from "@/data/constants";
+import { inr } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useAuthRole } from "@/store/auth";
+import { useMockOwnerId } from "@/lib/mockOwner";
+import type { Payment } from "@/data/types";
 
 export function PaymentDetailModal({
   open,

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { CalendarClock, Check } from "lucide-react";
-import { Button, Dialog, Input, Select, Textarea } from "../ui";
-import { PROJ_STATUSES } from "../../data/constants";
-import type { RemarkEntry } from "../../data/types";
+import { Button, Dialog, Input, Select, Textarea } from "@/components/ui";
+import { PROJ_STATUSES } from "@/data/constants";
+import type { RemarkEntry } from "@/data/types";
 
 export function FollowUpModal({
   open,

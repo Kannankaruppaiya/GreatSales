@@ -1,28 +1,28 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { useUi, DEFAULT_MANAGEMENT_ID } from "./store/ui";
-import { useIsAuthed, useAuthRole, useIsOwner } from "./store/auth";
-import { Layout } from "./components/layout";
-import { Skeleton } from "./components/ui";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { RoleGuard } from "./components/RoleGuard";
-import { RequireOwner } from "./components/RequireOwner";
-import { ManagementProvider } from "./components/ManagementProvider";
-import type { LoginRole } from "./pages/LoginPage";
+import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
+import { useIsAuthed, useAuthRole, useIsOwner } from "@/store/auth";
+import { Layout } from "@/components/layout";
+import { Skeleton } from "@/components/ui";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { RoleGuard } from "@/components/RoleGuard";
+import { RequireOwner } from "@/components/RequireOwner";
+import { ManagementProvider } from "@/components/ManagementProvider";
+import type { LoginRole } from "@/pages/LoginPage";
 
-const LoginPage = lazy(() => import("./pages/LoginPage"));
-const DashboardPage = lazy(() => import("./pages/DashboardPage"));
-const ProjectionsPage = lazy(() => import("./pages/ProjectionsPage"));
-const LeadsPage = lazy(() => import("./pages/LeadsPage"));
-const OrdersPage = lazy(() => import("./pages/OrdersPage"));
-const PaymentsPage = lazy(() => import("./pages/PaymentsPage"));
-const FollowUpsPage = lazy(() => import("./pages/FollowUpsPage"));
-const CustomersPage = lazy(() => import("./pages/CustomersPage"));
-const ProductsPage = lazy(() => import("./pages/ProductsPage"));
-const UsersPage = lazy(() => import("./pages/UsersPage"));
-const DataPage = lazy(() => import("./pages/DataPage"));
-const ManagementHomePage = lazy(() => import("./pages/ManagementHomePage"));
-const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
+const LoginPage = lazy(() => import("@/pages/LoginPage"));
+const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
+const ProjectionsPage = lazy(() => import("@/pages/ProjectionsPage"));
+const LeadsPage = lazy(() => import("@/pages/LeadsPage"));
+const OrdersPage = lazy(() => import("@/pages/OrdersPage"));
+const PaymentsPage = lazy(() => import("@/pages/PaymentsPage"));
+const FollowUpsPage = lazy(() => import("@/pages/FollowUpsPage"));
+const CustomersPage = lazy(() => import("@/pages/CustomersPage"));
+const ProductsPage = lazy(() => import("@/pages/ProductsPage"));
+const UsersPage = lazy(() => import("@/pages/UsersPage"));
+const DataPage = lazy(() => import("@/pages/DataPage"));
+const ManagementHomePage = lazy(() => import("@/pages/ManagementHomePage"));
+const NotFoundPage = lazy(() => import("@/pages/NotFoundPage"));
 
 function PageLoadingSkeleton() {
   return (

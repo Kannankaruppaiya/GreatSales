@@ -9,9 +9,9 @@ import type {
   Projection,
   SalesOrder,
   User,
-} from "../data/types";
-import type { WorkspaceProfile } from "./trackerStore";
-import { DEFAULT_MANAGEMENT_ID } from "./ui";
+} from "@/data/types";
+import type { WorkspaceProfile } from "@/store/trackerStore";
+import { DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 
 export interface ManagementSummary {
   id: string;

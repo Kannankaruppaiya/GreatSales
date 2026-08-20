@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { UserCheck } from "lucide-react";
-import { Button, Dialog, Select } from "../ui";
-import { useTrackerStore } from "../../store/trackerStore";
-import type { User } from "../../data/types";
+import { Button, Dialog, Select } from "@/components/ui";
+import { useTrackerStore } from "@/store/trackerStore";
+import type { User } from "@/data/types";
 
 export function ReassignCustomersModal({
   open,

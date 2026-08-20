@@ -1,6 +1,6 @@
 import { AlertCircle, CheckCircle2, Info, X, XCircle } from "lucide-react";
-import { useToastStore, type ToastMessage } from "../store/toastStore";
-import { cn } from "../lib/utils";
+import { useToastStore, type ToastMessage } from "@/store/toastStore";
+import { cn } from "@/lib/utils";
 
 const ICONS = {
   success: CheckCircle2,

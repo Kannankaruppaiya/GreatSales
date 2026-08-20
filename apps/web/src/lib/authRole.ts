@@ -3,7 +3,7 @@
  * issues admin/mgmt/sales; "SuperAdmin" comes from the platform layer (Phase 0.5).
  * Unknown/custom role names fall back to mgmt (least privilege among web roles).
  */
-import type { Role } from "../data/constants";
+import type { Role } from "@/data/constants";
 
 export function mapRole(name: string | null | undefined): Role {
   switch (name) {

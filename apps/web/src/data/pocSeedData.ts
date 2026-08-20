@@ -1,4 +1,4 @@
-import type { Customer, Lead, Payment, Principal, Product, Projection, SalesOrder, User } from './types';
+import type { Customer, Lead, Payment, Principal, Product, Projection, SalesOrder, User } from '@/data/types';
 
 export const POC_USERS: User[] = [
   {

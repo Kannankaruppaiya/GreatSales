@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Receipt } from "lucide-react";
-import { Button, Dialog, Input, Select } from "../ui";
-import { PAY_ZONES, type PayZone } from "../../data/constants";
-import { useTrackerStore } from "../../store/trackerStore";
-import { useMockOwnerId } from "../../lib/mockOwner";
+import { Button, Dialog, Input, Select } from "@/components/ui";
+import { PAY_ZONES, type PayZone } from "@/data/constants";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useMockOwnerId } from "@/lib/mockOwner";
 
 export function AddPaymentModal({
   open,

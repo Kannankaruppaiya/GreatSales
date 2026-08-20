@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapRole } from "./authRole";
+import { mapRole } from "@/lib/authRole";
 
 describe("mapRole", () => {
   it("maps tenant role names straight through", () => {

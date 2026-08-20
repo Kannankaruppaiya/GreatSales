@@ -4,7 +4,7 @@
  * non-2xx responses into a typed {@link ApiError} carrying the server's
  * validation `details` (the shared ApiErrorBody contract).
  */
-import { env } from "./config";
+import { env } from "@/lib/config";
 
 export class ApiError extends Error {
   constructor(

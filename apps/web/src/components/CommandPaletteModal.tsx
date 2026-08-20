@@ -12,9 +12,9 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Dialog } from "./ui";
-import { useTrackerStore } from "../store/trackerStore";
-import { inr } from "../lib/format";
+import { Dialog } from "@/components/ui";
+import { useTrackerStore } from "@/store/trackerStore";
+import { inr } from "@/lib/format";
 
 export function CommandPaletteModal({
   open,

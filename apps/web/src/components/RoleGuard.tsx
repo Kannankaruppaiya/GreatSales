@@ -1,8 +1,8 @@
 import { ShieldAlert, ArrowLeft, Home } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuthRole } from "../store/auth";
-import { roleLabel, type Role } from "../data/constants";
-import { Button, Card, PageHeader } from "./ui";
+import { useAuthRole } from "@/store/auth";
+import { roleLabel, type Role } from "@/data/constants";
+import { Button, Card, PageHeader } from "@/components/ui";
 
 export function RoleGuard({
   allowedRoles,

@@ -5,24 +5,24 @@ import {
   ShoppingCart,
   TrendingUp,
 } from "lucide-react";
-import { MONTHS, projTone } from "../data/constants";
-import { useTrackerStore } from "../store/trackerStore";
-import { useUi } from "../store/ui";
-import { useAuthRole } from "../store/auth";
-import { useMockOwnerId } from "../lib/mockOwner";
-import { inr, lakhs } from "../lib/format";
-import { cn } from "../lib/utils";
-import { Button, Card } from "../components/ui";
-import { StatusBadge } from "../components/StatusBadge";
-import { CompareLegend, GroupedBars } from "../components/charts";
-import { LeadDetailModal } from "../components/modals/LeadDetailModal";
-import { FollowUpModal } from "../components/modals/FollowUpModal";
-import { CustomerDrawer } from "../components/CustomerDrawer";
-import { AddLeadModal } from "../components/modals/AddLeadModal";
-import { AddCustomerModal } from "../components/modals/AddCustomerModal";
-import { CreateSalesOrderModal } from "../components/modals/CreateSalesOrderModal";
-import { toast } from "../store/toastStore";
-import type { Lead, Projection } from "../data/types";
+import { MONTHS, projTone } from "@/data/constants";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useUi } from "@/store/ui";
+import { useAuthRole } from "@/store/auth";
+import { useMockOwnerId } from "@/lib/mockOwner";
+import { inr, lakhs } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { Button, Card } from "@/components/ui";
+import { StatusBadge } from "@/components/StatusBadge";
+import { CompareLegend, GroupedBars } from "@/components/charts";
+import { LeadDetailModal } from "@/components/modals/LeadDetailModal";
+import { FollowUpModal } from "@/components/modals/FollowUpModal";
+import { CustomerDrawer } from "@/components/CustomerDrawer";
+import { AddLeadModal } from "@/components/modals/AddLeadModal";
+import { AddCustomerModal } from "@/components/modals/AddCustomerModal";
+import { CreateSalesOrderModal } from "@/components/modals/CreateSalesOrderModal";
+import { toast } from "@/store/toastStore";
+import type { Lead, Projection } from "@/data/types";
 
 export default function DashboardPage() {
   const { month, principalId, ownerFilter } = useUi();

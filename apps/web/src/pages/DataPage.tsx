@@ -13,11 +13,11 @@ import {
   Trash2,
   UserCheck,
 } from "lucide-react";
-import { useTrackerStore } from "../store/trackerStore";
-import { Button, Card, CardHeader, MetricCard, PageHeader } from "../components/ui";
-import { roleLabel } from "../data/constants";
-import { useAuthRole } from "../store/auth";
-import { useMockOwnerId } from "../lib/mockOwner";
+import { useTrackerStore } from "@/store/trackerStore";
+import { Button, Card, CardHeader, MetricCard, PageHeader } from "@/components/ui";
+import { roleLabel } from "@/data/constants";
+import { useAuthRole } from "@/store/auth";
+import { useMockOwnerId } from "@/lib/mockOwner";
 
 export default function DataPage() {
   const role = useAuthRole();

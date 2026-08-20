@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Plus, Target, Trash2 } from "lucide-react";
-import { Button, Dialog, Input, Select, Textarea } from "../ui";
+import { Button, Dialog, Input, Select, Textarea } from "@/components/ui";
 import {
   CUSTOMER_TIERS,
   DEAL_STAGES,
@@ -8,11 +8,11 @@ import {
   INDUSTRY_TAXONOMY,
   type CustomerTier,
   type DealStage,
-} from "../../data/constants";
-import { inr, lakhs } from "../../lib/format";
-import type { LeadProduct } from "../../data/types";
-import { useTrackerStore } from "../../store/trackerStore";
-import { useMockOwnerId } from "../../lib/mockOwner";
+} from "@/data/constants";
+import { inr, lakhs } from "@/lib/format";
+import type { LeadProduct } from "@/data/types";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useMockOwnerId } from "@/lib/mockOwner";
 
 export function AddLeadModal({
   open,

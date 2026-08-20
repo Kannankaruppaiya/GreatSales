@@ -2,11 +2,11 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
-import ManagementHomePage from "../../src/pages/ManagementHomePage";
-import { useManagementStore } from "../../src/store/managementStore";
-import { useTrackerStore } from "../../src/store/trackerStore";
-import { DEFAULT_MANAGEMENT_ID } from "../../src/store/ui";
-import type { User } from "../../src/data/types";
+import ManagementHomePage from "@/pages/ManagementHomePage";
+import { useManagementStore } from "@/store/managementStore";
+import { useTrackerStore } from "@/store/trackerStore";
+import { DEFAULT_MANAGEMENT_ID } from "@/store/ui";
+import type { User } from "@/data/types";
 
 const ACME = {
   id: "m_acme",

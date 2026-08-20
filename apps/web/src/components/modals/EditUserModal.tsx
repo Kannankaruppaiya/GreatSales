@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { UserPlus, Users } from "lucide-react";
-import { Button, Dialog, Input, Select } from "../ui";
-import { ROLES, type Role } from "../../data/constants";
-import type { User } from "../../data/types";
-import { useTrackerStore } from "../../store/trackerStore";
+import { Button, Dialog, Input, Select } from "@/components/ui";
+import { ROLES, type Role } from "@/data/constants";
+import type { User } from "@/data/types";
+import { useTrackerStore } from "@/store/trackerStore";
 
 export function EditUserModal({
   open,

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { CheckCircle2, Upload } from "lucide-react";
-import { Button, Dialog } from "../ui";
-import { useTrackerStore } from "../../store/trackerStore";
-import { inr } from "../../lib/format";
-import type { Payment } from "../../data/types";
+import { Button, Dialog } from "@/components/ui";
+import { useTrackerStore } from "@/store/trackerStore";
+import { inr } from "@/lib/format";
+import type { Payment } from "@/data/types";
 
 // Flexible header normalizer
 function normH(h: any): string {

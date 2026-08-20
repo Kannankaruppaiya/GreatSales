@@ -11,12 +11,12 @@ import {
   Truck,
   Zap,
 } from "lucide-react";
-import { Button, Dialog, Input, Select, Textarea } from "../ui";
-import { DELIVERY_MODES, PAYMENT_TERMS, type DeliveryMode } from "../../data/constants";
-import { inr } from "../../lib/format";
-import { cn } from "../../lib/utils";
-import { useTrackerStore } from "../../store/trackerStore";
-import { useMockOwnerId } from "../../lib/mockOwner";
+import { Button, Dialog, Input, Select, Textarea } from "@/components/ui";
+import { DELIVERY_MODES, PAYMENT_TERMS, type DeliveryMode } from "@/data/constants";
+import { inr } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useMockOwnerId } from "@/lib/mockOwner";
 
 export function CreateSalesOrderModal({
   open,

@@ -5,9 +5,9 @@
  * working until Phase 1 rewires each to the real API. Delete once no mock page
  * depends on a mock ownerId.
  */
-import { users } from "../data/mock";
-import type { Role } from "../data/constants";
-import { useAuthRole } from "../store/auth";
+import { users } from "@/data/mock";
+import type { Role } from "@/data/constants";
+import { useAuthRole } from "@/store/auth";
 
 export function defaultOwnerFor(role: Role): string {
   if (role === "sales") {

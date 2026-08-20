@@ -1,6 +1,6 @@
-import { useTrackerStore } from "./trackerStore";
-import { useManagementStore, emptyDataset, type TrackerData } from "./managementStore";
-import { useUi } from "./ui";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useManagementStore, emptyDataset, type TrackerData } from "@/store/managementStore";
+import { useUi } from "@/store/ui";
 
 export function snapshotTracker(): TrackerData {
   const t = useTrackerStore.getState();

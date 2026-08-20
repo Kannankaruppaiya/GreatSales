@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { switchManagement, snapshotTracker } from "../../src/store/managementActions";
-import { useTrackerStore } from "../../src/store/trackerStore";
-import { useManagementStore, emptyDataset } from "../../src/store/managementStore";
-import { useUi, DEFAULT_MANAGEMENT_ID } from "../../src/store/ui";
+import { switchManagement, snapshotTracker } from "@/store/managementActions";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useManagementStore, emptyDataset } from "@/store/managementStore";
+import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 
 describe("switchManagement", () => {
   beforeEach(() => {

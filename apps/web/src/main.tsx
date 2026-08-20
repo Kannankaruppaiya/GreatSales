@@ -7,9 +7,9 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import App from "./App";
-import { ApiError } from "./lib/api";
-import { useAuth } from "./store/auth";
+import App from "@/App";
+import { ApiError } from "@/lib/api";
+import { useAuth } from "@/store/auth";
 import "./index.css";
 
 // An expired/invalid access token surfaces as ApiError(401). Phase 0 has no silent

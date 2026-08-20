@@ -8,21 +8,21 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { PAY_ZONES, type PayZone } from "../data/constants";
-import { useTrackerStore } from "../store/trackerStore";
-import { useUi } from "../store/ui";
-import { useAuthRole } from "../store/auth";
-import { useMockOwnerId } from "../lib/mockOwner";
-import { inr, lakhs } from "../lib/format";
-import { cn } from "../lib/utils";
-import { Button, Card } from "../components/ui";
-import { AddPaymentModal } from "../components/modals/AddPaymentModal";
-import { ImportPaymentsModal } from "../components/modals/ImportPaymentsModal";
-import { PaymentDetailModal } from "../components/modals/PaymentDetailModal";
-import { RemarksModal } from "../components/modals/RemarksModal";
-import { CustomerDrawer } from "../components/CustomerDrawer";
-import { toast } from "../store/toastStore";
-import type { Payment } from "../data/types";
+import { PAY_ZONES, type PayZone } from "@/data/constants";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useUi } from "@/store/ui";
+import { useAuthRole } from "@/store/auth";
+import { useMockOwnerId } from "@/lib/mockOwner";
+import { inr, lakhs } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { Button, Card } from "@/components/ui";
+import { AddPaymentModal } from "@/components/modals/AddPaymentModal";
+import { ImportPaymentsModal } from "@/components/modals/ImportPaymentsModal";
+import { PaymentDetailModal } from "@/components/modals/PaymentDetailModal";
+import { RemarksModal } from "@/components/modals/RemarksModal";
+import { CustomerDrawer } from "@/components/CustomerDrawer";
+import { toast } from "@/store/toastStore";
+import type { Payment } from "@/data/types";
 
 function agingDays(dateStr?: string | null): number | null {
   if (!dateStr) return null;

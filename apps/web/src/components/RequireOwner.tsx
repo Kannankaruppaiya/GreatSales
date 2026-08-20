@@ -1,6 +1,6 @@
 import { Navigate } from "react-router-dom";
-import { useUi } from "../store/ui";
-import { useIsOwner } from "../store/auth";
+import { useUi } from "@/store/ui";
+import { useIsOwner } from "@/store/auth";
 
 export function RequireOwner({ children }: { children: React.ReactNode }) {
   const isOwner = useIsOwner();

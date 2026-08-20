@@ -9,24 +9,24 @@ import {
   Repeat,
   X,
 } from "lucide-react";
-import { MONTHS, PROJ_STATUSES, projTone } from "../data/constants";
-import { useTrackerStore } from "../store/trackerStore";
-import { useUi } from "../store/ui";
-import { useAuthRole } from "../store/auth";
-import { useMockOwnerId } from "../lib/mockOwner";
-import { inr } from "../lib/format";
-import { cn } from "../lib/utils";
-import { Button, Card } from "../components/ui";
-import { StatusBadge } from "../components/StatusBadge";
-import { AddCustomerModal } from "../components/modals/AddCustomerModal";
-import { AddMappingModal } from "../components/modals/AddMappingModal";
-import { RemarksModal } from "../components/modals/RemarksModal";
-import { FollowUpModal } from "../components/modals/FollowUpModal";
-import { CreateSalesOrderModal } from "../components/modals/CreateSalesOrderModal";
-import { SalesOrderDetailModal } from "../components/modals/SalesOrderDetailModal";
-import { CustomerDrawer } from "../components/CustomerDrawer";
-import { toast } from "../store/toastStore";
-import type { Customer, Principal, Product, Projection, SalesOrder, User } from "../data/types";
+import { MONTHS, PROJ_STATUSES, projTone } from "@/data/constants";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useUi } from "@/store/ui";
+import { useAuthRole } from "@/store/auth";
+import { useMockOwnerId } from "@/lib/mockOwner";
+import { inr } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { Button, Card } from "@/components/ui";
+import { StatusBadge } from "@/components/StatusBadge";
+import { AddCustomerModal } from "@/components/modals/AddCustomerModal";
+import { AddMappingModal } from "@/components/modals/AddMappingModal";
+import { RemarksModal } from "@/components/modals/RemarksModal";
+import { FollowUpModal } from "@/components/modals/FollowUpModal";
+import { CreateSalesOrderModal } from "@/components/modals/CreateSalesOrderModal";
+import { SalesOrderDetailModal } from "@/components/modals/SalesOrderDetailModal";
+import { CustomerDrawer } from "@/components/CustomerDrawer";
+import { toast } from "@/store/toastStore";
+import type { Customer, Principal, Product, Projection, SalesOrder, User } from "@/data/types";
 
 type LineFilter = "all" | "projected" | "blank" | "due";
 

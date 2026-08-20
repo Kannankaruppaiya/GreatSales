@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
-import { RequireOwner } from "../../src/components/RequireOwner";
-import { useUi, DEFAULT_MANAGEMENT_ID } from "../../src/store/ui";
-import { useAuth } from "../../src/store/auth";
+import { RequireOwner } from "@/components/RequireOwner";
+import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
+import { useAuth } from "@/store/auth";
 
 function seedAuth(role: "super_admin" | "admin") {
   useAuth.setState({

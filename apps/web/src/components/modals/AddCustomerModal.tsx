@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Building2, Plus, Trash2 } from "lucide-react";
-import { Button, Dialog, Input, Select } from "../ui";
+import { Button, Dialog, Input, Select } from "@/components/ui";
 import {
   CUSTOMER_TIERS,
   INDUSTRIAL_AREAS,
@@ -8,9 +8,9 @@ import {
   PAY_ZONES,
   type CustomerTier,
   type PayZone,
-} from "../../data/constants";
-import { useTrackerStore } from "../../store/trackerStore";
-import { useMockOwnerId } from "../../lib/mockOwner";
+} from "@/data/constants";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useMockOwnerId } from "@/lib/mockOwner";
 
 interface ProductRowState {
   principalId: string;

@@ -1,7 +1,7 @@
 import { Printer } from "lucide-react";
-import { Button, Dialog } from "./ui";
-import { inr } from "../lib/format";
-import type { SalesOrder } from "../data/types";
+import { Button, Dialog } from "@/components/ui";
+import { inr } from "@/lib/format";
+import type { SalesOrder } from "@/data/types";
 
 export function InvoicePrintModal({
   open,

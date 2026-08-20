@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Repeat } from "lucide-react";
-import { Button, Dialog, Input, Select } from "../ui";
-import { useTrackerStore } from "../../store/trackerStore";
-import { useUi } from "../../store/ui";
-import { useAuthRole } from "../../store/auth";
-import { useMockOwnerId } from "../../lib/mockOwner";
+import { Button, Dialog, Input, Select } from "@/components/ui";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useUi } from "@/store/ui";
+import { useAuthRole } from "@/store/auth";
+import { useMockOwnerId } from "@/lib/mockOwner";
 
 export function AddMappingModal({
   open,

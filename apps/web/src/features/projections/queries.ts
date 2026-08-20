@@ -4,12 +4,12 @@
  * achievement % recompute from the server.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiFetch, buildQuery } from "../../lib/api";
+import { apiFetch, buildQuery } from "@/lib/api";
 import type {
   ProjectionLine,
   ProjectionListResponse,
   ProjStatusValue,
-} from "./types";
+} from "@/features/projections/types";
 
 export interface ProjectionParams {
   period: string;

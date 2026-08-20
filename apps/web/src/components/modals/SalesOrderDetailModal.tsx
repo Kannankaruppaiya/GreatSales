@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Package } from "lucide-react";
-import { Button, Dialog, Input } from "../ui";
-import { SO_STATUSES, type SoStatus } from "../../data/constants";
-import { inr } from "../../lib/format";
-import { cn } from "../../lib/utils";
-import { useTrackerStore } from "../../store/trackerStore";
-import { useAuthRole } from "../../store/auth";
-import { useMockOwnerId } from "../../lib/mockOwner";
-import type { SalesOrder } from "../../data/types";
+import { Button, Dialog, Input } from "@/components/ui";
+import { SO_STATUSES, type SoStatus } from "@/data/constants";
+import { inr } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useAuthRole } from "@/store/auth";
+import { useMockOwnerId } from "@/lib/mockOwner";
+import type { SalesOrder } from "@/data/types";
 
 function fmtDT(iso?: string | null): string {
   if (!iso) return "—";

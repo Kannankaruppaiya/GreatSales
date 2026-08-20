@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Boxes } from "lucide-react";
-import { Button, Dialog, Input, Select } from "../ui";
-import { useTrackerStore } from "../../store/trackerStore";
+import { Button, Dialog, Input, Select } from "@/components/ui";
+import { useTrackerStore } from "@/store/trackerStore";
 
 export function AddProductModal({
   open,

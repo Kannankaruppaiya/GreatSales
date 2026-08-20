@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
-import { cn } from "../lib/utils";
-import { Card } from "./ui";
+import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui";
 
 /* ---------------- Page header ---------------- */
 export function PageHeader({

@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Building2 } from "lucide-react";
-import { Button, Dialog, Input, Select } from "../ui";
+import { Button, Dialog, Input, Select } from "@/components/ui";
 import {
   CUSTOMER_TIERS,
   PAYMENT_TERMS,
   type CustomerTier,
-} from "../../data/constants";
-import type { Customer } from "../../data/types";
-import { useTrackerStore } from "../../store/trackerStore";
+} from "@/data/constants";
+import type { Customer } from "@/data/types";
+import { useTrackerStore } from "@/store/trackerStore";
 
 export function EditCustomerModal({
   open,

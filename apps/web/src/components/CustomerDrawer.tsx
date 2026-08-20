@@ -10,15 +10,15 @@ import {
   ShoppingCart,
   X,
 } from "lucide-react";
-import { useTrackerStore } from "../store/trackerStore";
-import { inr } from "../lib/format";
-import { cn } from "../lib/utils";
-import { Button } from "./ui";
-import { TierBadge } from "./StatusBadge";
-import { AddMappingModal } from "./modals/AddMappingModal";
-import { CreateSalesOrderModal } from "./modals/CreateSalesOrderModal";
-import { FollowUpModal } from "./modals/FollowUpModal";
-import type { Projection } from "../data/types";
+import { useTrackerStore } from "@/store/trackerStore";
+import { inr } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui";
+import { TierBadge } from "@/components/StatusBadge";
+import { AddMappingModal } from "@/components/modals/AddMappingModal";
+import { CreateSalesOrderModal } from "@/components/modals/CreateSalesOrderModal";
+import { FollowUpModal } from "@/components/modals/FollowUpModal";
+import type { Projection } from "@/data/types";
 
 export function CustomerDrawer({
   customerId,

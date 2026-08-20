@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { useUi, DEFAULT_MANAGEMENT_ID } from "../../src/store/ui";
+import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 
 describe("useUi tenant state", () => {
   beforeEach(() => {

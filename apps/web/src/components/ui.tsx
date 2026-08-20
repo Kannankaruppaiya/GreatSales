@@ -2,7 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { forwardRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { cn } from "../lib/utils";
+import { cn } from "@/lib/utils";
 
 /* ---------------- Button (shadcn/ui style with active tactile feedback) ---------------- */
 const buttonVariants = cva(

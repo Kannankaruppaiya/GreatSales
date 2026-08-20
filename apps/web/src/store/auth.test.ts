@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiFetch = vi.fn();
-vi.mock("../lib/api", () => ({
+vi.mock("@/lib/api", () => ({
   apiFetch: (...a: unknown[]) => apiFetch(...a),
   setTokenGetter: vi.fn(),
 }));
 
-import { useAuth, SalesWebLoginError } from "./auth";
+import { useAuth, SalesWebLoginError } from "@/store/auth";
 
 const makeResponse = (role: string) => ({
   accessToken: "acc",

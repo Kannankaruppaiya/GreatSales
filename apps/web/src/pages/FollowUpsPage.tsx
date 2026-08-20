@@ -1,19 +1,19 @@
 import { useMemo, useState } from "react";
-import { MONTHS, projTone } from "../data/constants";
-import { useTrackerStore } from "../store/trackerStore";
-import { useUi } from "../store/ui";
-import { useAuthRole } from "../store/auth";
-import { useMockOwnerId } from "../lib/mockOwner";
-import { inr } from "../lib/format";
-import { cn } from "../lib/utils";
-import { Button, Card } from "../components/ui";
-import { StatusBadge } from "../components/StatusBadge";
-import { LeadDetailModal } from "../components/modals/LeadDetailModal";
-import { PaymentDetailModal } from "../components/modals/PaymentDetailModal";
-import { FollowUpModal } from "../components/modals/FollowUpModal";
-import { CustomerDrawer } from "../components/CustomerDrawer";
-import { toast } from "../store/toastStore";
-import type { Lead, Payment, Projection } from "../data/types";
+import { MONTHS, projTone } from "@/data/constants";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useUi } from "@/store/ui";
+import { useAuthRole } from "@/store/auth";
+import { useMockOwnerId } from "@/lib/mockOwner";
+import { inr } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { Button, Card } from "@/components/ui";
+import { StatusBadge } from "@/components/StatusBadge";
+import { LeadDetailModal } from "@/components/modals/LeadDetailModal";
+import { PaymentDetailModal } from "@/components/modals/PaymentDetailModal";
+import { FollowUpModal } from "@/components/modals/FollowUpModal";
+import { CustomerDrawer } from "@/components/CustomerDrawer";
+import { toast } from "@/store/toastStore";
+import type { Lead, Payment, Projection } from "@/data/types";
 
 function fmtDateLabel(d: string, todayStr: string): { label: string; isOver: boolean; isToday: boolean } {
   const isOver = d < todayStr;

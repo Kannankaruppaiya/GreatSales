@@ -5,20 +5,20 @@ import {
   MessageSquare,
   Plus,
 } from "lucide-react";
-import { DEAL_STAGES, type DealStage, dealTone } from "../data/constants";
-import { useTrackerStore } from "../store/trackerStore";
-import { useUi } from "../store/ui";
-import { useAuthRole } from "../store/auth";
-import { useMockOwnerId } from "../lib/mockOwner";
-import { inr } from "../lib/format";
-import { cn } from "../lib/utils";
-import { Button, Card } from "../components/ui";
-import { StatusBadge, TierBadge } from "../components/StatusBadge";
-import { AddLeadModal } from "../components/modals/AddLeadModal";
-import { LeadDetailModal } from "../components/modals/LeadDetailModal";
-import { RemarksModal } from "../components/modals/RemarksModal";
-import { toast } from "../store/toastStore";
-import type { Lead } from "../data/types";
+import { DEAL_STAGES, type DealStage, dealTone } from "@/data/constants";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useUi } from "@/store/ui";
+import { useAuthRole } from "@/store/auth";
+import { useMockOwnerId } from "@/lib/mockOwner";
+import { inr } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { Button, Card } from "@/components/ui";
+import { StatusBadge, TierBadge } from "@/components/StatusBadge";
+import { AddLeadModal } from "@/components/modals/AddLeadModal";
+import { LeadDetailModal } from "@/components/modals/LeadDetailModal";
+import { RemarksModal } from "@/components/modals/RemarksModal";
+import { toast } from "@/store/toastStore";
+import type { Lead } from "@/data/types";
 
 export default function LeadsPage() {
   const { ownerFilter, principalId } = useUi();

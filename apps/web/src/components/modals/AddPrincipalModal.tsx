@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Boxes } from "lucide-react";
-import { Button, Dialog, Input } from "../ui";
-import { useTrackerStore } from "../../store/trackerStore";
+import { Button, Dialog, Input } from "@/components/ui";
+import { useTrackerStore } from "@/store/trackerStore";
 
 export function AddPrincipalModal({
   open,

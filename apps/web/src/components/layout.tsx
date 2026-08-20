@@ -21,20 +21,20 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { NAVS, MONTHS, roleLabel } from "../data/constants";
-import { useTrackerStore } from "../store/trackerStore";
-import { useUi } from "../store/ui";
-import { useAuthRole, useAuthUser, useAuth } from "../store/auth";
-import { cn } from "../lib/utils";
-import { Avatar, Badge, Select } from "./ui";
-import { CommandPaletteModal } from "./CommandPaletteModal";
-import { ManagementSwitcher } from "./ManagementSwitcher";
-import { CustomerDrawer } from "./CustomerDrawer";
-import { ToastContainer } from "./Toast";
-import { AddCustomerModal } from "./modals/AddCustomerModal";
-import { AddLeadModal } from "./modals/AddLeadModal";
-import { AddPaymentModal } from "./modals/AddPaymentModal";
-import { CreateSalesOrderModal } from "./modals/CreateSalesOrderModal";
+import { NAVS, MONTHS, roleLabel } from "@/data/constants";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useUi } from "@/store/ui";
+import { useAuthRole, useAuthUser, useAuth } from "@/store/auth";
+import { cn } from "@/lib/utils";
+import { Avatar, Badge, Select } from "@/components/ui";
+import { CommandPaletteModal } from "@/components/CommandPaletteModal";
+import { ManagementSwitcher } from "@/components/ManagementSwitcher";
+import { CustomerDrawer } from "@/components/CustomerDrawer";
+import { ToastContainer } from "@/components/Toast";
+import { AddCustomerModal } from "@/components/modals/AddCustomerModal";
+import { AddLeadModal } from "@/components/modals/AddLeadModal";
+import { AddPaymentModal } from "@/components/modals/AddPaymentModal";
+import { CreateSalesOrderModal } from "@/components/modals/CreateSalesOrderModal";
 
 const ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,

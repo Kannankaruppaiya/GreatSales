@@ -19,14 +19,14 @@ import {
   ChevronRight,
   Mail,
 } from "lucide-react";
-import { useManagementStore } from "../store/managementStore";
-import { useTrackerStore } from "../store/trackerStore";
-import { useUi, DEFAULT_MANAGEMENT_ID } from "../store/ui";
-import { useAuth } from "../store/auth";
-import { CreateManagementModal } from "../components/modals/CreateManagementModal";
-import { inr, lakhs, pct } from "../lib/format";
-import { MONTHS } from "../data/constants";
-import { GroupedBars, CompareLegend } from "../components/charts";
+import { useManagementStore } from "@/store/managementStore";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
+import { useAuth } from "@/store/auth";
+import { CreateManagementModal } from "@/components/modals/CreateManagementModal";
+import { inr, lakhs, pct } from "@/lib/format";
+import { MONTHS } from "@/data/constants";
+import { GroupedBars, CompareLegend } from "@/components/charts";
 
 type ActiveTab = "overview" | "salespersons" | "workspaces" | "principals";
 

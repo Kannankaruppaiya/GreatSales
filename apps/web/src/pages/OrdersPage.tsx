@@ -5,19 +5,19 @@ import {
   Plus,
   Printer,
 } from "lucide-react";
-import { SO_STATUSES, soTone } from "../data/constants";
-import { useTrackerStore } from "../store/trackerStore";
-import { useUi } from "../store/ui";
-import { useAuthRole } from "../store/auth";
-import { useMockOwnerId } from "../lib/mockOwner";
-import { inr } from "../lib/format";
-import { cn } from "../lib/utils";
-import { Button, Card } from "../components/ui";
-import { StatusBadge } from "../components/StatusBadge";
-import { CreateSalesOrderModal } from "../components/modals/CreateSalesOrderModal";
-import { SalesOrderDetailModal } from "../components/modals/SalesOrderDetailModal";
-import { InvoicePrintModal } from "../components/InvoicePrintModal";
-import type { SalesOrder } from "../data/types";
+import { SO_STATUSES, soTone } from "@/data/constants";
+import { useTrackerStore } from "@/store/trackerStore";
+import { useUi } from "@/store/ui";
+import { useAuthRole } from "@/store/auth";
+import { useMockOwnerId } from "@/lib/mockOwner";
+import { inr } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { Button, Card } from "@/components/ui";
+import { StatusBadge } from "@/components/StatusBadge";
+import { CreateSalesOrderModal } from "@/components/modals/CreateSalesOrderModal";
+import { SalesOrderDetailModal } from "@/components/modals/SalesOrderDetailModal";
+import { InvoicePrintModal } from "@/components/InvoicePrintModal";
+import type { SalesOrder } from "@/data/types";
 
 function fmtDur(ms: number | null): string {
   if (ms == null || isNaN(ms)) return "—";

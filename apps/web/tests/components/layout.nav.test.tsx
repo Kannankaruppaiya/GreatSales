@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { Sidebar } from "../../src/components/layout";
-import { useUi, DEFAULT_MANAGEMENT_ID } from "../../src/store/ui";
-import { useAuth } from "../../src/store/auth";
+import { Sidebar } from "@/components/layout";
+import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
+import { useAuth } from "@/store/auth";
 
 describe("Sidebar links", () => {
   beforeEach(() => {

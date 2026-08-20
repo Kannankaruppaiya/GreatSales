@@ -1,4 +1,4 @@
-import { DEAL_STAGES, type Role } from "./constants";
+import { DEAL_STAGES, type Role } from "@/data/constants";
 import {
   customers,
   followups,
@@ -6,8 +6,8 @@ import {
   leadTotal,
   products,
   projections,
-} from "./mock";
-import { agingDays } from "../lib/format";
+} from "@/data/mock";
+import { agingDays } from "@/lib/format";
 
 export interface Filters {
   role: Role;
