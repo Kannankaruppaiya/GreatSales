@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FileSpreadsheet, LayoutList, Loader2, Plus, RefreshCw, Upload } from "lucide-react";
+import { FileSpreadsheet, LayoutList, Loader2, Plus, RefreshCw, Upload, X } from "lucide-react";
 import { useAuthRole } from "@/store/auth";
 import { inr, lakhs } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,12 @@ import { AddPaymentModal } from "@/features/payments/AddPaymentModal";
 import { ImportPaymentsModal } from "@/features/payments/ImportPaymentsModal";
 import { PaymentDetailModal } from "@/features/payments/PaymentDetailModal";
 import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
-import { usePayments, useUpdatePayment, flattenPayments } from "@/features/payments/queries";
+import {
+  usePayments,
+  useUpdatePayment,
+  useDeletePayment,
+  flattenPayments,
+} from "@/features/payments/queries";
 import {
   PAY_ZONE_VALUES,
   PAY_ZONE_LABELS,
@@ -66,6 +71,7 @@ const ZONE_CLASSES: Record<string, string> = {
 export default function PaymentsPage() {
   const role = useAuthRole();
   const canEdit = role !== "mgmt";
+  const isAdmin = role === "admin";
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -86,7 +92,24 @@ export default function PaymentsPage() {
   };
   const q = usePayments(params);
   const update = useUpdatePayment();
+  const del = useDeletePayment();
   const rows = flattenPayments(q.data);
+
+  // Auto-fetch every page before computing KPI/report aggregates below, so
+  // "Total pending" etc. reflect the full filtered ledger rather than just
+  // whatever page happened to load first. Guarded on hasNextPage &&
+  // !isFetchingNextPage so this terminates once the last page (nextCursor:
+  // null) comes back; it re-runs whenever the filters change the query key.
+  useEffect(() => {
+    if (q.hasNextPage && !q.isFetchingNextPage) {
+      q.fetchNextPage();
+    }
+  }, [q.hasNextPage, q.isFetchingNextPage, q.fetchNextPage]);
+
+  // True while rows are still incomplete (initial load, or more pages left
+  // to auto-fetch) — every financial aggregate below is only accurate once
+  // this is false.
+  const isLoadingFullTotals = q.isLoading || q.hasNextPage === true;
 
   // Salesperson filter options — no dedicated endpoint, derived from the
   // loaded rows (same pattern as ProductsPage's principals / CustomersPage's
@@ -172,15 +195,32 @@ export default function PaymentsPage() {
     update.mutate({ id: p.id, patch: { [mk]: !p[mk] } });
   };
 
+  const handleDelete = (p: PaymentRow) => {
+    if (!confirm(`Delete invoice ${p.refNo || p.id}?`)) return;
+    del.mutate(p.id);
+  };
+
   return (
     <div className="space-y-4">
-      {/* Top 4 KPI Cards — computed over the currently loaded page of rows;
-          "Load more" widens what these summarize. */}
+      {/* Loading-full-totals indicator — every KPI card and the Reports tab
+          below aggregate over ALL filtered invoices (not just one page), so
+          this is the only state where those numbers are still partial. */}
+      {isLoadingFullTotals && (
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Loading full totals… ({rows.length} invoices so far)
+        </div>
+      )}
+
+      {/* Top 4 KPI Cards — computed over ALL filtered invoices (see the
+          auto-fetch-all effect above), not just one page. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-line bg-surface p-3.5 shadow-xs">
           <div className="text-[10.5px] font-bold uppercase tracking-wider text-muted">Total pending</div>
           <div className="text-xl font-black text-ink mt-1 tabular-nums">{lakhs(totalPending)}</div>
-          <div className="text-xs text-muted mt-0.5">{rows.length} invoices loaded</div>
+          <div className="text-xs text-muted mt-0.5">
+            {isLoadingFullTotals ? "loading…" : `${rows.length} invoices`}
+          </div>
         </div>
 
         <div className={cn("rounded-xl border p-3.5 shadow-xs", redTotal > 0 ? "border-red/40 bg-red-soft/70" : "border-line bg-surface")}>
@@ -337,6 +377,7 @@ export default function PaymentsPage() {
                       <th className="py-2.5 px-3">Salesperson</th>
                       <th className="py-2.5 px-3">Zone</th>
                       <th className="py-2.5 px-3 text-center">Reminders</th>
+                      {isAdmin && <th className="py-2.5 px-2 w-8"></th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line/60">
@@ -430,6 +471,21 @@ export default function PaymentsPage() {
                               ))}
                             </div>
                           </td>
+
+                          {/* Admin-only delete action */}
+                          {isAdmin && (
+                            <td className="py-2.5 px-2 text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(p)}
+                                disabled={del.isPending}
+                                className="text-red/60 hover:text-red p-1 cursor-pointer disabled:opacity-50"
+                                title="Delete invoice"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -438,23 +494,25 @@ export default function PaymentsPage() {
               </QueryBoundary>
             </div>
 
+            {/* All pages fetch automatically (see the auto-fetch-all effect
+                above) so KPI/report aggregates are never silently partial —
+                this is a passive progress note, not a manual "Load more"
+                trigger. */}
             {q.hasNextPage && (
-              <div className="p-3 border-t border-line flex justify-center">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => q.fetchNextPage()}
-                  disabled={q.isFetchingNextPage}
-                >
-                  {q.isFetchingNextPage && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
-                  Load more
-                </Button>
+              <div className="p-3 border-t border-line flex items-center justify-center gap-1.5 text-[11px] font-medium text-muted">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Loading remaining invoices…
               </div>
             )}
 
             {update.isError && (
               <div className="px-3.5 pb-3 text-[11px] font-medium text-red">
                 {update.error instanceof ApiError ? update.error.message : "Failed to save change."}
+              </div>
+            )}
+            {del.isError && (
+              <div className="px-3.5 pb-3 text-[11px] font-medium text-red">
+                {del.error instanceof ApiError ? del.error.message : "Failed to delete invoice."}
               </div>
             )}
           </div>

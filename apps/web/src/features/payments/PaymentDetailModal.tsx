@@ -12,6 +12,7 @@ import {
   PAYMENT_STATUS_LABELS,
   type PayZoneValue,
   type PaymentRow,
+  type PaymentUpdate,
 } from "@/features/payments/types";
 import type { PaymentFkOption } from "@/features/payments/AddPaymentModal";
 
@@ -42,7 +43,7 @@ export function PaymentDetailModal({
   const [nextFollowUp, setNextFollowUp] = useState(payment.nextFollowUp || "");
 
   const handleSave = async () => {
-    const patch: Record<string, unknown> = {};
+    const patch: Partial<PaymentUpdate> = {};
     if (payZone !== payment.payZone) patch.payZone = payZone;
     if (salespersonId !== (payment.salespersonId || "")) patch.salespersonId = salespersonId || null;
     if (delayReason !== (payment.delayReason || "")) patch.delayReason = delayReason || null;
