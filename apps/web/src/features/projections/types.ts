@@ -41,6 +41,22 @@ export const PROJ_STATUS_VALUES = Object.keys(
   PROJ_STATUS_LABELS,
 ) as ProjStatusValue[];
 
+/**
+ * Reverse lookup: display label (as used by data/constants.ts PROJ_STATUSES,
+ * and by ProjectionFollowUpModal's <Select> options) → raw wire enum value,
+ * for components that still speak in display labels but need to PATCH the
+ * raw `status` the API expects. Returns undefined for "(keep current
+ * status)"/unrecognized labels so callers can omit the field from a patch.
+ */
+export function projStatusFromLabel(
+  label: string | undefined,
+): ProjStatusValue | undefined {
+  if (!label) return undefined;
+  const entry = (Object.entries(PROJ_STATUS_LABELS) as [ProjStatusValue, string][])
+    .find(([, v]) => v === label);
+  return entry?.[0];
+}
+
 export interface ProjectionLine {
   id: string;
   period: string;
