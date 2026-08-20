@@ -15,7 +15,12 @@ import { cn } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CompareLegend, GroupedBars } from "@/components/charts";
-import { LeadDetailModal } from "@/features/leads/LeadDetailModal";
+// Task 8 rewired the real LeadDetailModal to the API-shaped LeadRow; this
+// page still reads leads from trackerStore (Task 9: Dashboard aggregates
+// migrates it), so it keeps using the preserved Lead-typed copy — same
+// pattern as FollowUpsPage.mock.tsx's PaymentDetailModal.mock import from
+// Task 6.
+import { LeadDetailModal } from "@/features/leads/LeadDetailModal.mock";
 import { ProjectionFollowUpModal } from "@/features/projections/ProjectionFollowUpModal";
 import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
 import { AddLeadModal } from "@/features/leads/AddLeadModal";

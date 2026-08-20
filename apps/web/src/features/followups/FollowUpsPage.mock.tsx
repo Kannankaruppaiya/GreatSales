@@ -8,7 +8,10 @@ import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
 import { StatusBadge } from "@/components/StatusBadge";
-import { LeadDetailModal } from "@/features/leads/LeadDetailModal";
+// Unrouted reference copy (see PaymentDetailModal.mock import above) — keeps
+// using the preserved Lead-typed LeadDetailModal after Task 8 rewired the
+// real one to the API-shaped LeadRow.
+import { LeadDetailModal } from "@/features/leads/LeadDetailModal.mock";
 import { PaymentDetailModal } from "@/features/payments/PaymentDetailModal.mock";
 import { ProjectionFollowUpModal } from "@/features/projections/ProjectionFollowUpModal";
 import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
