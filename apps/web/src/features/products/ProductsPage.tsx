@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, RefreshCw } from "lucide-react";
 import { useAuthRole } from "@/store/auth";
 import { inr } from "@/lib/format";
@@ -9,21 +9,47 @@ import { QueryBoundary } from "@/components/common/QueryBoundary";
 import { AddProductModal } from "@/features/products/AddProductModal";
 import { useProducts, useUpdateProduct, flattenProducts } from "@/features/products/queries";
 
+/**
+ * Debounces a fast-changing value (e.g. search input) so downstream effects
+ * (e.g. a query key) only settle `delayMs` after the user stops typing.
+ * Generic/reusable in shape — later pages can lift this into a shared hook
+ * once a second consumer needs it.
+ */
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+  return debounced;
+}
+
 export default function ProductsPage() {
   const role = useAuthRole();
 
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [principalId, setPrincipalId] = useState("ALL");
   const [showAddProduct, setShowAddProduct] = useState(false);
 
   const canEdit = role !== "mgmt"; // mgmt is read-only; sales role is mobile-only
 
   const params = {
-    search: search.trim() || undefined,
+    search: debouncedSearch.trim() || undefined,
     principalId: principalId === "ALL" ? undefined : principalId,
   };
   const q = useProducts(params);
   const update = useUpdateProduct();
+
+  // Inline price editor state: a controlled input keyed off `editingPriceId`,
+  // not `defaultValue`. An uncontrolled input keeps whatever it had at mount
+  // and never picks up server-refreshed values (e.g. a Refresh click or an
+  // invalidation from editing a different row) for a row that stays mounted.
+  // While a row isn't the one being edited it always displays `p.basePrice`
+  // straight from the query; the local draft only exists for the row
+  // currently focused, and is committed via PATCH on blur/Enter.
+  const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
+  const [priceDraft, setPriceDraft] = useState("");
 
   const products = flattenProducts(q.data);
 
@@ -51,9 +77,6 @@ export default function ProductsPage() {
             <span className="font-bold text-sm text-ink">Principal master</span>
             <span className="text-xs text-muted font-medium">
               {principalOptions.length} principals
-            </span>
-            <span className="rounded-full border border-brand/30 bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand-ink">
-              LIVE API
             </span>
           </div>
         </div>
@@ -148,13 +171,25 @@ export default function ProductsPage() {
                         <input
                           type="number"
                           step="0.01"
-                          defaultValue={p.basePrice != null ? p.basePrice : ""}
+                          value={
+                            editingPriceId === p.id
+                              ? priceDraft
+                              : p.basePrice != null
+                                ? String(p.basePrice)
+                                : ""
+                          }
                           placeholder="—"
+                          onFocus={() => {
+                            setEditingPriceId(p.id);
+                            setPriceDraft(p.basePrice != null ? String(p.basePrice) : "");
+                          }}
+                          onChange={(e) => setPriceDraft(e.target.value)}
                           onBlur={(e) => {
                             const val = e.target.value === "" ? null : Number(e.target.value);
                             if (val !== p.basePrice) {
                               update.mutate({ id: p.id, patch: { basePrice: val } });
                             }
+                            setEditingPriceId(null);
                           }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
