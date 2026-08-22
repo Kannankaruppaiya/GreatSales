@@ -119,9 +119,9 @@ describe('sales ownership scope (cross-module)', () => {
       ownerId: OTHER,
     });
     expect(res.lines.length).toBeGreaterThan(0);
-    expect(
-      res.lines.every((l) => l.salespersonId === sales1.userId),
-    ).toBe(true);
+    expect(res.lines.every((l) => l.salespersonId === sales1.userId)).toBe(
+      true,
+    );
   });
 
   it('still honours ownerId for an admin caller', async () => {
