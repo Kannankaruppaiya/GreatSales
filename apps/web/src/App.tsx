@@ -129,7 +129,14 @@ function AppLayout() {
             <Route path="payments" element={<PaymentsPage />} />
             <Route path="followups" element={<FollowUpsPage />} />
             <Route path="customers" element={<CustomersPage />} />
-            <Route path="products" element={<ProductsPage />} />
+            <Route
+              path="products"
+              element={
+                <RoleGuard allowedRoles={["super_admin", "admin", "mgmt"]}>
+                  <ProductsPage />
+                </RoleGuard>
+              }
+            />
             <Route
               path="users"
               element={
