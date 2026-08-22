@@ -76,7 +76,7 @@ Our automated scan and manual inspection across all `apps/web/src` files reveale
 
 #### 🔴 Critical Flaws & Gaps
 1. **Hardcoded Dev Password in Bundle (P0):** `DEMO_PASSWORD = "Passw0rd!"` and `DEMO_TENANT_ID = "tenant_acme"` are bundled and automatically fill the form inputs.
-2. **Sales Web Role Rejection (P1):** When a salesperson attempts to log in on the web, `SalesWebLoginError` is thrown client-side *after* a successful token generation instead of showing a dedicated mobile app download QR / link.
+2. ~~**Sales Web Role Rejection (P1)**~~ — **RESOLVED** (`feat/phase0-auth-unify`): `SalesWebLoginError` has been removed; `sales` now signs in on the web through a dedicated `/sales/login` portal like every other role.
 3. **Disabled Super Admin Form (P1):** Super Admin tab has a disabled submit button without an explanation that the Platform Console is an independent operator surface.
 
 #### 🛠️ Required Fixes

@@ -32,7 +32,10 @@ export function PaymentDetailModal({
 
   if (!payment) return null;
 
-  const canEdit = role !== "mgmt";
+  // Kept in lockstep with PaymentsPage's canEdit gate — see the comment
+  // there. Payments writes require `payment.write`, which `sales` does not
+  // hold, so (unlike sibling detail modals) this is NOT `role !== "mgmt"`.
+  const canEdit = role === "admin" || role === "super_admin";
   const statusLabel = PAYMENT_STATUS_LABELS[payment.status as keyof typeof PAYMENT_STATUS_LABELS] ?? payment.status;
 
   const [payZone, setPayZone] = useState<PayZoneValue>(

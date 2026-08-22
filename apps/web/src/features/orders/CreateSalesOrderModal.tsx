@@ -20,6 +20,7 @@ import { DELIVERY_MODE_VALUES, DELIVERY_MODE_LABELS, type DeliveryModeValue } fr
 import { useCustomers, flattenCustomers } from "@/features/customers/queries";
 import { useProducts, flattenProducts } from "@/features/products/queries";
 import { useUsers, flattenUsers } from "@/features/users/queries";
+import { useAuthRole, useAuthUser } from "@/store/auth";
 
 export interface OrderCustomerOption {
   id: string;
@@ -77,6 +78,15 @@ export function CreateSalesOrderModal({
   fromProjectionId?: string;
 }) {
   const create = useCreateOrder();
+  const role = useAuthRole();
+  const authUser = useAuthUser();
+  // The API always forces salespersonId = user.userId for a sales-only
+  // caller (see orders.service.ts `create`), ignoring whatever this form
+  // sends. A newly-onboarded salesperson has zero orders yet, so
+  // `salespeople` (derived from loaded rows) is empty and there is nothing
+  // to pick from — skip the picker (and its self-fetch) entirely for
+  // `sales` rather than permanently disabling Save.
+  const isSales = role === "sales";
 
   // Same "no options handed down" fallback as AddCustomerModal / AddPaymentModal
   // — the global Topbar Quick-Create → Sales Order entry in layout.tsx and
@@ -88,7 +98,7 @@ export function CreateSalesOrderModal({
   // silently exclude any customer/product that has never appeared on an
   // existing order, so this fallback fetch is the only source for those two.
   const needsOwnFetch = customers === undefined;
-  const needsOwnSalespeopleFetch = salespeople === undefined;
+  const needsOwnSalespeopleFetch = salespeople === undefined && !isSales;
   const customersQuery = useCustomers({}, { enabled: needsOwnFetch && open });
   const productsQuery = useProducts({}, { enabled: needsOwnFetch && open });
   const usersQuery = useUsers({}, { enabled: needsOwnSalespeopleFetch && open });
@@ -131,7 +141,9 @@ export function CreateSalesOrderModal({
 
   const [code, setCode] = useState(defaultCode);
   const [customerId, setCustomerId] = useState(initialCustomerId || customerOptions[0]?.id || "");
-  const [salespersonId, setSalespersonId] = useState(salespersonOptions[0]?.id || "");
+  const [salespersonId, setSalespersonId] = useState(
+    isSales ? authUser?.id || "" : salespersonOptions[0]?.id || "",
+  );
   const [productId, setProductId] = useState(initialProductId || productOptions[0]?.id || "");
   const [qty, setQty] = useState<number>(initialQty || 10);
   const selectedProduct = productOptions.find((p) => p.id === productId);
@@ -163,8 +175,10 @@ export function CreateSalesOrderModal({
     if (!productId && productOptions.length > 0) setProductId(productOptions[0].id);
   }, [productOptions, productId]);
   useEffect(() => {
-    if (!salespersonId && salespersonOptions.length > 0) setSalespersonId(salespersonOptions[0].id);
-  }, [salespersonOptions, salespersonId]);
+    if (!isSales && !salespersonId && salespersonOptions.length > 0) {
+      setSalespersonId(salespersonOptions[0].id);
+    }
+  }, [salespersonOptions, salespersonId, isSales]);
 
   // Sync customer payment terms & area address if empty. Deps intentionally
   // omit paymentTerms/deliveryAddress — this is a one-time default-fill on
@@ -328,7 +342,11 @@ export function CreateSalesOrderModal({
               <label className="text-xs font-semibold text-ink block mb-1.5">
                 Salesperson <span className="text-red">*</span>
               </label>
-              {salespeopleLoading ? (
+              {isSales ? (
+                <div className="font-semibold text-ink p-2 rounded-lg bg-surface border border-line h-9 flex items-center">
+                  Assigned to you
+                </div>
+              ) : salespeopleLoading ? (
                 <p className="text-[11px] text-muted py-2">Loading salespersons…</p>
               ) : salespersonOptions.length === 0 ? (
                 <p className="text-[11px] text-muted py-2">No salespersons yet.</p>

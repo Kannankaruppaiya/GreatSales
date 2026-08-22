@@ -1,11 +1,29 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AddLeadModal } from "@/features/leads/AddLeadModal";
+import { useAuth } from "@/store/auth";
 import * as api from "@/lib/api";
+import type { LeadFkOption } from "@/features/leads/AddLeadModal";
 
 const salespeople = [{ id: "u_sales1", name: "Test Sales" }];
+
+function setRole(role: "admin" | "mgmt" | "sales", userId = "u_1") {
+  useAuth.setState({
+    accessToken: "test",
+    refreshToken: "test",
+    user: {
+      id: userId,
+      tenantId: "tenant_acme",
+      name: "Test User",
+      email: "test@acme.test",
+      username: "test",
+      roleId: role === "admin" ? "role_admin" : role === "sales" ? "role_sales" : "role_mgmt",
+      role,
+    },
+  });
+}
 
 /** GET requests (the self-fetched product catalog) return an empty page;
  * POST requests (the create call under test) return a stub LeadRow id. */
@@ -16,17 +34,46 @@ function mockApiFetch() {
   });
 }
 
-function renderModal() {
+function renderModal(options: LeadFkOption[] = salespeople) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <AddLeadModal open onClose={() => {}} salespeople={salespeople} industries={[]} />
+      <AddLeadModal open onClose={() => {}} salespeople={options} industries={[]} />
     </QueryClientProvider>,
   );
 }
 
 describe("AddLeadModal enum payloads", () => {
   beforeEach(() => vi.restoreAllMocks());
+  // The auth store is a module-level singleton — reset it after every test
+  // so setRole("sales", ...) below can't leak into a test that never calls it.
+  afterEach(() => useAuth.setState({ accessToken: null, refreshToken: null, user: null }));
+
+  it("keeps Save enabled for sales even with an EMPTY salesperson options list", async () => {
+    // Same bug shape as AddCustomerModal: a newly-onboarded salesperson has
+    // zero leads yet, so `salespeople` (derived from loaded rows in
+    // LeadsPage) is empty. The API always forces salespersonId = user.userId
+    // for a sales caller (leads.service.ts `create`), so the client doesn't
+    // need a picker for `sales`. A populated-options test would not catch
+    // the empty-list bug at all.
+    setRole("sales", "u_sales_self");
+    const spy = mockApiFetch();
+    renderModal([]);
+
+    expect(screen.queryByText(/no salespersons yet/i)).toBeNull();
+    await userEvent.type(
+      screen.getByPlaceholderText(/acme precision tools/i),
+      "Sales Self-Serve Co",
+    );
+    const saveBtn = screen.getByRole("button", { name: /create lead/i });
+    expect(saveBtn).toBeEnabled();
+
+    await userEvent.click(saveBtn);
+    const postCall = spy.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(postCall).toBeTruthy();
+    const body = JSON.parse(postCall![1]!.body as string);
+    expect(body.salespersonId).toBe("u_sales_self");
+  });
 
   it("submits the raw DB enum value for the selected pipeline-stage label, not the label itself", async () => {
     const spy = mockApiFetch();

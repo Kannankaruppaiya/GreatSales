@@ -70,7 +70,14 @@ const ZONE_CLASSES: Record<string, string> = {
 
 export default function PaymentsPage() {
   const role = useAuthRole();
-  const canEdit = role !== "mgmt";
+  // Payments write actions require the `payment.write` RBAC permission
+  // (payments.controller.ts), which only `admin` (and `super_admin`, treated
+  // as admin-equivalent everywhere else — see the Users/Products/Data
+  // RoleGuard allow-lists in App.tsx) currently holds. `sales` holds only
+  // `payment.read` (packages/shared/src/rbac.ts) — unlike every sibling page,
+  // `role !== "mgmt"` is NOT the right gate here. If `sales` is ever granted
+  // `payment.write`, flip this back to match.
+  const canEdit = role === "admin" || role === "super_admin";
   const isAdmin = role === "admin";
 
   const [search, setSearch] = useState("");

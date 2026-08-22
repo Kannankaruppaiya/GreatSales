@@ -5,6 +5,7 @@ import { ApiError } from "@/lib/api";
 import { INDUSTRIAL_AREAS } from "@/data/constants";
 import { useCreateLead } from "@/features/leads/queries";
 import { useProducts, flattenProducts } from "@/features/products/queries";
+import { useAuthRole, useAuthUser } from "@/store/auth";
 import {
   DEAL_STAGE_VALUES,
   DEAL_STAGE_LABELS,
@@ -42,6 +43,15 @@ export function AddLeadModal({
   industries?: LeadFkOption[];
 }) {
   const create = useCreateLead();
+  const role = useAuthRole();
+  const authUser = useAuthUser();
+  // The API always forces salespersonId = user.userId for a sales-only
+  // caller (see leads.service.ts `create`), ignoring whatever this form
+  // sends. A newly-onboarded salesperson has zero leads yet, so `salespeople`
+  // (derived from loaded rows) is empty and there is nothing to pick from —
+  // skip the picker entirely for `sales` rather than permanently disabling
+  // Save.
+  const isSales = role === "sales";
 
   // The product catalog (principals + sub products) has its own dedicated
   // endpoint (see features/products), so unlike salespeople/industries —
@@ -77,7 +87,9 @@ export function AddLeadModal({
     (LeadProductInput & { rowId: string })[]
   >([{ rowId: nextRowId(), productName: "", principalId: null, productId: null, qty: 1, unit: null, price: 0, value: 0 }]);
 
-  const selectedSalespersonId = salespersonId || salespeople[0]?.id || "";
+  const selectedSalespersonId = isSales
+    ? authUser?.id || ""
+    : salespersonId || salespeople[0]?.id || "";
 
   const handleAddProductRow = () => {
     setLeadProducts([
@@ -323,7 +335,11 @@ export function AddLeadModal({
           <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
             Assigned Salesperson *
           </label>
-          {salespeople.length === 0 ? (
+          {isSales ? (
+            <div className="font-semibold text-ink p-2 rounded-lg bg-surface border border-line">
+              Assigned to you
+            </div>
+          ) : salespeople.length === 0 ? (
             <p className="text-[11px] text-muted">
               No salespersons yet — add a lead for an existing salesperson first.
             </p>

@@ -13,6 +13,7 @@ import {
 } from "@/features/customers/types";
 import { useCreateCustomer } from "@/features/customers/queries";
 import { useUsers, flattenUsers } from "@/features/users/queries";
+import { useAuthRole, useAuthUser } from "@/store/auth";
 
 export interface CustomerFkOption {
   id: string;
@@ -35,6 +36,15 @@ export function AddCustomerModal({
   industries?: CustomerFkOption[];
 }) {
   const create = useCreateCustomer();
+  const role = useAuthRole();
+  const authUser = useAuthUser();
+  // The API always forces salespersonId = user.userId for a sales-only
+  // caller (see customers.service.ts `create`), ignoring whatever this form
+  // sends. A newly-onboarded salesperson has zero customers yet, so
+  // `salespersonOptions` (derived from loaded rows) is empty and there is
+  // nothing to pick from — skip the picker entirely for `sales` rather than
+  // permanently disabling Save.
+  const isSales = role === "sales";
 
   // When the caller doesn't supply salesperson options (the global Topbar
   // Quick-Create → Customer entry in layout.tsx — and DashboardPage.tsx /
@@ -67,7 +77,9 @@ export function AddCustomerModal({
   const [collectorId, setCollectorId] = useState("");
   const [outstanding, setOutstanding] = useState<string>("");
 
-  const selectedSalespersonId = salespersonId || salespersonOptions[0]?.id || "";
+  const selectedSalespersonId = isSales
+    ? authUser?.id || ""
+    : salespersonId || salespersonOptions[0]?.id || "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,7 +178,11 @@ export function AddCustomerModal({
             <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
               Salesperson *
             </label>
-            {salespeopleLoading ? (
+            {isSales ? (
+              <div className="font-semibold text-ink p-2 rounded-lg bg-surface border border-line">
+                Assigned to you
+              </div>
+            ) : salespeopleLoading ? (
               <p className="text-[11px] text-muted">Loading salespersons…</p>
             ) : salespersonOptions.length === 0 ? (
               <p className="text-[11px] text-muted">

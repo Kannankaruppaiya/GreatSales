@@ -46,7 +46,7 @@ function renderPage() {
   );
 }
 
-function setRole(role: "admin" | "mgmt") {
+function setRole(role: "admin" | "mgmt" | "sales") {
   useAuth.setState({
     accessToken: "test",
     refreshToken: "test",
@@ -56,7 +56,7 @@ function setRole(role: "admin" | "mgmt") {
       name: "Test User",
       email: "test@acme.test",
       username: "test",
-      roleId: role === "admin" ? "role_admin" : "role_mgmt",
+      roleId: role === "admin" ? "role_admin" : role === "sales" ? "role_sales" : "role_mgmt",
       role,
     },
   });
@@ -123,5 +123,28 @@ describe("PaymentsPage", () => {
 
     await screen.findByText("INV-1");
     expect(screen.queryByTitle("Delete invoice")).toBeNull();
+  });
+
+  // `sales` holds `payment.read` but NOT `payment.write` (rbac.ts) — the API
+  // 403s any PATCH/POST/DELETE to /payments from a sales caller. Unlike every
+  // sibling page, canEdit here must NOT be `role !== "mgmt"` (that would be
+  // true for sales and show controls that always 403). The mutation this
+  // guards against: reverting PaymentsPage's `canEdit` back to
+  // `role !== "mgmt"` makes this test fail (verified below).
+  it("hides write affordances from sales (would 403 on payment.write)", async () => {
+    setRole("sales");
+    const row = makePayment({ id: "pmt_1", mail1: false });
+    vi.spyOn(api, "apiFetch").mockResolvedValue({ items: [row], nextCursor: null });
+
+    renderPage();
+
+    await screen.findByText("INV-1");
+    expect(screen.queryByText("Import Tally Excel")).toBeNull();
+    expect(screen.queryByText("+ Add Invoice")).toBeNull();
+    // The 4 reminder chips render for everyone (read-only view), but must be
+    // disabled — not just for mgmt, but for sales too.
+    for (let i = 1; i <= 4; i++) {
+      expect(screen.getByTitle(`Reminder ${i} sent`)).toBeDisabled();
+    }
   });
 });

@@ -93,10 +93,17 @@ function resolveRoleFromPath(pathname: string, roleParam?: string): LoginRole {
   if (roleParam === "admin" || roleParam === "administrator") return "admin";
   if (roleParam === "mgmt" || roleParam === "management" || roleParam === "manager") return "mgmt";
 
-  if (pathname.includes("super-admin") || pathname.includes("superadmin")) return "super_admin";
-  if (pathname.includes("sales")) return "sales";
-  if (pathname.includes("admin")) return "admin";
-  if (pathname.includes("management") || pathname.includes("mgmt")) return "mgmt";
+  // Segment-anchored, not a substring `.includes()` — the app has no `base`
+  // in vite.config.ts today so `.includes("sales")` would happen to be
+  // correct, but it's a latent trap: serving the app under any base path
+  // that merely contains "sales" (or "admin"/"management") would make every
+  // login URL resolve to that portal. Matching only the first path segment
+  // keeps this correct regardless of how the app is deployed.
+  const firstSegment = pathname.split("/").filter(Boolean)[0] || "";
+  if (firstSegment === "super-admin" || firstSegment === "superadmin") return "super_admin";
+  if (firstSegment === "sales") return "sales";
+  if (firstSegment === "admin") return "admin";
+  if (firstSegment === "management" || firstSegment === "mgmt") return "mgmt";
 
   return "admin";
 }
@@ -105,13 +112,19 @@ interface LoginPageProps {
   initialRole?: LoginRole;
 }
 
-/** Seeded demo emails per web role (the API authenticates these against tenant_acme).
- *  Exported so a test can check these against `packages/db/prisma/seed.ts`'s actual
- *  seeded users, instead of only against a hand-typed expectation. */
+/** Seeded demo logins per web role. These mirror the POC v6 users created by
+ *  `packages/db/prisma/seed.ts` (admin / manager / the salespeople). Exported so
+ *  a test can check them against the seed instead of a hand-typed expectation. */
 export const DEMO_EMAIL_BY_ROLE: Partial<Record<LoginRole, string>> = {
   admin: env.DEMO_EMAIL,
   mgmt: env.DEMO_EMAIL.replace(/^admin@/, "manager@"),
-  sales: env.DEMO_EMAIL.replace(/^admin@/, "sales1@"),
+  sales: env.DEMO_EMAIL.replace(/^admin@/, "megala@"),
+};
+
+export const DEMO_PASSWORD_BY_ROLE: Partial<Record<LoginRole, string>> = {
+  admin: env.DEMO_PASSWORD,
+  mgmt: env.DEMO_PASSWORD_STAFF,
+  sales: env.DEMO_PASSWORD_STAFF,
 };
 
 export default function LoginPage({ initialRole }: LoginPageProps) {
@@ -123,17 +136,19 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
   const activeRole: LoginRole = initialRole || resolveRoleFromPath(location.pathname, roleParam);
   const config = ROLE_CONFIGS[activeRole] || ROLE_CONFIGS.admin;
   const demoEmail = DEMO_EMAIL_BY_ROLE[activeRole] ?? config.defaultEmail;
+  const demoPassword = DEMO_PASSWORD_BY_ROLE[activeRole] ?? env.DEMO_PASSWORD;
 
   const [tenantId, setTenantId] = useState(env.DEMO_TENANT_ID);
   const [email, setEmail] = useState(demoEmail);
-  const [password, setPassword] = useState(env.DEMO_PASSWORD);
+  const [password, setPassword] = useState(demoPassword);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Update the prefilled email when the active role changes
+  // Update the prefilled credentials when the active role changes
   useEffect(() => {
     setEmail(demoEmail);
-  }, [demoEmail]);
+    setPassword(demoPassword);
+  }, [demoEmail, demoPassword]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
