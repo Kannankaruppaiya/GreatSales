@@ -1,16 +1,15 @@
 /* Domain vocabulary — mirrors the POC spec so screens speak the same
  * language the business already uses. */
 
-/** Web login roles: super_admin | admin | mgmt.
- *  "sales" exists as a data/type value (for existing seed data & user records)
- *  but salespersons do NOT have a web login — they use the GreatSales Mobile App. */
+/** Web login roles. All four roles have a web login; `sales` is additionally
+ *  the primary role on the GreatSales mobile app. */
 export type Role = "super_admin" | "admin" | "mgmt" | "sales";
 
 export const ROLES: { value: Role; label: string }[] = [
   { value: "super_admin", label: "Super Admin" },
   { value: "admin", label: "Administrator" },
   { value: "mgmt", label: "Management" },
-  // "sales" intentionally omitted — mobile-only role
+  { value: "sales", label: "Salesperson" },
 ];
 
 export const roleLabel = (r: Role) =>
@@ -264,9 +263,7 @@ export function zoneTone(z: string): Tone {
  *  super_admin  → management switcher home + all admin pages.
  *  admin        → full operations dashboard inside a management.
  *  mgmt         → read-only analytics inside a management.
- *
- *  Note: Salespersons (sales role) use the GreatSales Mobile App only.
- *        They do NOT have a web interface. */
+ *  sales        → the seven POC sales modules; no admin-only pages. */
 export const NAVS: Partial<Record<Role, { key: string; label: string }[]>> = {
   super_admin: [
     { key: "dashboard", label: "Dashboard" },
@@ -301,6 +298,15 @@ export const NAVS: Partial<Record<Role, { key: string; label: string }[]>> = {
     { key: "followups", label: "Follow-ups" },
     { key: "customers", label: "Customers" },
     { key: "products", label: "Products" },
+  ],
+  sales: [
+    { key: "dashboard", label: "Dashboard" },
+    { key: "projections", label: "Recurring Projections" },
+    { key: "leads", label: "New Sales Customers" },
+    { key: "orders", label: "Sales Orders" },
+    { key: "payments", label: "Payments Follow-up" },
+    { key: "followups", label: "Follow-ups" },
+    { key: "customers", label: "My Customers" },
   ],
 };
 
