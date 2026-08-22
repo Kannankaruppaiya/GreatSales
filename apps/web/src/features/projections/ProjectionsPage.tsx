@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { MONTHS } from "@/data/constants";
 import { useUi } from "@/store/ui";
-import { useAuth } from "@/store/auth";
+import { useAuth, useAuthRole } from "@/store/auth";
 import {
   useProjections,
   useUpdateProjection,
@@ -24,6 +24,9 @@ type LineFilter = ProjectionParams["lineFilter"];
 export default function ProjectionsPage() {
   const monthFromUi = useUi((s) => s.month);
   const accessToken = useAuth((s) => s.accessToken);
+  const role = useAuthRole();
+  const showSalesperson = role !== "sales";
+  const colCount = showSalesperson ? 12 : 11;
 
   const [period, setPeriod] = useState(monthFromUi || "2026-08");
   const [search, setSearch] = useState("");
@@ -145,7 +148,9 @@ export default function ProjectionsPage() {
               <tr>
                 <th className="w-10 px-3 py-2.5">#</th>
                 <th className="min-w-[200px] px-3 py-2.5">Customer</th>
-                <th className="min-w-[110px] px-3 py-2.5">Salesperson</th>
+                {showSalesperson && (
+                  <th className="min-w-[110px] px-3 py-2.5">Salesperson</th>
+                )}
                 <th className="min-w-[120px] px-3 py-2.5">Principal</th>
                 <th className="min-w-[160px] px-3 py-2.5">Product</th>
                 <th className="px-3 py-2.5 text-right">Price ₹</th>
@@ -160,14 +165,14 @@ export default function ProjectionsPage() {
             <tbody className="divide-y divide-line/60">
               {isLoading ? (
                 <tr>
-                  <td colSpan={12} className="py-16 text-center text-xs text-muted">
+                  <td colSpan={colCount} className="py-16 text-center text-xs text-muted">
                     <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
                     Loading projections…
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={12} className="py-16 text-center text-xs text-red">
+                  <td colSpan={colCount} className="py-16 text-center text-xs text-red">
                     {error instanceof ApiError
                       ? `${error.status} — ${error.message}`
                       : "Failed to load projections."}
@@ -175,7 +180,7 @@ export default function ProjectionsPage() {
                 </tr>
               ) : lines.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-16 text-center text-xs text-muted">
+                  <td colSpan={colCount} className="py-16 text-center text-xs text-muted">
                     No projection lines for this period / filter.
                   </td>
                 </tr>
@@ -196,9 +201,11 @@ export default function ProjectionsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-xs text-muted">
-                      {l.salespersonName}
-                    </td>
+                    {showSalesperson && (
+                      <td className="whitespace-nowrap px-3 py-2 text-xs text-muted">
+                        {l.salespersonName}
+                      </td>
+                    )}
                     <td className="px-3 py-2 text-xs font-semibold text-ink">
                       {l.principalName}
                     </td>

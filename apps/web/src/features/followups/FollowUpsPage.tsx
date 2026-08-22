@@ -41,7 +41,7 @@ function dueDateLabel(dueDate: string, todayStr: string): string {
 
 export default function FollowUpsPage() {
   const role = useAuthRole();
-  const canEdit = role !== "mgmt"; // mgmt is read-only; sales role is mobile-only
+  const canEdit = role !== "mgmt"; // mgmt is read-only; admin and sales can edit
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);

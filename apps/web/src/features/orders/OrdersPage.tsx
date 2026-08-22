@@ -245,7 +245,9 @@ export default function OrdersPage() {
                       <th className="py-2.5 px-3 min-w-[180px]">Product SKU</th>
                       <th className="py-2.5 px-3 text-right">Qty</th>
                       <th className="py-2.5 px-3 text-right font-bold text-ink">Value</th>
-                      <th className="py-2.5 px-3">Salesperson</th>
+                      {role !== "sales" && (
+                        <th className="py-2.5 px-3">Salesperson</th>
+                      )}
                       <th className="py-2.5 px-3">Issued</th>
                       <th className="py-2.5 px-3">Status</th>
                       <th className="py-2.5 px-3 text-center">Actions</th>
@@ -269,7 +271,9 @@ export default function OrdersPage() {
                           <td className="py-2.5 px-3 text-right tabular-nums font-bold text-ink">
                             {inr(so.total)}
                           </td>
-                          <td className="py-2.5 px-3 text-muted">{so.salespersonName || "—"}</td>
+                          {role !== "sales" && (
+                            <td className="py-2.5 px-3 text-muted">{so.salespersonName || "—"}</td>
+                          )}
                           <td className="py-2.5 px-3 text-muted text-[11px] tabular-nums">
                             {fmtDT(so.createdAt)}
                           </td>

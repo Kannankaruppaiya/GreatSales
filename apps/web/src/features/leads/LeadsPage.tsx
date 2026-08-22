@@ -206,7 +206,9 @@ export default function LeadsPage() {
                     <th className="py-2.5 px-3 text-right font-bold text-ink">Value</th>
                     <th className="py-2.5 px-3">Next follow-up</th>
                     <th className="py-2.5 px-3">Expected closure</th>
-                    <th className="py-2.5 px-3">Salesperson</th>
+                    {role !== "sales" && (
+                      <th className="py-2.5 px-3">Salesperson</th>
+                    )}
                     <th className="py-2.5 px-3 text-center"></th>
                   </tr>
                 </thead>
@@ -242,7 +244,9 @@ export default function LeadsPage() {
                       </td>
                       <td className="py-2.5 px-3 tabular-nums text-muted">{l.nextFollowUp || "—"}</td>
                       <td className="py-2.5 px-3 tabular-nums text-muted">{l.expClose || "—"}</td>
-                      <td className="py-2.5 px-3 text-muted">{l.salespersonName}</td>
+                      {role !== "sales" && (
+                        <td className="py-2.5 px-3 text-muted">{l.salespersonName}</td>
+                      )}
                       <td className="py-2.5 px-3 text-center">
                         <button
                           type="button"
@@ -306,7 +310,7 @@ export default function LeadsPage() {
                                 <span className="font-bold text-brand tabular-nums">
                                   {inr(l.totalValue || 0)}
                                 </span>
-                                {l.salespersonName && (
+                                {role !== "sales" && l.salespersonName && (
                                   <span className="text-[10.5px] font-semibold text-muted">
                                     {l.salespersonName}
                                   </span>
