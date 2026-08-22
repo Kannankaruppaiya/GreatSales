@@ -105,11 +105,13 @@ interface LoginPageProps {
   initialRole?: LoginRole;
 }
 
-/** Seeded demo emails per web role (the API authenticates these against tenant_acme). */
-const DEMO_EMAIL_BY_ROLE: Partial<Record<LoginRole, string>> = {
+/** Seeded demo emails per web role (the API authenticates these against tenant_acme).
+ *  Exported so a test can check these against `packages/db/prisma/seed.ts`'s actual
+ *  seeded users, instead of only against a hand-typed expectation. */
+export const DEMO_EMAIL_BY_ROLE: Partial<Record<LoginRole, string>> = {
   admin: env.DEMO_EMAIL,
   mgmt: env.DEMO_EMAIL.replace(/^admin@/, "manager@"),
-  sales: env.DEMO_EMAIL.replace(/^admin@/, "sales@"),
+  sales: env.DEMO_EMAIL.replace(/^admin@/, "sales1@"),
 };
 
 export default function LoginPage({ initialRole }: LoginPageProps) {
