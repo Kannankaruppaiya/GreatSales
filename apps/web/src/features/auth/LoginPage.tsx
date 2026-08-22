@@ -362,15 +362,6 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
               </Button>
             </form>
           )}
-
-          <div className="pt-2 text-center border-t border-line space-y-1">
-            <p className="text-[11.5px] text-muted font-medium">
-              Direct Route: <code className="rounded bg-surface-2 px-1.5 py-0.5 text-ink font-mono text-[11px]">{config.route}</code>
-            </p>
-            <p className="text-[11px] text-muted/70">
-              Target Destination: {config.destination || "Mobile App"}
-            </p>
-          </div>
         </div>
       </div>
     </div>

@@ -1,0 +1,123 @@
+services:
+  # ----------------------------------------------------------------------------
+  # 1. PostgreSQL 16 Database
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: greatsales-staging-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: greatsales
+      POSTGRES_PASSWORD: greatsales
+      POSTGRES_DB: greatsales
+    ports:
+      - "5433:5432"
+    volumes:
+      - greatsales_staging_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U greatsales -d greatsales"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ----------------------------------------------------------------------------
+  # 2. Redis 7 Cache & Queues (BullMQ)
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: greatsales-staging-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - greatsales_staging_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+  # ----------------------------------------------------------------------------
+  # 3. Database Migrations & Staging Seed Runner (One-shot)
+  # ----------------------------------------------------------------------------
+  db-migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: greatsales-staging-db-migrate
+    environment:
+      DATABASE_URL: "postgresql://greatsales:greatsales@postgres:5432/greatsales?schema=public"
+      DIRECT_URL: "postgresql://greatsales:greatsales@postgres:5432/greatsales?schema=public"
+    command: >
+      sh -c "cd /app/packages/db && ./node_modules/.bin/prisma migrate deploy && ./node_modules/.bin/tsx prisma/seed.ts"
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ----------------------------------------------------------------------------
+  # 4. GreatSales NestJS API Application
+  # ----------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: greatsales-staging-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: staging
+      PORT: 3000
+      DATABASE_URL: "postgresql://greatsales_app:greatsales_app@postgres:5432/greatsales?schema=public"
+      DIRECT_URL: "postgresql://greatsales:greatsales@postgres:5432/greatsales?schema=public"
+      JWT_ACCESS_SECRET: "staging-jwt-access-secret-32-chars-minimum-entropy!"
+      JWT_REFRESH_SECRET: "staging-jwt-refresh-secret-32-chars-minimum-entropy!"
+      JWT_ACCESS_TTL: "15m"
+      JWT_REFRESH_TTL: "7d"
+      CORS_ORIGIN: "*"
+      REDIS_URL: "redis://redis:6379"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ----------------------------------------------------------------------------
+  # 5. GreatSales Web Console (React 19 + Vite served by Nginx)
+  # ----------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: "/api/v1"
+        VITE_APP_ENV: "staging"
+        VITE_APP_NAME: "GreatSales Staging"
+    container_name: greatsales-staging-web
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  greatsales_staging_pgdata:
+  greatsales_staging_redisdata:

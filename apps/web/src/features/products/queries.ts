@@ -1,11 +1,7 @@
-/**
- * react-query hooks for the products (catalog) page. List is cursor-paginated
- * via useInfiniteQuery; create/update/delete mutations all invalidate the
- * `products` query family so every open list/filter combination refetches.
- */
 import {
   useInfiniteQuery,
   useMutation,
+  useQuery,
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
@@ -15,6 +11,10 @@ import type {
   ProductListResponse,
   ProductCreate,
   ProductUpdate,
+  PrincipalRow,
+  PrincipalListResponse,
+  PrincipalCreate,
+  PrincipalUpdate,
 } from "./types";
 
 const PAGE_SIZE = 50;
@@ -62,7 +62,10 @@ export function useCreateProduct() {
   return useMutation({
     mutationFn: (body: ProductCreate) =>
       apiFetch<ProductRow>("/products", { method: "POST", body: JSON.stringify(body) }),
-    onSuccess: () => onProductMutationSuccess(qc),
+    onSuccess: () => {
+      onProductMutationSuccess(qc);
+      qc.invalidateQueries({ queryKey: ["principals"] });
+    },
   });
 }
 
@@ -79,6 +82,61 @@ export function useDeleteProduct() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => apiFetch<void>(`/products/${id}`, { method: "DELETE" }),
-    onSuccess: () => onProductMutationSuccess(qc),
+    onSuccess: () => {
+      onProductMutationSuccess(qc);
+      qc.invalidateQueries({ queryKey: ["principals"] });
+    },
   });
 }
+
+// =============================================================================
+// Principals Hooks
+// =============================================================================
+
+export const principalKeys = {
+  all: ["principals"] as const,
+};
+
+export function usePrincipals() {
+  return useQuery({
+    queryKey: principalKeys.all,
+    queryFn: () => apiFetch<PrincipalListResponse>("/principals"),
+  });
+}
+
+export function useCreatePrincipal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: PrincipalCreate) =>
+      apiFetch<PrincipalRow>("/principals", { method: "POST", body: JSON.stringify(body) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["principals"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useUpdatePrincipal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: PrincipalUpdate }) =>
+      apiFetch<PrincipalRow>(`/principals/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["principals"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useDeletePrincipal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/principals/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["principals"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+

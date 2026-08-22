@@ -57,3 +57,32 @@ export const ProductUpdateSchema = ProductCreateSchema.partial().refine(
   { message: "At least one field must be provided" },
 );
 export type ProductUpdate = z.infer<typeof ProductUpdateSchema>;
+
+// =============================================================================
+// Principal Contracts (Brand / Manufacturer Master Data)
+// =============================================================================
+
+export interface PrincipalRow {
+  id: string;
+  name: string;
+  productCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PrincipalListResponse {
+  items: PrincipalRow[];
+}
+
+/** POST /principals body */
+export const PrincipalCreateSchema = z.object({
+  name: z.string().min(1, "Principal name is required").trim(),
+});
+export type PrincipalCreate = z.infer<typeof PrincipalCreateSchema>;
+
+/** PATCH /principals/:id body */
+export const PrincipalUpdateSchema = z.object({
+  name: z.string().min(1, "Principal name cannot be empty").trim().optional(),
+});
+export type PrincipalUpdate = z.infer<typeof PrincipalUpdateSchema>;
+

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { Download, Loader2, RefreshCw } from "lucide-react";
-import { MONTHS, projTone } from "@/data/constants";
+import { Loader2, RefreshCw } from "lucide-react";
+import { MONTHS } from "@/data/constants";
 import { useUi } from "@/store/ui";
 import { useAuth } from "@/store/auth";
 import {
@@ -16,7 +16,7 @@ import {
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button, Card, Input, Select } from "@/components/ui";
-import { StatusBadge } from "@/components/StatusBadge";
+
 import { ApiError } from "@/lib/api";
 
 type LineFilter = ProjectionParams["lineFilter"];
@@ -66,9 +66,6 @@ export default function ProjectionsPage() {
           <div className="text-sm font-bold text-ink">
             Recurring Sales Projections —{" "}
             <span className="font-extrabold text-brand">{monthLabel}</span>
-            <span className="ml-2 rounded-full border border-brand/30 bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand-ink">
-              LIVE API
-            </span>
           </div>
         </div>
 
@@ -262,7 +259,20 @@ export default function ProjectionsPage() {
                             status: e.target.value as ProjStatusValue,
                           })
                         }
-                        className="max-w-[150px] rounded-lg border border-line bg-surface px-2 py-1 text-xs font-semibold text-ink"
+                        className={cn(
+                          "max-w-[160px] rounded-lg border px-2 py-1 text-xs font-semibold cursor-pointer",
+                          l.status === "Confirmed" || l.status === "Completed"
+                            ? "border-brand/40 bg-brand-soft text-brand-ink"
+                            : l.status === "Lost" || l.status === "Cancelled"
+                              ? "border-red/30 bg-red/10 text-red"
+                              : l.status === "PartiallyConfirmed"
+                                ? "border-amber/40 bg-amber/10 text-amber-700"
+                                : l.status === "POReceived" || l.status === "OrderPlaced"
+                                  ? "border-sky-400/40 bg-sky-50 text-sky-700"
+                                  : l.status === "DeferredToNextMonth"
+                                    ? "border-slate-300 bg-slate-100 text-slate-500"
+                                    : "border-line bg-surface text-ink",
+                        )}
                       >
                         {PROJ_STATUS_VALUES.map((st) => (
                           <option key={st} value={st}>
@@ -270,12 +280,6 @@ export default function ProjectionsPage() {
                           </option>
                         ))}
                       </select>
-                      <div className="mt-1">
-                        <StatusBadge
-                          label={PROJ_STATUS_LABELS[l.status]}
-                          tone={projTone(PROJ_STATUS_LABELS[l.status])}
-                        />
-                      </div>
                     </td>
                   </tr>
                 ))
@@ -311,12 +315,6 @@ export default function ProjectionsPage() {
           )}
         </div>
       </Card>
-
-      <p className="flex items-center gap-1.5 px-1 text-[11px] text-muted">
-        <Download className="h-3 w-3" />
-        Data served live from the NestJS API (RLS-scoped by tenant &amp; role);
-        edits persist via <code>PATCH /projections/:id</code>.
-      </p>
     </div>
   );
 }

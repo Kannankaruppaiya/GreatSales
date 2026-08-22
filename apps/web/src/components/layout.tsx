@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { NAVS, MONTHS, roleLabel } from "@/data/constants";
-import { useTrackerStore } from "@/store/trackerStore";
 import { useUi } from "@/store/ui";
 import { useAuthRole, useAuthUser, useAuth } from "@/store/auth";
 import { cn } from "@/lib/utils";
@@ -35,6 +34,10 @@ import { AddCustomerModal } from "@/features/customers/AddCustomerModal";
 import { AddLeadModal } from "@/features/leads/AddLeadModal";
 import { AddPaymentModal } from "@/features/payments/AddPaymentModal";
 import { CreateSalesOrderModal } from "@/features/orders/CreateSalesOrderModal";
+import { useFollowUps, flattenFollowUps } from "@/features/followups/queries";
+import { usePayments, flattenPayments } from "@/features/payments/queries";
+import { usePrincipals } from "@/features/products/queries";
+import { useUsers, flattenUsers } from "@/features/users/queries";
 
 const ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -55,7 +58,10 @@ export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => 
   const role = useAuthRole();
   const user = useAuthUser();
   const logout = useAuth((s) => s.logout);
-  const { projections, leads, payments } = useTrackerStore();
+
+  // Live follow-ups query from PostgreSQL
+  const followUpsQ = useFollowUps({ done: false });
+  const pendingFollowUps = flattenFollowUps(followUpsQ.data);
 
   const handleLogout = () => {
     logout();
@@ -65,10 +71,9 @@ export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => 
 
   // Calculate overdue follow-ups count for live notification badge
   const todayStr = new Date().toISOString().slice(0, 10);
-  const overdueCount =
-    projections.filter((p) => p.nextFollowUp && p.nextFollowUp < todayStr).length +
-    leads.filter((l) => l.nextFollowUp && l.nextFollowUp < todayStr).length +
-    payments.filter((m) => m.nextFollowUp && m.nextFollowUp < todayStr).length;
+  const overdueCount = pendingFollowUps.filter(
+    (f) => f.dueDate && f.dueDate < todayStr,
+  ).length;
 
   return (
     <>
@@ -210,19 +215,35 @@ export function Topbar({
     toggleSidebar,
   } = useUi();
   const role = useAuthRole();
-  const { principals, users, projections, leads, payments } = useTrackerStore();
+
+  // Live queries from backend API
+  const principalsQ = usePrincipals();
+  const principals = principalsQ.data?.items ?? [];
+
+  const usersQ = useUsers();
+  const users = flattenUsers(usersQ.data);
+  const salespeople = users.filter(
+    (u) => u.roleId === "role_sales" || u.roleName?.toLowerCase().includes("sales"),
+  );
+
+  const followUpsQ = useFollowUps({ done: false });
+  const pendingFollowUps = flattenFollowUps(followUpsQ.data);
+
+  const paymentsQ = usePayments();
+  const payments = flattenPayments(paymentsQ.data);
+
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
 
-  const salespeople = users.filter((u) => u.role === "sales");
   const segs = useLocation().pathname.split("/").filter(Boolean);
   const key = segs[segs.length - 1] || "dashboard";
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  const overdueProjs = projections.filter((p) => p.nextFollowUp && p.nextFollowUp < todayStr);
-  const overdueLeads = leads.filter((l) => l.nextFollowUp && l.nextFollowUp < todayStr);
-  const redZonePayments = payments.filter((p) => p.zone === "Red Zone");
-  const totalAlerts = overdueProjs.length + overdueLeads.length + redZonePayments.length;
+  const overdueFollowUps = pendingFollowUps.filter(
+    (f) => f.dueDate && f.dueDate < todayStr,
+  );
+  const redZonePayments = payments.filter((p) => p.payZone === "RedZone");
+  const totalAlerts = overdueFollowUps.length + redZonePayments.length;
 
   return (
     <header className="sticky top-0 z-20 flex flex-wrap items-center gap-2.5 border-b border-line bg-surface/90 px-4 py-2.5 backdrop-blur-md sm:px-6">
@@ -349,30 +370,23 @@ export function Topbar({
                 </div>
 
                 <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
-                  {overdueProjs.slice(0, 3).map((p) => (
-                    <div key={p.id} className="p-2 rounded-lg bg-red-soft border border-red/20 text-red text-[11.5px] space-y-0.5">
-                      <div className="font-bold">Overdue Recurring Follow-Up</div>
-                      <div className="text-[10.5px] text-red/80 truncate">Due date was {p.nextFollowUp}</div>
+                  {overdueFollowUps.slice(0, 4).map((f) => (
+                    <div key={f.id} className="p-2 rounded-lg bg-amber-soft border border-amber/20 text-amber text-[11.5px] space-y-0.5">
+                      <div className="font-bold">{f.note || "Pending Follow-Up"}</div>
+                      <div className="text-[10.5px] text-amber/80 truncate">Due date was {f.dueDate} ({f.entityType})</div>
                     </div>
                   ))}
 
-                  {overdueLeads.slice(0, 2).map((l) => (
-                    <div key={l.id} className="p-2 rounded-lg bg-amber-soft border border-amber/20 text-amber text-[11.5px] space-y-0.5">
-                      <div className="font-bold">Lead Follow-Up Due: {l.name}</div>
-                      <div className="text-[10.5px] text-amber/80">Stage: {l.stage}</div>
-                    </div>
-                  ))}
-
-                  {redZonePayments.slice(0, 2).map((pmt) => (
+                  {redZonePayments.slice(0, 3).map((pmt) => (
                     <div key={pmt.id} className="p-2 rounded-lg bg-red-soft border border-red/20 text-red text-[11.5px] space-y-0.5">
-                      <div className="font-bold">Red Zone Outstanding: {pmt.customerName}</div>
+                      <div className="font-bold">Red Zone Overdue: {pmt.customerName}</div>
                       <div className="text-[10.5px] text-red/80">Ref: {pmt.refNo}</div>
                     </div>
                   ))}
 
                   {totalAlerts === 0 && (
                     <div className="py-6 text-center text-muted text-xs">
-                      All caught up! No overdue items.
+                      All caught up! No overdue alerts.
                     </div>
                   )}
                 </div>
@@ -382,7 +396,12 @@ export function Topbar({
         </div>
 
         {/* Month selector */}
-        <Select value={month} onChange={(e) => setMonth(e.target.value)} className="w-[125px] h-8 text-xs font-bold">
+        <Select
+          value={month}
+          onChange={(e) => setMonth(e.target.value)}
+          aria-label="Filter by month"
+          className="w-[125px] h-8 text-xs font-bold"
+        >
           {MONTHS.map((m) => (
             <option key={m.value} value={m.value}>
               {m.label}
@@ -394,9 +413,10 @@ export function Topbar({
         <Select
           value={principalId}
           onChange={(e) => setPrincipal(e.target.value)}
+          aria-label="Filter by principal brand"
           className="w-[135px] h-8 text-xs font-semibold"
         >
-          <option value="ALL">All Principals</option>
+          <option value="ALL">All Principals ({principals.length})</option>
           {principals.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -409,6 +429,7 @@ export function Topbar({
           <Select
             value={ownerFilter}
             onChange={(e) => setOwnerFilter(e.target.value)}
+            aria-label="Filter by salesperson"
             className="w-[150px] h-8 text-xs font-semibold"
           >
             <option value="ALL">All Salespersons</option>
@@ -448,20 +469,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const handleQuickCreate = (type: "customer" | "lead" | "order" | "invoice") => {
     if (type === "customer") setShowAddCustomer(true);
-    else if (type === "lead") setShowAddLead(true);
-    else if (type === "order") setShowCreateOrder(true);
-    else if (type === "invoice") setShowAddPayment(true);
+    if (type === "lead") setShowAddLead(true);
+    if (type === "order") setShowCreateOrder(true);
+    if (type === "invoice") setShowAddPayment(true);
   };
 
   return (
-    <div className="min-h-screen bg-canvas text-ink antialiased">
+    <div className="min-h-screen bg-bg font-sans text-ink antialiased">
       <Sidebar onOpenCommandPalette={() => setShowCommandPalette(true)} />
-      <div className="flex flex-col lg:pl-64">
+
+      <div className="flex flex-1 flex-col lg:pl-64">
         <Topbar
           onOpenCommandPalette={() => setShowCommandPalette(true)}
           onOpenQuickCreate={handleQuickCreate}
         />
-        <main className="flex-1 p-4 sm:p-6 lg:p-7 max-w-[1750px] w-full mx-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto animate-in fade-in duration-200">
           {children}
         </main>
       </div>
@@ -473,19 +495,33 @@ export function Layout({ children }: { children: React.ReactNode }) {
         onSelectCustomer={(cid) => setSelectedDrawerCustomerId(cid)}
       />
 
-      {/* Global Customer 360 Slide-Over Drawer */}
+      {/* Global Quick View Customer Drawer */}
       <CustomerDrawer
         customerId={selectedDrawerCustomerId}
         onClose={() => setSelectedDrawerCustomerId(null)}
       />
 
       {/* Global Quick Create Modals */}
-      <AddCustomerModal open={showAddCustomer} onClose={() => setShowAddCustomer(false)} />
-      <AddLeadModal open={showAddLead} onClose={() => setShowAddLead(false)} />
-      <AddPaymentModal open={showAddPayment} onClose={() => setShowAddPayment(false)} />
-      <CreateSalesOrderModal open={showCreateOrder} onClose={() => setShowCreateOrder(false)} />
+      <AddCustomerModal
+        open={showAddCustomer}
+        onClose={() => setShowAddCustomer(false)}
+      />
 
-      {/* Global Toast Container */}
+      <AddLeadModal
+        open={showAddLead}
+        onClose={() => setShowAddLead(false)}
+      />
+
+      <AddPaymentModal
+        open={showAddPayment}
+        onClose={() => setShowAddPayment(false)}
+      />
+
+      <CreateSalesOrderModal
+        open={showCreateOrder}
+        onClose={() => setShowCreateOrder(false)}
+      />
+
       <ToastContainer />
     </div>
   );

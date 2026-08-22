@@ -8,7 +8,12 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
     "graph": "graphify extract . --code-only && graphify cluster-only . --no-label",
-    "graph:update": "graphify update ."
+    "graph:update": "graphify update .",
+    "analyze:pages": "node scripts/comprehensive-page-analyzer.mjs",
+    "analyze:questionnaire": "node scripts/deep-questionnaire-audit.js",
+    "staging:up": "docker compose -f docker-compose.staging.yml up -d --build",
+    "staging:down": "docker compose -f docker-compose.staging.yml down",
+    "staging:test": "node scripts/test-staging-docker.mjs"
   },
   "devDependencies": {
     "prettier": "^3.7.4",

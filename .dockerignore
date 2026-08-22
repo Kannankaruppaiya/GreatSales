@@ -1,0 +1,45 @@
+# Dependency directories
+**/node_modules
+**/.pnpm-store
+
+# Build outputs & caches
+**/dist
+**/.turbo
+**/.next
+**/.cache
+**/.expo
+**/.tsbuildinfo
+*.tsbuildinfo
+
+# IDE & Editor files
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Git
+.git
+.gitignore
+
+# Environment & local files
+.env
+.env*
+.env.local
+.env.*.local
+*.pem
+
+# Test & coverage
+**/coverage
+**/.nyc_output
+
+# Temp & logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+scratch
+graphify-out

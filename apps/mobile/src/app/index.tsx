@@ -48,8 +48,6 @@ export default function Login() {
           <Pressable className="mt-4 bg-brand rounded-md py-[13px] items-center" onPress={() => router.replace('/(app)')}>
             <Text className="text-white font-extrabold text-[13px]">Sign in as {ME.name.split(' ')[0]}</Text>
           </Pressable>
-
-          <Text className="text-[11px] text-faint mt-3 text-center">Demo build — mocked login. Real auth wires to /auth/login later.</Text>
         </View>
       </View>
       <Text className="text-center text-emerald-300/70 text-[11px] pb-4">© GreatWorks · v1.0.0</Text>

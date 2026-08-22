@@ -12,11 +12,34 @@ tenants are onboarded manually.
 | Env | Purpose | Data |
 |---|---|---|
 | **local** | Developer machine | Docker Postgres :5433 + Redis :6380, seeded |
+| **staging (docker)** | Pre-prod local parity verification | Full containerized stack via `docker-compose.staging.yml` |
 | **staging** | Pre-prod verification | Isolated AWS stack, synthetic tenants |
 | **production** | Live tenants | AWS, real tenant data |
 
 Each environment is a separate CDK stack with its own secrets and database. No
 environment shares credentials with another.
+
+## Docker Compose Staging Testing
+
+To test the entire CRM stack in a fully containerized staging environment locally before deploying to AWS:
+
+```bash
+# 1. Start the staging Docker compose stack (Postgres + Redis + Migrations/Seed + API + Web)
+pnpm staging:up
+# Or directly:
+docker compose -f docker-compose.staging.yml up -d --build
+
+# 2. Run automated staging verification & multi-tenant smoke tests
+pnpm staging:test
+
+# 3. Access the services:
+# - Web Console: http://localhost:8090 (Login: admin@acme.test / Passw0rd!)
+# - API Health:  http://localhost:3000/api/v1/health
+# - API Docs:    http://localhost:3000/api/docs
+
+# 4. Stop and clean up staging stack
+pnpm staging:down
+```
 
 ## Target AWS topology
 

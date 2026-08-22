@@ -38,3 +38,26 @@ export interface ProductCreate {
 }
 
 export type ProductUpdate = Partial<ProductCreate>;
+
+// =============================================================================
+// Principal Types
+// =============================================================================
+
+export interface PrincipalRow {
+  id: string;
+  name: string;
+  productCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PrincipalListResponse {
+  items: PrincipalRow[];
+}
+
+export interface PrincipalCreate {
+  name: string;
+}
+
+export type PrincipalUpdate = Partial<PrincipalCreate>;
+

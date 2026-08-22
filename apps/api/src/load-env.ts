@@ -9,6 +9,34 @@
  * apps/api/.env (the greatsales_app role) authoritative.
  */
 import * as dotenv from 'dotenv';
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-dotenv.config({ path: resolve(process.cwd(), '.env'), override: true });
+const candidates = [
+  resolve(process.cwd(), '.env'),
+  resolve(process.cwd(), 'apps/api/.env'),
+  resolve(__dirname, '../.env'),
+  resolve(__dirname, '../../apps/api/.env'),
+];
+
+const originalDatabaseUrl = process.env.DATABASE_URL;
+const originalDirectUrl = process.env.DIRECT_URL;
+const originalNodeEnv = process.env.NODE_ENV;
+
+for (const path of candidates) {
+  if (existsSync(path)) {
+    dotenv.config({ path, override: true });
+    break;
+  }
+}
+
+// Ensure explicit container/host environment variables take precedence
+if (originalDatabaseUrl) {
+  process.env.DATABASE_URL = originalDatabaseUrl;
+}
+if (originalDirectUrl) {
+  process.env.DIRECT_URL = originalDirectUrl;
+}
+if (originalNodeEnv) {
+  process.env.NODE_ENV = originalNodeEnv;
+}

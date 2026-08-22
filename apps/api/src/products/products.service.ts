@@ -5,6 +5,10 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type {
+  PrincipalCreate,
+  PrincipalListResponse,
+  PrincipalRow,
+  PrincipalUpdate,
   ProductCreate,
   ProductListQuery,
   ProductListResponse,
@@ -155,5 +159,127 @@ export class ProductsService {
     });
     if (!existing) throw new NotFoundException('Product not found');
     await db.product.update({ where: { id }, data: { deletedAt: new Date() } });
+  }
+
+  // ===========================================================================
+  // Principals Master Data
+  // ===========================================================================
+
+  /** List all active principals for the tenant with product count. */
+  async listPrincipals(user: RequestUser): Promise<PrincipalListResponse> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const principals = await db.principal.findMany({
+      where: { deletedAt: null },
+      include: {
+        _count: {
+          select: { products: { where: { deletedAt: null } } },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return {
+      items: principals.map((p) => ({
+        id: p.id,
+        name: p.name,
+        productCount: p._count.products,
+        createdAt: p.createdAt.toISOString(),
+        updatedAt: p.updatedAt.toISOString(),
+      })),
+    };
+  }
+
+  /** Create a new principal brand. */
+  async createPrincipal(
+    user: RequestUser,
+    body: PrincipalCreate,
+  ): Promise<PrincipalRow> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const trimmed = body.name.trim();
+
+    const existing = await db.principal.findFirst({
+      where: {
+        name: { equals: trimmed, mode: 'insensitive' },
+        deletedAt: null,
+      },
+    });
+    if (existing) {
+      throw new ConflictException('A principal with this name already exists');
+    }
+
+    const created = await db.principal.create({
+      data: {
+        tenant: { connect: { id: user.tenantId } },
+        name: trimmed,
+      },
+    });
+
+    return {
+      id: created.id,
+      name: created.name,
+      productCount: 0,
+      createdAt: created.createdAt.toISOString(),
+      updatedAt: created.updatedAt.toISOString(),
+    };
+  }
+
+  /** Update an existing principal. */
+  async updatePrincipal(
+    user: RequestUser,
+    id: string,
+    body: PrincipalUpdate,
+  ): Promise<PrincipalRow> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const existing = await db.principal.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!existing) throw new NotFoundException('Principal not found');
+
+    if (body.name) {
+      const duplicate = await db.principal.findFirst({
+        where: {
+          name: { equals: body.name.trim(), mode: 'insensitive' },
+          id: { not: id },
+          deletedAt: null,
+        },
+      });
+      if (duplicate) {
+        throw new ConflictException('A principal with this name already exists');
+      }
+    }
+
+    const updated = await db.principal.update({
+      where: { id },
+      data: {
+        ...(body.name ? { name: body.name.trim() } : {}),
+      },
+      include: {
+        _count: {
+          select: { products: { where: { deletedAt: null } } },
+        },
+      },
+    });
+
+    return {
+      id: updated.id,
+      name: updated.name,
+      productCount: updated._count.products,
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString(),
+    };
+  }
+
+  /** Soft delete a principal. */
+  async removePrincipal(user: RequestUser, id: string): Promise<void> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const existing = await db.principal.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!existing) throw new NotFoundException('Principal not found');
+
+    await db.principal.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
   }
 }

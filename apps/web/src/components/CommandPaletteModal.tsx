@@ -13,8 +13,12 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Dialog } from "@/components/ui";
-import { useTrackerStore } from "@/store/trackerStore";
 import { inr } from "@/lib/format";
+import { useCustomers, flattenCustomers } from "@/features/customers/queries";
+import { useProducts, flattenProducts } from "@/features/products/queries";
+import { useOrders, flattenOrders } from "@/features/orders/queries";
+import { usePayments, flattenPayments } from "@/features/payments/queries";
+import { useLeads, flattenLeads } from "@/features/leads/queries";
 
 export function CommandPaletteModal({
   open,
@@ -26,7 +30,18 @@ export function CommandPaletteModal({
   onSelectCustomer?: (customerId: string) => void;
 }) {
   const navigate = useNavigate();
-  const { customers, products, leads, orders, payments } = useTrackerStore();
+  const customersQ = useCustomers({}, { enabled: open });
+  const productsQ = useProducts({}, { enabled: open });
+  const ordersQ = useOrders({}, { enabled: open });
+  const paymentsQ = usePayments({}, { enabled: open });
+  const leadsQ = useLeads({}, { enabled: open });
+
+  const customers = flattenCustomers(customersQ.data);
+  const products = flattenProducts(productsQ.data);
+  const orders = flattenOrders(ordersQ.data);
+  const payments = flattenPayments(paymentsQ.data);
+  const leads = flattenLeads(leadsQ.data);
+
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -70,15 +85,15 @@ export function CommandPaletteModal({
       ].filter((p) => p.label.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q)),
 
       customers: customers
-        .filter((c) => c.name.toLowerCase().includes(q) || (c.contactName || "").toLowerCase().includes(q))
+        .filter((c) => c.name.toLowerCase().includes(q) || (c.area || "").toLowerCase().includes(q) || (c.primaryContactName || "").toLowerCase().includes(q))
         .slice(0, 8),
 
       products: products
-        .filter((p) => p.name.toLowerCase().includes(q) || (p.principalName || "").toLowerCase().includes(q))
+        .filter((p) => p.name.toLowerCase().includes(q) || (p.principalName || "").toLowerCase().includes(q) || (p.sku || "").toLowerCase().includes(q))
         .slice(0, 6),
 
       leads: leads
-        .filter((l) => l.name.toLowerCase().includes(q) || (l.contactName || "").toLowerCase().includes(q))
+        .filter((l) => (l.customerName || "").toLowerCase().includes(q))
         .slice(0, 4),
 
       orders: orders
@@ -180,7 +195,7 @@ export function CommandPaletteModal({
                       <div>
                         <div className="font-bold text-ink">{c.name}</div>
                         <div className="text-[11px] text-muted">
-                          {c.tier} · {c.contactName || "Direct"} · {c.phone || c.mobile || "—"}
+                          {c.area || "General Area"} · {c.primaryContactName || "Direct"} · {c.primaryContactPhone || "—"}
                         </div>
                       </div>
                     </div>
@@ -213,11 +228,13 @@ export function CommandPaletteModal({
                       <div>
                         <div className="font-bold text-ink">{pr.name}</div>
                         <div className="text-[11px] text-muted">
-                          {pr.principalName} · List Price: ₹{pr.listPrice}/{pr.unit}
+                          {pr.principalName} · SKU: {pr.sku || "—"}
                         </div>
                       </div>
                     </div>
-                    <span className="font-bold text-ink tabular-nums text-xs">₹{pr.listPrice}</span>
+                    <span className="font-bold text-ink tabular-nums text-xs">
+                      {pr.basePrice != null ? inr(pr.basePrice) : "—"}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -247,7 +264,7 @@ export function CommandPaletteModal({
                       </div>
                     </div>
                     <span className="font-bold text-brand tabular-nums text-xs">
-                      {inr(o.lines.reduce((s, l) => s + l.qty * l.price, 0))}
+                      {inr(o.total)}
                     </span>
                   </button>
                 ))}
@@ -274,11 +291,11 @@ export function CommandPaletteModal({
                       </div>
                       <div>
                         <div className="font-bold text-ink">{p.refNo}</div>
-                        <div className="text-[11px] text-muted">{p.customerName} · {p.zone}</div>
+                        <div className="text-[11px] text-muted">{p.customerName} · Zone: {p.payZone}</div>
                       </div>
                     </div>
                     <span className="font-bold text-red tabular-nums text-xs">
-                      Pending {inr(p.pending)}
+                      {inr(p.amount)}
                     </span>
                   </button>
                 ))}
