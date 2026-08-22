@@ -247,7 +247,7 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
               Select Portal URL
             </label>
             <div className="grid grid-cols-3 gap-1.5 p-1 bg-surface-2 rounded-xl border border-line">
-              {(["super_admin", "admin", "mgmt"] as LoginRole[]).map((rKey) => {
+              {(["super_admin", "admin", "mgmt", "sales"] as LoginRole[]).map((rKey) => {
                 const rConf = ROLE_CONFIGS[rKey];
                 const isActive = activeRole === rKey;
                 const Icon = rConf.icon;
