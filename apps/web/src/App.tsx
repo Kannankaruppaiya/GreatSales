@@ -85,13 +85,14 @@ function PublicAuthRoute({ initialRole }: { initialRole?: LoginRole }) {
 }
 
 /** Route handler for direct role paths (e.g. /super-admin, /admin, /management) */
-function RoleDirectRoute({ role: targetRole }: { role: "super_admin" | "admin" | "mgmt" }) {
+function RoleDirectRoute({ role: targetRole }: { role: "super_admin" | "admin" | "mgmt" | "sales" }) {
   const authed = useIsAuthed();
   const activeManagementId = useUi((s) => s.activeManagementId) || DEFAULT_MANAGEMENT_ID;
 
   if (!authed) {
     if (targetRole === "super_admin") return <Navigate to="/super-admin/login" replace />;
     if (targetRole === "mgmt") return <Navigate to="/management/login" replace />;
+    if (targetRole === "sales") return <Navigate to="/sales/login" replace />;
     return <Navigate to="/admin/login" replace />;
   }
 
@@ -166,6 +167,7 @@ export default function App() {
         <Route path="/admin/login" element={<PublicAuthRoute initialRole="admin" />} />
         <Route path="/management/login" element={<PublicAuthRoute initialRole="mgmt" />} />
         <Route path="/mgmt/login" element={<Navigate to="/management/login" replace />} />
+        <Route path="/sales/login" element={<PublicAuthRoute initialRole="sales" />} />
 
         {/* Direct Role Entry Routes */}
         <Route path="/super-admin" element={<RoleDirectRoute role="super_admin" />} />
@@ -173,6 +175,7 @@ export default function App() {
         <Route path="/admin" element={<RoleDirectRoute role="admin" />} />
         <Route path="/management" element={<RoleDirectRoute role="mgmt" />} />
         <Route path="/mgmt" element={<Navigate to="/management" replace />} />
+        <Route path="/sales" element={<RoleDirectRoute role="sales" />} />
 
         {/* Workspaces & Management Hub */}
         <Route

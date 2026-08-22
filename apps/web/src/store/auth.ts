@@ -17,14 +17,6 @@ import type {
   LoginResponse,
 } from "@/features/projections/types";
 
-/** Thrown when a `sales`-role user tries to sign in on the web (mobile-only). */
-export class SalesWebLoginError extends Error {
-  constructor() {
-    super("Sales is mobile-only — use the GreatSales app.");
-    this.name = "SalesWebLoginError";
-  }
-}
-
 interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
@@ -44,10 +36,6 @@ export const useAuth = create<AuthState>()(
           method: "POST",
           body: JSON.stringify({ tenantId, email, password }),
         });
-        // Salespersons have no web UI. Reject before establishing a session.
-        if (mapRole(res.user.role) === "sales") {
-          throw new SalesWebLoginError();
-        }
         set({
           accessToken: res.accessToken,
           refreshToken: res.refreshToken,

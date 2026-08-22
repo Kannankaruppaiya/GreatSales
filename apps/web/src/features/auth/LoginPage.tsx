@@ -11,15 +11,16 @@ import {
   ShieldCheck,
   Sparkles,
   TrendingUp,
+  UserRound,
   Users,
 } from "lucide-react";
 import { DEFAULT_MANAGEMENT_ID } from "@/store/ui";
-import { useAuth, SalesWebLoginError } from "@/store/auth";
+import { useAuth } from "@/store/auth";
 import { ApiError } from "@/lib/api";
 import { env } from "@/lib/config";
 import { Button, Input } from "@/components/ui";
 
-export type LoginRole = "super_admin" | "admin" | "mgmt";
+export type LoginRole = "super_admin" | "admin" | "mgmt" | "sales";
 
 interface RoleConfig {
   id: LoginRole;
@@ -71,14 +72,29 @@ const ROLE_CONFIGS: Record<LoginRole, RoleConfig> = {
     title: "Management Portal",
     description: "Executive oversight. Real-time dashboards, recurring projection grids, and analytics (Read-Only).",
   },
+  sales: {
+    id: "sales",
+    label: "Salesperson",
+    badge: "FIELD SALES",
+    badgeColor: "bg-sky-500/10 text-sky-600 border-sky-300 dark:border-sky-800",
+    icon: UserRound,
+    route: "/sales/login",
+    defaultEmail: "sales@greatsales.in",
+    destination: `/managements/${DEFAULT_MANAGEMENT_ID}/dashboard`,
+    title: "Salesperson Portal",
+    description:
+      "Your accounts. Recurring projections, new sales pipeline, orders, and collections follow-up.",
+  },
 };
 
 function resolveRoleFromPath(pathname: string, roleParam?: string): LoginRole {
   if (roleParam === "super-admin" || roleParam === "super_admin" || roleParam === "superadmin") return "super_admin";
+  if (roleParam === "sales" || roleParam === "salesperson") return "sales";
   if (roleParam === "admin" || roleParam === "administrator") return "admin";
   if (roleParam === "mgmt" || roleParam === "management" || roleParam === "manager") return "mgmt";
 
   if (pathname.includes("super-admin") || pathname.includes("superadmin")) return "super_admin";
+  if (pathname.includes("sales")) return "sales";
   if (pathname.includes("admin")) return "admin";
   if (pathname.includes("management") || pathname.includes("mgmt")) return "mgmt";
 
@@ -93,6 +109,7 @@ interface LoginPageProps {
 const DEMO_EMAIL_BY_ROLE: Partial<Record<LoginRole, string>> = {
   admin: env.DEMO_EMAIL,
   mgmt: env.DEMO_EMAIL.replace(/^admin@/, "manager@"),
+  sales: env.DEMO_EMAIL.replace(/^admin@/, "sales@"),
 };
 
 export default function LoginPage({ initialRole }: LoginPageProps) {
@@ -126,8 +143,7 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
       await login(tenantId, email, password);
       navigate(config.destination, { replace: true });
     } catch (err) {
-      if (err instanceof SalesWebLoginError) setError(err.message);
-      else if (err instanceof ApiError) setError(err.message);
+      if (err instanceof ApiError) setError(err.message);
       else setError("Could not reach the API. Is it running?");
     } finally {
       setBusy(false);

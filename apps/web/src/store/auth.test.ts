@@ -7,7 +7,7 @@ vi.mock("@/lib/api", () => ({
   setRefreshHandler: vi.fn(),
 }));
 
-import { useAuth, SalesWebLoginError } from "@/store/auth";
+import { useAuth } from "@/store/auth";
 
 const makeResponse = (role: string) => ({
   accessToken: "acc",
@@ -48,15 +48,15 @@ describe("useAuth", () => {
     });
   });
 
-  it("rejects a sales-role login on the web and leaves the store cleared", async () => {
+  it("establishes a session for a sales-role login on the web", async () => {
     apiFetch.mockResolvedValueOnce(makeResponse("sales"));
     await expect(
       useAuth.getState().login("tenant_acme", "sales1@acme.test", "Passw0rd!"),
-    ).rejects.toBeInstanceOf(SalesWebLoginError);
+    ).resolves.toBeUndefined();
 
     const s = useAuth.getState();
-    expect(s.accessToken).toBeNull();
-    expect(s.user).toBeNull();
+    expect(s.accessToken).toBe("acc");
+    expect(s.user?.role).toBe("sales");
   });
 
   it("logout clears the session", async () => {
