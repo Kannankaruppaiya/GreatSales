@@ -5,8 +5,8 @@ import DashboardPage from "@/features/dashboard/DashboardPage";
 import { useAuth } from "@/store/auth";
 import { useUi } from "@/store/ui";
 import * as api from "@/lib/api";
-import type { ProjectionListResponse } from "@/features/projections/types";
 import type { LeadRow } from "@/features/leads/types";
+import type { DashboardResponse } from "@/features/dashboard/types";
 import { permissionsFor } from "../../helpers/authFixtures";
 
 function makeLead(overrides: Partial<LeadRow>): LeadRow {
@@ -37,6 +37,39 @@ function makeLead(overrides: Partial<LeadRow>): LeadRow {
     totalValue: 0,
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+const EMPTY_KPIS: DashboardResponse["kpis"] = {
+  recurringCommitted: 0,
+  recurringAchieved: 0,
+  recurringPct: null,
+  newSalesCommitted: 0,
+  newSalesAchieved: 0,
+  totalCommitted: 0,
+  totalAchieved: 0,
+  totalPct: null,
+  followUpsDue: 0,
+  followUpsOverdue: 0,
+};
+
+/** A complete aggregate response — the page renders it verbatim. */
+function makeDashboard(overrides: Partial<DashboardResponse>): DashboardResponse {
+  return {
+    period: "2026-08",
+    kpis: EMPTY_KPIS,
+    bySalesperson: [],
+    byPrincipal: [],
+    byCategory: [
+      { tier: "Platinum", committed: 0, achieved: 0 },
+      { tier: "Gold", committed: 0, achieved: 0 },
+      { tier: "Silver", committed: 0, achieved: 0 },
+      { tier: "Brass", committed: 0, achieved: 0 },
+    ],
+    oralConfirmationDeals: [],
+    oralConfirmationTotal: 0,
+    topOpenProjections: [],
     ...overrides,
   };
 }
@@ -74,63 +107,99 @@ describe("DashboardPage", () => {
     useUi.setState({ month: "2026-08", principalId: "ALL", ownerFilter: "ALL" });
   });
 
-  it("renders KPI totals composed from the projections server summary and the fetched leads", async () => {
-    const projResponse: ProjectionListResponse = {
-      lines: [],
-      summary: { totLines: 3, totCommitted: 500000, totAchieved: 200000, totPct: 40 },
-    };
-    const lead = makeLead({ id: "lead_1", stage: "NewEnquiries", totalValue: 100000 });
+  it("renders KPI totals straight from the aggregate, without recomputing them", async () => {
+    const dash = makeDashboard({
+      kpis: {
+        ...EMPTY_KPIS,
+        recurringCommitted: 500000,
+        recurringAchieved: 200000,
+        recurringPct: 40,
+        newSalesCommitted: 100000,
+        totalCommitted: 600000,
+        totalAchieved: 200000,
+        totalPct: 33.3,
+      },
+    });
 
     vi.spyOn(api, "apiFetch").mockImplementation((path: unknown) => {
       const p = String(path);
-      if (p.startsWith("/projections")) return Promise.resolve(projResponse);
-      if (p.startsWith("/leads")) return Promise.resolve({ items: [lead], nextCursor: null });
+      if (p.startsWith("/dashboard")) return Promise.resolve(dash);
       return Promise.reject(new Error(`unexpected path ${p}`));
     });
 
     renderPage();
 
-    // "Recurring committed" is rendered straight from the server summary
-    // (500000 -> "₹5.0L"), never recomputed from line items.
+    // 500000 -> "₹5.0L" and 600000 -> "₹6.0L", both as the server sent them.
+    // The page must not be deriving the total from its parts: the server is
+    // the only place that arithmetic happens now.
     await waitFor(() => expect(screen.getByText("₹5.0L")).toBeTruthy());
-    // "Total committed" = recurring summary (5,00,000) + new-sales lead
-    // totalValue (1,00,000) = 6,00,000 -> "₹6.0L".
     await waitFor(() => expect(screen.getByText("₹6.0L")).toBeTruthy());
   });
 
-  it("fetches every leads page before finalizing KPI totals, not just the first page", async () => {
-    const projResponse: ProjectionListResponse = {
-      lines: [],
-      summary: { totLines: 0, totCommitted: 0, totAchieved: 0, totPct: null },
-    };
-    // Different salespeople on each page so the per-salesperson chart bars
-    // (₹1.0L / ₹0.5L) don't also coincidentally read "₹1.5L" — keeps the
-    // assertion below unambiguous about which two elements it's counting.
-    const leadPage1 = makeLead({ id: "lead_1", totalValue: 100000 });
-    const leadPage2 = makeLead({
-      id: "lead_2",
-      totalValue: 50000,
-      salespersonId: "u_sales2",
-      salespersonName: "Test Sales 2",
-    });
-
+  it("asks for the whole page ONCE and never pages the leads endpoint", async () => {
+    // This replaces a test that asserted the opposite — that the page walked
+    // every leads page before its KPIs were correct. That loop was the defect
+    // (O(leads) requests to render six numbers), so the guarantee worth
+    // holding now is the inverse: one request, and leads are not touched.
     const spy = vi.spyOn(api, "apiFetch").mockImplementation((path: unknown) => {
       const p = String(path);
-      if (p.startsWith("/projections")) return Promise.resolve(projResponse);
-      if (p.startsWith("/leads")) {
-        if (p.includes("cursor=c1")) return Promise.resolve({ items: [leadPage2], nextCursor: null });
-        return Promise.resolve({ items: [leadPage1], nextCursor: "c1" });
-      }
+      if (p.startsWith("/dashboard")) return Promise.resolve(makeDashboard({}));
+      return Promise.reject(new Error(`unexpected path ${p}`));
+    });
+
+    renderPage();
+    // An all-zero dashboard renders ₹0 in several tiles, so wait on the
+    // request having settled rather than on a unique piece of text.
+    await waitFor(() => expect(screen.getAllByText("₹0").length).toBeGreaterThan(0));
+
+    const paths = spy.mock.calls.map((c) => String(c[0]));
+    expect(paths.filter((p) => p.startsWith("/dashboard")).length).toBe(1);
+    expect(paths.filter((p) => p.startsWith("/leads"))).toEqual([]);
+    expect(paths.filter((p) => p.startsWith("/projections"))).toEqual([]);
+  });
+
+  it("passes the period through so switching month refetches", async () => {
+    useUi.setState({ month: "2026-09", principalId: "ALL", ownerFilter: "ALL" });
+    const spy = vi.spyOn(api, "apiFetch").mockImplementation((path: unknown) => {
+      const p = String(path);
+      if (p.startsWith("/dashboard")) return Promise.resolve(makeDashboard({}));
+      return Promise.reject(new Error(`unexpected path ${p}`));
+    });
+
+    renderPage();
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+
+    expect(String(spy.mock.calls[0][0])).toContain("period=2026-09");
+  });
+
+  it("renders the oral-confirmation deals the server selected, not its own filter", async () => {
+    // The page must not re-derive "which deals are at oral confirmation" — it
+    // renders the list the aggregate chose. Handing it a deal whose stage the
+    // page would previously have filtered on proves the filtering moved.
+    const deal = makeLead({
+      id: "lead_oral",
+      customerName: "Vertex Precision Gears",
+      stage: "NegotiationOralConfirmation",
+      totalValue: 192000,
+    });
+
+    vi.spyOn(api, "apiFetch").mockImplementation((path: unknown) => {
+      const p = String(path);
+      if (p.startsWith("/dashboard"))
+        return Promise.resolve(
+          makeDashboard({
+            oralConfirmationDeals: [deal],
+            oralConfirmationTotal: 1,
+          }),
+        );
       return Promise.reject(new Error(`unexpected path ${p}`));
     });
 
     renderPage();
 
-    // 1,00,000 + 50,000 = 1,50,000 -> "₹1.5L". Both "New sales committed" and
-    // "Total committed" should reflect the FULL 2-page sum once loaded, not
-    // just page 1's 1,00,000 ("₹1.0L").
-    await waitFor(() => expect(screen.getAllByText("₹1.5L").length).toBe(2));
-    expect(spy.mock.calls.filter((c) => String(c[0]).startsWith("/leads")).length).toBe(2);
+    expect(
+      await screen.findByText("Vertex Precision Gears"),
+    ).toBeInTheDocument();
   });
 
   it("does not read from the mock tracker store", () => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Building2,
   Plus,
@@ -21,25 +21,22 @@ import { AddLeadModal } from "@/features/leads/AddLeadModal";
 import { AddCustomerModal } from "@/features/customers/AddCustomerModal";
 import { CreateSalesOrderModal } from "@/features/orders/CreateSalesOrderModal";
 import { toast } from "@/store/toastStore";
-import { useProjections, useUpdateProjection } from "@/features/projections/queries";
+import { useUpdateProjection } from "@/features/projections/queries";
 import {
   PROJ_STATUS_LABELS,
   projStatusFromLabel,
   type ProjectionLine,
 } from "@/features/projections/types";
-import { useLeads, flattenLeads } from "@/features/leads/queries";
 import type { LeadRow } from "@/features/leads/types";
+import { useDashboard } from "@/features/dashboard/queries";
+import type { DashboardBreakdown } from "@/features/dashboard/types";
 
-/** Non-final new-sales pipeline stages that still count toward "committed"
- * (everything except the two dead-end closures). Raw DealStageValue strings. */
-const NEW_SALES_DEAD_STAGES = ["ClosedLost", "NoRequirementOrCold"];
-/** Recurring projection statuses that are done — excluded from follow-up due/overdue counts. */
-const CLOSED_PROJ_STATUSES = ["Confirmed", "Completed", "Lost", "Cancelled"];
-/** New-sales stages that are done — excluded from follow-up due/overdue counts. */
-const CLOSED_LEAD_STAGES = ["ClosedWon", "ClosedLost", "NoRequirementOrCold"];
+// The stage/status lists that used to live here moved to the server with the
+// arithmetic they served (apps/api/src/dashboard/dashboard.service.ts). Keeping
+// a copy would be keeping a second definition of "which deals count".
 
-/** Small inline skeleton for a KPI value that is still waiting on the
- * fetch-all leads query (see `leadsLoadingFull` below) while the rest of the
+/** Small inline skeleton for a KPI value while the single aggregate request is
+ * still in flight. Previously this covered a half-loaded page: the rest of the
  * grid (gated on the primary projections query) is already visible. */
 function KpiSkeleton() {
   return <span className="inline-block h-5 w-14 animate-pulse rounded bg-surface-2 align-middle" />;
@@ -62,151 +59,48 @@ export default function DashboardPage() {
 
   const monthLabel = MONTHS.find((m) => m.value === month)?.label ?? month;
   const isSalesRole = role === "sales";
-  const todayStr = new Date().toISOString().slice(0, 10);
 
-  // Recurring projections for the selected period. RLS already scopes a
-  // sales-role session to its own rows server-side, so unlike the old mock
-  // store there is no client-side ownerId filter here — see the report for
-  // why the global principal/owner Topbar filters (still mock-id-based)
-  // aren't wired in either.
-  const projQuery = useProjections({ period: month }, enabled);
+  // ONE request for the whole page.
+  //
+  // This used to be a projections query PLUS a loop that paged EVERY lead in
+  // the tenant (`fetchNextPage` until exhausted) before a single KPI could
+  // render — O(leads) round trips to show six numbers. The server now computes
+  // all of it: see checklists/03-API.md C.3.2.
+  //
+  // Nothing below is recomputed here. Every figure is final, which is what
+  // stops this page and the projections worksheet from disagreeing.
+  const dashQuery = useDashboard(month, { enabled });
   const updateProjection = useUpdateProjection();
-  const projLines = useMemo(() => projQuery.data?.lines ?? [], [projQuery.data]);
-  const summary = projQuery.data?.summary;
 
-  // New-sales leads (not period-scoped, matching the old mock behavior).
-  // Fetch every page before aggregating KPIs — same "fetch-all" pattern as
-  // PaymentsPage.tsx/LeadsPage.tsx: a single page of 50 would misreport
-  // "New sales committed" / "Total committed" / follow-up counts.
-  const leadsQuery = useLeads({}, { enabled });
-  useEffect(() => {
-    if (leadsQuery.hasNextPage && !leadsQuery.isFetchingNextPage) {
-      leadsQuery.fetchNextPage();
-    }
-  }, [leadsQuery.hasNextPage, leadsQuery.isFetchingNextPage, leadsQuery.fetchNextPage]);
-  const leadRows = flattenLeads(leadsQuery.data);
-  const leadsLoadingFull = leadsQuery.isLoading || leadsQuery.hasNextPage === true;
+  const kpis = dashQuery.data?.kpis;
+  const recurringCommitted = kpis?.recurringCommitted ?? 0;
+  const recurringAchieved = kpis?.recurringAchieved ?? 0;
+  const recPct = kpis?.recurringPct ?? null;
+  const newSalesCommitted = kpis?.newSalesCommitted ?? 0;
+  const newSalesAchieved = kpis?.newSalesAchieved ?? 0;
+  const totalCommitted = kpis?.totalCommitted ?? 0;
+  const totalAchieved = kpis?.totalAchieved ?? 0;
+  const totalPct = kpis?.totalPct ?? null;
+  // Resolved against the tenant's business day server-side — a browser clock
+  // gave two users in different timezones different overdue counts.
+  const fuDue = kpis?.followUpsDue ?? 0;
+  const fuOverdue = kpis?.followUpsOverdue ?? 0;
 
-  // Salesperson / industry FK options for AddLeadModal — no dedicated
-  // endpoint, derived from loaded rows only (same pattern as LeadsPage.tsx).
-  const salespersonOptions = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const l of leadRows) if (l.salespersonId) m.set(l.salespersonId, l.salespersonName || l.salespersonId);
-    return [...m.entries()].map(([id, name]) => ({ id, name }));
-  }, [leadRows]);
-  const industryOptions = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const l of leadRows) if (l.industryId && l.industryName) m.set(l.industryId, l.industryName);
-    return [...m.entries()].map(([id, name]) => ({ id, name }));
-  }, [leadRows]);
-
-  // KPI calculations — recurring figures are rendered straight from the
-  // server-computed summary (never recomputed from line items); new-sales
-  // figures sum each lead's server-computed totalValue.
-  const recurringCommitted = summary?.totCommitted ?? 0;
-  const recurringAchieved = summary?.totAchieved ?? 0;
-  const recPct = summary?.totPct ?? null;
-
-  const newSalesCommitted = leadRows
-    .filter((l) => !NEW_SALES_DEAD_STAGES.includes(l.stage))
-    .reduce((s, l) => s + (l.totalValue || 0), 0);
-  const newSalesAchieved = leadRows
-    .filter((l) => l.stage === "ClosedWon")
-    .reduce((s, l) => s + (l.totalValue || 0), 0);
-
-  const totalCommitted = recurringCommitted + newSalesCommitted;
-  const totalAchieved = recurringAchieved + newSalesAchieved;
-  const totalPct = totalCommitted > 0 ? (totalAchieved / totalCommitted) * 100 : null;
-
-  let fuDue = 0;
-  let fuOverdue = 0;
-  projLines.forEach((p) => {
-    if (!CLOSED_PROJ_STATUSES.includes(p.status) && p.nextFollowUp) {
-      if (p.nextFollowUp < todayStr) fuOverdue++;
-      else if (p.nextFollowUp === todayStr) fuDue++;
-    }
-  });
-  leadRows.forEach((l) => {
-    if (!CLOSED_LEAD_STAGES.includes(l.stage) && l.nextFollowUp) {
-      if (l.nextFollowUp < todayStr) fuOverdue++;
-      else if (l.nextFollowUp === todayStr) fuDue++;
-    }
-  });
-
-  // Salesperson bar chart data (Admin/Mgmt view) — union of everyone who
-  // appears as a salesperson on either a loaded projection line or lead (no
-  // dedicated "list sales users" endpoint is composed into this page).
-  const spChartItems = useMemo(() => {
-    const sp = new Map<string, string>();
-    projLines.forEach((p) => sp.set(p.salespersonId, p.salespersonName));
-    leadRows.forEach((l) => sp.set(l.salespersonId, l.salespersonName));
-
-    return [...sp.entries()].map(([id, label]) => {
-      const spProjs = projLines.filter((p) => p.salespersonId === id);
-      const spLeads = leadRows.filter((l) => l.salespersonId === id);
-
-      const cVal =
-        spProjs.reduce((s, p) => s + (p.projValue || 0), 0) +
-        spLeads
-          .filter((l) => !NEW_SALES_DEAD_STAGES.includes(l.stage))
-          .reduce((s, l) => s + (l.totalValue || 0), 0);
-
-      const aVal =
-        spProjs.reduce((s, p) => s + (p.achValue || 0), 0) +
-        spLeads
-          .filter((l) => l.stage === "ClosedWon")
-          .reduce((s, l) => s + (l.totalValue || 0), 0);
-
-      return { label, committed: cVal, achieved: aVal };
-    });
-  }, [projLines, leadRows]);
-
-  // Oral Confirmation Deals
-  const oralDeals = useMemo(
-    () => leadRows.filter((l) => l.stage === "NegotiationOralConfirmation"),
-    [leadRows],
-  );
-
-  // Top Open Projections (for sales view)
-  const topOpenProjections = useMemo(() => {
-    return projLines
-      .filter((p) => p.committedQty > 0 && !CLOSED_PROJ_STATUSES.includes(p.status))
-      .sort((a, b) => b.projValue - a.projValue)
-      .slice(0, 10);
-  }, [projLines]);
-
-  // Principal performance bars (Admin / Mgmt view) — derived directly from
-  // each line's embedded principalId/principalName (no separate principal
-  // master list is composed into this page).
-  const principalStats = useMemo(() => {
-    const map = new Map<string, { name: string; committed: number; achieved: number }>();
-    projLines.forEach((p) => {
-      const cur = map.get(p.principalId) ?? { name: p.principalName, committed: 0, achieved: 0 };
-      cur.committed += p.projValue || 0;
-      cur.achieved += p.achValue || 0;
-      map.set(p.principalId, cur);
-    });
-    return [...map.values()]
-      .filter((pr) => pr.committed > 0 || pr.achieved > 0)
-      .sort((a, b) => b.committed - a.committed);
-  }, [projLines]);
-
-  // Customer category mix (Admin / Mgmt view)
-  const categoryStats = useMemo(() => {
-    const tiers = ["Platinum", "Gold", "Silver", "Brass"];
-    const map: Record<string, { committed: number; achieved: number }> = {};
-    tiers.forEach((t) => (map[t] = { committed: 0, achieved: 0 }));
-
-    projLines.forEach((p) => {
-      const t = p.tier || "Silver";
-      if (map[t]) {
-        map[t].committed += p.projValue || 0;
-        map[t].achieved += p.achValue || 0;
-      }
-    });
-
-    return tiers.map((t) => ({ tier: t, ...map[t] }));
-  }, [projLines]);
+  const spChartItems = (dashQuery.data?.bySalesperson ?? []).map((r: DashboardBreakdown) => ({
+    label: r.name,
+    committed: r.committed,
+    achieved: r.achieved,
+  }));
+  const oralDeals = dashQuery.data?.oralConfirmationDeals ?? [];
+  const topOpenProjections = dashQuery.data?.topOpenProjections ?? [];
+  const principalStats = dashQuery.data?.byPrincipal ?? [];
+  // The aggregate already names every salesperson in scope, so the quick-add
+  // modal gets its options without a second request.
+  const salespeopleOptions = (dashQuery.data?.bySalesperson ?? []).map((r: DashboardBreakdown) => ({
+    id: r.id,
+    name: r.name,
+  }));
+  const categoryStats = dashQuery.data?.byCategory ?? [];
 
   return (
     <div className="space-y-5">
@@ -245,9 +139,9 @@ export default function DashboardPage() {
       </div>
 
       <QueryBoundary
-        isLoading={projQuery.isLoading}
-        isError={projQuery.isError}
-        error={projQuery.error}
+        isLoading={dashQuery.isLoading}
+        isError={dashQuery.isError}
+        error={dashQuery.error}
       >
         <div className="space-y-5">
           {/* 6 Top KPI Cards with Visual Depth */}
@@ -269,17 +163,17 @@ export default function DashboardPage() {
             <div className="rounded-xl border border-line bg-surface p-3.5 shadow-xs hover:border-muted transition-colors">
               <div className="text-[10.5px] font-bold uppercase tracking-wider text-muted">New sales committed</div>
               <div className="text-xl font-black text-ink mt-1 tabular-nums">
-                {leadsLoadingFull ? <KpiSkeleton /> : lakhs(newSalesCommitted)}
+                {dashQuery.isLoading ? <KpiSkeleton /> : lakhs(newSalesCommitted)}
               </div>
               <div className="text-xs text-muted mt-0.5">
-                Won: {leadsLoadingFull ? "…" : lakhs(newSalesAchieved)}
+                Won: {dashQuery.isLoading ? "…" : lakhs(newSalesAchieved)}
               </div>
             </div>
 
             <div className="rounded-xl border border-line bg-surface p-3.5 shadow-xs hover:border-muted transition-colors">
               <div className="text-[10.5px] font-bold uppercase tracking-wider text-muted">Total committed</div>
               <div className="text-xl font-black text-ink mt-1 tabular-nums">
-                {leadsLoadingFull ? <KpiSkeleton /> : lakhs(totalCommitted)}
+                {dashQuery.isLoading ? <KpiSkeleton /> : lakhs(totalCommitted)}
               </div>
               <div className="text-xs text-muted mt-0.5">Recurring + New sales</div>
             </div>
@@ -287,10 +181,10 @@ export default function DashboardPage() {
             <div className="rounded-xl border border-brand/40 bg-brand-soft/70 p-3.5 shadow-xs">
               <div className="text-[10.5px] font-bold uppercase tracking-wider text-brand-ink">Total achieved</div>
               <div className="text-xl font-black text-brand-ink mt-1 tabular-nums">
-                {leadsLoadingFull ? <KpiSkeleton /> : lakhs(totalAchieved)}
+                {dashQuery.isLoading ? <KpiSkeleton /> : lakhs(totalAchieved)}
               </div>
               <div className="text-xs text-brand-ink/80 mt-0.5 font-semibold">
-                {leadsLoadingFull ? "…" : totalPct != null ? `${totalPct.toFixed(1)}% target` : "—"}
+                {dashQuery.isLoading ? "…" : totalPct != null ? `${totalPct.toFixed(1)}% target` : "—"}
               </div>
             </div>
 
@@ -299,10 +193,10 @@ export default function DashboardPage() {
                 Follow-ups due
               </div>
               <div className={cn("text-xl font-black mt-1 tabular-nums", fuOverdue > 0 ? "text-red" : "text-ink")}>
-                {leadsLoadingFull ? <KpiSkeleton /> : fuDue + fuOverdue}
+                {dashQuery.isLoading ? <KpiSkeleton /> : fuDue + fuOverdue}
               </div>
               <div className={cn("text-xs mt-0.5 font-semibold", fuOverdue > 0 ? "text-red" : "text-muted")}>
-                {leadsLoadingFull ? "…" : fuOverdue > 0 ? `${fuOverdue} overdue` : "All up to date"}
+                {dashQuery.isLoading ? "…" : fuOverdue > 0 ? `${fuOverdue} overdue` : "All up to date"}
               </div>
             </div>
           </div>
@@ -322,7 +216,7 @@ export default function DashboardPage() {
                   <span className="text-xs text-muted font-medium">{oralDeals.length} deals</span>
                 </div>
 
-                <QueryBoundary isLoading={leadsLoadingFull} isError={leadsQuery.isError} error={leadsQuery.error}>
+                <QueryBoundary isLoading={dashQuery.isLoading} isError={dashQuery.isError} error={dashQuery.error}>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted border-b border-line">
@@ -459,7 +353,7 @@ export default function DashboardPage() {
                   </div>
                   <CompareLegend />
                 </div>
-                <QueryBoundary isLoading={leadsLoadingFull} isError={leadsQuery.isError} error={leadsQuery.error}>
+                <QueryBoundary isLoading={dashQuery.isLoading} isError={dashQuery.isError} error={dashQuery.error}>
                   <div className="pt-2">
                     <GroupedBars data={spChartItems} />
                   </div>
@@ -478,7 +372,7 @@ export default function DashboardPage() {
                   <span className="text-xs text-muted font-medium">{oralDeals.length} deals</span>
                 </div>
 
-                <QueryBoundary isLoading={leadsLoadingFull} isError={leadsQuery.isError} error={leadsQuery.error}>
+                <QueryBoundary isLoading={dashQuery.isLoading} isError={dashQuery.isError} error={dashQuery.error}>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted border-b border-line">
@@ -638,8 +532,13 @@ export default function DashboardPage() {
       <AddLeadModal
         open={showAddLead}
         onClose={() => setShowAddLead(false)}
-        salespeople={salespersonOptions}
-        industries={industryOptions}
+        salespeople={salespeopleOptions}
+        // No industries: this page no longer loads leads, and there is still
+        // no industries endpoint to ask (checklists/03-API.md C.3.12). The
+        // modal already handles an empty list ("No industries yet"), and
+        // refetching every lead to fill one dropdown is what this slice
+        // removed. The Leads page, which does load leads, still offers them.
+        industries={[]}
       />
       <AddCustomerModal open={showAddCustomer} onClose={() => setShowAddCustomer(false)} />
       <CreateSalesOrderModal open={showCreateOrder} onClose={() => setShowCreateOrder(false)} />
