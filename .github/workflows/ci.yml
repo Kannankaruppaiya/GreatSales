@@ -1,0 +1,190 @@
+name: CI
+
+# Every gate in checklists/10-TESTING.md J.1. Until this existed, all of them
+# were run by hand, which meant a green tracker could go stale silently — the
+# exact failure mode the tracker's [~] status exists to name.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A newer push supersedes an in-flight run on the same ref. Not on main, where
+# every commit's result is worth having.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  # Pinned to the version the production Dockerfiles build on. A CI that passes
+  # on a different major than production ships is not a gate (K.1.12).
+  NODE_VERSION: '22'
+  PNPM_VERSION: '9.0.0'
+
+jobs:
+  static:
+    name: Lint, types & env contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The API imports generated Prisma types, so type-checking needs them.
+      - run: pnpm --filter @greatsales/db db:generate
+
+      - name: API lint (zero warnings tolerated)
+        run: pnpm --filter api lint
+
+      - name: API types
+        run: pnpm --filter api check-types
+
+      - name: Web types
+        run: pnpm --filter web check-types
+
+      # NOTE: this has never run successfully on a developer machine — the
+      # local apps/mobile/node_modules has no typescript binary. A clean CI
+      # install should have it. If this fails, it is new information, not a
+      # flake: see checklists/10-TESTING.md J.1.7.
+      - name: Mobile types
+        run: pnpm --filter mobile check-types
+
+      # Validates the committed env templates against the real contract without
+      # booting anything. Catches a template that has drifted from the schema,
+      # and proves the production rules still fire.
+      - name: Env contract — staging template
+        run: pnpm --filter api env:check ../../.env.staging.example
+
+      - name: Env contract — production template
+        run: pnpm --filter api env:check ../../.env.production.example --as production
+
+  web-tests:
+    name: Web tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @greatsales/db db:generate
+      - run: pnpm --filter web test
+
+  api-tests:
+    name: API tests (real Postgres, RLS-bound role)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # Same major as docker-compose.yml and the target RDS instance.
+        image: postgres:16
+        env:
+          POSTGRES_USER: greatsales
+          POSTGRES_PASSWORD: greatsales
+          # The database name MUST end in _test: reseedTestDatabase() refuses
+          # to seed anything else, which is what stops a test run destroying
+          # real data.
+          POSTGRES_DB: greatsales_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U greatsales"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NODE_ENV: test
+      # The API connects as the RLS-BOUND role. The role itself is created by
+      # the 20260815000000_rls_policies migration, which runs as the owner
+      # below. PrismaService refuses to start if this turns out to be a
+      # superuser or to carry BYPASSRLS (A.3.1).
+      DATABASE_URL: postgresql://greatsales_app:greatsales_app@localhost:5432/greatsales_test?schema=public
+      # The OWNER connection: migrations, and the reseed helper (TRUNCATE
+      # requires ownership, which greatsales_app does not have).
+      DIRECT_URL: postgresql://greatsales:greatsales@localhost:5432/greatsales_test?schema=public
+      JWT_ACCESS_SECRET: ci-access-secret-not-for-any-real-environment
+      JWT_REFRESH_SECRET: ci-refresh-secret-not-for-any-real-environment
+      CORS_ORIGIN: '*'
+      SWAGGER_ENABLED: 'false'
+      LOG_LEVEL: error
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @greatsales/db db:generate
+
+      # migrate deploy, never migrate dev — the latter RESETS the database
+      # (A.2.1). Uses DIRECT_URL, per the schema's datasource.
+      - name: Apply migrations
+        run: pnpm --filter @greatsales/db db:deploy
+
+      # Fails the job if the runtime role can bypass RLS, before a single test
+      # runs. PrismaService checks this too; doing it here makes the reason
+      # obvious instead of surfacing as 26 suite failures.
+      - name: Assert the runtime role cannot bypass RLS
+        run: |
+          RESULT=$(PGPASSWORD=greatsales psql -h localhost -U greatsales -d greatsales_test -tAc \
+            "SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname='greatsales_app'")
+          echo "greatsales_app can bypass RLS: $RESULT"
+          if [ "$RESULT" != "f" ]; then
+            echo "::error::greatsales_app is superuser or has BYPASSRLS — RLS would be silently disabled"
+            exit 1
+          fi
+
+      - name: Unit + integration tests
+        run: pnpm --filter api test
+
+      - name: End-to-end tests
+        run: pnpm --filter api test:e2e
+
+  build:
+    name: Production build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @greatsales/db db:generate
+
+      # Cold cache on purpose: a build that only succeeds with a warm turbo
+      # cache is not proof the build works (J.1.6).
+      - name: Build all workspaces
+        run: pnpm build
+
+      # The web bundle must not contain the demo login prefill. config.ts
+      # forces it empty in a production build, but that guarantee is worth
+      # checking rather than trusting (D.1.7).
+      - name: Assert no demo credential in the web bundle
+        run: |
+          if grep -rq "Passw0rd!" apps/web/dist; then
+            echo "::error::A seeded demo password reached the production bundle"
+            exit 1
+          fi
+          echo "No demo credential found in apps/web/dist"

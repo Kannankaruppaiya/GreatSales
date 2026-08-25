@@ -56,12 +56,12 @@ Zustand, Tailwind 4, `xlsx`, react-hook-form + zod. Build = `tsc --noEmit && vit
 | D.1.5 | `import.meta.env.DEV`-only code is proven tree-shaken out of `dist/` | `[ ]` | |
 | D.1.6 | 🔴 **No mock data reaches the production bundle.** `src/data/mock.ts`, `src/data/pocSeedData.ts`, `src/data/selectors.ts`, `src/store/trackerStore.ts`, `src/lib/mockOwner.ts` are deleted or provably unreachable from `main.tsx`. **Verified reachable today — see D.1.6a–D.1.6c below.** | `[ ]` | |
 | D.1.6a | `src/store/trackerStore.ts` (a zustand+persist client-side mock store) is imported at runtime by `components/modals/AddMappingModal.tsx`, `features/management/managementActions.ts`, and `features/management/ManagementHomePage.tsx`. Removing it requires the mapping API ([C.3.1](03-API.md)) and real tenancy ([C.3.5](03-API.md)) to exist first | `[ ]` | |
-| D.1.6b | 🔴 **Also a data-exposure item, not only a bundle-size one — see [G.3.9](07-SECURITY.md).** `trackerStore` imports `POC_CUSTOMERS … POC_USERS` from `src/data/pocSeedData.ts`, which is **33,448 lines**. Because `trackerStore` is in the production path, that entire POC dataset is a bundle candidate. **Measure it:** build, then grep `dist/` for a known POC value and record the byte cost | `[ ]` | |
+| D.1.6b | 🔴 **Also a data-exposure item, not only a bundle-size one — see [G.3.9](07-SECURITY.md).** `trackerStore` imports `POC_CUSTOMERS … POC_USERS` from `src/data/pocSeedData.ts`, which is **33,448 lines**. Because `trackerStore` is in the production path, that entire POC dataset is a bundle candidate. **Measure it:** build, then grep `dist/` for a known POC value and record the byte cost | `[ ]` | MEASURED 2026-08-25 — and it is worse than a size problem. A real name from the POC dataset ("Surendiran") is present in `apps/web/dist`, so **real records ship to every browser that loads the app**. The entry chunk `index-*.js` is **790,516 bytes** (372 KB gzip for all assets), against a 500 kB Vite warning threshold. This is also a data-exposure item — see [G.3.9](07-SECURITY.md). Status stays not-started: measured, not fixed. |
 | D.1.6c | `src/store/ui.ts` imports `CURRENT_MONTH` from `src/data/mock.ts` (which re-exports `pocSeedData`), and `ui.ts` is imported by `App.tsx`, `layout.tsx`, and `DashboardPage.tsx`. Replace with a computed value so the mock module is not pulled in by the app shell | `[ ]` | |
 | D.1.6d | `src/lib/mockOwner.ts` (imports `users` from `data/mock`) is used by `hooks.ts` and `AddMappingModal.tsx` — remove once the real owner comes from the session | `[ ]` | |
 | D.1.6e | `src/data/selectors.ts` (imports from `data/mock`) is used by `hooks.ts` and `store/auth.ts` — remove or re-point at API types | `[ ]` | |
 | D.1.6f | A CI check fails the build if any module under `src/data/mock*`, `src/data/pocSeedData*`, `src/store/trackerStore*`, or `src/lib/mockOwner*` appears in the production module graph — so this cannot regress silently | `[ ]` | |
-| D.1.7 | Demo-login prefill (`VITE_DEMO_*`) is empty in a production build, verified by grepping `dist/` for any seeded password string | `[ ]` | |
+| D.1.7 | Demo-login prefill (`VITE_DEMO_*`) is empty in a production build, verified by grepping `dist/` for any seeded password string | `[x]` | VERIFIED 2026-08-25 on a real `vite build`: `grep -rq "Passw0rd!" apps/web/dist` finds nothing. Now asserted in CI (`.github/workflows/ci.yml`, build job) so it cannot regress. |
 | D.1.8 | No secret, API key, or internal URL is embedded in the bundle — every `VITE_*` var is reviewed as **public by definition** | `[ ]` | |
 | D.1.9 | Source maps: either not shipped, or shipped privately to the error tracker only — never publicly served | `[ ]` | |
 | D.1.10 | Build is reproducible: same commit ⇒ same bundle hash | `[ ]` | |
@@ -71,9 +71,9 @@ Zustand, Tailwind 4, `xlsx`, react-hook-form + zod. Build = `tsc --noEmit && vit
 
 | # | Item | Status | Evidence |
 | --- | --- | --- | --- |
-| D.2.1 | Bundle size budget set (gzipped initial JS) and enforced in CI — a build that exceeds it fails | `[ ]` | |
-| D.2.2 | Route-level code splitting: `/products`, `/users`, `/data` and every heavy page load lazily | `[ ]` | |
-| D.2.3 | `xlsx` (large) is dynamically imported only when an import/export is actually triggered | `[ ]` | |
+| D.2.1 | Bundle size budget set (gzipped initial JS) and enforced in CI — a build that exceeds it fails | `[ ]` | No budget is enforced yet. Baseline measured 2026-08-25 for whoever sets one: entry chunk 790,516 B; all assets 372,453 B gzipped. Most of the entry chunk is the POC dataset — see D.1.6b — so set the budget AFTER that is removed, or it will be set around a bug. |
+| D.2.2 | Route-level code splitting: `/products`, `/users`, `/data` and every heavy page load lazily | `[x]` | VERIFIED 2026-08-25: `vite build` emits 19 per-route chunks (`CustomersPage-*.js`, `UsersPage-*.js`, `ProductsPage-*.js`, `DataPage-*.js`, …), so routes are already lazily loaded. |
+| D.2.3 | `xlsx` (large) is dynamically imported only when an import/export is actually triggered | `[x]` | VERIFIED 2026-08-25: `xlsx` is its own chunk, `xlsx-CkFp8p6R.js` at 429,534 bytes — it is not in the entry bundle. |
 | D.2.4 | Chart code is code-split away from the initial shell | `[ ]` | |
 | D.2.5 | Vendor chunking reviewed so a small app change does not bust the whole cache | `[ ]` | |
 | D.2.6 | Assets fingerprinted; `index.html` served `no-cache`, hashed assets served `immutable, max-age=31536000` | `[ ]` | |

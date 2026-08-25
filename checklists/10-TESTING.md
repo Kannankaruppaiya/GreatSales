@@ -53,9 +53,9 @@ if a verified item regresses, set it back to `[ ]` and log it in
 | J.1.3 | `pnpm --filter api test` green | `[~]` | 2026-08-25: `pnpm --filter api test` — **26 suites, 332 tests, all passed** against the local Postgres. Log shows `Connected as greatsales_app (not superuser, NOBYPASSRLS)`. |
 | J.1.4 | `pnpm --filter api test:e2e` green **against a real Postgres with the RLS-bound role** | `[~]` | 2026-08-25: `pnpm --filter api test:e2e` — **5 suites, 133 tests, all passed** against real Postgres on :5433 as the RLS-bound role. |
 | J.1.5 | `pnpm --filter web test` green | `[~]` | 2026-08-25: `pnpm --filter web test` — **43 files, 213 tests, all passed**. |
-| J.1.6 | `pnpm build` (all workspaces, production mode) green from a clean clone with a cold cache | `[ ]` | |
+| J.1.6 | `pnpm build` (all workspaces, production mode) green from a clean clone with a cold cache | `[~]` | 2026-08-25: `pnpm build` — 3 tasks successful, `0 cached`, 60s. Cold cache, but from an existing working tree, **not a clean clone**. |
 | J.1.7 | Mobile `check-types` green | `[ ]` | BLOCKED 2026-08-25: `apps/mobile/node_modules` has no typescript binary, so the script cannot run at all. Needs a workspace install before this gate means anything. |
-| J.1.8 | All of the above run in **CI on every PR** and block merge — **CI does not exist yet; this is a blocker** | `[ ]` | |
+| J.1.8 | All of the above run in **CI on every PR** and block merge — **CI does not exist yet; this is a blocker** | `[~]` | Workflow added (see [K.2.1](11-BUILD-INFRA.md)) but never executed, and branch protection is not configured. Remains a blocker until a run is green AND merge is actually blocked. |
 
 ### Lint: what was actually fixed on 2026-08-25
 
@@ -88,7 +88,7 @@ than it was, but it is **not** done — those were the loudest call sites, not a
 | J.2.6 | Web tests assert real behaviour, not implementation detail; they would fail if the feature broke | `[ ]` | |
 | J.2.7 | Tests are deterministic — no time-of-day, timezone, ordering, or network dependence. Proven by running the suite 10× and in a different timezone | `[ ]` | |
 | J.2.8 | Test isolation: `maxWorkers: 1` in the API jest config is a **workaround, not a design** — either the tests are made parallel-safe or the constraint is documented as permanent | `[ ]` | |
-| J.2.9 | Seeding for tests is committed, reproducible, and cannot touch a non-test database | `[ ]` | |
+| J.2.9 | Seeding for tests is committed, reproducible, and cannot touch a non-test database | `[~]` | FIXED 2026-08-25 and verified. Tests now resolve `.env.test` (load-env.ts, under NODE_ENV=test) and `reseedTestDatabase()` refuses to seed unless both URLs name a database ending in `_test`. Negative test: pointed at "greatsales" it threw instead of seeding. Positive test: a full unit + e2e run left the dev database holding `tenant_promech` with 417 customers untouched, while the test database held the acme/globex fixtures. The seed scripts are committed; the real-data JSONs are not (see [G.3.9](07-SECURITY.md)). |
 | J.2.10 | Coverage measured; the number is known; critical modules (auth, permissions, money, tenancy) are near-total | `[ ]` | |
 | J.2.11 | E2E smoke test of the **critical user journey** against the deployed production build: login → create customer → create lead → create order → record payment → logout | `[ ]` | |
 | J.2.12 | Every fixed bug has a regression test that fails without the fix | `[ ]` | |

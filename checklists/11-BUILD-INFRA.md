@@ -59,8 +59,8 @@ if a verified item regresses, set it back to `[ ]` and log it in
 
 | # | Item | Status | Evidence |
 | --- | --- | --- | --- |
-| K.2.1 | 🔴 **CI pipeline exists** (no `.github/workflows` today) | `[ ]` | |
-| K.2.2 | Every PR runs types, lint, unit, integration, build — and blocks merge on failure | `[ ]` | |
+| K.2.1 | 🔴 **CI pipeline exists** (no `.github/workflows` today) | `[~]` | Added 2026-08-25: `.github/workflows/ci.yml` with four jobs — static (lint, types x3, env-contract checks), web tests, API tests against a real Postgres service as the RLS-bound role, and a cold-cache production build. **It has never run.** YAML parses and every command in it was run locally, but the first real run is the only proof. Do not tick until a run is green. |
+| K.2.2 | Every PR runs types, lint, unit, integration, build — and blocks merge on failure | `[~]` | The workflow triggers on `pull_request`, so it runs. **Blocking merge is a branch-protection setting on GitHub, not a file in this repo** — that still has to be turned on, along with K.2.3. |
 | K.2.3 | `main` is protected: no direct pushes, review required | `[ ]` | |
 | K.2.4 | Deployment is automated and repeatable — no manual copy of files to a server | `[ ]` | |
 | K.2.5 | Migrations run as an explicit, ordered step before the new code goes live, and a failed migration aborts the deploy | `[ ]` | |

@@ -8,7 +8,7 @@
 > Governed by [`AGENTS.md`](AGENTS.md). Feature execution order lives in
 > [`docs/FEATURE-ROADMAP.md`](docs/FEATURE-ROADMAP.md).
 
-**Created:** 2026-08-25 · **Last reviewed:** 2026-08-25 (env contract, api lint clean, baseline sweep of §N) · **Total items:** 1,069
+**Created:** 2026-08-25 · **Last reviewed:** 2026-08-25 (CI added, test DB isolated, env contract, baseline sweep of §N) · **Total items:** 1,069
 
 ---
 
@@ -102,19 +102,19 @@ Update the counts as boxes are ticked. This is the honest single number for "how
 | [A Database](checklists/01-DATABASE.md) | 61 | 0 | 1 | 0 | 60 |
 | [B Backend runtime](checklists/02-BACKEND.md) | 46 | 0 | 5 | 0 | 41 |
 | [C API contract](checklists/03-API.md) | 425 | 0 | 0 | 0 | 425 |
-| [D Frontend web](checklists/04-FRONTEND-WEB.md) | 155 | 0 | 0 | 0 | 155 |
+| [D Frontend web](checklists/04-FRONTEND-WEB.md) | 155 | 3 | 0 | 0 | 152 |
 | [E Mobile](checklists/05-MOBILE.md) | 26 | 0 | 0 | 0 | 26 |
 | [F Shared packages](checklists/06-SHARED-PACKAGES.md) | 7 | 0 | 0 | 0 | 7 |
-| [G Security](checklists/07-SECURITY.md) | 43 | 0 | 1 | 0 | 42 |
+| [G Security](checklists/07-SECURITY.md) | 43 | 0 | 2 | 0 | 41 |
 | [H Observability](checklists/08-OBSERVABILITY.md) | 18 | 0 | 0 | 0 | 18 |
 | [I Performance](checklists/09-PERFORMANCE.md) | 13 | 0 | 0 | 0 | 13 |
-| [J Testing](checklists/10-TESTING.md) | 21 | 0 | 5 | 0 | 16 |
-| [K Build & infra](checklists/11-BUILD-INFRA.md) | 33 | 0 | 0 | 0 | 33 |
+| [J Testing](checklists/10-TESTING.md) | 21 | 0 | 8 | 0 | 13 |
+| [K Build & infra](checklists/11-BUILD-INFRA.md) | 33 | 0 | 2 | 0 | 31 |
 | [L Data operations](checklists/12-DATA-OPERATIONS.md) | 14 | 0 | 0 | 0 | 14 |
 | [M Compliance](checklists/13-COMPLIANCE.md) | 14 | 0 | 0 | 0 | 14 |
 | [N Feature slices](checklists/14-FEATURE-SLICES.md) | 170 | 0 | 63 | 0 | 107 |
 | [O Go-live](checklists/15-GO-LIVE.md) | 23 | 0 | 0 | 0 | 23 |
-| **TOTAL** | **1,069** | **0** | **75** | **0** | **994** |
+| **TOTAL** | **1,069** | **3** | **81** | **0** | **985** |
 
 Recount any file with:
 
