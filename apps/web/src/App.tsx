@@ -16,12 +16,9 @@ import { RequireOwner } from "@/features/auth/RequireOwner";
 import type { LoginRole } from "@/features/auth/LoginPage";
 
 // Lazy like every page, and for a stronger reason than code size: this is the
-// only static import that reaches `trackerStore` -> `data/pocSeedData.ts`, the
-// 33,000-line POC dataset of REAL customer records. As a static import it
-// landed in the ENTRY chunk, so every visitor downloaded it before logging in.
-// Lazy keeps it off the pre-auth path. It does NOT remove the data from the
-// build — that needs the management feature to stop reading a mock store at
-// all (checklists/07-SECURITY.md G.3.9, checklists/14-FEATURE-SLICES.md F14).
+// only static import that reaches `trackerStore`, the client-side mock the
+// management feature still reads (roadmap F14). Keeping it lazy keeps that
+// whole subtree off the pre-auth path.
 const ManagementProvider = lazy(() =>
   import("@/features/management/ManagementProvider").then((m) => ({
     default: m.ManagementProvider,

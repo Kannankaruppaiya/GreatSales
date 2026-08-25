@@ -191,6 +191,19 @@ jobs:
       # The web bundle must not contain the demo login prefill. config.ts
       # forces it empty in a production build, but that guarantee is worth
       # checking rather than trusting (D.1.7).
+      # The mock fixtures that once put 417 real customer records into the
+      # bundle are gone. This is what stops them coming back: a reintroduced
+      # import fails the build rather than shipping quietly (D.1.6f).
+      - name: Assert no mock-data module exists in the web source
+        run: |
+          FOUND=$(find apps/web/src -type f \(             -name 'mock.ts' -o -name 'pocSeedData.ts' -o -name 'mockOwner.ts' -o -name 'selectors.ts'           \) 2>/dev/null || true)
+          if [ -n "$FOUND" ]; then
+            echo "::error::A deleted mock-data module is back: $FOUND"
+            echo "See checklists/07-SECURITY.md G.3.9 — these held real customer records."
+            exit 1
+          fi
+          echo "No mock-data module present in apps/web/src"
+
       - name: Assert no demo credential in the web bundle
         run: |
           if grep -rq "Passw0rd!" apps/web/dist; then

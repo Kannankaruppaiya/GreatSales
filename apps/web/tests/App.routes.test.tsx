@@ -49,11 +49,11 @@ describe("App routing", () => {
 
   it("owner hitting / lands on the management home", async () => {
     renderApp(["/"]);
-    expect(await screen.findByText(/super admin hub/i, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByText(/super admin hub/i, undefined, { timeout: 5000 })).toBeInTheDocument();
   });
 
   it("opening a management renders the dashboard shell", async () => {
     renderApp([`/managements/${DEFAULT_MANAGEMENT_ID}/dashboard`]);
-    expect(await screen.findByText(/executive overview/i, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByText(/executive overview/i, undefined, { timeout: 5000 })).toBeInTheDocument();
   });
 });

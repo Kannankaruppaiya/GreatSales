@@ -4,15 +4,14 @@ import { persist } from "zustand/middleware";
 /**
  * The month the app opens on, as `YYYY-MM`.
  *
- * This used to import `CURRENT_MONTH` from `@/data/mock` — a hardcoded
- * `"2026-08"`. Two problems, and the second is the serious one:
+ * Two problems with the hardcoded `"2026-08"` this replaced, and the second is
+ * the serious one:
  *
  *   1. The app defaulted to one fixed month forever, so every user would open
  *      on August 2026 for the rest of the product's life.
  *   2. `store/ui.ts` is imported by `App.tsx`, `layout.tsx` and
- *      `DashboardPage.tsx`, so that one string pulled `data/mock.ts` — and
- *      through it the 33,000-line POC dataset of REAL customer records — into
- *      the production bundle. See checklists/07-SECURITY.md G.3.9.
+ *      `DashboardPage.tsx`, so that one string pulled a mock module — and
+ *      through it a large dataset — into the production bundle.
  *
  * Computing it costs nothing and removes the edge entirely.
  */

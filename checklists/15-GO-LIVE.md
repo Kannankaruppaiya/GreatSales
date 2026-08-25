@@ -54,7 +54,7 @@ No production launch while any of these is unticked. Each links to its section a
 | O.1.5 | Rollback has been rehearsed, not just written | [K.2.7](11-BUILD-INFRA.md) | `[ ]` |
 | O.1.6 | CI exists and blocks merge on a failing gate | `[~]` | CI exists and is green (run 32856078174). It does NOT block merge yet — that needs branch protection on `main`, a GitHub setting no file here can make. See [J.1.8](10-TESTING.md). |
 | O.1.7 | Readiness probe actually checks the database | `[x]` | DONE 2026-08-25. `/health/ready` queries the database under a 2s timeout and answers 503 when it cannot; proven against a real production container by stopping Postgres. Liveness stayed 200 throughout, which is the correct split. See [B.3.2](02-BACKEND.md). |
-| O.1.8 | No mock data, demo credential, or seed password in any production bundle | [D.1.6](04-FRONTEND-WEB.md) / [D.1.7](04-FRONTEND-WEB.md) / [G.3.9](07-SECURITY.md) | `[ ]` |
+| O.1.8 | No mock data, demo credential, or seed password in any production bundle | `[x]` | DONE 2026-08-25. Mock modules deleted, `trackerStore` reseeded with synthetic fixtures, and all 1,746 real data literals from the deleted dataset probed against `dist/` — zero customer records remain. CI guard blocks reintroduction. See [G.3.9](07-SECURITY.md). |
 | O.1.9 | No token in browser storage; refresh token httpOnly and revocable | [D.7.1](04-FRONTEND-WEB.md) / [G.1.2](07-SECURITY.md) | `[ ]` |
 | O.1.10 | Error tracking + alerting live, with a test alert delivered to a human | [H.6](08-OBSERVABILITY.md) / [H.14](08-OBSERVABILITY.md) | `[ ]` |
 | O.1.11 | Secrets in a secret manager, none in the repo or images | [K.3.3](11-BUILD-INFRA.md) | `[ ]` |

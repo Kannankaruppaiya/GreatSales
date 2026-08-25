@@ -13,15 +13,15 @@ import type {
 } from "@/data/types";
 import type { DealStage, PayZone, SoStatus } from "@/data/constants";
 import {
-  POC_CUSTOMERS,
-  POC_LEADS,
-  POC_ORDERS,
-  POC_PAYMENTS,
-  POC_PRINCIPALS,
-  POC_PRODUCTS,
-  POC_PROJECTIONS,
-  POC_USERS,
-} from "@/data/pocSeedData";
+  DEMO_CUSTOMERS as POC_CUSTOMERS,
+  DEMO_LEADS as POC_LEADS,
+  DEMO_ORDERS as POC_ORDERS,
+  DEMO_PAYMENTS as POC_PAYMENTS,
+  DEMO_PRINCIPALS as POC_PRINCIPALS,
+  DEMO_PRODUCTS as POC_PRODUCTS,
+  DEMO_PROJECTIONS as POC_PROJECTIONS,
+  DEMO_USERS as POC_USERS,
+} from "@/data/demoSeedData";
 
 export interface WorkspaceProfile {
   name: string;
