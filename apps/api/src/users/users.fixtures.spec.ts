@@ -1,5 +1,5 @@
 import '../load-env'; // authoritative greatsales_app DATABASE_URL (RLS-bound)
-import { execSync } from 'node:child_process';
+import { reseedTestDatabase } from '../test-support/reseed';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
@@ -22,10 +22,7 @@ import { PrismaService } from '../prisma/prisma.service';
 let prisma: PrismaService;
 
 beforeAll(async () => {
-  execSync('pnpm --filter @greatsales/db db:seed', {
-    cwd: process.cwd(),
-    stdio: 'ignore',
-  });
+  reseedTestDatabase();
   prisma = new PrismaService(process.env.DATABASE_URL as string);
   await prisma.onModuleInit();
 }, 180_000);

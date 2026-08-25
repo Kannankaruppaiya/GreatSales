@@ -1,5 +1,5 @@
 import '../load-env'; // authoritative greatsales_app DATABASE_URL (RLS-bound)
-import { execSync } from 'node:child_process';
+import { reseedTestDatabase } from '../test-support/reseed';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { RequestUser } from '@greatsales/shared';
 import { PrismaService } from '../prisma/prisma.service';
@@ -19,10 +19,7 @@ describe('UsersService (integration)', () => {
   let service: UsersService;
 
   beforeAll(async () => {
-    execSync('pnpm --filter @greatsales/db db:seed', {
-      cwd: process.cwd(),
-      stdio: 'ignore',
-    });
+    reseedTestDatabase();
     prisma = new PrismaService(process.env.DATABASE_URL as string);
     await prisma.onModuleInit();
     service = new UsersService(prisma, makeAuthService(prisma));
@@ -173,10 +170,7 @@ describe('UsersService.list — filtering, sorting, pagination', () => {
   };
 
   beforeAll(async () => {
-    execSync('pnpm --filter @greatsales/db db:seed', {
-      cwd: process.cwd(),
-      stdio: 'ignore',
-    });
+    reseedTestDatabase();
     prisma = new PrismaService(process.env.DATABASE_URL as string);
     await prisma.onModuleInit();
     service = new UsersService(prisma, makeAuthService(prisma));

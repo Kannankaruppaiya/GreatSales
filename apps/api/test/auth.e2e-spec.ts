@@ -1,5 +1,5 @@
 import '../src/load-env';
-import { execSync } from 'node:child_process';
+import { reseedTestDatabase } from '../src/test-support/reseed';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -111,10 +111,7 @@ const refreshCookie = (res: request.Response): string | undefined =>
   cookiesOf(res).find((c) => c.startsWith('gs_rt='));
 
 beforeAll(async () => {
-  execSync('pnpm --filter @greatsales/db db:seed', {
-    cwd: process.cwd(),
-    stdio: 'ignore',
-  });
+  reseedTestDatabase();
 
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],

@@ -1,5 +1,5 @@
 import '../load-env'; // authoritative greatsales_app DATABASE_URL (RLS-bound)
-import { execSync } from 'node:child_process';
+import { reseedTestDatabase } from '../test-support/reseed';
 import type { RequestUser } from '@greatsales/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { TeamsService } from './teams.service';
@@ -28,10 +28,7 @@ beforeAll(async () => {
 }, 120_000);
 
 beforeEach(() => {
-  execSync('pnpm --filter @greatsales/db db:seed', {
-    cwd: process.cwd(),
-    stdio: 'ignore',
-  });
+  reseedTestDatabase();
 }, 120_000);
 
 afterAll(async () => {

@@ -1,5 +1,5 @@
 import '../load-env'; // authoritative greatsales_app DATABASE_URL (RLS-bound)
-import { execSync } from 'node:child_process';
+import { reseedTestDatabase } from '../test-support/reseed';
 import type { RequestUser } from '@greatsales/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from './users.service';
@@ -43,10 +43,7 @@ beforeAll(async () => {
 // Every test here deactivates or deletes an admin. Without a per-test reseed
 // the second test would start from the first one's wreckage.
 beforeEach(() => {
-  execSync('pnpm --filter @greatsales/db db:seed', {
-    cwd: process.cwd(),
-    stdio: 'ignore',
-  });
+  reseedTestDatabase();
 }, 120_000);
 
 afterAll(async () => {

@@ -12,12 +12,32 @@ import * as dotenv from 'dotenv';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const candidates = [
+/**
+ * Under jest, NODE_ENV is "test" and the suites RESEED — every table is
+ * truncated. Pointing that at the developer's dev database destroys real data,
+ * which is exactly what happened once. So a test run looks for `.env.test`
+ * FIRST and only falls back to `.env` if there is none; `reseedTestDatabase()`
+ * then refuses outright unless the resolved database name ends in `_test`.
+ */
+const isTest = process.env.NODE_ENV === 'test';
+
+const testCandidates = [
+  resolve(process.cwd(), '.env.test'),
+  resolve(process.cwd(), 'apps/api/.env.test'),
+  resolve(__dirname, '../.env.test'),
+  resolve(__dirname, '../../apps/api/.env.test'),
+];
+
+const devCandidates = [
   resolve(process.cwd(), '.env'),
   resolve(process.cwd(), 'apps/api/.env'),
   resolve(__dirname, '../.env'),
   resolve(__dirname, '../../apps/api/.env'),
 ];
+
+const candidates = isTest
+  ? [...testCandidates, ...devCandidates]
+  : devCandidates;
 
 const originalDatabaseUrl = process.env.DATABASE_URL;
 const originalDirectUrl = process.env.DIRECT_URL;

@@ -1,5 +1,5 @@
 import '../load-env'; // authoritative greatsales_app DATABASE_URL (RLS-bound)
-import { execSync } from 'node:child_process';
+import { reseedTestDatabase } from '../test-support/reseed';
 import type { RequestUser } from '@greatsales/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from './users.service';
@@ -44,10 +44,7 @@ beforeAll(async () => {
 // Reseeded per test: several of these deactivate or delete seeded users, and a
 // later test reading a mutated fixture would be testing the previous test.
 beforeEach(() => {
-  execSync('pnpm --filter @greatsales/db db:seed', {
-    cwd: process.cwd(),
-    stdio: 'ignore',
-  });
+  reseedTestDatabase();
 }, 120_000);
 
 afterAll(async () => {

@@ -9,6 +9,9 @@ node_modules
 .env
 .env.local
 .env.development.local
+# NOT .env.test.local only — jest loads `.env.test`, so that real file must be
+# ignored too while `.env.test.example` stays committed.
+.env.test
 .env.test.local
 .env.production.local
 

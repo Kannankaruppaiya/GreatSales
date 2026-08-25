@@ -1,5 +1,5 @@
 import '../load-env'; // authoritative greatsales_app DATABASE_URL (RLS-bound)
-import { execSync } from 'node:child_process';
+import { reseedTestDatabase } from '../test-support/reseed';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
@@ -71,10 +71,7 @@ describe('AuthService.changePassword', () => {
   // Each test mutates the admin's credential, so the fixture is rebuilt every
   // time rather than leaving later tests to guess the current password.
   beforeEach(() => {
-    execSync('pnpm --filter @greatsales/db db:seed', {
-      cwd: process.cwd(),
-      stdio: 'ignore',
-    });
+    reseedTestDatabase();
   }, 120_000);
 
   afterAll(async () => {

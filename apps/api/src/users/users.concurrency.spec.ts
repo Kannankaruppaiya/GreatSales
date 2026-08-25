@@ -1,5 +1,5 @@
 import '../load-env'; // authoritative greatsales_app DATABASE_URL (RLS-bound)
-import { execSync } from 'node:child_process';
+import { reseedTestDatabase } from '../test-support/reseed';
 import type { RequestUser } from '@greatsales/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from './users.service';
@@ -44,10 +44,7 @@ beforeAll(async () => {
 // The starting state must be exactly two administrators, so "one succeeds" is
 // an unambiguous result rather than an artefact of leftover fixtures.
 beforeEach(() => {
-  execSync('pnpm --filter @greatsales/db db:seed', {
-    cwd: process.cwd(),
-    stdio: 'ignore',
-  });
+  reseedTestDatabase();
 }, 120_000);
 
 afterAll(async () => {
