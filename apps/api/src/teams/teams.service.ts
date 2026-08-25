@@ -8,7 +8,7 @@ import type {
   TeamUpdate,
   UserRow,
 } from '@greatsales/shared';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService, TenantPrisma } from '../prisma/prisma.service';
 import { codedBadRequest, codedNotFound } from '../common/error-codes';
 
 /**
@@ -251,7 +251,12 @@ export class TeamsService {
    * which field they got wrong.
    */
   private async assertManagerUsable(
-    db: { user: { findFirst: (a: unknown) => Promise<unknown> } },
+    // Typed as the real tenant-scoped client, not a hand-rolled
+    // `{ findFirst: (a: unknown) => ... }` shape. That shape only type-checked
+    // because non-strict mode skipped the parameter check: `unknown` is not
+    // assignable to Prisma's args type, so under `strict` the real client
+    // stopped fitting the signature written to describe it.
+    db: TenantPrisma,
     managerId: string,
   ): Promise<void> {
     const manager = await db.user.findFirst({

@@ -100,7 +100,7 @@ Update the counts as boxes are ticked. This is the honest single number for "how
 | Layer | Total | `[x]` verified | `[~]` unverified | `[-]` out of scope | Remaining |
 | --- | --- | --- | --- | --- | --- |
 | [A Database](checklists/01-DATABASE.md) | 61 | 0 | 1 | 0 | 60 |
-| [B Backend runtime](checklists/02-BACKEND.md) | 46 | 5 | 5 | 0 | 36 |
+| [B Backend runtime](checklists/02-BACKEND.md) | 46 | 6 | 6 | 0 | 34 |
 | [C API contract](checklists/03-API.md) | 425 | 0 | 0 | 0 | 425 |
 | [D Frontend web](checklists/04-FRONTEND-WEB.md) | 155 | 3 | 0 | 0 | 152 |
 | [E Mobile](checklists/05-MOBILE.md) | 26 | 0 | 0 | 0 | 26 |
@@ -114,7 +114,7 @@ Update the counts as boxes are ticked. This is the honest single number for "how
 | [M Compliance](checklists/13-COMPLIANCE.md) | 14 | 0 | 0 | 0 | 14 |
 | [N Feature slices](checklists/14-FEATURE-SLICES.md) | 170 | 0 | 63 | 0 | 107 |
 | [O Go-live](checklists/15-GO-LIVE.md) | 23 | 0 | 0 | 0 | 23 |
-| **TOTAL** | **1,069** | **17** | **75** | **0** | **977** |
+| **TOTAL** | **1,069** | **18** | **76** | **0** | **975** |
 
 Recount any file with:
 
@@ -144,7 +144,7 @@ No production launch while any of these is unticked. Full table with links:
 13. Production images built with `NODE_ENV=production` and production `VITE_*` — [K.1.2](checklists/11-BUILD-INFRA.md)
 14. Critical-journey E2E green against the deployed production build — [J.2.11](checklists/10-TESTING.md)
 15. Mobile decision made and honoured — [§E](checklists/05-MOBILE.md)
-16. API TypeScript compiles under full `strict` — [B.1.13](checklists/02-BACKEND.md)
+16. ~~API TypeScript compiles under full `strict`~~ **done** — [B.1.13](checklists/02-BACKEND.md)
 
 ---
 
