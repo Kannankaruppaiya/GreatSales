@@ -20,8 +20,7 @@
  * "1234". Login is by EMAIL in this API, so each username `u` becomes
  * `<u>@greatsales.local`.
  */
-import { readFileSync } from "node:fs";
-import path from "node:path";
+import { loadDataset } from "./dataset";
 import { assertDestructiveSeedAllowed } from "./seed-guard";
 import {
   PrismaClient,
@@ -117,7 +116,7 @@ type PmOrder = {
   history?: { fromStatus: string; toStatus: string; timestamp: number; user?: string; note?: string }[];
 };
 
-const PM = JSON.parse(readFileSync(path.join(__dirname, "promech-data.json"), "utf8")) as {
+const PM = loadDataset<{
   users: PmUser[];
   areas: string[];
   industryTaxonomy: Record<string, string[]>;
@@ -128,7 +127,7 @@ const PM = JSON.parse(readFileSync(path.join(__dirname, "promech-data.json"), "u
   payments: PmPayment[];
   leads: PmLead[];
   salesOrders: PmOrder[];
-};
+}>("promech-data.json", __dirname);
 
 // Permission catalog (global, tenant-agnostic keys).
 const PERMISSIONS: { key: string; module: string }[] = [

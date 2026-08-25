@@ -39,3 +39,12 @@ yarn-error.log*
 
 # Graphify (generated code-knowledge-graph; rebuild with `pnpm graph`)
 graphify-out/
+
+# Real-data seed datasets — NOT committed.
+# These hold a real company's records (417 customers, 141 payments, named
+# contacts with mobile numbers, extracted verbatim). Committing tenant data is
+# forbidden by checklists/07-SECURITY.md G.3.9, and git history is forever.
+# packages/db/prisma/dataset.ts explains how to obtain them; `db:seed` uses
+# synthetic fixtures and needs none of this.
+packages/db/prisma/promech-data.json
+packages/db/prisma/poc-v6-data.json

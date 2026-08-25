@@ -13,8 +13,7 @@
  * "1234". Login is by EMAIL in this API, so each POC username `u` becomes
  * `<u>@greatsales.local`.
  */
-import { readFileSync } from "node:fs";
-import path from "node:path";
+import { loadDataset } from "./dataset";
 import { assertDestructiveSeedAllowed } from "./seed-guard";
 import {
   PrismaClient,
@@ -68,7 +67,7 @@ type PocPayment = {
   reason: string;
 };
 
-const POC = JSON.parse(readFileSync(path.join(__dirname, "poc-v6-data.json"), "utf8")) as {
+const POC = loadDataset<{
   users: PocUser[];
   industries: Record<string, string[]>;
   areas: string[];
@@ -78,7 +77,7 @@ const POC = JSON.parse(readFileSync(path.join(__dirname, "poc-v6-data.json"), "u
   maps: PocMap[];
   juneProj: PocProj[];
   payments: PocPayment[];
-};
+}>("poc-v6-data.json", __dirname);
 
 // Permission catalog (global, tenant-agnostic keys).
 const PERMISSIONS: { key: string; module: string }[] = [
