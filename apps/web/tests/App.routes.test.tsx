@@ -22,6 +22,12 @@ function renderApp(initialEntries: string[]) {
   );
 }
 
+// Two lazy boundaries now sit between render and this assertion: the route
+// page, and ManagementProvider (made lazy so the POC dataset it reaches
+// stays out of the pre-login entry chunk). testing-library's default
+// findBy timeout is 1000ms and these runs measured 868-1097ms, i.e. right
+// on the line — which showed up as a flaky failure, not a consistent one.
+// The wait is explicit rather than global so the reason travels with it.
 describe("App routing", () => {
   beforeEach(() => {
     useUi.setState({ activeManagementId: DEFAULT_MANAGEMENT_ID });
@@ -43,11 +49,11 @@ describe("App routing", () => {
 
   it("owner hitting / lands on the management home", async () => {
     renderApp(["/"]);
-    expect(await screen.findByText(/super admin hub/i)).toBeInTheDocument();
+    expect(await screen.findByText(/super admin hub/i, { timeout: 5000 })).toBeInTheDocument();
   });
 
   it("opening a management renders the dashboard shell", async () => {
     renderApp([`/managements/${DEFAULT_MANAGEMENT_ID}/dashboard`]);
-    expect(await screen.findByText(/executive overview/i)).toBeInTheDocument();
+    expect(await screen.findByText(/executive overview/i, { timeout: 5000 })).toBeInTheDocument();
   });
 });

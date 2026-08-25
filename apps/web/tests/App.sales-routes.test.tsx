@@ -42,8 +42,15 @@ describe("route guards for the sales role", () => {
     "blocks a salesperson from /%s",
     async (segment) => {
       renderAt(`/managements/${DEFAULT_MANAGEMENT_ID}/${segment}`);
-      await waitFor(() =>
-        expect(screen.getByText(/access restricted/i)).toBeInTheDocument(),
+      // 5s, not the 1000ms default: two lazy boundaries now sit between render
+      // and this assertion — the route page, and ManagementProvider, which was
+      // made lazy so the POC dataset it reaches stays out of the pre-login
+      // entry chunk. Measured runs landed at 686-1097ms, i.e. right on the
+      // default line, which surfaced as a FLAKY failure rather than a
+      // consistent one.
+      await waitFor(
+        () => expect(screen.getByText(/access restricted/i)).toBeInTheDocument(),
+        { timeout: 5000 },
       );
     },
   );

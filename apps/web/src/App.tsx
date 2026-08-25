@@ -13,9 +13,20 @@ import { Skeleton } from "@/components/ui";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { RoleGuard } from "@/features/auth/RoleGuard";
 import { RequireOwner } from "@/features/auth/RequireOwner";
-import { ManagementProvider } from "@/features/management/ManagementProvider";
 import type { LoginRole } from "@/features/auth/LoginPage";
 
+// Lazy like every page, and for a stronger reason than code size: this is the
+// only static import that reaches `trackerStore` -> `data/pocSeedData.ts`, the
+// 33,000-line POC dataset of REAL customer records. As a static import it
+// landed in the ENTRY chunk, so every visitor downloaded it before logging in.
+// Lazy keeps it off the pre-auth path. It does NOT remove the data from the
+// build — that needs the management feature to stop reading a mock store at
+// all (checklists/07-SECURITY.md G.3.9, checklists/14-FEATURE-SLICES.md F14).
+const ManagementProvider = lazy(() =>
+  import("@/features/management/ManagementProvider").then((m) => ({
+    default: m.ManagementProvider,
+  })),
+);
 const LoginPage = lazy(() => import("@/features/auth/LoginPage"));
 const DashboardPage = lazy(() => import("@/features/dashboard/DashboardPage"));
 const ProjectionsPage = lazy(() => import("@/features/projections/ProjectionsPage"));
@@ -237,9 +248,11 @@ export default function App() {
           path="/managements/:managementId/*"
           element={
             <ProtectedRoute>
-              <ManagementProvider>
-                <AppLayout />
-              </ManagementProvider>
+              <Suspense fallback={<PageLoadingSkeleton />}>
+                <ManagementProvider>
+                  <AppLayout />
+                </ManagementProvider>
+              </Suspense>
             </ProtectedRoute>
           }
         />

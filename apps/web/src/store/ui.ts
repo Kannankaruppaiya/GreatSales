@@ -1,6 +1,25 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { CURRENT_MONTH } from "@/data/mock";
+
+/**
+ * The month the app opens on, as `YYYY-MM`.
+ *
+ * This used to import `CURRENT_MONTH` from `@/data/mock` — a hardcoded
+ * `"2026-08"`. Two problems, and the second is the serious one:
+ *
+ *   1. The app defaulted to one fixed month forever, so every user would open
+ *      on August 2026 for the rest of the product's life.
+ *   2. `store/ui.ts` is imported by `App.tsx`, `layout.tsx` and
+ *      `DashboardPage.tsx`, so that one string pulled `data/mock.ts` — and
+ *      through it the 33,000-line POC dataset of REAL customer records — into
+ *      the production bundle. See checklists/07-SECURITY.md G.3.9.
+ *
+ * Computing it costs nothing and removes the edge entirely.
+ */
+function currentMonth(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
 
 /** The pre-existing seeded company — the default management every session opens with.
  *  Value is a human-readable slug (matches the slug of "GreatSales Industrial Corp"). */
@@ -25,7 +44,7 @@ export const useUi = create<UiState>()(
   persist(
     (set) => ({
       activeManagementId: DEFAULT_MANAGEMENT_ID,
-      month: CURRENT_MONTH,
+      month: currentMonth(),
       principalId: "ALL",
       ownerFilter: "ALL",
       sidebarOpen: true,
@@ -45,7 +64,7 @@ export const useUi = create<UiState>()(
         const base = persistedState ?? {};
         return {
           activeManagementId: base.activeManagementId ?? DEFAULT_MANAGEMENT_ID,
-          month: base.month ?? CURRENT_MONTH,
+          month: base.month ?? currentMonth(),
           principalId: base.principalId ?? "ALL",
           ownerFilter: base.ownerFilter ?? "ALL",
           sidebarOpen: base.sidebarOpen ?? true,

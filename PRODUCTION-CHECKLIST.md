@@ -102,7 +102,7 @@ Update the counts as boxes are ticked. This is the honest single number for "how
 | [A Database](checklists/01-DATABASE.md) | 62 | 9 | 2 | 0 | 51 |
 | [B Backend runtime](checklists/02-BACKEND.md) | 46 | 6 | 6 | 0 | 34 |
 | [C API contract](checklists/03-API.md) | 425 | 0 | 0 | 0 | 425 |
-| [D Frontend web](checklists/04-FRONTEND-WEB.md) | 155 | 3 | 0 | 0 | 152 |
+| [D Frontend web](checklists/04-FRONTEND-WEB.md) | 155 | 6 | 3 | 0 | 146 |
 | [E Mobile](checklists/05-MOBILE.md) | 26 | 0 | 0 | 0 | 26 |
 | [F Shared packages](checklists/06-SHARED-PACKAGES.md) | 7 | 0 | 0 | 0 | 7 |
 | [G Security](checklists/07-SECURITY.md) | 43 | 0 | 2 | 0 | 41 |
@@ -114,7 +114,7 @@ Update the counts as boxes are ticked. This is the honest single number for "how
 | [M Compliance](checklists/13-COMPLIANCE.md) | 14 | 0 | 0 | 0 | 14 |
 | [N Feature slices](checklists/14-FEATURE-SLICES.md) | 170 | 0 | 63 | 0 | 107 |
 | [O Go-live](checklists/15-GO-LIVE.md) | 23 | 0 | 0 | 0 | 23 |
-| **TOTAL** | **1,070** | **27** | **77** | **0** | **966** |
+| **TOTAL** | **1,070** | **30** | **77** | **0** | **963** |
 
 Recount any file with:
 
@@ -156,6 +156,7 @@ Read from the repository, not from any existing report. Full detail in
 | Gap | Where | Layer file |
 | --- | --- | --- |
 | ~~Health endpoint is static~~ — **fixed & verified 2026-08-25**: `/health/ready` answers 503 with the DB down | `apps/api/src/app.service.ts` | [B.3.2](checklists/02-BACKEND.md) |
+| Real customer records ship in `apps/web/dist` — measured 50/60 sampled literals; out of the entry chunk since 2026-08-25 but still in the build | `apps/web/src/data/pocSeedData.ts` | [G.3.9](checklists/07-SECURITY.md) / [D.1.6](checklists/04-FRONTEND-WEB.md) |
 | ~~Swagger mounts unconditionally~~ — **fixed 2026-08-25**, now gated on `SWAGGER_ENABLED` and refused in production | `apps/api/src/main.ts`, `src/config/env.ts` | [B.1.7](checklists/02-BACKEND.md) |
 | API `tsconfig.json` has no `strict`; `noImplicitAny: false` | `apps/api/tsconfig.json` | [B.1.13](checklists/02-BACKEND.md) |
 | ~~API Dockerfile hardcodes `NODE_ENV=staging`~~ — **fixed & verified 2026-08-25** | `apps/api/Dockerfile` | [K.1.2](checklists/11-BUILD-INFRA.md) |
