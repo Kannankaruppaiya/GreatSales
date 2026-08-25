@@ -15,3 +15,4 @@ export * from "./role";
 export * from "./team";
 export * from "./product";
 export * from "./followup";
+export * from "./mapping";

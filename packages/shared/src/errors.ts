@@ -36,6 +36,19 @@ export const ERROR_CODES = [
   // --- Teams --------------------------------------------------------------
   "TEAM_NOT_FOUND",
 
+  // --- Mappings (customer x product) --------------------------------------
+  /** The (customer, product) pair is already mapped. Soft-deleted rows still
+   *  occupy the pair, so the duplicate may not be visible to the caller. */
+  "MAPPING_EXISTS",
+  "MAPPING_NOT_FOUND",
+  /** Projection lines still resolve their customer/product/price through this
+   *  mapping, so removing it would leave rows that cannot render. */
+  "MAPPING_IN_USE",
+  /** A sales user may not hand a mapping to, or take one from, another owner. */
+  "REASSIGN_FORBIDDEN",
+  "CUSTOMER_NOT_FOUND",
+  "PRODUCT_NOT_FOUND",
+
   // --- Auth ---------------------------------------------------------------
   /** The supplied current password did not verify. */
   "WRONG_CURRENT_PASSWORD",

@@ -17,6 +17,7 @@ import { RolesModule } from './roles/roles.module';
 import { TeamsModule } from './teams/teams.module';
 import { ProductsModule } from './products/products.module';
 import { FollowUpsModule } from './followups/followups.module';
+import { MappingsModule } from './mappings/mappings.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { FollowUpsModule } from './followups/followups.module';
     TeamsModule,
     ProductsModule,
     FollowUpsModule,
+    MappingsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
