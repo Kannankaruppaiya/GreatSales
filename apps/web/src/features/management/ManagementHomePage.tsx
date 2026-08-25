@@ -244,8 +244,7 @@ export default function ManagementHomePage() {
             <button
               type="button"
               onClick={() => {
-                logout();
-                navigate("/super-admin/login");
+                void logout().then(() => navigate("/super-admin/login"));
               }}
               title="Sign Out Super Admin"
               className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-surface-2 text-muted hover:text-rose-600 hover:border-rose-300 transition-colors cursor-pointer"

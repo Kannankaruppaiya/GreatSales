@@ -10,13 +10,19 @@ import { env } from "@/lib/config";
  * wrong — it silently breaks the "click Sign In" happy path for that role. Unit
  * tests that mock the API can't catch this (they'll happily "log in" with a
  * fictitious email), so this test reads the seed's own inputs instead:
- * `packages/db/prisma/poc-v6-data.json` (the POC v6 user list that `seed.ts`
- * inserts verbatim) plus two anchors in `seed.ts` itself — the tenant id and the
- * email format it derives from each POC username.
+ * `packages/db/prisma/poc-v6-data.json` (the POC v6 user list that
+ * `seed-poc.ts` inserts verbatim) plus two anchors in `seed-poc.ts` itself —
+ * the tenant id and the email format it derives from each POC username.
+ *
+ * Which seed this checks against follows VITE_DEMO_TENANT_ID: the prefill is
+ * pointed at the POC dataset (`pnpm --filter @greatsales/db db:seed:poc`). The
+ * deterministic two-tenant fixture used by the API tests (`db:seed`) is a
+ * different dataset with different logins — if you point the prefill there,
+ * the first assertion below fails and tells you so.
  */
 describe("demo login prefill matches an actually-seeded user", () => {
   const dbDir = path.resolve(fileURLToPath(import.meta.url), "../../../../../../packages/db/prisma");
-  const seedSource = readFileSync(path.join(dbDir, "seed.ts"), "utf8");
+  const seedSource = readFileSync(path.join(dbDir, "seed-poc.ts"), "utf8");
   const pocUsers = (
     JSON.parse(readFileSync(path.join(dbDir, "poc-v6-data.json"), "utf8")) as {
       users: { u: string; p: string; role: string; active: boolean }[];
@@ -28,7 +34,7 @@ describe("demo login prefill matches an actually-seeded user", () => {
   const domainMatch = seedSource.match(/email:\s*u\.u \+ "@([a-z0-9.-]+)"/);
   const tenantMatch = seedSource.match(/const TENANT_ID = "([^"]+)"/);
 
-  it("seed.ts seeds the tenant DEMO_TENANT_ID points at", () => {
+  it("seed-poc.ts seeds the tenant DEMO_TENANT_ID points at", () => {
     expect(tenantMatch?.[1]).toBe(env.DEMO_TENANT_ID);
   });
 

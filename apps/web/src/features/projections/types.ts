@@ -104,6 +104,14 @@ export interface AuthUser {
   username: string;
   roleId: string;
   role: string | null;
+  /**
+   * The caller's resolved permission keys, from the server. Used to decide
+   * which controls to RENDER; the server enforces every one of them
+   * independently, so this is a courtesy and never a control.
+   */
+  permissions: string[];
+  /** True while an admin-set password has not yet been replaced by the user. */
+  mustChangePassword: boolean;
 }
 
 export interface AuthTokens {

@@ -6,6 +6,7 @@ import { SalesOrderDetailModal } from "@/features/orders/SalesOrderDetailModal";
 import { useAuth } from "@/store/auth";
 import * as api from "@/lib/api";
 import type { OrderRow } from "@/features/orders/types";
+import { permissionsFor } from "../../helpers/authFixtures";
 
 function makeOrder(overrides: Partial<OrderRow> = {}): OrderRow {
   return {
@@ -47,7 +48,6 @@ function makeOrder(overrides: Partial<OrderRow> = {}): OrderRow {
 function setRole(role: "admin" | "mgmt") {
   useAuth.setState({
     accessToken: "test",
-    refreshToken: "test",
     user: {
       id: "u_1",
       tenantId: "tenant_acme",
@@ -56,6 +56,8 @@ function setRole(role: "admin" | "mgmt") {
       username: "test",
       roleId: role === "admin" ? "role_admin" : "role_mgmt",
       role,
+      permissions: permissionsFor(role),
+      mustChangePassword: false,
     },
   });
 }

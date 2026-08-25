@@ -6,13 +6,13 @@ import { AddLeadModal } from "@/features/leads/AddLeadModal";
 import { useAuth } from "@/store/auth";
 import * as api from "@/lib/api";
 import type { LeadFkOption } from "@/features/leads/AddLeadModal";
+import { permissionsFor } from "../../helpers/authFixtures";
 
 const salespeople = [{ id: "u_sales1", name: "Test Sales" }];
 
 function setRole(role: "admin" | "mgmt" | "sales", userId = "u_1") {
   useAuth.setState({
     accessToken: "test",
-    refreshToken: "test",
     user: {
       id: userId,
       tenantId: "tenant_acme",
@@ -21,6 +21,8 @@ function setRole(role: "admin" | "mgmt" | "sales", userId = "u_1") {
       username: "test",
       roleId: role === "admin" ? "role_admin" : role === "sales" ? "role_sales" : "role_mgmt",
       role,
+      permissions: permissionsFor(role),
+      mustChangePassword: false,
     },
   });
 }
@@ -47,7 +49,7 @@ describe("AddLeadModal enum payloads", () => {
   beforeEach(() => vi.restoreAllMocks());
   // The auth store is a module-level singleton — reset it after every test
   // so setRole("sales", ...) below can't leak into a test that never calls it.
-  afterEach(() => useAuth.setState({ accessToken: null, refreshToken: null, user: null }));
+  afterEach(() => useAuth.setState({ accessToken: null, user: null }));
 
   it("keeps Save enabled for sales even with an EMPTY salesperson options list", async () => {
     // Same bug shape as AddCustomerModal: a newly-onboarded salesperson has

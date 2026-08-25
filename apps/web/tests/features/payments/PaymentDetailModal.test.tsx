@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PaymentDetailModal } from "@/features/payments/PaymentDetailModal";
 import { useAuth } from "@/store/auth";
 import type { PaymentRow } from "@/features/payments/types";
+import { permissionsFor } from "../../helpers/authFixtures";
 
 function makePayment(overrides: Partial<PaymentRow> = {}): PaymentRow {
   return {
@@ -38,7 +39,6 @@ function makePayment(overrides: Partial<PaymentRow> = {}): PaymentRow {
 function setRole(role: "admin" | "mgmt" | "sales") {
   useAuth.setState({
     accessToken: "test",
-    refreshToken: "test",
     user: {
       id: "u_1",
       tenantId: "tenant_acme",
@@ -47,6 +47,8 @@ function setRole(role: "admin" | "mgmt" | "sales") {
       username: "test",
       roleId: role === "admin" ? "role_admin" : role === "sales" ? "role_sales" : "role_mgmt",
       role,
+      permissions: permissionsFor(role),
+      mustChangePassword: false,
     },
   });
 }

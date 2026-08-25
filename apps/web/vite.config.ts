@@ -16,6 +16,16 @@ export default defineConfig({
   },
   server: {
     port: 5174,
+    // The refresh token is an httpOnly cookie. Proxying /api keeps the browser
+    // on ONE origin in dev, exactly as staging does behind its reverse proxy,
+    // so the cookie stays first-party and SameSite=Lax works. Without this,
+    // dev would need SameSite=None + HTTPS.
+    proxy: {
+      "/api": {
+        target: process.env.VITE_DEV_API_TARGET || "http://localhost:3001",
+        changeOrigin: false,
+      },
+    },
     headers: {
       "X-Content-Type-Options": "nosniff",
       "X-Frame-Options": "SAMEORIGIN",

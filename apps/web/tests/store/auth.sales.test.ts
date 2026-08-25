@@ -8,7 +8,7 @@ import { useAuth } from "@/store/auth";
  */
 describe("useAuth.login for the sales role", () => {
   beforeEach(() => {
-    useAuth.setState({ accessToken: null, refreshToken: null, user: null });
+    useAuth.setState({ accessToken: null, user: null });
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
@@ -17,7 +17,6 @@ describe("useAuth.login for the sales role", () => {
         text: async () =>
           JSON.stringify({
             accessToken: "at",
-            refreshToken: "rt",
             user: {
               id: "u2",
               tenantId: "tenant_acme",
@@ -26,6 +25,8 @@ describe("useAuth.login for the sales role", () => {
               username: "megala",
               roleId: "role_sales",
               role: "sales",
+              permissions: ["customer.read", "customer.write", "lead.read", "lead.write", "projection.read", "projection.write", "order.read", "order.write", "payment.read"],
+              mustChangePassword: false,
             },
           }),
       })),

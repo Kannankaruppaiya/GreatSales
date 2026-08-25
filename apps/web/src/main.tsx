@@ -16,7 +16,7 @@ import "./index.css";
 // Clear any residual session so ProtectedRoute bounces to /login.
 function onApiError(err: unknown) {
   if (err instanceof ApiError && err.status === 401) {
-    useAuth.getState().logout();
+    void useAuth.getState().logout();
   }
 }
 
@@ -25,6 +25,11 @@ const queryClient = new QueryClient({
   mutationCache: new MutationCache({ onError: onApiError }),
   defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
 });
+
+// Restore the session from the httpOnly refresh cookie before the first paint
+// decision. Nothing secret survives a reload by design, so without this every
+// refresh would look like a sign-out.
+void useAuth.getState().bootstrap();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

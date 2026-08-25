@@ -1,7 +1,13 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
-import { useIsAuthed, useAuthRole, useIsOwner } from "@/store/auth";
+import {
+  useIsAuthed,
+  useMustChangePassword,
+  useAuthRole,
+  useIsOwner,
+  useSessionStatus,
+} from "@/store/auth";
 import { Layout } from "@/components/layout";
 import { Skeleton } from "@/components/ui";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -20,6 +26,9 @@ const FollowUpsPage = lazy(() => import("@/features/followups/FollowUpsPage"));
 const CustomersPage = lazy(() => import("@/features/customers/CustomersPage"));
 const ProductsPage = lazy(() => import("@/features/products/ProductsPage"));
 const UsersPage = lazy(() => import("@/features/users/UsersPage"));
+const ChangePasswordPage = lazy(
+  () => import("@/features/auth/ChangePasswordPage"),
+);
 const DataPage = lazy(() => import("@/features/data/DataPage"));
 const ManagementHomePage = lazy(() => import("@/features/management/ManagementHomePage"));
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage"));
@@ -42,12 +51,39 @@ function PageLoadingSkeleton() {
   );
 }
 
+/** The one route a user with a pending forced password change may reach. */
+const CHANGE_PASSWORD_PATH = "/change-password";
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const authed = useIsAuthed();
+  const status = useSessionStatus();
+  const mustChange = useMustChangePassword();
   const location = useLocation();
+
+  // On a reload the access token is gone (it is never persisted) and bootstrap
+  // is still asking the refresh cookie for a new one. Bouncing to /login here
+  // would sign out every user on every refresh.
+  if (!authed && status === "unknown") {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="grid min-h-screen place-items-center text-muted"
+      >
+        Restoring your session…
+      </div>
+    );
+  }
 
   if (!authed) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // An admin-set password is a shared secret until its owner replaces it. The
+  // server refuses every other endpoint while this flag is set, so routing
+  // anywhere else would only produce a 403 the user cannot act on.
+  if (mustChange && location.pathname !== CHANGE_PASSWORD_PATH) {
+    return <Navigate to={CHANGE_PASSWORD_PATH} replace />;
   }
 
   return <>{children}</>;
@@ -207,6 +243,17 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path={CHANGE_PASSWORD_PATH}
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoadingSkeleton />}>
+                <ChangePasswordPage />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+
         <Route path="/" element={<ProtectedRoute><RootRedirect /></ProtectedRoute>} />
         <Route path="*" element={<ProtectedRoute><RootRedirect /></ProtectedRoute>} />
       </Routes>

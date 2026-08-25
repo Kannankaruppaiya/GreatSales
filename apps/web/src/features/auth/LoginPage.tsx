@@ -15,7 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { DEFAULT_MANAGEMENT_ID } from "@/store/ui";
-import { useAuth } from "@/store/auth";
+import { useAuth, useLastTenantId } from "@/store/auth";
 import { ApiError } from "@/lib/api";
 import { env } from "@/lib/config";
 import { Button, Input } from "@/components/ui";
@@ -127,6 +127,38 @@ export const DEMO_PASSWORD_BY_ROLE: Partial<Record<LoginRole, string>> = {
   sales: env.DEMO_PASSWORD_STAFF,
 };
 
+/**
+ * Turn a failure into something the person at the keyboard can act on.
+ *
+ * The server deliberately answers every bad-credential case with one
+ * indistinguishable message, so this must not invent a more specific reason
+ * for a 401 — doing so would hand an attacker the account-enumeration signal
+ * the API was careful not to give. Only genuinely different outcomes
+ * (throttled, locked, unreachable) get their own text.
+ */
+function describeLoginFailure(err: unknown): string {
+  if (err instanceof ApiError) {
+    switch (err.status) {
+      case 401:
+        return "That email and password combination is not correct.";
+      case 403:
+        // Lockout. The server's message already says how to recover.
+        return err.message;
+      case 429:
+        return "Too many sign-in attempts. Please wait a minute and try again.";
+      case 400:
+        return err.message || "Please check the details you entered.";
+      default:
+        if (err.status >= 500) {
+          return "The server had a problem signing you in. Please try again shortly.";
+        }
+        return err.message;
+    }
+  }
+  // No HTTP status at all: DNS, offline, CORS, or the API is down.
+  return "Could not reach the server. Check your connection and try again.";
+}
+
 export default function LoginPage({ initialRole }: LoginPageProps) {
   const login = useAuth((s) => s.login);
   const navigate = useNavigate();
@@ -138,7 +170,13 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
   const demoEmail = DEMO_EMAIL_BY_ROLE[activeRole] ?? config.defaultEmail;
   const demoPassword = DEMO_PASSWORD_BY_ROLE[activeRole] ?? env.DEMO_PASSWORD;
 
-  const [tenantId, setTenantId] = useState(env.DEMO_TENANT_ID);
+  // Remembering the workspace is a convenience, not a credential — it saves a
+  // returning user retyping an opaque id they did not choose.
+  const rememberedTenant = useLastTenantId();
+
+  const [tenantId, setTenantId] = useState(
+    rememberedTenant || env.DEMO_TENANT_ID,
+  );
   const [email, setEmail] = useState(demoEmail);
   const [password, setPassword] = useState(demoPassword);
   const [busy, setBusy] = useState(false);
@@ -153,15 +191,17 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (activeRole === "super_admin") return;
+    // A second submit while the first is in flight would burn one of the five
+    // attempts the server allows per minute, for nothing.
+    if (busy) return;
 
     setBusy(true);
     setError(null);
     try {
-      await login(tenantId, email, password);
+      await login(tenantId.trim(), email.trim(), password);
       navigate(config.destination, { replace: true });
     } catch (err) {
-      if (err instanceof ApiError) setError(err.message);
-      else setError("Could not reach the API. Is it running?");
+      setError(describeLoginFailure(err));
     } finally {
       setBusy(false);
     }
@@ -331,58 +371,111 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
             /* ── Credential Form ── */
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="mb-1.5 block text-xs font-bold text-ink">Tenant ID</label>
+                <label
+                  htmlFor="login-tenant"
+                  className="mb-1.5 block text-xs font-bold text-ink"
+                >
+                  Tenant ID
+                </label>
                 <div className="flex items-stretch overflow-hidden rounded-lg border border-line focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 bg-surface shadow-xs">
                   <span className="grid place-items-center px-3 text-muted">
-                    <Building2 className="h-4 w-4" />
+                    <Building2 className="h-4 w-4" aria-hidden="true" />
                   </span>
                   <input
+                    id="login-tenant"
+                    name="tenantId"
                     value={tenantId}
                     onChange={(e) => setTenantId(e.target.value)}
                     className="h-9 flex-1 bg-surface pr-2 text-xs font-semibold text-ink focus:outline-none"
                     placeholder="tenant_acme"
+                    autoComplete="organization"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "login-error" : undefined}
+                    disabled={busy}
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-1.5 block text-xs font-bold text-ink">Email Address</label>
+                <label
+                  htmlFor="login-email"
+                  className="mb-1.5 block text-xs font-bold text-ink"
+                >
+                  Email Address
+                </label>
                 <div className="relative">
                   <Input
+                    id="login-email"
+                    name="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@company.com"
                     className="pl-9 text-xs font-semibold"
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "login-error" : undefined}
+                    disabled={busy}
                     required
                   />
-                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted pointer-events-none" />
+                  <Mail
+                    className="absolute left-3 top-2.5 h-4 w-4 text-muted pointer-events-none"
+                    aria-hidden="true"
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="mb-1.5 block text-xs font-bold text-ink">Password</label>
+                <label
+                  htmlFor="login-password"
+                  className="mb-1.5 block text-xs font-bold text-ink"
+                >
+                  Password
+                </label>
                 <div className="relative">
                   <Input
+                    id="login-password"
+                    name="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     className="pl-9 text-xs font-semibold"
+                    autoComplete="current-password"
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "login-error" : undefined}
+                    disabled={busy}
                     required
                   />
-                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted pointer-events-none" />
+                  <Lock
+                    className="absolute left-3 top-2.5 h-4 w-4 text-muted pointer-events-none"
+                    aria-hidden="true"
+                  />
                 </div>
               </div>
 
               {error && (
-                <div className="rounded-lg border border-red/40 bg-red-soft px-3 py-2 text-xs text-red">
+                <div
+                  id="login-error"
+                  role="alert"
+                  aria-live="assertive"
+                  className="rounded-lg border border-red/40 bg-red-soft px-3 py-2 text-xs text-red"
+                >
                   {error}
                 </div>
               )}
 
-              <Button type="submit" className="w-full h-10 font-bold" disabled={busy}>
+              <Button
+                type="submit"
+                className="w-full h-10 font-bold"
+                disabled={busy}
+                aria-busy={busy}
+              >
                 {busy ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Authenticating {config.label}…

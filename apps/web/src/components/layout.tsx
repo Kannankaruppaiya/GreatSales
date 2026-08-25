@@ -63,8 +63,10 @@ export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => 
   const followUpsQ = useFollowUps({ done: false });
   const pendingFollowUps = flattenFollowUps(followUpsQ.data);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    // Await it: logout revokes the session server-side, and navigating first
+    // would leave that revocation racing an unmount.
+    await logout();
     navigate("/login");
   };
   const nav = NAVS[role] ?? NAVS.admin ?? [];

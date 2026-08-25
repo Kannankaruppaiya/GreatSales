@@ -1,88 +1,189 @@
 /**
- * Real API auth state — the single source of truth for the web session. Holds the
- * JWT pair + profile from POST /auth/login, persisted so a reload keeps the session.
- * Registers the token getter the api client uses to authorize every request.
- * Derived web Role / isOwner / isAuthed are exposed as selector hooks (never stored),
- * so the token/user remain the only persisted authority.
+ * Web session state.
+ *
+ * Nothing secret is persisted. The access token and profile live in memory
+ * only; the refresh token never enters JavaScript at all — the server keeps it
+ * in an httpOnly cookie. A page reload therefore starts with no token and
+ * re-establishes the session through {@link useAuth.bootstrap}, which asks the
+ * server to rotate the cookie into a fresh access token.
+ *
+ * The single persisted value is `lastTenantId`, which is not a credential: it
+ * only saves the user retyping their workspace id on the next sign-in.
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { apiFetch, setTokenGetter, setRefreshHandler } from "@/lib/api";
 import { mapRole } from "@/lib/authRole";
-import { env } from "@/lib/config";
 import type { Role } from "@/data/constants";
-import type {
-  AuthTokens,
-  AuthUser,
-  LoginResponse,
-} from "@/features/projections/types";
+import type { AuthUser, LoginResponse } from "@/features/projections/types";
+
+/** Access-token lifecycle, so the UI can tell "signed out" from "not yet known". */
+export type SessionStatus = "unknown" | "ready";
 
 interface AuthState {
+  /** In memory only — never written to storage. */
   accessToken: string | null;
-  refreshToken: string | null;
   user: AuthUser | null;
+  /** Persisted convenience, not a secret. */
+  lastTenantId: string | null;
+  /**
+   * "unknown" until bootstrap has had its chance, so guards can hold rather
+   * than bouncing a signed-in user to the login page on every reload.
+   */
+  status: SessionStatus;
+
   login: (tenantId: string, email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: (allSessions?: boolean) => Promise<void>;
+  /** Restore a session from the refresh cookie. Safe to call more than once. */
+  bootstrap: () => Promise<void>;
 }
 
 export const useAuth = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       accessToken: null,
-      refreshToken: null,
       user: null,
+      lastTenantId: null,
+      status: "unknown",
+
       login: async (tenantId, email, password) => {
+        // tokenDelivery defaults to "cookie" server-side; stated explicitly so
+        // the browser's contract is visible at the call site.
         const res = await apiFetch<LoginResponse>("/auth/login", {
           method: "POST",
-          body: JSON.stringify({ tenantId, email, password }),
+          body: JSON.stringify({
+            tenantId,
+            email,
+            password,
+            tokenDelivery: "cookie",
+          }),
         });
         set({
           accessToken: res.accessToken,
-          refreshToken: res.refreshToken,
           user: res.user,
+          lastTenantId: tenantId,
+          status: "ready",
         });
       },
-      logout: () => set({ accessToken: null, refreshToken: null, user: null }),
+
+      logout: async (allSessions = false) => {
+        try {
+          // Server-side revocation is the point: clearing local state alone
+          // would leave the refresh token usable until it expired.
+          await apiFetch("/auth/logout", {
+            method: "POST",
+            body: JSON.stringify({ allSessions }),
+          });
+        } catch {
+          // A failed logout must still sign the user out of this device.
+        } finally {
+          set({ accessToken: null, user: null, status: "ready" });
+        }
+      },
+
+      bootstrap: async () => {
+        // A token already in memory means this tab is live; nothing to restore.
+        if (get().accessToken) {
+          set({ status: "ready" });
+          return;
+        }
+        try {
+          const tokens = await apiFetch<{ accessToken: string }>(
+            "/auth/refresh",
+            { method: "POST", body: JSON.stringify({}) },
+          );
+          set({ accessToken: tokens.accessToken });
+          const user = await apiFetch<AuthUser>("/auth/me");
+          set({ user, status: "ready" });
+        } catch {
+          // No usable cookie — an ordinary signed-out visit, not an error.
+          set({ accessToken: null, user: null, status: "ready" });
+        }
+      },
     }),
-    { name: "greatsales_auth" },
+    {
+      name: "greatsales_auth",
+      // Whitelist, not blacklist: a future field is non-persisted by default,
+      // so no credential can be added to storage by accident.
+      partialize: (s) => ({ lastTenantId: s.lastTenantId }),
+    },
   ),
 );
 
 // Wire the api client to always read the freshest token from this store.
 setTokenGetter(() => useAuth.getState().accessToken);
 
-// On 401, exchange the refresh token for a new pair via a raw fetch (never apiFetch,
-// to avoid recursing into refresh). Returns the new access token, or null → logout.
-// The API's POST /auth/refresh only re-issues the token pair (AuthTokens), not the
-// user profile, so the stored `user` is left untouched here.
+/**
+ * On 401, ask the server to rotate the refresh cookie into a new access token.
+ * Uses a raw fetch rather than apiFetch so a failing refresh cannot recurse
+ * into itself. Returns the new access token, or null → the session is over.
+ */
 setRefreshHandler(async () => {
-  const rt = useAuth.getState().refreshToken;
-  if (!rt) return null;
   try {
-    const res = await fetch(`${env.API_BASE_URL}/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: rt }),
-    });
+    const res = await fetch(
+      `${import.meta.env.VITE_API_URL || "/api/v1"}/auth/refresh`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+        credentials: "include", // the cookie IS the credential
+      },
+    );
     if (!res.ok) {
-      useAuth.getState().logout();
+      useAuth.setState({ accessToken: null, user: null, status: "ready" });
       return null;
     }
-    const data = (await res.json()) as AuthTokens;
-    useAuth.setState({
-      accessToken: data.accessToken,
-      refreshToken: data.refreshToken,
-    });
+    const data = (await res.json()) as { accessToken: string };
+    useAuth.setState({ accessToken: data.accessToken });
     return data.accessToken;
   } catch {
-    useAuth.getState().logout();
+    useAuth.setState({ accessToken: null, user: null, status: "ready" });
     return null;
   }
 });
 
-/* ── Derived session selectors (computed, never persisted) ── */
+/* ── Derived session selectors (computed, never stored) ── */
 export const useIsAuthed = (): boolean => useAuth((s) => !!s.accessToken);
+export const useSessionStatus = (): SessionStatus => useAuth((s) => s.status);
 export const useAuthUser = (): AuthUser | null => useAuth((s) => s.user);
 export const useAuthRole = (): Role => useAuth((s) => mapRole(s.user?.role));
 export const useIsOwner = (): boolean =>
   useAuth((s) => mapRole(s.user?.role) === "super_admin");
+export const useLastTenantId = (): string | null =>
+  useAuth((s) => s.lastTenantId);
+
+/** The signed-in user's id, for "is this row me?" checks. */
+export const useCurrentUserId = (): string | null =>
+  useAuth((s) => s.user?.id ?? null);
+
+/**
+ * The session's permission keys as a Set.
+ *
+ * Memoised off the identity of `user.permissions` so the Set is referentially
+ * stable across renders — returning a fresh Set every render would defeat
+ * every downstream useMemo that depends on it.
+ *
+ * PRESENTATION ONLY. Every permission here is enforced server-side and proved
+ * by a deny test; this exists so the UI does not offer buttons that would 403.
+ */
+const permissionSetCache = new WeakMap<string[], ReadonlySet<string>>();
+export const usePermissions = (): ReadonlySet<string> =>
+  useAuth((s) => {
+    const list = s.user?.permissions;
+    if (!list) return EMPTY_PERMISSIONS;
+    const cached = permissionSetCache.get(list);
+    if (cached) return cached;
+    const set: ReadonlySet<string> = new Set(list);
+    permissionSetCache.set(list, set);
+    return set;
+  });
+
+const EMPTY_PERMISSIONS: ReadonlySet<string> = new Set<string>();
+
+/** True when the session holds `key`. False before sign-in — never throws. */
+export const useHasPermission = (key: string): boolean =>
+  useAuth((s) => s.user?.permissions?.includes(key) ?? false);
+
+/** True while an admin-set password must still be replaced by the user. */
+export const useMustChangePassword = (): boolean =>
+  useAuth((s) => s.user?.mustChangePassword ?? false);

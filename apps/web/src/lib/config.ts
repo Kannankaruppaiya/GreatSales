@@ -4,15 +4,36 @@
  * Never put private API keys, database credentials or service secrets here.
  */
 
+/**
+ * Vite inlines `import.meta.env.*` at build time, so ANY literal used as a
+ * fallback here is compiled into the shipped bundle. A hardcoded default
+ * credential is therefore a credential in production, not a convenience.
+ *
+ * Demo prefill is read from the environment only, and forced empty in a
+ * production build so nothing leaks even if the vars are set on the build
+ * machine.
+ */
+const demo = (value: string | undefined): string =>
+  import.meta.env.PROD ? "" : (value ?? "");
+
 export const env = {
-  API_BASE_URL: import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1",
+  // Default to the same-origin path: the refresh token is an httpOnly cookie,
+  // and same-origin keeps it first-party (dev goes through the Vite proxy,
+  // staging through its reverse proxy).
+  API_BASE_URL: import.meta.env.VITE_API_URL || "/api/v1",
   APP_ENV: import.meta.env.VITE_APP_ENV || "development",
   APP_NAME: import.meta.env.VITE_APP_NAME || "GreatSales PRO",
   IS_PROD: import.meta.env.PROD,
   IS_DEV: import.meta.env.DEV,
-  // Demo/seed login prefill (dev only; never real secrets). Used to prefill the
-  // login form so the seeded tenant is one click away.
-  DEMO_TENANT_ID: import.meta.env.VITE_DEMO_TENANT_ID || "tenant_acme",
-  DEMO_EMAIL: import.meta.env.VITE_DEMO_EMAIL || "admin@acme.test",
-  DEMO_PASSWORD: import.meta.env.VITE_DEMO_PASSWORD || "Passw0rd!",
+
+  /** Dev-only login prefill. Empty string in production — see `demo` above. */
+  DEMO_TENANT_ID: demo(import.meta.env.VITE_DEMO_TENANT_ID),
+  DEMO_EMAIL: demo(import.meta.env.VITE_DEMO_EMAIL),
+  DEMO_PASSWORD: demo(import.meta.env.VITE_DEMO_PASSWORD),
+  /** The POC seed gives the administrator its own password; staff share one. */
+  DEMO_PASSWORD_STAFF: demo(import.meta.env.VITE_DEMO_PASSWORD_STAFF),
 } as const;
+
+/** True when this build carries any prefill at all (dev convenience active). */
+export const hasDemoPrefill = (): boolean =>
+  !import.meta.env.PROD && env.DEMO_EMAIL !== "";

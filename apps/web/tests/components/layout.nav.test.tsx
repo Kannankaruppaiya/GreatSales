@@ -17,7 +17,6 @@ describe("Sidebar links", () => {
     useUi.setState({ activeManagementId: DEFAULT_MANAGEMENT_ID, sidebarOpen: true });
     useAuth.setState({
       accessToken: "test",
-      refreshToken: "test",
       user: {
         id: "u1",
         tenantId: "tenant_acme",
@@ -26,6 +25,8 @@ describe("Sidebar links", () => {
         username: "admin",
         roleId: "role_admin",
         role: "admin",
+        permissions: ["customer.read", "customer.write", "lead.read", "lead.write", "projection.read", "projection.write", "order.read", "order.write", "payment.read", "payment.write", "user.manage", "role.manage", "report.view"],
+        mustChangePassword: false,
       },
     });
   });

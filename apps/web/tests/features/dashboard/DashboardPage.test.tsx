@@ -7,6 +7,7 @@ import { useUi } from "@/store/ui";
 import * as api from "@/lib/api";
 import type { ProjectionListResponse } from "@/features/projections/types";
 import type { LeadRow } from "@/features/leads/types";
+import { permissionsFor } from "../../helpers/authFixtures";
 
 function makeLead(overrides: Partial<LeadRow>): LeadRow {
   return {
@@ -43,7 +44,6 @@ function makeLead(overrides: Partial<LeadRow>): LeadRow {
 function setRole(role: "admin" | "mgmt") {
   useAuth.setState({
     accessToken: "test",
-    refreshToken: "test",
     user: {
       id: "u_1",
       tenantId: "tenant_acme",
@@ -52,6 +52,8 @@ function setRole(role: "admin" | "mgmt") {
       username: "test",
       roleId: role === "admin" ? "role_admin" : "role_mgmt",
       role,
+      permissions: permissionsFor(role),
+      mustChangePassword: false,
     },
   });
 }

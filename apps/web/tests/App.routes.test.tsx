@@ -27,7 +27,6 @@ describe("App routing", () => {
     useUi.setState({ activeManagementId: DEFAULT_MANAGEMENT_ID });
     useAuth.setState({
       accessToken: "test",
-      refreshToken: "test",
       user: {
         id: "u1",
         tenantId: "tenant_acme",
@@ -36,6 +35,8 @@ describe("App routing", () => {
         username: "owner",
         roleId: "role_super_admin",
         role: "super_admin",
+        permissions: ["customer.read", "customer.write", "lead.read", "lead.write", "projection.read", "projection.write", "order.read", "order.write", "payment.read", "payment.write", "user.manage", "role.manage", "report.view"],
+        mustChangePassword: false,
       },
     });
   });

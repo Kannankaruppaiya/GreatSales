@@ -7,6 +7,8 @@ import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import { useAuth } from "@/store/auth";
 import * as api from "@/lib/api";
 import type { ProjectionListResponse } from "@/features/projections/types";
+import { permissionsFor } from "../../helpers/authFixtures";
+
 
 const LINE = {
   id: "pl1",
@@ -48,7 +50,6 @@ const RESPONSE: ProjectionListResponse = {
 function setRole(role: "admin" | "sales") {
   useAuth.setState({
     accessToken: "test",
-    refreshToken: "test",
     user: {
       id: "u2",
       tenantId: "tenant_acme",
@@ -57,6 +58,8 @@ function setRole(role: "admin" | "sales") {
       username: "megala",
       roleId: `role_${role}`,
       role,
+      permissions: permissionsFor(role),
+      mustChangePassword: false,
     },
   });
 }

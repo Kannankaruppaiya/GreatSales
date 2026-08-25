@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import { forwardRef, useEffect } from "react";
+import { forwardRef, useEffect, useId } from "react";
 import { createPortal } from "react-dom";
 import { X, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -372,17 +372,26 @@ export function Dialog({
   footer?: React.ReactNode;
   maxWidth?: string;
 }) {
+  const titleId = useId();
+  const descriptionId = useId();
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    if (open) {
-      document.addEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "hidden";
-    }
+    if (!open) return;
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+
+    // Return focus where it came from on close. Without this a keyboard user
+    // is dropped at the top of the document every time a dialog closes, and
+    // has to tab back to where they were.
+    const opener = document.activeElement as HTMLElement | null;
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "unset";
+      opener?.focus?.();
     };
   }, [open, onClose]);
 
@@ -397,6 +406,13 @@ export function Dialog({
       />
       {/* Centered Modal Content box */}
       <div
+        // Announced as a modal dialog and named by its own heading, so a
+        // screen reader says what opened instead of reading an unlabelled
+        // group. aria-modal tells assistive tech the content behind is inert.
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined}
         className={cn(
           "relative z-50 my-auto flex max-h-[88vh] w-full flex-col rounded-2xl border border-line bg-surface shadow-2xl animate-in zoom-in-95 duration-150 overflow-hidden",
           maxWidth,
@@ -404,8 +420,8 @@ export function Dialog({
       >
         <div className="flex shrink-0 items-start justify-between border-b border-line px-6 py-4 bg-surface-2/80">
           <div className="min-w-0 pr-4">
-            <h3 className="text-base font-bold text-ink tracking-tight font-sans">{title}</h3>
-            {description && <p className="text-xs text-muted mt-0.5 leading-normal font-medium">{description}</p>}
+            <h3 id={titleId} className="text-base font-bold text-ink tracking-tight font-sans">{title}</h3>
+            {description && <p id={descriptionId} className="text-xs text-muted mt-0.5 leading-normal font-medium">{description}</p>}
           </div>
           <button
             onClick={onClose}

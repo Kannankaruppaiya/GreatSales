@@ -11,6 +11,13 @@ export class ApiError extends Error {
     public readonly status: number,
     message: string,
     public readonly details?: unknown,
+    /**
+     * Stable machine-readable cause from the API envelope, e.g.
+     * "LAST_ADMIN_PROTECTED". Branch on THIS, never on `message` — the
+     * wording is for humans and may be reworded at any time. Undefined for
+     * unexpected 500s, which carry no business meaning.
+     */
+    public readonly code?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -61,7 +68,14 @@ async function doFetch<T>(
   const token = overrideToken ?? tokenGetter();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const res = await fetch(`${env.API_BASE_URL}${path}`, { ...init, headers });
+  // `credentials: "include"` is mandatory, not optional: the refresh token
+  // lives in an httpOnly cookie, so without it the session cannot be renewed
+  // and the browser would never store the cookie in the first place.
+  const res = await fetch(`${env.API_BASE_URL}${path}`, {
+    ...init,
+    headers,
+    credentials: "include",
+  });
 
   if (res.status === 401 && !isRetry) {
     const fresh = await refreshOnce();
@@ -72,10 +86,14 @@ async function doFetch<T>(
   const body: unknown = text ? JSON.parse(text) : null;
 
   if (!res.ok) {
-    const b = body as { message?: string | string[]; details?: unknown } | null;
+    const b = body as {
+      message?: string | string[];
+      details?: unknown;
+      code?: string;
+    } | null;
     const raw = b?.message ?? res.statusText;
     const message = Array.isArray(raw) ? raw.join(", ") : raw;
-    throw new ApiError(res.status, message, b?.details);
+    throw new ApiError(res.status, message, b?.details, b?.code);
   }
   return body as T;
 }

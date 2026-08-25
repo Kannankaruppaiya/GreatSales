@@ -31,7 +31,6 @@ describe("Sidebar for the sales role", () => {
     });
     useAuth.setState({
       accessToken: "test",
-      refreshToken: "test",
       user: {
         id: "u2",
         tenantId: "tenant_acme",
@@ -40,6 +39,8 @@ describe("Sidebar for the sales role", () => {
         username: "megala",
         roleId: "role_sales",
         role: "sales",
+        permissions: ["customer.read", "customer.write", "lead.read", "lead.write", "projection.read", "projection.write", "order.read", "order.write", "payment.read"],
+        mustChangePassword: false,
       },
     });
   });

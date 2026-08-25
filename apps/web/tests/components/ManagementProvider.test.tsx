@@ -5,11 +5,12 @@ import { ManagementProvider } from "@/features/management/ManagementProvider";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import { useAuth } from "@/store/auth";
 import { useManagementStore, emptyDataset } from "@/features/management/managementStore";
+import { permissionsFor } from "../helpers/authFixtures";
+
 
 function seedAuth(role: "super_admin" | "admin") {
   useAuth.setState({
     accessToken: "test",
-    refreshToken: "test",
     user: {
       id: "u1",
       tenantId: "tenant_acme",
@@ -18,6 +19,8 @@ function seedAuth(role: "super_admin" | "admin") {
       username: "user",
       roleId: `role_${role}`,
       role,
+      permissions: permissionsFor(role),
+      mustChangePassword: false,
     },
   });
 }

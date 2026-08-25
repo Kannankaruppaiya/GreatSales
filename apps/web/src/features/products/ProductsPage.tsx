@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Building,
   Loader2,
   Package,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
@@ -12,16 +13,18 @@ import { useAuthRole } from "@/store/auth";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api";
-import { Button, Card } from "@/components/ui";
+import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import { QueryBoundary } from "@/components/common/QueryBoundary";
 import { AddProductModal } from "@/features/products/AddProductModal";
 import { AddPrincipalModal } from "@/features/products/AddPrincipalModal";
+import { EditProductModal } from "@/features/products/EditProductModal";
 import {
   useProducts,
   usePrincipals,
   useUpdateProduct,
   flattenProducts,
 } from "@/features/products/queries";
+import type { ProductRow } from "@/features/products/types";
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -38,8 +41,10 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
   const [principalId, setPrincipalId] = useState("ALL");
+  const [division, setDivision] = useState("ALL");
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showAddPrincipal, setShowAddPrincipal] = useState(false);
+  const [editProduct, setEditProduct] = useState<ProductRow | null>(null);
 
   const canEdit = role !== "mgmt";
 
@@ -58,8 +63,29 @@ export default function ProductsPage() {
 
   const products = flattenProducts(q.data);
 
+  // Division filter options are derived from the rows already loaded — there is
+  // no dedicated endpoint and `ProductListQuerySchema` has no `division` param,
+  // same pattern as CustomersPage's category filter. NOTE: because the list is
+  // cursor-paginated, this narrows only the pages fetched so far; push it into
+  // the API query when the catalog outgrows a few pages.
+  const divisionOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of products) if (p.division) set.add(p.division);
+    return [...set].sort();
+  }, [products]);
+
+  const visibleProducts = useMemo(
+    () => (division === "ALL" ? products : products.filter((p) => p.division === division)),
+    [products, division],
+  );
+
   return (
     <div className="space-y-4">
+      <PageHeader
+        title="Product & Principal Master Catalog"
+        subtitle="Catalog of industrial lubricants, sealants, fluids, and OEM principal brand distributions"
+      />
+
       {/* 1. Principal Master Card */}
       <Card className="p-0 overflow-hidden shadow-xs border-line bg-surface">
         <div className="p-3.5 border-b border-line flex items-center justify-between flex-wrap gap-2">
@@ -161,10 +187,24 @@ export default function ProductsPage() {
                   </option>
                 ))}
               </select>
+
+              <select
+                value={division}
+                onChange={(e) => setDivision(e.target.value)}
+                aria-label="Filter products by division"
+                className="rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
+              >
+                <option value="ALL">All Product Divisions</option>
+                {divisionOptions.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <span className="text-xs text-muted font-semibold px-1">
-              {products.length} {products.length === 1 ? "product" : "products"}
+              {visibleProducts.length} {visibleProducts.length === 1 ? "product" : "products"}
             </span>
 
             <Button
@@ -198,82 +238,110 @@ export default function ProductsPage() {
             isLoading={q.isLoading}
             isError={q.isError}
             error={q.error}
-            isEmpty={products.length === 0}
+            isEmpty={visibleProducts.length === 0}
             emptyLabel="No catalog products match your filter criteria."
           >
             <table className="w-full text-left text-xs border-collapse">
               <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs">
                 <tr>
-                  <th className="py-2.5 px-3">Brand</th>
-                  <th className="py-2.5 px-3">Sub Product</th>
-                  <th className="py-2.5 px-3">SKU / Code</th>
+                  <th className="py-2.5 px-3 w-[120px]">SKU Code</th>
+                  <th className="py-2.5 px-3 min-w-[220px]">Product Name</th>
+                  <th className="py-2.5 px-3">Principal Brand</th>
                   <th className="py-2.5 px-3">Division</th>
-                  <th className="py-2.5 px-3">Unit</th>
-                  <th className="py-2.5 px-3 text-right">Selling Price ₹</th>
+                  <th className="py-2.5 px-3 text-center">Unit (UOM)</th>
+                  <th className="py-2.5 px-3 text-right">List Price ₹</th>
+                  {canEdit && <th className="py-2.5 px-3 text-center w-[70px]">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-line/60">
-                {products.map((p) => (
+                {visibleProducts.map((p) => (
                   <tr key={p.id} className="hover:bg-surface-2/60 transition-colors">
-                    <td className="py-2 px-3 text-muted text-xs font-semibold whitespace-nowrap">
-                      {p.principalName}
-                    </td>
-                    <td className="py-2 px-3 font-bold text-ink flex items-center gap-1.5">
-                      <Package className="h-3.5 w-3.5 text-brand/60 shrink-0" />
-                      <span>{p.name}</span>
-                    </td>
-                    <td className="py-2 px-3 font-mono text-[11px] text-muted whitespace-nowrap">
-                      {p.sku || "—"}
-                    </td>
-                    <td className="py-2 px-3">
-                      {p.division ? (
-                        <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold bg-surface-2 border border-line text-ink">
-                          {p.division}
+                    <td className="py-2 px-3 whitespace-nowrap">
+                      {p.sku ? (
+                        <span className="inline-block rounded border border-brand/25 bg-brand-soft px-2 py-0.5 font-mono text-[11px] font-bold text-brand-ink">
+                          {p.sku}
                         </span>
                       ) : (
-                        "—"
+                        <span className="font-mono text-[11px] text-muted">—</span>
                       )}
                     </td>
+                    <td className="py-2 px-3 font-bold text-ink">
+                      <span className="flex items-center gap-1.5">
+                        <Package className="h-3.5 w-3.5 text-brand/60 shrink-0" />
+                        <span>{p.name}</span>
+                      </span>
+                    </td>
+                    <td className="py-2 px-3 whitespace-nowrap">
+                      <Badge variant="brand">{p.principalName}</Badge>
+                    </td>
                     <td className="py-2 px-3 text-muted text-xs font-medium">
-                      {p.unit || "Ltr"}
+                      {p.division || "General"}
+                    </td>
+                    <td className="py-2 px-3 text-center whitespace-nowrap">
+                      <span className="inline-block rounded border border-line bg-surface-2 px-2 py-0.5 font-mono text-[10px] font-bold text-ink">
+                        {p.unit || "Ltr"}
+                      </span>
                     </td>
                     <td className="py-2 px-3 text-right">
                       {canEdit ? (
-                        <input
-                          type="number"
-                          step="0.01"
-                          aria-label={`Price for ${p.name}`}
-                          value={
-                            editingPriceId === p.id
-                              ? priceDraft
-                              : p.basePrice != null
-                                ? String(p.basePrice)
-                                : ""
-                          }
-                          placeholder="—"
-                          onFocus={() => {
-                            setEditingPriceId(p.id);
-                            setPriceDraft(p.basePrice != null ? String(p.basePrice) : "");
-                          }}
-                          onChange={(e) => setPriceDraft(e.target.value)}
-                          onBlur={(e) => {
-                            const val = e.target.value === "" ? null : Number(e.target.value);
-                            if (val !== p.basePrice) {
-                              update.mutate({ id: p.id, patch: { basePrice: val } });
+                        <span className="inline-flex items-center justify-end gap-1">
+                          <input
+                            type="number"
+                            step="0.01"
+                            aria-label={`List price for ${p.name}`}
+                            value={
+                              editingPriceId === p.id
+                                ? priceDraft
+                                : p.basePrice != null
+                                  ? String(p.basePrice)
+                                  : ""
                             }
-                            setEditingPriceId(null);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                          }}
-                          className="w-24 rounded border border-line bg-surface px-2 py-1 text-right text-xs font-bold tabular-nums focus:outline-brand focus:border-brand"
-                        />
-                      ) : (
-                        <span className="tabular-nums font-bold text-ink">
-                          {p.basePrice != null ? inr(p.basePrice) : "—"}
+                            placeholder="Custom"
+                            onFocus={() => {
+                              setEditingPriceId(p.id);
+                              setPriceDraft(p.basePrice != null ? String(p.basePrice) : "");
+                            }}
+                            onChange={(e) => setPriceDraft(e.target.value)}
+                            onBlur={(e) => {
+                              const val = e.target.value === "" ? null : Number(e.target.value);
+                              if (val !== p.basePrice) {
+                                update.mutate({ id: p.id, patch: { basePrice: val } });
+                              }
+                              setEditingPriceId(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                            }}
+                            className="w-24 rounded border border-line bg-surface px-2 py-1 text-right text-xs font-bold tabular-nums focus:outline-brand focus:border-brand"
+                          />
+                          <span className="text-[10px] font-medium text-muted w-8 text-left">
+                            / {p.unit || "Ltr"}
+                          </span>
                         </span>
+                      ) : p.basePrice != null ? (
+                        <span className="tabular-nums font-bold text-ink">
+                          {inr(p.basePrice)}{" "}
+                          <span className="text-[10px] font-medium text-muted">
+                            / {p.unit || "Ltr"}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-muted">Custom</span>
                       )}
                     </td>
+                    {canEdit && (
+                      <td className="py-2 px-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => setEditProduct(p)}
+                          title={`Edit ${p.name}`}
+                          aria-label={`Edit ${p.name}`}
+                          className="h-7 w-7 rounded-md border border-line bg-surface inline-flex items-center justify-center text-muted hover:text-brand hover:border-brand/40 hover:bg-brand-soft transition-colors shadow-2xs cursor-pointer"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -313,6 +381,13 @@ export default function ProductsPage() {
       <AddPrincipalModal
         open={showAddPrincipal}
         onClose={() => setShowAddPrincipal(false)}
+      />
+
+      <EditProductModal
+        open={!!editProduct}
+        onClose={() => setEditProduct(null)}
+        product={editProduct}
+        principals={principals}
       />
     </div>
   );
