@@ -82,6 +82,58 @@ pnpm --filter @greatsales/db db:deploy    # prisma migrate deploy (idempotent)
 - Do **not** run `db:seed` against production. Onboard tenants via the documented
   provisioning flow.
 
+### F12 index migration (`20260823120000_f12_users_roles_teams`)
+
+This one replaces two `UNIQUE` constraints on `"User"` with **partial** unique
+indexes, so a soft-deleted user frees their email and username for reuse.
+
+**Running it.** Prisma wraps every migration in a transaction, so the index
+builds take a brief `ACCESS EXCLUSIVE` lock on `"User"`. On a table of
+thousands of rows per tenant that is single-digit milliseconds and safe inline.
+
+If `"User"` has grown past roughly a million rows, do **not** run the file
+directly — build the indexes without blocking writes first, then tell Prisma
+the migration is already applied:
+
+```sql
+-- Outside any transaction, as the superuser role:
+CREATE UNIQUE INDEX CONCURRENTLY "User_tenantId_email_live_key"
+  ON "User" ("tenantId", "email") WHERE "deletedAt" IS NULL;
+CREATE UNIQUE INDEX CONCURRENTLY "User_tenantId_username_live_key"
+  ON "User" ("tenantId", "username") WHERE "deletedAt" IS NULL;
+CREATE INDEX CONCURRENTLY "User_tenantId_deletedAt_name_idx"
+  ON "User" ("tenantId", "deletedAt", "name");
+ALTER TABLE "User" ADD COLUMN "mustChangePassword" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "User" DROP CONSTRAINT IF EXISTS "User_tenantId_email_key";
+ALTER TABLE "User" DROP CONSTRAINT IF EXISTS "User_tenantId_username_key";
+```
+
+```bash
+pnpm --filter @greatsales/db exec prisma migrate resolve \
+  --applied 20260823120000_f12_users_roles_teams
+```
+
+A `CONCURRENTLY` build can fail and leave an `INVALID` index behind. Check
+before moving on, and drop-and-retry any that did not finish:
+
+```sql
+SELECT indexrelid::regclass FROM pg_index WHERE NOT indisvalid;
+```
+
+**Rolling it back.** Reverting to the plain `UNIQUE` constraints **fails** if a
+soft-deleted row shares an email or username with a live row — which is exactly
+the state this migration makes legal, so it is likely by the time anyone wants
+to revert. Find the collisions first:
+
+```sql
+SELECT "tenantId", "email", count(*) FROM "User" GROUP BY 1, 2 HAVING count(*) > 1;
+SELECT "tenantId", "username", count(*) FROM "User" GROUP BY 1, 2 HAVING count(*) > 1;
+```
+
+Hard-delete or re-key the soft-deleted duplicate in each pair before restoring
+the constraints. There is no automatic path: which of the two rows should keep
+the address is a business decision, not a schema one.
+
 ## Release process
 
 1. Merge to `main` with `check-types`, `lint`, and `build` green.
