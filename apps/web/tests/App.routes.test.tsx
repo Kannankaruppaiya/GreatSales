@@ -56,4 +56,15 @@ describe("App routing", () => {
     renderApp([`/managements/${DEFAULT_MANAGEMENT_ID}/dashboard`]);
     expect(await screen.findByText(/executive overview/i, undefined, { timeout: 5000 })).toBeInTheDocument();
   });
+
+  // F5. The route is deliberately NOT behind a RoleGuard — every role that can
+  // reach the app holds projection.read, and the server scopes a sales user to
+  // their own mappings. A guard here would only hide the page from the people
+  // who maintain it, so this asserts the route resolves rather than 404s.
+  it("the mappings route renders the mapping page", async () => {
+    renderApp([`/managements/${DEFAULT_MANAGEMENT_ID}/mappings`]);
+    expect(
+      await screen.findByText(/customer & product mapping/i, undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
+  });
 });

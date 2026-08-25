@@ -274,6 +274,7 @@ export const NAVS: Partial<Record<Role, { key: string; label: string }[]>> = {
     { key: "followups", label: "Follow-ups" },
     { key: "customers", label: "Customers" },
     { key: "products", label: "Products" },
+    { key: "mappings", label: "Customer Mapping" },
     { key: "users", label: "Users" },
     { key: "data", label: "Data" },
   ],
@@ -286,6 +287,7 @@ export const NAVS: Partial<Record<Role, { key: string; label: string }[]>> = {
     { key: "followups", label: "Follow-ups" },
     { key: "customers", label: "Customers" },
     { key: "products", label: "Products" },
+    { key: "mappings", label: "Customer Mapping" },
     { key: "users", label: "Users" },
     { key: "data", label: "Data" },
   ],
@@ -298,6 +300,7 @@ export const NAVS: Partial<Record<Role, { key: string; label: string }[]>> = {
     { key: "followups", label: "Follow-ups" },
     { key: "customers", label: "Customers" },
     { key: "products", label: "Products" },
+    { key: "mappings", label: "Customer Mapping" },
   ],
   sales: [
     { key: "dashboard", label: "Dashboard" },
@@ -307,6 +310,7 @@ export const NAVS: Partial<Record<Role, { key: string; label: string }[]>> = {
     { key: "payments", label: "Payments Follow-up" },
     { key: "followups", label: "Follow-ups" },
     { key: "customers", label: "My Customers" },
+    { key: "mappings", label: "My Customer Mapping" },
   ],
 };
 

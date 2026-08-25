@@ -33,6 +33,7 @@ const PaymentsPage = lazy(() => import("@/features/payments/PaymentsPage"));
 const FollowUpsPage = lazy(() => import("@/features/followups/FollowUpsPage"));
 const CustomersPage = lazy(() => import("@/features/customers/CustomersPage"));
 const ProductsPage = lazy(() => import("@/features/products/ProductsPage"));
+const MappingsPage = lazy(() => import("@/features/mappings/MappingsPage"));
 const UsersPage = lazy(() => import("@/features/users/UsersPage"));
 const ChangePasswordPage = lazy(
   () => import("@/features/auth/ChangePasswordPage"),
@@ -173,6 +174,11 @@ function AppLayout() {
             <Route path="payments" element={<PaymentsPage />} />
             <Route path="followups" element={<FollowUpsPage />} />
             <Route path="customers" element={<CustomersPage />} />
+            {/* No RoleGuard: every role that can reach this app holds
+                projection.read, and the server scopes a sales user to their own
+                mappings. Gating it here would only hide it from the people who
+                maintain it. */}
+            <Route path="mappings" element={<MappingsPage />} />
             <Route
               path="products"
               element={

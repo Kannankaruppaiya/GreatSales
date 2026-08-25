@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Database,
   LayoutDashboard,
+  Link2,
   LogOut,
   Menu,
   Plus,
@@ -48,6 +49,7 @@ const ICONS: Record<string, LucideIcon> = {
   followups: CalendarClock,
   customers: Building2,
   products: Boxes,
+  mappings: Link2,
   users: UsersRound,
   data: Database,
 };
@@ -196,6 +198,7 @@ const TITLES: Record<string, string> = {
   followups: "Actionable Timeline",
   customers: "Customer Master Directory",
   products: "Product & Principal Catalog",
+  mappings: "Customer & Product Mapping",
   users: "Team & User Governance",
   data: "Data Administration & Periods",
 };
