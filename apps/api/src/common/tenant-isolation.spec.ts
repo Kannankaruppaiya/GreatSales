@@ -250,6 +250,68 @@ describe('tenant isolation', () => {
       expect([...new Set(rows.map((r) => r.tenantId))]).toEqual([TENANT_A]);
     });
 
+    it('EVERY protected table keeps the two tenants disjoint — including sub-resources', async () => {
+      // The named resources above cover the 11 top-level ones. Sub-resources
+      // (SalesOrderItem, LeadProduct, CustomerContact, OrderStatusHistory,
+      // PaymentFollowup, RolePermission, ...) are protected by policies that
+      // reach through a parent with EXISTS, which is a different and more
+      // fragile shape — a wrong join there leaks quietly.
+      //
+      // Enumerated from pg_class rather than listed, so a table added later is
+      // covered the day it appears instead of the day someone remembers.
+      const tables = await prisma.$queryRaw<{ relname: string }[]>`
+        SELECT c.relname
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity
+          AND EXISTS (SELECT 1 FROM information_schema.columns col
+                       WHERE col.table_name = c.relname AND col.column_name = 'id')
+        ORDER BY c.relname`;
+
+      expect(tables.length).toBeGreaterThan(10); // the query itself must work
+
+      const idsFor = async (tenant: string, table: string) => {
+        // Identifier comes from pg_catalog, never from input, and is checked
+        // against a strict pattern before interpolation regardless.
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(table)) {
+          throw new Error(`refusing to interpolate table name: ${table}`);
+        }
+        return prisma.transactionForTenant(tenant, (tx) =>
+          tx.$queryRawUnsafe<{ id: string }[]>(`SELECT "id" FROM "${table}"`),
+        );
+      };
+
+      const overlaps: string[] = [];
+      const bothEmpty: string[] = [];
+
+      for (const { relname } of tables) {
+        const [a, b] = await Promise.all([
+          idsFor(TENANT_A, relname),
+          idsFor(TENANT_B, relname),
+        ]);
+        if (a.length === 0 && b.length === 0) {
+          bothEmpty.push(relname); // no fixture — proves nothing either way
+          continue;
+        }
+        const bIds = new Set(b.map((r) => r.id));
+        const shared = a.map((r) => r.id).filter((id) => bIds.has(id));
+        if (shared.length > 0) {
+          overlaps.push(`${relname} (${shared.length} rows visible to both)`);
+        }
+      }
+
+      expect(overlaps).toEqual([]);
+
+      // Reported, not asserted: an empty table is not evidence of isolation.
+      // This keeps the gap visible instead of letting a silent pass look like
+      // coverage.
+      if (bothEmpty.length > 0) {
+        console.warn(
+          `tenant-isolation: no fixtures, so NOT proven for: ${bothEmpty.join(', ')}`,
+        );
+      }
+    }, 120_000);
+
     it('an unset tenant context sees nothing — policies fail closed', async () => {
       // The base client never sets app.tenant_id. If policies failed OPEN this
       // would return every tenant's rows at once.

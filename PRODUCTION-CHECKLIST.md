@@ -99,7 +99,7 @@ Update the counts as boxes are ticked. This is the honest single number for "how
 
 | Layer | Total | `[x]` verified | `[~]` unverified | `[-]` out of scope | Remaining |
 | --- | --- | --- | --- | --- | --- |
-| [A Database](checklists/01-DATABASE.md) | 62 | 7 | 2 | 0 | 53 |
+| [A Database](checklists/01-DATABASE.md) | 62 | 9 | 2 | 0 | 51 |
 | [B Backend runtime](checklists/02-BACKEND.md) | 46 | 6 | 6 | 0 | 34 |
 | [C API contract](checklists/03-API.md) | 425 | 0 | 0 | 0 | 425 |
 | [D Frontend web](checklists/04-FRONTEND-WEB.md) | 155 | 3 | 0 | 0 | 152 |
@@ -114,7 +114,7 @@ Update the counts as boxes are ticked. This is the honest single number for "how
 | [M Compliance](checklists/13-COMPLIANCE.md) | 14 | 0 | 0 | 0 | 14 |
 | [N Feature slices](checklists/14-FEATURE-SLICES.md) | 170 | 0 | 63 | 0 | 107 |
 | [O Go-live](checklists/15-GO-LIVE.md) | 23 | 0 | 0 | 0 | 23 |
-| **TOTAL** | **1,070** | **25** | **77** | **0** | **968** |
+| **TOTAL** | **1,070** | **27** | **77** | **0** | **966** |
 
 Recount any file with:
 
@@ -130,7 +130,7 @@ No production launch while any of these is unticked. Full table with links:
 [O.1 in `15-GO-LIVE.md`](checklists/15-GO-LIVE.md).
 
 1. Runtime DB role cannot bypass RLS, proven in production — [A.3.1](checklists/01-DATABASE.md)
-2. Every tenant query explicitly tenant-filtered in addition to RLS — [A.3.8](checklists/01-DATABASE.md)
+2. ~~Every tenant query explicitly tenant-filtered in addition to RLS~~ **done** — a fail-OPEN guard was found and fixed — [A.3.8](checklists/01-DATABASE.md)
 3. ~~Cross-tenant read **and write** denied, proven by test~~ **done** — 32 assertions, 11 resources — [A.3.10](checklists/01-DATABASE.md)
 4. A backup has actually been restored and verified — [L.3](checklists/12-DATA-OPERATIONS.md)
 5. Rollback rehearsed, not just documented — [K.2.7](checklists/11-BUILD-INFRA.md)

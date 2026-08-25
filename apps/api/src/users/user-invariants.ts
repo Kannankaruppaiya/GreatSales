@@ -199,14 +199,21 @@ export interface RawQueryable {
 /** Does this role grant the permission that makes a user an administrator? */
 async function roleGrantsAdmin(
   tx: RawQueryable,
+  tenantId: string,
   roleId: string | null | undefined,
 ): Promise<boolean> {
   if (!roleId) return false;
+  // Scoped through "Role", not "RolePermission": the join table has no
+  // tenantId of its own (it inherits tenancy from its parent role, which is how
+  // its RLS policy is written too).
   const rows = await tx.$queryRaw<{ roleId: string }[]>`
     SELECT rp."roleId"
     FROM "RolePermission" rp
+    JOIN "Role" r ON r."id" = rp."roleId"
     JOIN "Permission" p ON p."id" = rp."permissionId"
-    WHERE rp."roleId" = ${roleId} AND p."key" = ${ADMIN_PERMISSION}
+    WHERE rp."roleId" = ${roleId}
+      AND r."tenantId" = ${tenantId}
+      AND p."key" = ${ADMIN_PERMISSION}
     LIMIT 1
   `;
   return rows.length > 0;
@@ -227,12 +234,30 @@ async function roleGrantsAdmin(
  * function covers deactivation, deletion, and demotion — all three are just
  * different ways of the target ceasing to be an administrator.
  *
- * RLS note: this runs inside `forTenant(...).$transaction`, so `app.tenant_id`
- * is already set and the policies filter "User" and "RolePermission"
- * automatically. "Permission" is a global master table with no RLS by design.
+ * TENANT SCOPING — why `tenantId` is a parameter and not left to RLS.
+ *
+ * This runs inside `forTenant(...).$transaction`, so `app.tenant_id` IS set and
+ * the policies would filter "User" and "RolePermission" on their own. Relying
+ * on that alone was a fail-OPEN hazard, not merely a style point:
+ *
+ *   `RawQueryable` is structural — anything with a `$queryRaw` satisfies it,
+ *   including a client with no tenant context. With `app.tenant_id` unset, RLS
+ *   returns zero rows, `targetIsAdmin` comes back empty, and this function
+ *   concludes "the target was never an administrator" and RETURNS, allowing the
+ *   very write it exists to refuse. The `others` check fails closed; this one
+ *   did not.
+ *
+ * Binding the tenant explicitly removes the dependency on ambient state, which
+ * is what checklists/01-DATABASE.md A.3.8 asks for: RLS is the net, not the
+ * plan. "Permission" stays unfiltered — it is a global catalogue with no
+ * tenantId, and since 20260825160000 the app role can only read it.
+ * "RolePermission" is likewise unfiltered directly: it carries no tenantId and
+ * inherits tenancy from its parent "Role", which is how its own RLS policy is
+ * written. Where it matters the join goes through "Role".
  */
 export async function assertNotLastAdmin(
   tx: RawQueryable,
+  tenantId: string,
   targetUserId: string,
   next: { roleId?: string | null; active?: boolean; deleting?: boolean },
 ): Promise<void> {
@@ -241,7 +266,7 @@ export async function assertNotLastAdmin(
   const targetSurvives =
     !next.deleting &&
     next.active !== false &&
-    (roleUnchanged || (await roleGrantsAdmin(tx, next.roleId)));
+    (roleUnchanged || (await roleGrantsAdmin(tx, tenantId, next.roleId)));
   if (targetSurvives) return;
 
   // Was the target even an administrator? If not, removing them changes
@@ -252,6 +277,7 @@ export async function assertNotLastAdmin(
     JOIN "RolePermission" rp ON rp."roleId" = u."roleId"
     JOIN "Permission" p ON p."id" = rp."permissionId"
     WHERE u."id" = ${targetUserId}
+      AND u."tenantId" = ${tenantId}
       AND u."active" = true
       AND u."deletedAt" IS NULL
       AND p."key" = ${ADMIN_PERMISSION}
@@ -266,6 +292,7 @@ export async function assertNotLastAdmin(
     JOIN "RolePermission" rp ON rp."roleId" = u."roleId"
     JOIN "Permission" p ON p."id" = rp."permissionId"
     WHERE u."id" <> ${targetUserId}
+      AND u."tenantId" = ${tenantId}
       AND u."active" = true
       AND u."deletedAt" IS NULL
       AND p."key" = ${ADMIN_PERMISSION}

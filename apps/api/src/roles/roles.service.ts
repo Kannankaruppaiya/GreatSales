@@ -160,6 +160,7 @@ export class RolesService {
       if (patch.permissionKeys !== undefined) {
         await this.assertAdminPermissionSurvives(
           tx,
+          user.tenantId,
           id,
           patch.permissionKeys as PermissionKey[],
         );
@@ -309,6 +310,7 @@ export class RolesService {
    */
   private async assertAdminPermissionSurvives(
     tx: Prisma.TransactionClient,
+    tenantId: string,
     roleId: string,
     nextKeys: PermissionKey[],
   ): Promise<void> {
@@ -324,6 +326,8 @@ export class RolesService {
         JOIN "Permission" p ON p."id" = rp."permissionId"
         JOIN "User" u ON u."roleId" = r."id"
         WHERE r."id" <> ${roleId}
+          AND r."tenantId" = ${tenantId}
+          AND u."tenantId" = ${tenantId}
           AND p."key" = ${permission}
           AND u."active" = true
           AND u."deletedAt" IS NULL

@@ -256,7 +256,7 @@ export class UsersService {
     return this.prisma.transactionForTenant(user.tenantId, async (tx) => {
       if (patch.managerId) await assertManagerAcyclic(tx, id, patch.managerId);
       if (patch.active !== undefined || patch.roleId !== undefined) {
-        await assertNotLastAdmin(tx, id, {
+        await assertNotLastAdmin(tx, user.tenantId, id, {
           roleId: patch.roleId,
           active: patch.active,
         });
@@ -301,7 +301,7 @@ export class UsersService {
       });
       if (!existing) throw codedNotFound('USER_NOT_FOUND', 'User not found.');
 
-      await assertNotLastAdmin(tx, id, { deleting: true });
+      await assertNotLastAdmin(tx, user.tenantId, id, { deleting: true });
       const deleted = await tx.user.update({
         where: { id },
         data: { deletedAt: new Date() },

@@ -48,7 +48,7 @@ No production launch while any of these is unticked. Each links to its section a
 | # | Blocker | Section | Status |
 | --- | --- | --- | --- |
 | O.1.1 | Runtime DB role cannot bypass RLS, proven in production | `[~]` | Proven everywhere it CAN be today — boot guard, isolation spec, CI gate. Blocked only on there being no production database yet; re-run against production on day one. See [A.3.1](01-DATABASE.md). |
-| O.1.2 | Every tenant query is explicitly tenant-filtered in addition to RLS | [A.3.8](01-DATABASE.md) | `[ ]` |
+| O.1.2 | Every tenant query is explicitly tenant-filtered in addition to RLS | `[x]` | DONE 2026-08-25. Raw-query audit found a real fail-OPEN guard in `assertNotLastAdmin` — it relied solely on ambient `app.tenant_id`, and with no tenant context RLS returns zero rows, so the guard concluded "not an administrator" and ALLOWED the write. `tenantId` is now bound into every predicate. See [A.3.8](01-DATABASE.md). |
 | O.1.3 | Cross-tenant read **and write** denied for every resource, proven by test | `[x]` | DONE 2026-08-25. `tenant-isolation.spec.ts`: 32 assertions against a real database. Tenant A cannot read OR write tenant B for 11 resources; policies proven to fail CLOSED when no tenant is set. See [A.3.10](01-DATABASE.md). |
 | O.1.4 | A backup has been restored and verified | [L.3](12-DATA-OPERATIONS.md) | `[ ]` |
 | O.1.5 | Rollback has been rehearsed, not just written | [K.2.7](11-BUILD-INFRA.md) | `[ ]` |
