@@ -16,3 +16,4 @@ export * from "./team";
 export * from "./product";
 export * from "./followup";
 export * from "./mapping";
+export * from "./dashboard";

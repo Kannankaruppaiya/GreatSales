@@ -117,6 +117,45 @@ export class LeadsService {
     };
   }
 
+  /**
+   * Every lead in scope, unpaginated, for the dashboard aggregate.
+   *
+   * Deliberately NOT exposed as an endpoint. The console used to reach the same
+   * data by paging `list()` in a loop until it ran out, which is O(leads)
+   * round trips to compute six numbers; this exists so DashboardService can do
+   * that work once, server-side, in one query.
+   *
+   * It reuses `toRow` rather than summing LeadProduct values itself — a second
+   * implementation of "what is this lead worth" is how a dashboard and a lead
+   * list end up disagreeing.
+   *
+   * Unpaginated is a real risk and is bounded by intent, not by luck: the
+   * caller is a single aggregate that runs per dashboard load. If lead counts
+   * per tenant grow past a few thousand this must become a SQL aggregate that
+   * never materialises the rows — see checklists/09-PERFORMANCE.md I.5.
+   */
+  async allInScope(user: RequestUser, ownerIdFilter?: string) {
+    const db = this.prisma.forTenant(user.tenantId);
+    const ownerId = await this.resolveOwnerScope(db, user, ownerIdFilter);
+
+    const rows = await db.lead.findMany({
+      where: {
+        tenantId: user.tenantId,
+        deletedAt: null,
+        ...(ownerId ? { salespersonId: ownerId } : {}),
+      },
+      include: LEAD_INCLUDE,
+      orderBy: { id: 'asc' },
+    });
+    const names = await this.industryNames(
+      db,
+      rows.map((l) => l.industryId),
+    );
+    return rows.map((l) =>
+      toRow(l, l.industryId ? (names.get(l.industryId) ?? null) : null),
+    );
+  }
+
   /** Batch-resolve industry names for a set of (nullable) industry ids. */
   private async industryNames(
     db: TenantPrisma,

@@ -18,6 +18,7 @@ import { TeamsModule } from './teams/teams.module';
 import { ProductsModule } from './products/products.module';
 import { FollowUpsModule } from './followups/followups.module';
 import { MappingsModule } from './mappings/mappings.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { MappingsModule } from './mappings/mappings.module';
     ProductsModule,
     FollowUpsModule,
     MappingsModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
