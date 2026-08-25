@@ -42,7 +42,14 @@ RUN apk add --no-cache openssl curl wget
 
 WORKDIR /app
 
-ENV NODE_ENV=staging
+# The production image MUST build as production. This was hardcoded to
+# "staging", so a production deploy of this image ran with NODE_ENV=staging —
+# which silently switched off every production-only rule in
+# apps/api/src/config/env.ts (K.1.2). Defaulting to production makes a
+# forgotten build-arg fail safe: a staging build mislabelled production is
+# obvious, a production build mislabelled staging is not.
+ARG NODE_ENV=production
+ENV NODE_ENV=$NODE_ENV
 ENV PORT=3000
 ENV PATH="/app/node_modules/.bin:/app/apps/api/node_modules/.bin:${PATH}"
 ENV NODE_PATH="/app/apps/api/node_modules:/app/node_modules"
@@ -62,8 +69,11 @@ USER nestjs
 
 EXPOSE 3000
 
-# Health check probe against API health endpoint
+# Probes READINESS, not liveness. /api/v1/health answers 200 as long as the
+# process is up — with the database gone it still reported healthy, so the
+# container stayed in rotation while failing every request. /health/ready
+# queries the database and answers 503 when it cannot (B.3.2/B.3.5).
 HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health/ready || exit 1
 
 CMD ["node", "apps/api/dist/main.js"]

@@ -52,13 +52,13 @@ No production launch while any of these is unticked. Each links to its section a
 | O.1.3 | Cross-tenant read **and write** denied for every resource, proven by test | [A.3.10](01-DATABASE.md) | `[ ]` |
 | O.1.4 | A backup has been restored and verified | [L.3](12-DATA-OPERATIONS.md) | `[ ]` |
 | O.1.5 | Rollback has been rehearsed, not just written | [K.2.7](11-BUILD-INFRA.md) | `[ ]` |
-| O.1.6 | CI exists and blocks merge on a failing gate | [K.2.1](11-BUILD-INFRA.md) / [J.1.8](10-TESTING.md) | `[ ]` |
-| O.1.7 | Readiness probe actually checks the database | [B.3.2](02-BACKEND.md) | `[ ]` |
+| O.1.6 | CI exists and blocks merge on a failing gate | `[~]` | CI exists and is green (run 32856078174). It does NOT block merge yet — that needs branch protection on `main`, a GitHub setting no file here can make. See [J.1.8](10-TESTING.md). |
+| O.1.7 | Readiness probe actually checks the database | `[x]` | DONE 2026-08-25. `/health/ready` queries the database under a 2s timeout and answers 503 when it cannot; proven against a real production container by stopping Postgres. Liveness stayed 200 throughout, which is the correct split. See [B.3.2](02-BACKEND.md). |
 | O.1.8 | No mock data, demo credential, or seed password in any production bundle | [D.1.6](04-FRONTEND-WEB.md) / [D.1.7](04-FRONTEND-WEB.md) / [G.3.9](07-SECURITY.md) | `[ ]` |
 | O.1.9 | No token in browser storage; refresh token httpOnly and revocable | [D.7.1](04-FRONTEND-WEB.md) / [G.1.2](07-SECURITY.md) | `[ ]` |
 | O.1.10 | Error tracking + alerting live, with a test alert delivered to a human | [H.6](08-OBSERVABILITY.md) / [H.14](08-OBSERVABILITY.md) | `[ ]` |
 | O.1.11 | Secrets in a secret manager, none in the repo or images | [K.3.3](11-BUILD-INFRA.md) | `[ ]` |
-| O.1.12 | Swagger disabled or authenticated in production | [B.1.7](02-BACKEND.md) | `[ ]` |
+| O.1.12 | Swagger disabled or authenticated in production | `[x]` | DONE 2026-08-25. `curl /api/docs` returned 404 from a container built with NODE_ENV=production. See [B.1.7](02-BACKEND.md). |
 | O.1.13 | Production images built with `NODE_ENV=production` and production `VITE_*` values | [K.1.2](11-BUILD-INFRA.md) / [K.1.3](11-BUILD-INFRA.md) | `[ ]` |
 | O.1.14 | Critical-journey E2E green against the deployed production build | [J.2.11](10-TESTING.md) | `[ ]` |
 | O.1.15 | Mobile decision made and honoured (ship it properly, or cut it visibly) | [§E](05-MOBILE.md) | `[ ]` |

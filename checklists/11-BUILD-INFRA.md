@@ -46,8 +46,8 @@ if a verified item regresses, set it back to `[ ]` and log it in
 | # | Item | Status | Evidence |
 | --- | --- | --- | --- |
 | K.1.1 | One documented command builds every production artifact from a clean clone | `[ ]` | |
-| K.1.2 | 🔴 API Dockerfile hardcodes `ENV NODE_ENV=staging` — must be build-arg driven and set to `production` for the production image | `[ ]` | |
-| K.1.3 | Web Dockerfile's `VITE_*` build args are set to production values (currently defaulted to staging) — and it is understood these are **baked in at build time**, so staging and production need separate images | `[ ]` | |
+| K.1.2 | 🔴 API Dockerfile hardcodes `ENV NODE_ENV=staging` — must be build-arg driven and set to `production` for the production image | `[x]` | FIXED and VERIFIED 2026-08-25. The Dockerfile hardcoded `ENV NODE_ENV=staging`, so a production deploy of that image ran with every production-only env rule switched off. Now `ARG NODE_ENV=production` + `ENV NODE_ENV=$NODE_ENV`; `docker inspect` on the built image shows `NODE_ENV=production`, and the container boots under the production contract. Staging is unaffected — docker-compose.staging.yml sets NODE_ENV at runtime. |
+| K.1.3 | Web Dockerfile's `VITE_*` build args are set to production values (currently defaulted to staging) — and it is understood these are **baked in at build time**, so staging and production need separate images | `[~]` | Web Dockerfile build-arg DEFAULTS flipped from staging to production values, so a forgotten arg now mislabels a staging build as production (visible) rather than a production build as staging (invisible). docker-compose.staging.yml already passes explicit staging args, so staging is unaffected. **Not yet verified:** no production web image has been built and its bundle inspected. |
 | K.1.4 | Production image contains no dev dependencies, no source maps served publicly, no test files, no seed data | `[ ]` | |
 | K.1.5 | `pnpm install --frozen-lockfile` everywhere; the lockfile is committed and current | `[ ]` | |
 | K.1.6 | Image size reviewed and layers cached sensibly | `[ ]` | |

@@ -31,13 +31,26 @@ describe('AppController (e2e)', () => {
   it('answers /health without a token', async () => {
     const res = await request(app.getHttpServer()).get('/api/v1/health');
     expect(res.status).toBe(200);
-    const health = res.body as {
-      status: string;
-      service: string;
-      timestamp: string;
-    };
-    expect(health).toMatchObject({ status: 'ok', service: 'greatsales-api' });
-    expect(health.timestamp).toEqual(expect.any(String));
+    expect(res.body).toEqual({ status: 'ok' });
+  });
+
+  it('answers /health/ready without a token, and reaches the database', async () => {
+    const res = await request(app.getHttpServer()).get('/api/v1/health/ready');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: 'ok' });
+  });
+
+  it('tells the probes nothing beyond whether it works', async () => {
+    // A probe is reachable by anyone who can reach the port. It used to name
+    // the service and echo a timestamp; version, dependency names and driver
+    // errors must never appear here either (B.3.4).
+    for (const path of ['/api/v1/health', '/api/v1/health/ready']) {
+      const body = JSON.stringify(
+        (await request(app.getHttpServer()).get(path)).body,
+      );
+      expect(Object.keys(JSON.parse(body) as object)).toEqual(['status']);
+      expect(body).not.toMatch(/greatsales|postgres|prisma|version/i);
+    }
   });
 
   it('404s an unknown route instead of leaking a stack trace', async () => {

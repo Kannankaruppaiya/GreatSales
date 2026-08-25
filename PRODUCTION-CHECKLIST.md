@@ -100,7 +100,7 @@ Update the counts as boxes are ticked. This is the honest single number for "how
 | Layer | Total | `[x]` verified | `[~]` unverified | `[-]` out of scope | Remaining |
 | --- | --- | --- | --- | --- | --- |
 | [A Database](checklists/01-DATABASE.md) | 61 | 0 | 1 | 0 | 60 |
-| [B Backend runtime](checklists/02-BACKEND.md) | 46 | 0 | 5 | 0 | 41 |
+| [B Backend runtime](checklists/02-BACKEND.md) | 46 | 5 | 5 | 0 | 36 |
 | [C API contract](checklists/03-API.md) | 425 | 0 | 0 | 0 | 425 |
 | [D Frontend web](checklists/04-FRONTEND-WEB.md) | 155 | 3 | 0 | 0 | 152 |
 | [E Mobile](checklists/05-MOBILE.md) | 26 | 0 | 0 | 0 | 26 |
@@ -109,12 +109,12 @@ Update the counts as boxes are ticked. This is the honest single number for "how
 | [H Observability](checklists/08-OBSERVABILITY.md) | 18 | 0 | 0 | 0 | 18 |
 | [I Performance](checklists/09-PERFORMANCE.md) | 13 | 0 | 0 | 0 | 13 |
 | [J Testing](checklists/10-TESTING.md) | 21 | 7 | 2 | 0 | 12 |
-| [K Build & infra](checklists/11-BUILD-INFRA.md) | 33 | 1 | 1 | 0 | 31 |
+| [K Build & infra](checklists/11-BUILD-INFRA.md) | 33 | 2 | 2 | 0 | 29 |
 | [L Data operations](checklists/12-DATA-OPERATIONS.md) | 14 | 0 | 0 | 0 | 14 |
 | [M Compliance](checklists/13-COMPLIANCE.md) | 14 | 0 | 0 | 0 | 14 |
 | [N Feature slices](checklists/14-FEATURE-SLICES.md) | 170 | 0 | 63 | 0 | 107 |
 | [O Go-live](checklists/15-GO-LIVE.md) | 23 | 0 | 0 | 0 | 23 |
-| **TOTAL** | **1,069** | **11** | **74** | **0** | **984** |
+| **TOTAL** | **1,069** | **17** | **75** | **0** | **977** |
 
 Recount any file with:
 
@@ -140,7 +140,7 @@ No production launch while any of these is unticked. Full table with links:
 9. No token in browser storage; refresh token httpOnly and revocable — [D.7.1](checklists/04-FRONTEND-WEB.md) / [G.1.2](checklists/07-SECURITY.md)
 10. Error tracking + alerting live, test alert delivered to a human — [H.6](checklists/08-OBSERVABILITY.md) / [H.14](checklists/08-OBSERVABILITY.md)
 11. Secrets in a secret manager, none in the repo or images — [K.3.3](checklists/11-BUILD-INFRA.md)
-12. Swagger disabled or authenticated in production — [B.1.7](checklists/02-BACKEND.md)
+12. ~~Swagger disabled in production~~ **done** — 404 in a real production container — [B.1.7](checklists/02-BACKEND.md)
 13. Production images built with `NODE_ENV=production` and production `VITE_*` — [K.1.2](checklists/11-BUILD-INFRA.md)
 14. Critical-journey E2E green against the deployed production build — [J.2.11](checklists/10-TESTING.md)
 15. Mobile decision made and honoured — [§E](checklists/05-MOBILE.md)
@@ -155,10 +155,10 @@ Read from the repository, not from any existing report. Full detail in
 
 | Gap | Where | Layer file |
 | --- | --- | --- |
-| Health endpoint is static — reports healthy with a dead database | `apps/api/src/app.service.ts` | [B.3.2](checklists/02-BACKEND.md) |
+| ~~Health endpoint is static~~ — **fixed & verified 2026-08-25**: `/health/ready` answers 503 with the DB down | `apps/api/src/app.service.ts` | [B.3.2](checklists/02-BACKEND.md) |
 | ~~Swagger mounts unconditionally~~ — **fixed 2026-08-25**, now gated on `SWAGGER_ENABLED` and refused in production | `apps/api/src/main.ts`, `src/config/env.ts` | [B.1.7](checklists/02-BACKEND.md) |
 | API `tsconfig.json` has no `strict`; `noImplicitAny: false` | `apps/api/tsconfig.json` | [B.1.13](checklists/02-BACKEND.md) |
-| API Dockerfile hardcodes `ENV NODE_ENV=staging` | `apps/api/Dockerfile` | [K.1.2](checklists/11-BUILD-INFRA.md) |
+| ~~API Dockerfile hardcodes `NODE_ENV=staging`~~ — **fixed & verified 2026-08-25** | `apps/api/Dockerfile` | [K.1.2](checklists/11-BUILD-INFRA.md) |
 | No CI at all — no `.github/workflows` | repo root | [K.2.1](checklists/11-BUILD-INFRA.md) |
 | Client-side mock store `trackerStore` is in the web production path | `components/modals/AddMappingModal.tsx`, `features/management/managementActions.ts`, `ManagementHomePage.tsx` | [D.1.6a](checklists/04-FRONTEND-WEB.md) |
 | `trackerStore` pulls in `data/pocSeedData.ts` — **33,448 lines** of POC data, a production-bundle candidate | `apps/web/src/data/pocSeedData.ts` | [D.1.6b](checklists/04-FRONTEND-WEB.md) |

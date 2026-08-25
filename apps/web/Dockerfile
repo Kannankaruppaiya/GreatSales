@@ -33,9 +33,15 @@ RUN pnpm --filter @greatsales/shared build
 RUN pnpm --filter @greatsales/db db:generate
 
 # Build Web SPA bundle with staging defaults (relative /api/v1 for Nginx reverse proxy)
+# These are BAKED INTO THE BUNDLE at `vite build` time, so an image built with
+# staging values IS a staging image — it can never be promoted to production
+# (K.1.3). The defaults are therefore the PRODUCTION ones: a forgotten
+# build-arg then mislabels a staging build as production, which is immediately
+# visible, rather than mislabelling a production build as staging, which is not.
+# Staging must pass its values explicitly.
 ARG VITE_API_URL=/api/v1
-ARG VITE_APP_ENV=staging
-ARG VITE_APP_NAME="GreatSales Staging"
+ARG VITE_APP_ENV=production
+ARG VITE_APP_NAME="GreatSales"
 
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_APP_ENV=$VITE_APP_ENV

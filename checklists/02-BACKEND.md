@@ -56,7 +56,7 @@ zod env validation, `trust proxy` configurable, health at `GET /api/v1/health`.
 | B.1.4 | `NODE_ENV=production` in the production image (note: the current API Dockerfile hardcodes `ENV NODE_ENV=staging` — **must be parameterised**) | `[ ]` | |
 | B.1.5 | `CORS_ORIGIN` is an explicit allow-list in production; the `*` guard is proven to fire | `[~]` | Enforced: `env.ts` productionRules rejects `CORS_ORIGIN="*"`; `main.ts` also throws for any non-development env. Negative test 2026-08-25 fired the rule. Remaining: prove against the deployed production origin. |
 | B.1.6 | `TRUST_PROXY` set to the real hop count behind the production load balancer — wrong value breaks rate limiting and IP audit | `[~]` | Enforced: production boot rejects `TRUST_PROXY="false"`. Negative test 2026-08-25 fired the rule. Remaining: confirm the real hop count behind CloudFront->ALB (template says 2). |
-| B.1.7 | Swagger `/api/docs` is **disabled or authenticated** in production (it currently mounts unconditionally) | `[~]` | Fixed 2026-08-25: `main.ts` mounts Swagger only when `SWAGGER_ENABLED=true`, and `env.ts` refuses that value when `NODE_ENV=production`. Negative test fired the rule. Remaining: boot a production image and confirm `/api/docs` 404s. |
+| B.1.7 | Swagger `/api/docs` is **disabled or authenticated** in production (it currently mounts unconditionally) | `[x]` | VERIFIED 2026-08-25 in a real production container: image built from apps/api/Dockerfile with NODE_ENV=production, `curl /api/docs` returned **404** and the boot banner read "docs disabled". Gated on SWAGGER_ENABLED, which the env contract refuses to set true in production. |
 | B.1.8 | `x-powered-by` removed and the server banner does not disclose framework/version | `[ ]` | |
 | B.1.9 | Request body size limit set explicitly (Express default is 100 kb — confirm it matches the largest legitimate payload and no larger) | `[ ]` | |
 | B.1.10 | Global `ValidationPipe` with `whitelist: true`, `forbidNonWhitelisted: true`, `transform: true` — or an equivalent zod pipe applied to **every** route (verified per-endpoint in §C) | `[ ]` | |
@@ -83,12 +83,12 @@ zod env validation, `trust proxy` configurable, health at `GET /api/v1/health`.
 
 | # | Item | Status | Evidence |
 | --- | --- | --- | --- |
-| B.3.1 | **Liveness** probe is cheap and does not touch the DB | `[ ]` | |
-| B.3.2 | **Readiness** probe *does* verify the DB connection — the current `/health` returns a static `{status:'ok'}` and will report healthy with a dead database. **Must be fixed.** | `[ ]` | |
+| B.3.1 | **Liveness** probe is cheap and does not touch the DB | `[x]` | VERIFIED: `liveness()` returns a constant and touches nothing. Asserted by a unit test that the DB is never queried — a liveness probe that checks the database restarts a healthy process on every DB hiccup, turning a blip into a restart storm. |
+| B.3.2 | **Readiness** probe *does* verify the DB connection — the current `/health` returns a static `{status:'ok'}` and will report healthy with a dead database. **Must be fixed.** | `[x]` | FIXED and VERIFIED 2026-08-25 end to end. `/health/ready` runs `SELECT 1` under a 2s timeout. Against a real production container: DB up -> 200 `{"status":"ok"}`; **`docker stop greatsales-postgres` -> 503 `{"status":"unavailable"}` while `/health` stayed 200**; DB restarted -> 200 again. Previously `/health` was a static payload and reported healthy with a dead database. |
 | B.3.3 | Readiness fails during startup until migrations/warmup complete, so traffic is not routed early | `[ ]` | |
-| B.3.4 | Health endpoints do not leak version, dependency, or infrastructure detail to unauthenticated callers | `[ ]` | |
-| B.3.5 | Docker `HEALTHCHECK` points at the readiness endpoint (currently points at the static `/health`) | `[ ]` | |
-| B.3.6 | Load balancer / orchestrator probe thresholds tuned (interval, timeout, failure count) and tested by killing the DB | `[ ]` | |
+| B.3.4 | Health endpoints do not leak version, dependency, or infrastructure detail to unauthenticated callers | `[x]` | VERIFIED: both probes return exactly `{"status":...}` — no version, service name, dependency or driver detail. The failure reason is logged server-side only. Asserted by an e2e test that checks the key set and greps the body for `greatsales|postgres|prisma|version`. |
+| B.3.5 | Docker `HEALTHCHECK` points at the readiness endpoint (currently points at the static `/health`) | `[x]` | VERIFIED in the built image: `docker inspect` shows the HEALTHCHECK CMD now targets `/api/v1/health/ready`, not the static `/health`. NOTE: the container reported `healthy` throughout the DB outage because the probe interval is 15s with 3 retries and the window was shorter — the retarget is proven, the flip was NOT observed. See B.3.6. |
+| B.3.6 | Load balancer / orchestrator probe thresholds tuned (interval, timeout, failure count) and tested by killing the DB | `[~]` | Killing the database was exercised and the endpoint responded correctly (B.3.2), but the probe THRESHOLDS were not: interval 15s x 3 retries means ~45s before the container is marked unhealthy, and that flip has not been watched end to end. Tune against the real orchestrator and observe the transition. |
 
 ## B.4 Error handling contract
 
