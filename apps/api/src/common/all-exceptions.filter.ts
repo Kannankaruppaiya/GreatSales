@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import type { ApiErrorBody } from '@greatsales/shared';
+import type { ApiErrorBody, ErrorCode } from '@greatsales/shared';
 
 /**
  * Normalizes every thrown error into the shared ApiErrorBody envelope so
@@ -27,6 +27,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let error = 'InternalServerError';
     let message = 'Internal server error';
     let details: unknown;
+    // Stable machine-readable cause. Deliberately left undefined for anything
+    // that is not a deliberate, documented failure — an unexpected 500 has no
+    // business meaning, and inventing a code would invite clients to handle a
+    // bug as though it were a rule.
+    let code: ErrorCode | undefined;
 
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus();
@@ -40,6 +45,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           ? body.message.join(', ')
           : ((body.message as string) ?? exception.message);
         error = (body.error as string) ?? exception.name;
+        code = body.code as ErrorCode | undefined;
         details = body.details;
       }
     } else if (exception instanceof Error) {
@@ -50,6 +56,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const payload: ApiErrorBody = {
       statusCode,
       error,
+      code,
       message,
       details,
       path: req.url,

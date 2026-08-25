@@ -244,7 +244,9 @@ export class ProductsService {
         },
       });
       if (duplicate) {
-        throw new ConflictException('A principal with this name already exists');
+        throw new ConflictException(
+          'A principal with this name already exists',
+        );
       }
     }
 

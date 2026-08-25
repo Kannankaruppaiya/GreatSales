@@ -22,6 +22,7 @@ const candidates = [
 const originalDatabaseUrl = process.env.DATABASE_URL;
 const originalDirectUrl = process.env.DIRECT_URL;
 const originalNodeEnv = process.env.NODE_ENV;
+const originalPort = process.env.PORT;
 
 for (const path of candidates) {
   if (existsSync(path)) {
@@ -39,4 +40,10 @@ if (originalDirectUrl) {
 }
 if (originalNodeEnv) {
   process.env.NODE_ENV = originalNodeEnv;
+}
+// A PORT supplied by the host/container (or a one-off `PORT=3001 nest start`)
+// must beat the checked-in dev default, same as the URLs above — otherwise the
+// process silently ignores where it was told to listen.
+if (originalPort) {
+  process.env.PORT = originalPort;
 }

@@ -9,6 +9,7 @@ import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import type { JwtAccessClaims, RequestUser } from '@greatsales/shared';
 import { IS_PUBLIC_KEY } from '../common/decorators';
+import type { AuthenticatedRequest } from '../common/authenticated-request';
 
 /**
  * Global guard. Rejects any request without a valid access token, except routes
@@ -30,8 +31,8 @@ export class JwtAuthGuard implements CanActivate {
     ]);
     if (isPublic) return true;
 
-    const req = ctx.switchToHttp().getRequest();
-    const header: string | undefined = req.headers['authorization'];
+    const req = ctx.switchToHttp().getRequest<AuthenticatedRequest>();
+    const header = req.headers.authorization;
     if (!header?.startsWith('Bearer ')) {
       throw new UnauthorizedException('Missing bearer token');
     }

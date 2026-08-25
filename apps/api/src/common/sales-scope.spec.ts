@@ -116,6 +116,7 @@ describe('sales ownership scope (cross-module)', () => {
   it('ignores an explicit ownerId on the projections worksheet', async () => {
     const res = await projections.list(sales1, {
       period: '2026-08',
+      lineFilter: 'all',
       ownerId: OTHER,
     });
     expect(res.lines.length).toBeGreaterThan(0);

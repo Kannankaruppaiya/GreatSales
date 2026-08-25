@@ -14,8 +14,10 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   UserCreateSchema,
   UserListQuerySchema,
+  UserResetPasswordSchema,
   UserUpdateSchema,
   type UserCreate,
+  type UserResetPassword,
   type UserListQuery,
   type UserUpdate,
   type RequestUser,
@@ -42,6 +44,22 @@ export class UsersController {
     return this.service.list(user, query);
   }
 
+  /**
+   * One user by id.
+   *
+   * Declared AFTER the bare @Get() above: Nest matches in declaration order,
+   * so a `:id` route placed first would swallow `/users` itself.
+   */
+  @Get(':id')
+  @RequirePermissions('user.manage')
+  get(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Query('includeDeleted') includeDeleted?: string,
+  ) {
+    return this.service.get(user, id, includeDeleted === 'true');
+  }
+
   /** Create a tenant user. */
   @Post()
   @RequirePermissions('user.manage')
@@ -61,6 +79,32 @@ export class UsersController {
     @Body(new ZodValidationPipe(UserUpdateSchema)) body: UserUpdate,
   ) {
     return this.service.update(user, id, body);
+  }
+
+  /**
+   * Un-delete a soft-deleted user. 409 if their email or username has been
+   * taken by someone else in the meantime.
+   */
+  @Post(':id/restore')
+  @RequirePermissions('user.manage')
+  restore(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.service.restore(user, id);
+  }
+
+  /**
+   * Admin-initiated password reset. Ends every session the target has and
+   * requires them to choose a new password at their next sign-in.
+   */
+  @Post(':id/reset-password')
+  @HttpCode(200)
+  @RequirePermissions('user.manage')
+  resetPassword(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(UserResetPasswordSchema))
+    body: UserResetPassword,
+  ) {
+    return this.service.resetPassword(user, id, body);
   }
 
   /** Soft-delete one user. */

@@ -6,8 +6,9 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { PermissionKey, RequestUser } from '@greatsales/shared';
+import type { AuthenticatedRequest } from './authenticated-request';
 import { PrismaService } from '../prisma/prisma.service';
-import { PERMISSIONS_KEY } from './decorators';
+import { ANY_PERMISSIONS_KEY, PERMISSIONS_KEY } from './decorators';
 
 /**
  * RBAC enforcement. Runs AFTER JwtAuthGuard (so req.user is set), reads the
@@ -27,9 +28,16 @@ export class PermissionsGuard implements CanActivate {
       PERMISSIONS_KEY,
       [ctx.getHandler(), ctx.getClass()],
     );
-    if (!required || required.length === 0) return true;
+    const requiredAny = this.reflector.getAllAndOverride<PermissionKey[]>(
+      ANY_PERMISSIONS_KEY,
+      [ctx.getHandler(), ctx.getClass()],
+    );
+    const hasAll = !!required && required.length > 0;
+    const hasAny = !!requiredAny && requiredAny.length > 0;
+    if (!hasAll && !hasAny) return true;
 
-    const user: RequestUser | undefined = ctx.switchToHttp().getRequest().user;
+    const req = ctx.switchToHttp().getRequest<AuthenticatedRequest>();
+    const user: RequestUser | undefined = req.user;
     if (!user) throw new ForbiddenException('Not authenticated');
 
     const role = await this.prisma.forTenant(user.tenantId).role.findUnique({
@@ -40,7 +48,10 @@ export class PermissionsGuard implements CanActivate {
       role?.permissions.map((rp) => rp.permission.key) ?? [],
     );
 
-    if (!required.every((key) => granted.has(key))) {
+    if (hasAll && !required.every((key) => granted.has(key))) {
+      throw new ForbiddenException('Missing required permission');
+    }
+    if (hasAny && !requiredAny.some((key) => granted.has(key))) {
       throw new ForbiddenException('Missing required permission');
     }
     return true;

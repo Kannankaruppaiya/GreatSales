@@ -5,5 +5,7 @@
   "testRegex": ".e2e-spec.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
-  }
+  },
+  "//maxWorkers": "Every e2e suite reseeds and mutates ONE shared Postgres database. Run in parallel they clobber each other's fixtures and fail non-deterministically. The unit jest config sets the same, for the same reason.",
+  "maxWorkers": 1
 }

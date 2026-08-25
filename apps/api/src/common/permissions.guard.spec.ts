@@ -36,8 +36,15 @@ describe('PermissionsGuard (integration)', () => {
     write() {}
     unannotated() {}
   }
+  // `unbound-method` guards against detaching a method that needs `this`.
+  // These two are empty stubs used ONLY as identity keys for the decorator
+  // metadata the Reflector reads — they are never invoked, so there is no
+  // `this` to lose. Rebinding them would create new function objects and the
+  // metadata lookup would miss.
+  /* eslint-disable @typescript-eslint/unbound-method */
   const writeHandler = Ctrl.prototype.write;
   const openHandler = Ctrl.prototype.unannotated;
+  /* eslint-enable @typescript-eslint/unbound-method */
 
   beforeAll(async () => {
     prisma = new PrismaService(process.env.DATABASE_URL as string);

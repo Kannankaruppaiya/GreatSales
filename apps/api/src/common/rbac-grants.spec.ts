@@ -57,12 +57,16 @@ describe('PermissionsGuard denies sales the users module', () => {
     const prismaStub = {
       forTenant: () => ({
         role: {
-          findUnique: async () => ({
-            id: 'role_sales_acme',
-            permissions: ROLE_PERMISSIONS.sales.map((key) => ({
-              permission: { key },
-            })),
-          }),
+          // Not `async`: there is nothing to await, and an async function
+          // with no await trips require-await. A resolved promise is the
+          // same contract to the caller.
+          findUnique: () =>
+            Promise.resolve({
+              id: 'role_sales_acme',
+              permissions: ROLE_PERMISSIONS.sales.map((key) => ({
+                permission: { key },
+              })),
+            }),
         },
       }),
     };
