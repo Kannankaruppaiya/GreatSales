@@ -6,6 +6,11 @@ import { JwtService } from '@nestjs/jwt';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  disconnectOwnerDb,
+  setTenantDeletedAt,
+  setTenantStatus,
+} from '../test-support/owner-db';
+import {
   AuthService,
   MAX_FAILED_ATTEMPTS,
   durationMs,
@@ -57,6 +62,7 @@ describe('AuthService', () => {
   }, 120_000);
 
   afterAll(async () => {
+    await disconnectOwnerDb();
     await prisma.onModuleDestroy();
   });
 
@@ -70,10 +76,10 @@ describe('AuthService', () => {
       data: { failedLoginAttempts: 0, lockedUntil: null },
     });
     const globex = prisma.forTenant(GLOBEX);
-    await globex.tenant.update({
-      where: { id: GLOBEX },
-      data: { status: 'Active', deletedAt: null },
-    });
+    // Owner connection: Tenant is not tenant-scoped, so the runtime role may
+    // read it and nothing more (see test-support/owner-db.ts).
+    await setTenantStatus(GLOBEX, 'Active');
+    await setTenantDeletedAt(GLOBEX, null);
     await globex.user.updateMany({
       data: { active: true, failedLoginAttempts: 0, lockedUntil: null },
     });
@@ -197,10 +203,7 @@ describe('AuthService', () => {
       }));
 
     it('rejects a suspended tenant', async () => {
-      await prisma.forTenant(GLOBEX).tenant.update({
-        where: { id: GLOBEX },
-        data: { status: 'Suspended' },
-      });
+      await setTenantStatus(GLOBEX, 'Suspended');
       await expectGenericFailure({
         tenantId: GLOBEX,
         email: 'admin@globex.test',
@@ -209,9 +212,7 @@ describe('AuthService', () => {
     });
 
     it('rejects a churned tenant', async () => {
-      await prisma
-        .forTenant(GLOBEX)
-        .tenant.update({ where: { id: GLOBEX }, data: { status: 'Churned' } });
+      await setTenantStatus(GLOBEX, 'Churned');
       await expectGenericFailure({
         tenantId: GLOBEX,
         email: 'admin@globex.test',
@@ -220,10 +221,7 @@ describe('AuthService', () => {
     });
 
     it('rejects a soft-deleted tenant', async () => {
-      await prisma.forTenant(GLOBEX).tenant.update({
-        where: { id: GLOBEX },
-        data: { deletedAt: new Date() },
-      });
+      await setTenantDeletedAt(GLOBEX, new Date());
       await expectGenericFailure({
         tenantId: GLOBEX,
         email: 'admin@globex.test',
@@ -512,10 +510,7 @@ describe('AuthService', () => {
 
     it('stops refreshing once the tenant is SUSPENDED', async () => {
       const session = await globexSignIn();
-      await prisma.forTenant(GLOBEX).tenant.update({
-        where: { id: GLOBEX },
-        data: { status: 'Suspended' },
-      });
+      await setTenantStatus(GLOBEX, 'Suspended');
 
       await expect(
         auth.refresh(session.refreshTokenValue),
@@ -524,9 +519,7 @@ describe('AuthService', () => {
 
     it('stops refreshing once the tenant is CHURNED', async () => {
       const session = await globexSignIn();
-      await prisma
-        .forTenant(GLOBEX)
-        .tenant.update({ where: { id: GLOBEX }, data: { status: 'Churned' } });
+      await setTenantStatus(GLOBEX, 'Churned');
 
       await expect(
         auth.refresh(session.refreshTokenValue),

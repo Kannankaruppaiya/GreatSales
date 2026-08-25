@@ -8,7 +8,7 @@
 > Governed by [`AGENTS.md`](AGENTS.md). Feature execution order lives in
 > [`docs/FEATURE-ROADMAP.md`](docs/FEATURE-ROADMAP.md).
 
-**Created:** 2026-08-25 · **Last reviewed:** 2026-08-25 (CI green, test DB isolated, env contract, baseline sweep of §N) · **Total items:** 1,069
+**Created:** 2026-08-25 · **Last reviewed:** 2026-08-25 (CI green, test DB isolated, env contract, baseline sweep of §N) · **Total items:** 1,070
 
 ---
 
@@ -27,7 +27,7 @@ staging image, or a passing unit test on its own.
 
 | # | Layer | File | Items | Gate |
 | --- | --- | --- | --- | --- |
-| A | **Database** — Postgres, Prisma, RLS, migrations, indexes, transactions, pooling | [`01-DATABASE.md`](checklists/01-DATABASE.md) | 61 | Foundation — blocks everything |
+| A | **Database** — Postgres, Prisma, RLS, migrations, indexes, transactions, pooling | [`01-DATABASE.md`](checklists/01-DATABASE.md) | 62 | Foundation — blocks everything |
 | B | **Backend runtime** — NestJS process, config, boot, lifecycle, health, errors, authz plumbing | [`02-BACKEND.md`](checklists/02-BACKEND.md) | 46 | Blocks C |
 | C | **API contract** — all 55 endpoints, row by row, plus the 18 that do not exist yet | [`03-API.md`](checklists/03-API.md) | 425 | Blocks D and E |
 | D | **Frontend — web console** — `apps/web`, build integrity, bundle, data layer, UI states, forms, routing, security, a11y | [`04-FRONTEND-WEB.md`](checklists/04-FRONTEND-WEB.md) | 155 | |
@@ -99,7 +99,7 @@ Update the counts as boxes are ticked. This is the honest single number for "how
 
 | Layer | Total | `[x]` verified | `[~]` unverified | `[-]` out of scope | Remaining |
 | --- | --- | --- | --- | --- | --- |
-| [A Database](checklists/01-DATABASE.md) | 61 | 0 | 1 | 0 | 60 |
+| [A Database](checklists/01-DATABASE.md) | 62 | 7 | 2 | 0 | 53 |
 | [B Backend runtime](checklists/02-BACKEND.md) | 46 | 6 | 6 | 0 | 34 |
 | [C API contract](checklists/03-API.md) | 425 | 0 | 0 | 0 | 425 |
 | [D Frontend web](checklists/04-FRONTEND-WEB.md) | 155 | 3 | 0 | 0 | 152 |
@@ -114,7 +114,7 @@ Update the counts as boxes are ticked. This is the honest single number for "how
 | [M Compliance](checklists/13-COMPLIANCE.md) | 14 | 0 | 0 | 0 | 14 |
 | [N Feature slices](checklists/14-FEATURE-SLICES.md) | 170 | 0 | 63 | 0 | 107 |
 | [O Go-live](checklists/15-GO-LIVE.md) | 23 | 0 | 0 | 0 | 23 |
-| **TOTAL** | **1,069** | **18** | **76** | **0** | **975** |
+| **TOTAL** | **1,070** | **25** | **77** | **0** | **968** |
 
 Recount any file with:
 
@@ -131,7 +131,7 @@ No production launch while any of these is unticked. Full table with links:
 
 1. Runtime DB role cannot bypass RLS, proven in production — [A.3.1](checklists/01-DATABASE.md)
 2. Every tenant query explicitly tenant-filtered in addition to RLS — [A.3.8](checklists/01-DATABASE.md)
-3. Cross-tenant read **and write** denied for every resource, proven by test — [A.3.10](checklists/01-DATABASE.md)
+3. ~~Cross-tenant read **and write** denied, proven by test~~ **done** — 32 assertions, 11 resources — [A.3.10](checklists/01-DATABASE.md)
 4. A backup has actually been restored and verified — [L.3](checklists/12-DATA-OPERATIONS.md)
 5. Rollback rehearsed, not just documented — [K.2.7](checklists/11-BUILD-INFRA.md)
 6. ~~CI exists~~ **done** — green run 32856078174. Blocking merge still needs branch protection — [J.1.8](checklists/10-TESTING.md)
