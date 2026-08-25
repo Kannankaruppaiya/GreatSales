@@ -3,15 +3,13 @@
 The repo-wide contract is [`../../AGENTS.md`](../../AGENTS.md); it governs, and this file
 does not repeat it.
 
-## Read the docs for the version this app is actually on
+## Read the docs for the SDK this app is on
 
 **Expo SDK 54** — `package.json` declares `expo: ~54.0.0`.
 
 https://docs.expo.dev/versions/v54.0.0/
 
-> **Correction, 2026-08-25.** This file previously pointed at the **v57** docs while the
-> app was on 54, so anything written from it was guidance for a version this app does not
-> run. Keep this link in step with `package.json` whenever the SDK moves.
+Keep this link in step with `package.json` whenever the SDK moves.
 
 ## Status: this is a UI prototype, not an application
 

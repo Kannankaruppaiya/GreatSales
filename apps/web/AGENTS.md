@@ -3,17 +3,7 @@
 The repo-wide contract is [`../../AGENTS.md`](../../AGENTS.md); it governs, and this file
 does not repeat it. What follows is only what is specific to this workspace.
 
-> **Correction, 2026-08-25.** This file previously contained nothing but a scaffold block
-> titled "This is NOT the Next.js you know", telling agents to read
-> `node_modules/next/dist/docs/` before writing any code, and claiming `next dev` rewrites
-> the block so it should be committed rather than removed.
->
-> **None of it was true here.** `next` is not a dependency of any workspace in this repo,
-> that directory does not exist, and nothing regenerates the text — it was committed at
-> repo init and never questioned. The effect was an instruction to seek guidance at a path
-> that cannot exist, and a framing of a Vite SPA as a Next.js app.
-
-## What this app actually is
+## What this app is
 
 Vite 6 + React 19 SPA. React Router 7, TanStack Query 5, Zustand, Tailwind 4,
 react-hook-form + zod, `xlsx`. No SSR, no framework router, no server components.
