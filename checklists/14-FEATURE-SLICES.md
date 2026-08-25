@@ -51,13 +51,13 @@ verification run, docs updated, and zero fake completion.
 | F2 App shell & navigation | `[ ]` | `[ ]` | `[~]` | `[~]` | `[ ]` | `[~]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
 | F3 Customers | `[~]` | `[~]` | `[~]` | `[~]` | `[ ]` | `[~]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
 | F4 Product catalog | `[~]` | `[~]` | `[~]` | `[~]` | `[ ]` | `[~]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
-| F5 Customer↔product mapping | `[~]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
+| F5 Customer↔product mapping | `[~]` | `[~]` | `[~]` | `[~]` | `[ ]` | `[~]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
 | F6 Projections worksheet | `[~]` | `[~]` | `[~]` | `[~]` | `[ ]` | `[~]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
 | F7 Leads & pipeline | `[~]` | `[~]` | `[~]` | `[~]` | `[ ]` | `[~]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
 | F8 Orders & fulfilment | `[~]` | `[~]` | `[~]` | `[~]` | `[ ]` | `[~]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
 | F9 Payments & collections | `[~]` | `[~]` | `[~]` | `[~]` | `[ ]` | `[~]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
 | F10 Follow-up inbox | `[~]` | `[~]` | `[~]` | `[~]` | `[ ]` | `[~]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
-| F11 Dashboard | `[ ]` | `[ ]` | `[ ]` | `[~]` | `[ ]` | `[~]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
+| F11 Dashboard | `[ ]` | `[~]` | `[~]` | `[~]` | `[ ]` | `[~]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
 | F12 Users, roles & teams | `[~]` | `[~]` | `[~]` | `[~]` | `[ ]` | `[~]` | `[ ]` | `[ ]` | `[~]` | `[ ]` |
 | F13 Notifications & search | `[~]` | `[ ]` | `[ ]` | `[~]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
 | F14 Tenancy & mgmt switcher | `[~]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` | `[~]` | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
@@ -83,13 +83,13 @@ used.
 | F2 | Routes, layout, `RoleGuard`, `RequireOwner`, 4 nav/route test files. No schema or API of its own. |
 | F3 | 4 endpoints, page + 4 modals, real queries, tests. **Missing:** `CustomerContact` and `Industry` sub-resources ([C.3.16](03-API.md), [C.3.12](03-API.md)). |
 | F4 | `products` + `principals` = 8 endpoints, page, tests. **Missing: price history** — the schema has a single `price` column on `Product`, no history table. The roadmap asks for price history. |
-| F5 | 🔴 **Schema only.** The `Mapping` model exists; there is **no API** ([C.3.1](03-API.md)). `components/modals/AddMappingModal.tsx` writes to the client-side mock `trackerStore`, so a mapping never persists. This is the roadmap's "currently impossible" slice and it is still impossible. |
+| F5 | **BUILT 2026-08-25.** Four endpoints plus a mapping screen; 15 service tests on real Postgres. Verified end to end against the live Promech data: create returned 201, the row persisted, and the page's own delete soft-deleted it. `effectivePrice` is resolved server-side. Verification also caught a defect worth naming: the customer/product pickers stopped at the first page of 50, leaving 88% of a 417-customer book unreachable — fixed, and flagged in code as a stopgap until a server-searched typeahead exists ([C.3.4](03-API.md)). **Not `[x]`:** no production-build verification yet. |
 | F6 | `GET` and `PATCH` only. **Missing:** create/delete if the worksheet needs them ([C.2.proj.1](03-API.md)), and the `SalesTarget` API ([C.3.10](03-API.md)). |
 | F7 | 4 endpoints, table **and** kanban view, tests. **Missing:** `LeadProduct` / `LeadActivity` sub-resources ([C.3.17](03-API.md)). |
 | F8 | 4 endpoints, `order-engine.spec.ts`, page + 4 modals. **Missing:** `OrderStatusHistory` read API. The 7-step state machine still needs the server-side transition validation in [C.2.orders.1](03-API.md). |
 | F9 | 4 endpoints, `payment-engine.spec.ts`, page + 4 modals, 4 web test files. **Missing:** `PaymentFollowup` sub-resource ([C.3.18](03-API.md)). |
 | F10 | 4 endpoints, page, modal, tests. The cross-entity **completeness** claim is unproven — see [C.2.fu.1](03-API.md). |
-| F11 | 🔴 **No API.** `DashboardPage.tsx` builds every KPI in the browser from `/projections` plus a **fetch-all** of `/leads`. Needs the aggregate endpoint ([C.3.2](03-API.md)) and [D.3.11](04-FRONTEND-WEB.md). |
+| F11 | **BUILT 2026-08-25.** `GET /dashboard` composes the projections and leads services rather than re-querying, so the recurring math stays in `projection-engine` and deal value stays in the leads row mapper. The browser fetch-all loop is gone; verified live that every figure is unchanged (₹50.5L committed, ₹8.2L achieved, 8 due / 8 overdue) with one request and no `/leads` calls. Due/overdue now resolves against the server's day rather than a browser clock. **Known regression, recorded:** the quick-add-lead modal on this page lost its industry options, which were scraped from loaded leads — needs [C.3.12](03-API.md). |
 | F12 | `users` 7 + `roles` 5 + `teams` 7 = 19 endpoints, 3-tab UI, **8 API spec files**, own migration `20260823120000_f12_users_roles_teams`. The most recently worked slice. |
 | F13 | The Cmd+K palette **works**, but client-side: it searches over data already fetched by the customers/products/orders/payments/leads queries — it will not scale and it cannot find a record that is not on the current page. The nav badge counts overdue follow-ups; the `Notification` table is unused. **Missing:** server search and notifications APIs ([C.3.4](03-API.md), [C.3.3](03-API.md)). |
 | F14 | 🔴 **Fake.** `features/management/managementActions.ts` implements `switchManagement()` as a **localStorage dataset swap** over the mock `trackerStore` — no API call is made. The roadmap's own wording applies: *"Switch tenant honestly, or not at all."* Web is marked `[ ]`, not `[~]`, because shipping this as-is would be a lie to the user. Tests are `[~]` only because tests exist — they test the fake. |

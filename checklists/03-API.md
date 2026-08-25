@@ -233,8 +233,8 @@ Extra for payments — money correctness:
 
 | # | Missing capability | Model(s) already in schema | Roadmap slice | Decision |
 | --- | --- | --- | --- | --- |
-| C.3.1 | Customer↔Product **mapping** CRUD — the web `AddMappingModal` has nowhere to POST | `Mapping` | F5 | `[ ]` |
-| C.3.2 | **Dashboard** aggregate endpoint — the web dashboard currently assembles KPIs from `/projections` + full `/leads` in the browser | — | F11 | `[ ]` |
+| C.3.1 | Customer↔Product **mapping** CRUD — the web `AddMappingModal` has nowhere to POST | `Mapping` | F5 | `[~]` BUILT 2026-08-25 (e1f9599, 2f05d1a). `GET/POST /mappings`, `PATCH/DELETE /mappings/:id`, gated projection.read/write. 15 service tests on real Postgres; verified live end to end — POST returned 201 and the row landed in the database with the right owner and price. Remaining for `[x]`: the per-endpoint matrix rows in C.2, and a production build. |
+| C.3.2 | **Dashboard** aggregate endpoint — the web dashboard currently assembles KPIs from `/projections` + full `/leads` in the browser | — | F11 | `[~]` BUILT 2026-08-25 (c16ce9d, 117a38f). `GET /dashboard?period=YYYY-MM` composes ProjectionsService + LeadsService so the money math has one implementation. The browser fetch-all is gone — verified live: one request, zero `/leads` calls, and every figure identical to what the client computed. Remaining for `[x]`: C.2 matrix rows and a production build. |
 | C.3.3 | **Notifications** read/mark-read | `Notification` | F13 | `[ ]` |
 | C.3.4 | **Global search** (Cmd+K palette has no backend) | — | F13 | `[ ]` |
 | C.3.5 | **Tenants / management** switching + provisioning | `Tenant`, `PlatformUser` | F14 | `[ ]` |

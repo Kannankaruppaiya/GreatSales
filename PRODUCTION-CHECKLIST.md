@@ -8,7 +8,7 @@
 > Governed by [`AGENTS.md`](AGENTS.md). Feature execution order lives in
 > [`docs/FEATURE-ROADMAP.md`](docs/FEATURE-ROADMAP.md).
 
-**Created:** 2026-08-25 · **Last reviewed:** 2026-08-25 (CI green, test DB isolated, env contract, baseline sweep of §N) · **Total items:** 1,070
+**Created:** 2026-08-25 · **Last reviewed:** 2026-08-25 — F5 + F11 built, CI green, test DB isolated, env contract, §N swept · **Total items:** 1,070
 
 ---
 
@@ -101,7 +101,7 @@ Update the counts as boxes are ticked. This is the honest single number for "how
 | --- | --- | --- | --- | --- | --- |
 | [A Database](checklists/01-DATABASE.md) | 62 | 9 | 2 | 0 | 51 |
 | [B Backend runtime](checklists/02-BACKEND.md) | 46 | 6 | 6 | 0 | 34 |
-| [C API contract](checklists/03-API.md) | 425 | 0 | 0 | 0 | 425 |
+| [C API contract](checklists/03-API.md) | 425 | 0 | 2 | 0 | 423 |
 | [D Frontend web](checklists/04-FRONTEND-WEB.md) | 155 | 10 | 0 | 0 | 145 |
 | [E Mobile](checklists/05-MOBILE.md) | 26 | 0 | 0 | 0 | 26 |
 | [F Shared packages](checklists/06-SHARED-PACKAGES.md) | 7 | 0 | 0 | 0 | 7 |
@@ -112,9 +112,9 @@ Update the counts as boxes are ticked. This is the honest single number for "how
 | [K Build & infra](checklists/11-BUILD-INFRA.md) | 33 | 2 | 2 | 0 | 29 |
 | [L Data operations](checklists/12-DATA-OPERATIONS.md) | 14 | 0 | 0 | 0 | 14 |
 | [M Compliance](checklists/13-COMPLIANCE.md) | 14 | 0 | 0 | 0 | 14 |
-| [N Feature slices](checklists/14-FEATURE-SLICES.md) | 170 | 0 | 63 | 0 | 107 |
+| [N Feature slices](checklists/14-FEATURE-SLICES.md) | 170 | 0 | 69 | 0 | 101 |
 | [O Go-live](checklists/15-GO-LIVE.md) | 23 | 0 | 0 | 0 | 23 |
-| **TOTAL** | **1,070** | **35** | **75** | **0** | **960** |
+| **TOTAL** | **1,070** | **35** | **84** | **0** | **951** |
 
 Recount any file with:
 
@@ -165,7 +165,7 @@ Read from the repository, not from any existing report. Full detail in
 | `trackerStore` pulls in `data/pocSeedData.ts` — **33,448 lines** of POC data, a production-bundle candidate | `apps/web/src/data/pocSeedData.ts` | [D.1.6b](checklists/04-FRONTEND-WEB.md) |
 | `mockOwner` / `data/selectors` still reachable from `hooks.ts` and `store/auth.ts` | `apps/web/src/lib/mockOwner.ts`, `src/data/selectors.ts` | [D.1.6d](checklists/04-FRONTEND-WEB.md) |
 | Tenant switching is a **localStorage dataset swap**, not an API call | `apps/web/src/features/management/managementActions.ts` | [§N F14](checklists/14-FEATURE-SLICES.md) |
-| `Mapping` model exists but has no API — mappings never persist | `packages/db/prisma/schema.prisma`, `AddMappingModal.tsx` | [C.3.1](checklists/03-API.md) |
+| ~~`Mapping` has no API~~ — **built 2026-08-25**, four endpoints plus a screen; create/persist/soft-delete verified live | `apps/api/src/mappings/`, `apps/web/src/features/mappings/` | [C.3.1](checklists/03-API.md) |
 | `Product` has a single `price` column — no price history, which F4 requires | `packages/db/prisma/schema.prisma` | [§N F4](checklists/14-FEATURE-SLICES.md) |
 | Rate limiter is in-process — limit multiplies by instance count | `apps/api/src/app.module.ts` | [C.1.13](checklists/03-API.md) |
 | Mobile app has **no API client**; all 9 screens read `src/gs/mock.ts` | `apps/mobile/src` | [§E](checklists/05-MOBILE.md) |
