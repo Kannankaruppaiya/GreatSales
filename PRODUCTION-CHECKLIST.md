@@ -8,7 +8,7 @@
 > Governed by [`AGENTS.md`](AGENTS.md). Feature execution order lives in
 > [`docs/FEATURE-ROADMAP.md`](docs/FEATURE-ROADMAP.md).
 
-**Created:** 2026-08-25 · **Last reviewed:** 2026-08-25 (CI added, test DB isolated, env contract, baseline sweep of §N) · **Total items:** 1,069
+**Created:** 2026-08-25 · **Last reviewed:** 2026-08-25 (CI green, test DB isolated, env contract, baseline sweep of §N) · **Total items:** 1,069
 
 ---
 
@@ -108,13 +108,13 @@ Update the counts as boxes are ticked. This is the honest single number for "how
 | [G Security](checklists/07-SECURITY.md) | 43 | 0 | 2 | 0 | 41 |
 | [H Observability](checklists/08-OBSERVABILITY.md) | 18 | 0 | 0 | 0 | 18 |
 | [I Performance](checklists/09-PERFORMANCE.md) | 13 | 0 | 0 | 0 | 13 |
-| [J Testing](checklists/10-TESTING.md) | 21 | 0 | 8 | 0 | 13 |
-| [K Build & infra](checklists/11-BUILD-INFRA.md) | 33 | 0 | 2 | 0 | 31 |
+| [J Testing](checklists/10-TESTING.md) | 21 | 7 | 2 | 0 | 12 |
+| [K Build & infra](checklists/11-BUILD-INFRA.md) | 33 | 1 | 1 | 0 | 31 |
 | [L Data operations](checklists/12-DATA-OPERATIONS.md) | 14 | 0 | 0 | 0 | 14 |
 | [M Compliance](checklists/13-COMPLIANCE.md) | 14 | 0 | 0 | 0 | 14 |
 | [N Feature slices](checklists/14-FEATURE-SLICES.md) | 170 | 0 | 63 | 0 | 107 |
 | [O Go-live](checklists/15-GO-LIVE.md) | 23 | 0 | 0 | 0 | 23 |
-| **TOTAL** | **1,069** | **3** | **81** | **0** | **985** |
+| **TOTAL** | **1,069** | **11** | **74** | **0** | **984** |
 
 Recount any file with:
 
@@ -134,7 +134,7 @@ No production launch while any of these is unticked. Full table with links:
 3. Cross-tenant read **and write** denied for every resource, proven by test — [A.3.10](checklists/01-DATABASE.md)
 4. A backup has actually been restored and verified — [L.3](checklists/12-DATA-OPERATIONS.md)
 5. Rollback rehearsed, not just documented — [K.2.7](checklists/11-BUILD-INFRA.md)
-6. CI exists and blocks merge — [K.2.1](checklists/11-BUILD-INFRA.md) / [J.1.8](checklists/10-TESTING.md)
+6. ~~CI exists~~ **done** — green run 32856078174. Blocking merge still needs branch protection — [J.1.8](checklists/10-TESTING.md)
 7. Readiness probe actually checks the database — [B.3.2](checklists/02-BACKEND.md)
 8. No mock data, demo credential, or seed password in any production bundle — [D.1.6](checklists/04-FRONTEND-WEB.md) / [G.3.9](checklists/07-SECURITY.md)
 9. No token in browser storage; refresh token httpOnly and revocable — [D.7.1](checklists/04-FRONTEND-WEB.md) / [G.1.2](checklists/07-SECURITY.md)
