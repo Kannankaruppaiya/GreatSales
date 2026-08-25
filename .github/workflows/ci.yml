@@ -38,6 +38,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # @greatsales/shared resolves to ./dist/index.js, so every consumer sees
+      # untyped imports until it is built — which is why the first CI run
+      # produced a cascade of "error typed value" lint failures that no
+      # developer machine reproduces. The Dockerfiles already did this; CI
+      # did not.
+      - run: pnpm --filter @greatsales/shared build
+
       # The API imports generated Prisma types, so type-checking needs them.
       - run: pnpm --filter @greatsales/db db:generate
 
@@ -79,6 +86,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @greatsales/shared build
       - run: pnpm --filter @greatsales/db db:generate
       - run: pnpm --filter web test
 
@@ -132,6 +140,7 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @greatsales/shared build
       - run: pnpm --filter @greatsales/db db:generate
 
       # migrate deploy, never migrate dev — the latter RESETS the database
@@ -171,6 +180,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @greatsales/shared build
       - run: pnpm --filter @greatsales/db db:generate
 
       # Cold cache on purpose: a build that only succeeds with a warm turbo

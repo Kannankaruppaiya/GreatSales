@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { DEMO_EMAIL_BY_ROLE, DEMO_PASSWORD_BY_ROLE } from "@/features/auth/LoginPage";
@@ -20,14 +20,38 @@ import { env } from "@/lib/config";
  * different dataset with different logins — if you point the prefill there,
  * the first assertion below fails and tells you so.
  */
-describe("demo login prefill matches an actually-seeded user", () => {
+/**
+ * `poc-v6-data.json` holds real customer records and is deliberately NOT
+ * committed (checklists/07-SECURITY.md G.3.9), so a clean clone — CI included —
+ * does not have it. This suite reads the seed's own inputs, which is exactly
+ * what makes it valuable and also what makes it unrunnable without them.
+ *
+ * So it SKIPS rather than fails when the dataset is absent. That is a real
+ * trade-off, not a tidy-up: on CI these assertions do not run, so a demo
+ * prefill pointing at a non-existent user would only be caught on a machine
+ * that has the dataset. The prefill is forced empty in production builds
+ * (src/lib/config.ts, asserted by CI's bundle grep), which is what keeps the
+ * gap survivable.
+ */
+const POC_DATA_PATH = path.resolve(
+  fileURLToPath(import.meta.url),
+  "../../../../../../packages/db/prisma/poc-v6-data.json",
+);
+const hasPocDataset = existsSync(POC_DATA_PATH);
+
+describe.skipIf(!hasPocDataset)("demo login prefill matches an actually-seeded user", () => {
   const dbDir = path.resolve(fileURLToPath(import.meta.url), "../../../../../../packages/db/prisma");
   const seedSource = readFileSync(path.join(dbDir, "seed-poc.ts"), "utf8");
-  const pocUsers = (
-    JSON.parse(readFileSync(path.join(dbDir, "poc-v6-data.json"), "utf8")) as {
-      users: { u: string; p: string; role: string; active: boolean }[];
-    }
-  ).users;
+  // Guarded as well as skipped: vitest still RUNS a describe callback while
+  // collecting, even a skipped one, so an unguarded read here would throw
+  // during collection and fail the file outright rather than skip it.
+  const pocUsers = hasPocDataset
+    ? (
+        JSON.parse(readFileSync(POC_DATA_PATH, "utf8")) as {
+          users: { u: string; p: string; role: string; active: boolean }[];
+        }
+      ).users
+    : [];
 
   // seed.ts builds each login as `<poc username>@<domain>` — pull the domain out
   // of the source so renaming it fails here instead of at the login form.
