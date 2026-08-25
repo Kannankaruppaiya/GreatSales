@@ -12,7 +12,9 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "db:seed:poc": "tsx prisma/seed-poc.ts",
+    "db:seed:promech": "tsx prisma/seed-promech.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0"

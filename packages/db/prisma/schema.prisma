@@ -190,6 +190,7 @@ model Tenant {
   auditLogs     AuditLog[]
   importJobs    ImportJob[]
   featureFlags  TenantFeatureFlag[]
+  refreshTokens RefreshToken[]
 
   accountManager PlatformUser? @relation(fields: [accountManagerId], references: [id])
 
@@ -210,6 +211,15 @@ model User {
   active       Boolean   @default(true)
   lastIp       String?
   lastLoginAt  DateTime?
+  // Brute-force containment. Counter is authoritative across API instances
+  // (per-IP throttling is per-instance and best-effort); reset on any success.
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  /// Set when an ADMIN chooses this user's password (on create, or on reset).
+  /// From that moment the credential is a shared secret, so the user must
+  /// replace it before doing anything else. Enforced by MustChangePasswordGuard,
+  /// not merely surfaced to the UI.
+  mustChangePassword  Boolean   @default(false)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
@@ -236,13 +246,53 @@ model User {
   attachments        Attachment[]
   auditLogs          AuditLog[]
   orderStatusChanges OrderStatusHistory[]
+  refreshTokens      RefreshToken[]
 
-  @@unique([tenantId, email])
-  @@unique([tenantId, username])
+  // Uniqueness is enforced by PARTIAL unique indexes created in the F12
+  // migration: only rows with deletedAt IS NULL participate, so soft-deleting a
+  // user frees their email and username for reuse. Prisma cannot express a
+  // WHERE clause on @@unique, so these are plain indexes here and real
+  // constraints in SQL. A violation still raises P2002.
+  @@index([tenantId, email])
+  @@index([tenantId, username])
+  // Serves the default listing and its default `name asc` sort in one index.
+  @@index([tenantId, deletedAt, name])
   @@index([tenantId])
   @@index([managerId])
   @@index([teamId])
   @@index([deletedAt])
+}
+
+/**
+ * One issued refresh token. `id` IS the JWT `jti`, so a presented token is
+ * looked up directly — a signature that verifies but has no row (or a revoked
+ * row) is rejected.
+ *
+ * `familyId` groups every token descended from one login. Rotation consumes a
+ * token and issues its replacement in the same family; presenting an already
+ * consumed token means the token was stolen and replayed, so the WHOLE family
+ * is revoked. That is what makes a leaked refresh token containable.
+ */
+model RefreshToken {
+  id            String    @id // = JWT jti
+  tenantId      String
+  userId        String
+  familyId      String
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+  usedAt        DateTime? // set when rotated; a second use = replay
+  revokedAt     DateTime?
+  revokedReason String?
+  replacedById  String? // token issued in its place
+  ip            String?
+  userAgent     String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, userId]) // "revoke all sessions for this user"
+  @@index([familyId]) // reuse detection revokes by family
+  @@index([expiresAt]) // expiry sweep
 }
 
 model Team {

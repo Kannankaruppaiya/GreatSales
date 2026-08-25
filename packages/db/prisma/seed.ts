@@ -7,6 +7,7 @@
  * below). For local testing only — never a real credential.
  */
 import { PrismaClient, DealStage, ProjStatus, OrderStatus } from "@prisma/client";
+import { assertDestructiveSeedAllowed } from "./seed-guard";
 
 const prisma = new PrismaClient();
 
@@ -149,6 +150,50 @@ async function seedTenant(k: string, name: string, region: string, accountManage
     data: { id: `user_sales2_${k}`, tenantId: t, name: `${name} Sales Two`, email: `sales2@${k}.test`, username: `sales2_${k}`, passwordHash: PW, roleId: `role_sales_${k}`, managerId: `user_mgr_${k}`, teamId: `team_${k}` },
   });
 
+  // --- F12 fixtures -------------------------------------------------------
+  // A SECOND admin. Without one the last-admin guard could never be exercised
+  // from a realistic starting state: the very first removal would always be
+  // the last, so the "allowed" branch would have no test.
+  await prisma.user.create({
+    data: { id: `user_admin2_${k}`, tenantId: t, name: `${name} Admin Two`, email: `admin2@${k}.test`, username: `admin2_${k}`, passwordHash: PW, roleId: `role_admin_${k}` },
+  });
+
+  // A custom role with NO users, and narrower grants than any system role.
+  // Proves the role dropdown is sourced from /roles rather than from whichever
+  // roles happen to appear in the loaded user rows — a role with no members
+  // could otherwise never receive its first one.
+  await prisma.role.create({
+    data: { id: `role_viewer_${k}`, tenantId: t, name: "viewer", isSystem: false },
+  });
+  await prisma.rolePermission.createMany({
+    data: ["customer.read", "report.view"].map((key) => ({ roleId: `role_viewer_${k}`, permissionId: permId(key) })),
+  });
+
+  // A second team, so "move a member from one team to another" is testable.
+  await prisma.team.create({
+    data: { id: `team_secondary_${k}`, tenantId: t, name: `${name} Secondary Team`, managerId: `user_mgr_${k}` },
+  });
+
+  // Twelve more sales users so a limit=5 page is genuinely partial and the
+  // cursor/sort behaviour is exercised rather than assumed. Half are inactive,
+  // so the status filter has both sides to find.
+  await prisma.user.createMany({
+    data: Array.from({ length: 12 }, (_, i) => {
+      const n = String(i + 1).padStart(2, "0");
+      return {
+        id: `user_bulk_${k}_${n}`,
+        tenantId: t,
+        name: `${name} Bulk ${n}`,
+        email: `bulk${n}@${k}.test`,
+        username: `bulk${n}_${k}`,
+        passwordHash: PW,
+        roleId: `role_sales_${k}`,
+        managerId: `user_mgr_${k}`,
+        active: i % 2 === 0,
+      };
+    }),
+  });
+
   // Products & principals
   await prisma.principal.create({ data: { id: `prin_${k}`, tenantId: t, name: `${name} Principal Co` } });
   await prisma.product.createMany({
@@ -208,6 +253,7 @@ async function seedTenant(k: string, name: string, region: string, accountManage
 }
 
 async function main() {
+  assertDestructiveSeedAllowed(); // must precede the first TRUNCATE
   console.log("🌱 Seeding GreatSales dev data…");
   await reset();
   await seedGlobals();
