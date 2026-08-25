@@ -9,7 +9,7 @@
 > **production-shaped database**. A working dev server, a seeded demo tenant, or a green
 > unit test is **not** evidence.
 
-**Layer owner:** ______________ · **Last reviewed:** 2026-08-25 · **Items:** 149
+**Layer owner:** ______________ · **Last reviewed:** 2026-08-25 · **Items:** 155
 
 **Gate:** Judged against `vite build` output served by nginx — never the dev server.
 
