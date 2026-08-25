@@ -1,4 +1,6 @@
 export * from "./auth";
+export * from "./errors";
+export * from "./password";
 export * from "./rbac";
 export * from "./pagination";
 export * from "./http";
@@ -9,5 +11,7 @@ export * from "./lead";
 export * from "./order";
 export * from "./payment";
 export * from "./user";
+export * from "./role";
+export * from "./team";
 export * from "./product";
 export * from "./followup";
