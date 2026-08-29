@@ -2,18 +2,18 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { ManagementProvider } from "@/features/management/ManagementProvider";
-import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
+import { useUi } from "@/store/ui";
 import { useAuth } from "@/store/auth";
-import { useManagementStore, emptyDataset } from "@/features/management/managementStore";
+import { usePlatformAuth } from "@/store/platformAuth";
 import { permissionsFor } from "../helpers/authFixtures";
 
-
-function seedAuth(role: "super_admin" | "admin") {
+/** A tenant session belonging to `tenantId`. */
+function seedAuth(tenantId: string, role: "super_admin" | "admin" = "admin") {
   useAuth.setState({
     accessToken: "test",
     user: {
       id: "u1",
-      tenantId: "tenant_acme",
+      tenantId,
       name: "User",
       email: "user@acme.test",
       username: "user",
@@ -22,6 +22,7 @@ function seedAuth(role: "super_admin" | "admin") {
       permissions: permissionsFor(role),
       mustChangePassword: false,
     },
+    status: "ready",
   });
 }
 
@@ -45,54 +46,35 @@ function renderAt(path: string) {
 
 describe("ManagementProvider", () => {
   beforeEach(() => {
-    useUi.setState({ activeManagementId: DEFAULT_MANAGEMENT_ID });
-    seedAuth("super_admin");
-    useManagementStore.setState({
-      managements: [
-        {
-          id: DEFAULT_MANAGEMENT_ID,
-          name: "Default",
-          initials: "DF",
-          industry: "x",
-          currency: "INR (₹)",
-          createdAt: "2026-08-19",
-        },
-        {
-          id: "m_acme",
-          name: "Acme",
-          initials: "AC",
-          industry: "Pharma",
-          currency: "INR (₹)",
-          createdAt: "2026-08-19",
-        },
-      ],
-      datasets: {
-        m_acme: emptyDataset({
-          name: "Acme",
-          subdomain: "m_acme",
-          currency: "INR (₹)",
-          fiscalYearStart: "April",
-        }),
-      },
-    });
+    usePlatformAuth.setState({ accessToken: null, platformUser: null });
+    useUi.setState({ activeManagementId: null });
   });
 
-  it("renders children for a valid management the owner may open", () => {
-    renderAt("/managements/m_acme/dashboard");
+  it("renders the workspace when the tenant session matches the URL", () => {
+    seedAuth("tenant_acme");
+    renderAt("/managements/tenant_acme/dashboard");
     expect(screen.getByText("inside")).toBeInTheDocument();
-    expect(useUi.getState().activeManagementId).toBe("m_acme");
+    expect(useUi.getState().activeManagementId).toBe("tenant_acme");
   });
 
-  it("redirects owner to home for an unknown management", () => {
-    renderAt("/managements/m_ghost/dashboard");
+  it("sends an owner back to Home when the session does not match the URL", () => {
+    // An owner is signed in to the platform surface but has not assumed this
+    // management (no matching tenant session) → bounce to the grid to pick one.
+    seedAuth("tenant_acme");
+    usePlatformAuth.setState({
+      accessToken: "platform",
+      platformUser: { id: "pu", name: "Owner", email: "o@x.io", role: "SuperAdmin" },
+    });
+    renderAt("/managements/tenant_globex/dashboard");
     expect(screen.getByText("home")).toBeInTheDocument();
   });
 
-  it("blocks a non-owner from another management (never switches to it)", () => {
-    useUi.setState({ activeManagementId: DEFAULT_MANAGEMENT_ID });
-    seedAuth("admin");
-    renderAt("/managements/m_acme/dashboard");
-    // Blocked: redirected back to their own management, never switched to m_acme.
-    expect(useUi.getState().activeManagementId).toBe(DEFAULT_MANAGEMENT_ID);
+  it("bounces a plain tenant user to their OWN workspace, never the foreign one", () => {
+    seedAuth("tenant_acme");
+    renderAt("/managements/tenant_globex/dashboard");
+    // The redirect lands on their own management, which matches and renders.
+    // The foreign id (tenant_globex) is never the one that gets activated.
+    expect(screen.getByText("inside")).toBeInTheDocument();
+    expect(useUi.getState().activeManagementId).toBe("tenant_acme");
   });
 });

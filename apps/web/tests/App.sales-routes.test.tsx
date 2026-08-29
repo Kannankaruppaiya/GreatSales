@@ -41,7 +41,7 @@ describe("route guards for the sales role", () => {
   it.each(["users", "data", "products"])(
     "blocks a salesperson from /%s",
     async (segment) => {
-      renderAt(`/managements/${DEFAULT_MANAGEMENT_ID}/${segment}`);
+      renderAt(`/managements/tenant_acme/${segment}`);
       // 5s, not the 1000ms default: two lazy boundaries now sit between render
       // and this assertion — the route page, and ManagementProvider, which was
       // made lazy so the POC dataset it reaches stays out of the pre-login

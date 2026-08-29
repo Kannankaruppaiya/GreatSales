@@ -25,8 +25,10 @@ a 33,000-line dataset of real customer records into the pre-login entry chunk �
 
 **The mock modules are being removed, not extended.** `src/data/mock.ts`,
 `src/data/pocSeedData.ts` and `src/store/trackerStore.ts` are legacy client-side fixtures
-holding real records. Do not add a new import of any of them. The one remaining consumer
-is the management feature (roadmap F14), which is tracked as unfinished for this reason.
+holding real records. Do not add a new import of any of them. The management feature (F14)
+no longer reads `trackerStore` — it runs on the real platform API now. The remaining
+`trackerStore` consumers are `CustomerDrawer` and `ProjectionFollowUpModal`; those are the
+next to migrate off it.
 
 **Role gating in the UI is cosmetic.** Hiding a button is not authorization — the server
 decides. Every role-gated route must also be denied by the API; assume a user will paste
