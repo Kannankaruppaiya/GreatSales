@@ -13,7 +13,13 @@ import type {
   RequestUser,
 } from '@greatsales/shared';
 import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
-import { computeTotal, lineTotal } from './order-engine';
+import {
+  canTransition,
+  computeTotal,
+  INITIAL_ORDER_STATUS,
+  lineTotal,
+} from './order-engine';
+import { codedBadRequest } from '../common/error-codes';
 
 /** Prisma include graph that carries everything an {@link OrderRow} needs. */
 const ORDER_INCLUDE = {
@@ -134,6 +140,15 @@ export class OrdersService {
       ? user.userId
       : body.salespersonId;
     const status = body.status ?? 'Created';
+    // An order cannot be born part-way through the lifecycle. The client always
+    // starts at Created; a hand-crafted request must not smuggle in a later
+    // status to skip the machine.
+    if (status !== INITIAL_ORDER_STATUS) {
+      throw codedBadRequest(
+        'INVALID_INITIAL_ORDER_STATUS',
+        `A new order must start at ${INITIAL_ORDER_STATUS}, not ${status}.`,
+      );
+    }
     const total = computeTotal(body.items);
 
     const created = await db.salesOrder.create({
@@ -211,6 +226,16 @@ export class OrdersService {
     const statusChanged =
       patch.status !== undefined && patch.status !== existing.status;
     if (statusChanged) {
+      // The server owns the fulfilment state machine. Reject a skip, a move
+      // backwards, or any change out of a terminal (delivered/cancelled) state
+      // — the UI only ever offers the legal next step, but the API must not
+      // rely on that.
+      if (!canTransition(existing.status, patch.status!)) {
+        throw codedBadRequest(
+          'INVALID_ORDER_TRANSITION',
+          `Cannot move an order from ${existing.status} to ${patch.status}.`,
+        );
+      }
       data.status = patch.status;
       data.statusHistory = {
         create: [

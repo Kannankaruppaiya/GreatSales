@@ -92,13 +92,72 @@ describe('OrdersService (integration)', () => {
     const before = list.items.find((o) => o.code === 'SO-ACME-001')!
       .statusHistory.length;
 
+    // Seeded at Acknowledged; the one legal forward step is DeliveryPartnerAssigned.
     const updated = await service.update(admin('tenant_acme', 'acme'), id, {
-      status: 'DeliveredToCustomer',
-      statusNote: 'Handed to customer',
+      status: 'DeliveryPartnerAssigned',
+      statusNote: 'Blue Dart assigned',
     });
-    expect(updated.status).toBe('DeliveredToCustomer');
+    expect(updated.status).toBe('DeliveryPartnerAssigned');
     expect(updated.statusHistory).toHaveLength(before + 1);
-    expect(updated.statusHistory.at(-1)!.note).toBe('Handed to customer');
+    expect(updated.statusHistory.at(-1)!.note).toBe('Blue Dart assigned');
+  });
+
+  it('rejects an illegal status transition — a skip, and a move backwards', async () => {
+    const list = await service.list(admin('tenant_acme', 'acme'), {
+      limit: 20,
+    });
+    // The previous test advanced SO-ACME-001 to DeliveryPartnerAssigned.
+    const id = list.items.find((o) => o.code === 'SO-ACME-001')!.id;
+
+    // Skip two stages ahead → rejected.
+    await expect(
+      service.update(admin('tenant_acme', 'acme'), id, {
+        status: 'CustomerReceiptConfirmed',
+      }),
+    ).rejects.toMatchObject({
+      response: { code: 'INVALID_ORDER_TRANSITION' },
+    });
+
+    // Move backwards → rejected.
+    await expect(
+      service.update(admin('tenant_acme', 'acme'), id, { status: 'Created' }),
+    ).rejects.toMatchObject({
+      response: { code: 'INVALID_ORDER_TRANSITION' },
+    });
+  });
+
+  it('rejects any transition out of a cancelled (terminal) order', async () => {
+    const created = await service.create(admin('tenant_acme', 'acme'), {
+      code: 'SO-ACME-TERMINAL',
+      customerId: 'cust_1_acme',
+      salespersonId: 'user_sales1_acme',
+      items: [{ productId: 'prod_a_acme', qty: 1, price: 1 }],
+    });
+    await service.update(admin('tenant_acme', 'acme'), created.id, {
+      status: 'Cancelled',
+      cancelReason: 'test',
+    });
+    await expect(
+      service.update(admin('tenant_acme', 'acme'), created.id, {
+        status: 'Acknowledged',
+      }),
+    ).rejects.toMatchObject({
+      response: { code: 'INVALID_ORDER_TRANSITION' },
+    });
+  });
+
+  it('rejects creating an order already part-way through the lifecycle', async () => {
+    await expect(
+      service.create(admin('tenant_acme', 'acme'), {
+        code: 'SO-ACME-BADSTART',
+        customerId: 'cust_1_acme',
+        salespersonId: 'user_sales1_acme',
+        status: 'DeliveredToCustomer',
+        items: [{ productId: 'prod_a_acme', qty: 1, price: 1 }],
+      }),
+    ).rejects.toMatchObject({
+      response: { code: 'INVALID_INITIAL_ORDER_STATUS' },
+    });
   });
 
   it('records cancellation reason and timestamp when cancelled', async () => {
