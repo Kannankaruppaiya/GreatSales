@@ -167,6 +167,73 @@ jobs:
       - name: End-to-end tests
         run: pnpm --filter api test:e2e
 
+  smoke:
+    name: Smoke — built artifact serves the critical journey
+    runs-on: ubuntu-latest
+
+    # Exercises the BUILT API (node dist/main), in NODE_ENV=production, against a
+    # real Postgres — proof the shipped artifact (not ts-jest source) serves
+    # login → tenant-scoped read → write, enforces auth, and hides Swagger
+    # (go-live blocker O.1.14).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: greatsales
+          POSTGRES_PASSWORD: greatsales
+          POSTGRES_DB: greatsales_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U greatsales"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://greatsales_app:greatsales_app@localhost:5432/greatsales_test?schema=public
+      DIRECT_URL: postgresql://greatsales:greatsales@localhost:5432/greatsales_test?schema=public
+      JWT_ACCESS_SECRET: ci-access-secret-not-for-any-real-environment
+      JWT_REFRESH_SECRET: ci-refresh-secret-not-for-any-real-environment
+      CORS_ORIGIN: http://127.0.0.1:3000
+      SWAGGER_ENABLED: 'false'
+      TRUST_PROXY: '1'
+      LOG_LEVEL: error
+      PORT: '3000'
+      START: '1'
+      BASE: http://127.0.0.1:3000/api/v1
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @greatsales/shared build
+      - run: pnpm --filter @greatsales/db db:generate
+      - name: Apply migrations
+        run: pnpm --filter @greatsales/db db:deploy
+
+      # Seed as the OWNER (TRUNCATE needs ownership); the guard permits the
+      # destructive seed only because the database name ends in _test.
+      - name: Seed
+        run: pnpm --filter @greatsales/db db:seed
+        env:
+          DATABASE_URL: postgresql://greatsales:greatsales@localhost:5432/greatsales_test?schema=public
+          ALLOW_DESTRUCTIVE_SEED: '1'
+
+      - name: Build the API artifact
+        run: pnpm --filter api build
+
+      - name: Smoke the built artifact
+        run: pnpm smoke
+
   build:
     name: Production build
     runs-on: ubuntu-latest

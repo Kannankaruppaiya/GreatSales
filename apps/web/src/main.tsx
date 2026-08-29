@@ -4,9 +4,13 @@ import { BrowserRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import App from "@/App";
 import { queryClient } from "@/lib/queryClient";
+import { initSentry } from "@/lib/sentry";
 import { useAuth } from "@/store/auth";
 import { usePlatformAuth } from "@/store/platformAuth";
 import "./index.css";
+
+// Error tracking, before anything can throw. No-op unless VITE_SENTRY_DSN is set.
+initSentry();
 
 // Restore the session from the httpOnly refresh cookie before the first paint
 // decision. Nothing secret survives a reload by design, so without this every

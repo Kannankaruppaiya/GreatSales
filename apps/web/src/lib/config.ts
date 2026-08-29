@@ -23,6 +23,12 @@ export const env = {
   API_BASE_URL: import.meta.env.VITE_API_URL || "/api/v1",
   APP_ENV: import.meta.env.VITE_APP_ENV || "development",
   APP_NAME: import.meta.env.VITE_APP_NAME || "GreatSales PRO",
+  /**
+   * Error-tracking DSN. Public by design (a Sentry DSN is not a secret — it only
+   * permits *sending* events), so VITE_-prefixed is correct. Empty → tracking
+   * off (see lib/sentry.ts).
+   */
+  SENTRY_DSN: import.meta.env.VITE_SENTRY_DSN || "",
   IS_PROD: import.meta.env.PROD,
   IS_DEV: import.meta.env.DEV,
 

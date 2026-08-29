@@ -42,10 +42,14 @@ RUN pnpm --filter @greatsales/db db:generate
 ARG VITE_API_URL=/api/v1
 ARG VITE_APP_ENV=production
 ARG VITE_APP_NAME="GreatSales"
+# A Sentry DSN is not a secret (it only permits SENDING events), so baking it
+# into the static bundle is fine. Empty by default → browser error tracking off.
+ARG VITE_SENTRY_DSN=""
 
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_APP_ENV=$VITE_APP_ENV
 ENV VITE_APP_NAME=$VITE_APP_NAME
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
 
 RUN pnpm --filter web build
 

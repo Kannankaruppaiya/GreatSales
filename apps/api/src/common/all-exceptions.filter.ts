@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import type { ApiErrorBody, ErrorCode } from '@greatsales/shared';
+import { reportException } from '../observability/sentry';
 
 /**
  * Normalizes every thrown error into the shared ApiErrorBody envelope so
@@ -50,6 +51,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     } else if (exception instanceof Error) {
       this.logger.error(exception.message, exception.stack);
+      // An unexpected (non-HttpException) error is a bug, not a rule — report it
+      // to error tracking so a human is alerted (no-op unless SENTRY_DSN is set).
+      reportException(exception);
       if (process.env.NODE_ENV !== 'production') message = exception.message;
     }
 
