@@ -7,6 +7,7 @@ export { Divider } from './divider';
 export { Icon, type IconName } from './icon';
 export { ListRow } from './list-row';
 export { Screen } from './screen';
+export { Select, type SelectOption } from './select';
 export { Skeleton } from './skeleton';
 export { EmptyState, ErrorState, LoadingState } from './states';
 export { Text, type AppTextProps, type TextColor } from './text';

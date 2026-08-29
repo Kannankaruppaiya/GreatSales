@@ -5,6 +5,7 @@
  * so those are shown as disabled "coming soon" cards, not faked numbers.
  */
 import {
+  ArrowRight,
   BarChart3,
   CreditCard,
   ShoppingCart,
@@ -13,6 +14,7 @@ import {
   Users2,
   type LucideIcon,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Banner } from "@/components/ui/banner";
@@ -21,8 +23,10 @@ import { ErrorState, LoadingState } from "@/components/ui/states";
 import { Text } from "@/components/ui/text";
 import { useAuth } from "@/lib/auth/auth-context";
 
-const MODULES: { title: string; description: string; icon: LucideIcon }[] = [
-  { title: "Customers", description: "Accounts, contacts, and reassignment", icon: Users2 },
+type ModuleCard = { title: string; description: string; icon: LucideIcon; to?: string };
+
+const MODULES: ModuleCard[] = [
+  { title: "Customers", description: "Accounts, contacts, and reassignment", icon: Users2, to: "/customers" },
   { title: "Leads", description: "Pipeline across the 9 deal stages", icon: TrendingUp },
   { title: "Orders", description: "Sales orders and status history", icon: ShoppingCart },
   { title: "Payments", description: "Invoices, aging, and collections", icon: CreditCard },
@@ -36,6 +40,7 @@ function firstName(name: string): string {
 
 export function DashboardPage() {
   const { user, profileStatus, reloadProfile } = useAuth();
+  const navigate = useNavigate();
 
   if (!user && profileStatus === "loading") return <LoadingState label="Loading your workspace…" />;
   if (!user) {
@@ -79,27 +84,54 @@ export function DashboardPage() {
         </Text>
         <Banner
           tone="info"
-          message="These modules are being built. You’re seeing the finished design ahead of the data."
+          message="Customers is live. The remaining modules are being built — you’re seeing the finished design ahead of the data."
         />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {MODULES.map((m) => (
-            <Card key={m.title} className="flex flex-col gap-3 opacity-90">
-              <div className="flex items-center justify-between">
-                <div className="grid size-10 place-items-center rounded-field bg-primary-subtle">
-                  <m.icon className="size-5 text-primary" aria-hidden />
+          {MODULES.map((m) => {
+            const live = Boolean(m.to);
+            return (
+              <Card
+                key={m.title}
+                onClick={live ? () => navigate(m.to!) : undefined}
+                role={live ? "button" : undefined}
+                tabIndex={live ? 0 : undefined}
+                onKeyDown={
+                  live
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          navigate(m.to!);
+                        }
+                      }
+                    : undefined
+                }
+                className={
+                  live
+                    ? "flex cursor-pointer flex-col gap-3 transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    : "flex flex-col gap-3 opacity-90"
+                }
+              >
+                <div className="flex items-center justify-between">
+                  <div className="grid size-10 place-items-center rounded-field bg-primary-subtle">
+                    <m.icon className="size-5 text-primary" aria-hidden />
+                  </div>
+                  {live ? (
+                    <ArrowRight className="size-5 text-fg-muted" aria-hidden />
+                  ) : (
+                    <Badge label="Soon" tone="neutral" />
+                  )}
                 </div>
-                <Badge label="Soon" tone="neutral" />
-              </div>
-              <div>
-                <Text variant="bodyLg" className="font-semibold">
-                  {m.title}
-                </Text>
-                <Text variant="bodySm" color="secondary" className="mt-0.5 block">
-                  {m.description}
-                </Text>
-              </div>
-            </Card>
-          ))}
+                <div>
+                  <Text variant="bodyLg" className="font-semibold">
+                    {m.title}
+                  </Text>
+                  <Text variant="bodySm" color="secondary" className="mt-0.5 block">
+                    {m.description}
+                  </Text>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       </div>
     </div>

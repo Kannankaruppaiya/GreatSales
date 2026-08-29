@@ -37,10 +37,12 @@ import { cn } from "@/lib/cn";
 
 type NavItem = { label: string; icon: LucideIcon; to?: string; end?: boolean };
 
-const PRIMARY: NavItem[] = [{ label: "Dashboard", icon: LayoutDashboard, to: "/", end: true }];
+const PRIMARY: NavItem[] = [
+  { label: "Dashboard", icon: LayoutDashboard, to: "/", end: true },
+  { label: "Customers", icon: Users2, to: "/customers" },
+];
 
 const MODULES: NavItem[] = [
-  { label: "Customers", icon: Users2 },
   { label: "Leads", icon: TrendingUp },
   { label: "Orders", icon: ShoppingCart },
   { label: "Payments", icon: CreditCard },

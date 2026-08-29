@@ -5,6 +5,7 @@
  * customers/leads/orders/etc. don't exist yet, so those rows are presented as
  * disabled "coming soon" rather than faked with placeholder numbers.
  */
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -20,8 +21,8 @@ import type { IconName } from '@/components/ui/icon';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useTheme } from '@/theme/theme-provider';
 
-const MODULES: { key: string; title: string; subtitle: string; icon: IconName }[] = [
-  { key: 'customers', title: 'Customers', subtitle: 'Your accounts and contacts', icon: 'people-outline' },
+const MODULES: { key: string; title: string; subtitle: string; icon: IconName; href?: '/customers' }[] = [
+  { key: 'customers', title: 'Customers', subtitle: 'Your accounts and contacts', icon: 'people-outline', href: '/customers' },
   { key: 'leads', title: 'Leads', subtitle: 'Pipeline and deal stages', icon: 'trending-up-outline' },
   { key: 'orders', title: 'Orders', subtitle: 'Sales orders and status', icon: 'cart-outline' },
   { key: 'payments', title: 'Payments', subtitle: 'Invoices and collections', icon: 'card-outline' },
@@ -36,6 +37,7 @@ function firstName(name: string): string {
 export default function HomeScreen() {
   const { spacing } = useTheme();
   const { user, profileStatus, reloadProfile } = useAuth();
+  const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
 
   async function onRefresh() {
@@ -95,19 +97,29 @@ export default function HomeScreen() {
         </Text>
         <Banner
           tone="info"
-          message="These modules are being built. You’re seeing the finished design ahead of the data."
+          message="Customers is live. The remaining modules are being built — you’re seeing the finished design ahead of the data."
         />
         <Card padded={false}>
           {MODULES.map((m, i) => (
             <View key={m.key}>
               {i > 0 ? <Divider inset /> : null}
-              <ListRow
-                title={m.title}
-                subtitle={m.subtitle}
-                leadingIcon={m.icon}
-                disabled
-                trailing={<Badge label="Soon" tone="neutral" />}
-              />
+              {m.href ? (
+                <ListRow
+                  title={m.title}
+                  subtitle={m.subtitle}
+                  leadingIcon={m.icon}
+                  chevron
+                  onPress={() => router.push(m.href!)}
+                />
+              ) : (
+                <ListRow
+                  title={m.title}
+                  subtitle={m.subtitle}
+                  leadingIcon={m.icon}
+                  disabled
+                  trailing={<Badge label="Soon" tone="neutral" />}
+                />
+              )}
             </View>
           ))}
         </Card>

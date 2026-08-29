@@ -5,6 +5,8 @@ import { RouterProvider, createBrowserRouter } from "react-router-dom";
 import { AppShell } from "@/components/app-shell";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { AccountPage } from "@/pages/account";
+import { CustomerDetailPage } from "@/pages/customers/customer-detail";
+import { CustomersListPage } from "@/pages/customers/customers-list";
 import { DashboardPage } from "@/pages/dashboard";
 import { LoginPage } from "@/pages/login";
 import { NotFoundPage } from "@/pages/not-found";
@@ -19,6 +21,8 @@ const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: "customers", element: <CustomersListPage /> },
+      { path: "customers/:id", element: <CustomerDetailPage /> },
       { path: "account", element: <AccountPage /> },
     ],
   },
