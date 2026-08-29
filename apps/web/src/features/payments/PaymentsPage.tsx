@@ -140,8 +140,6 @@ export default function PaymentsPage() {
     return [...m.entries()].map(([id, name]) => ({ id, name }));
   }, [rows]);
 
-  const existingRefNos = useMemo(() => rows.map((r) => r.refNo || "").filter(Boolean), [rows]);
-
   // Zone filter is client-side grouping over the fetched rows (there is no
   // server-side payZone filter param) — this only ever narrows the page's
   // already-loaded rows, it does not fetch anything new.
@@ -652,7 +650,6 @@ export default function PaymentsPage() {
       <ImportPaymentsModal
         open={showImportExcel}
         onClose={() => setShowImportExcel(false)}
-        existingRefNos={existingRefNos}
       />
 
       {selectedPayment && (

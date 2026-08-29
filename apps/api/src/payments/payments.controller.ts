@@ -13,9 +13,11 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   PaymentCreateSchema,
+  PaymentImportSchema,
   PaymentListQuerySchema,
   PaymentUpdateSchema,
   type PaymentCreate,
+  type PaymentImport,
   type PaymentListQuery,
   type PaymentUpdate,
   type RequestUser,
@@ -51,6 +53,20 @@ export class PaymentsController {
     @Body(new ZodValidationPipe(PaymentCreateSchema)) body: PaymentCreate,
   ) {
     return this.service.create(user, body);
+  }
+
+  /**
+   * Bulk-import a parsed outstanding-invoice sheet. The server re-validates,
+   * de-dupes references against the whole table, and inserts inside one
+   * transaction with a per-row report — the browser's parse is preview only.
+   */
+  @Post('import')
+  @RequirePermissions('payment.write')
+  importPayments(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(PaymentImportSchema)) body: PaymentImport,
+  ) {
+    return this.service.import(user, body);
   }
 
   /** Partial edit on one payment (re-derives pending/status). */

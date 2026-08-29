@@ -704,6 +704,15 @@ model Payment {
   @@index([customerId])
   @@index([salespersonId])
   @@index([status])
+  // Backs the whole-table refNo dedupe lookup on import (equality: refNo IN (…)).
+  // A PARTIAL UNIQUE index on (tenantId, refNo) WHERE refNo IS NOT NULL AND
+  // deletedAt IS NULL enforces receipt-reference uniqueness per tenant — it is
+  // the hard backstop the bulk import relies on. Prisma cannot express a
+  // filtered/partial index, so (exactly like the RLS policies and the User
+  // identity indexes) it lives in raw SQL: see the migration
+  // 20260829120000_payment_refno_dedupe. This plain @@index stays so Prisma
+  // keeps the equality lookup index-backed.
+  @@index([tenantId, refNo])
 }
 
 model PaymentFollowup {

@@ -58,6 +58,13 @@ export const ERROR_CODES = [
    *  part-way (or fully) through the fulfilment lifecycle. */
   "INVALID_INITIAL_ORDER_STATUS",
 
+  // --- Payments / import --------------------------------------------------
+  /** A payment import was rolled back whole: a reference in the sheet collided
+   *  with the (tenantId, refNo) partial-unique backstop — typically a
+   *  concurrent import of the same sheet racing past the in-transaction dedupe.
+   *  Nothing was saved; re-running skips the now-existing reference. */
+  "PAYMENT_IMPORT_CONFLICT",
+
   // --- Auth ---------------------------------------------------------------
   /** The supplied current password did not verify. */
   "WRONG_CURRENT_PASSWORD",
