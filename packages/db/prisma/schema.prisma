@@ -410,6 +410,13 @@ model CustomerContact {
   customer Customer @relation(fields: [customerId], references: [id])
 
   @@index([customerId])
+  // At most ONE primary contact per customer. Enforced by a PARTIAL UNIQUE
+  // index CustomerContact_customerId_primary_key ON ("customerId") WHERE
+  // "isPrimary" — Prisma cannot model a partial index, so (like the RLS
+  // policies and the Payment refNo backstop) it lives in raw SQL: migration
+  // 20260829140000_customer_contact_one_primary. The customers service demotes
+  // the current primary before promoting a new one, so the invariant holds
+  // without ever momentarily having two.
 }
 
 // ============================================================

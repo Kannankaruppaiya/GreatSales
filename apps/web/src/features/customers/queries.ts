@@ -6,6 +6,7 @@
 import {
   useInfiniteQuery,
   useMutation,
+  useQuery,
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
@@ -15,6 +16,10 @@ import type {
   CustomerListResponse,
   CustomerCreate,
   CustomerUpdate,
+  CustomerContactRow,
+  CustomerContactListResponse,
+  CustomerContactCreate,
+  CustomerContactUpdate,
 } from "./types";
 
 const PAGE_SIZE = 50;
@@ -85,5 +90,66 @@ export function useDeleteCustomer() {
   return useMutation({
     mutationFn: (id: string) => apiFetch<void>(`/customers/${id}`, { method: "DELETE" }),
     onSuccess: () => onCustomerMutationSuccess(qc),
+  });
+}
+
+// --- Contacts sub-resource ------------------------------------------------
+
+export const contactKeys = {
+  list: (customerId: string) => ["customers", customerId, "contacts"] as const,
+};
+
+/** Fetch a customer's contacts. Disabled (no request) until a customer is set. */
+export function useCustomerContacts(customerId: string | null) {
+  return useQuery({
+    queryKey: customerId
+      ? contactKeys.list(customerId)
+      : (["customers", "__none__", "contacts"] as const),
+    queryFn: () =>
+      apiFetch<CustomerContactListResponse>(`/customers/${customerId}/contacts`),
+    enabled: !!customerId,
+  });
+}
+
+/**
+ * A contact change can move the customer's primary, which the customer list row
+ * displays — so invalidate both the contacts list and the whole `customers`
+ * family.
+ */
+function onContactMutationSuccess(qc: QueryClient, customerId: string) {
+  qc.invalidateQueries({ queryKey: contactKeys.list(customerId) });
+  qc.invalidateQueries({ queryKey: ["customers"] });
+}
+
+export function useCreateContact(customerId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CustomerContactCreate) =>
+      apiFetch<CustomerContactRow>(`/customers/${customerId}/contacts`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => onContactMutationSuccess(qc, customerId),
+  });
+}
+
+export function useUpdateContact(customerId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: CustomerContactUpdate }) =>
+      apiFetch<CustomerContactRow>(`/customers/${customerId}/contacts/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      }),
+    onSuccess: () => onContactMutationSuccess(qc, customerId),
+  });
+}
+
+export function useDeleteContact(customerId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`/customers/${customerId}/contacts/${id}`, { method: "DELETE" }),
+    onSuccess: () => onContactMutationSuccess(qc, customerId),
   });
 }

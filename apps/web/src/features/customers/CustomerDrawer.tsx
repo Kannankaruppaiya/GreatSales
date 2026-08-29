@@ -4,6 +4,7 @@ import { useAuthRole } from "@/store/auth";
 import { ApiError } from "@/lib/api";
 import { Button, Skeleton } from "@/components/ui";
 import { useCustomers, useDeleteCustomer, flattenCustomers } from "@/features/customers/queries";
+import { ContactsPanel } from "@/features/customers/ContactsPanel";
 import type { CustomerRow } from "@/features/customers/types";
 
 /**
@@ -246,6 +247,8 @@ export function CustomerDrawer({
                   <span className="font-semibold text-ink">{customer.collectorName || "—"}</span>
                 </div>
               </div>
+
+              <ContactsPanel customerId={customer.id} canEdit={role !== "mgmt"} />
 
               <div className="py-8 text-center text-xs text-muted border border-dashed border-line rounded-xl">
                 Mapped SKUs, sales orders and invoices will appear here once those pages are

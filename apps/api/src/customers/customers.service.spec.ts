@@ -140,4 +140,111 @@ describe('CustomersService (integration)', () => {
       service.update(admin('tenant_acme', 'acme'), created.id, { area: 'X' }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  describe('contacts (sub-resource)', () => {
+    const acme = () => admin('tenant_acme', 'acme');
+    let customerId: string;
+
+    beforeAll(async () => {
+      const c = await service.create(acme(), {
+        name: 'Contact Test Co',
+        salespersonId: 'user_sales1_acme',
+      });
+      customerId = c.id;
+    });
+
+    it('makes the first contact primary automatically', async () => {
+      const c = await service.createContact(acme(), customerId, {
+        name: 'Alice',
+        mobile: '900',
+      });
+      expect(c.isPrimary).toBe(true);
+      const { items } = await service.listContacts(acme(), customerId);
+      expect(items).toHaveLength(1);
+    });
+
+    it('leaves a second contact non-primary unless asked', async () => {
+      const c = await service.createContact(acme(), customerId, {
+        name: 'Bob',
+      });
+      expect(c.isPrimary).toBe(false);
+    });
+
+    it('promoting a contact demotes the previous primary (at most one)', async () => {
+      const items = (await service.listContacts(acme(), customerId)).items;
+      const bob = items.find((x) => x.name === 'Bob')!;
+      await service.updateContact(acme(), customerId, bob.id, {
+        isPrimary: true,
+      });
+      const after = (await service.listContacts(acme(), customerId)).items;
+      expect(after.filter((x) => x.isPrimary)).toHaveLength(1);
+      expect(after.find((x) => x.isPrimary)!.name).toBe('Bob');
+    });
+
+    it('reflects the promoted primary on the customer list row', async () => {
+      const list = await service.list(acme(), { limit: 100 });
+      const row = list.items.find((c) => c.id === customerId)!;
+      expect(row.primaryContactName).toBe('Bob');
+    });
+
+    it('ignores isPrimary:false — a contactful customer keeps one primary', async () => {
+      const bob = (await service.listContacts(acme(), customerId)).items.find(
+        (x) => x.name === 'Bob',
+      )!;
+      const updated = await service.updateContact(acme(), customerId, bob.id, {
+        isPrimary: false,
+      });
+      expect(updated.isPrimary).toBe(true);
+    });
+
+    it('promotes the next oldest when the primary is deleted', async () => {
+      const bob = (await service.listContacts(acme(), customerId)).items.find(
+        (x) => x.name === 'Bob',
+      )!;
+      await service.removeContact(acme(), customerId, bob.id);
+      const after = (await service.listContacts(acme(), customerId)).items;
+      expect(after.some((x) => x.name === 'Bob')).toBe(false);
+      expect(after.filter((x) => x.isPrimary)).toHaveLength(1);
+      expect(after.find((x) => x.isPrimary)!.name).toBe('Alice');
+    });
+
+    it('edits a contact field', async () => {
+      const alice = (await service.listContacts(acme(), customerId)).items.find(
+        (x) => x.name === 'Alice',
+      )!;
+      const updated = await service.updateContact(
+        acme(),
+        customerId,
+        alice.id,
+        {
+          designation: 'Owner',
+          email: 'a@x.test',
+        },
+      );
+      expect(updated.designation).toBe('Owner');
+      expect(updated.email).toBe('a@x.test');
+    });
+
+    it('404s contacts on a customer the caller cannot see (cross-tenant RLS)', async () => {
+      await expect(
+        service.listContacts(admin('tenant_globex', 'globex'), customerId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('forbids a sales user from touching another owner’s customer contacts', async () => {
+      await expect(
+        service.createContact(sales('tenant_acme', 'acme', 2), customerId, {
+          name: 'X',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('404s an unknown contact id', async () => {
+      await expect(
+        service.updateContact(acme(), customerId, 'no_such_contact', {
+          name: 'Y',
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
 });
