@@ -122,11 +122,11 @@ export class MappingsService {
 
   async create(user: RequestUser, body: MappingCreate): Promise<MappingRow> {
     const db = this.prisma.forTenant(user.tenantId);
-    const salespersonId = await this.resolveOwnerAssignment(
-      db,
-      user,
-      body.salespersonId,
-    );
+    // A sales user cannot assign the mapping away — it is always theirs.
+    const salesOnly = await this.isSalesOnly(db, user.roleId);
+    const salespersonId = salesOnly
+      ? user.userId
+      : (body.salespersonId ?? user.userId);
 
     // Validate the FKs through the TENANT-SCOPED client, so a customer or
     // product id belonging to another tenant reads as "not found" rather than
@@ -134,7 +134,7 @@ export class MappingsService {
     const [customer, product, salesperson] = await Promise.all([
       db.customer.findFirst({
         where: { id: body.customerId, deletedAt: null },
-        select: { id: true },
+        select: { id: true, salespersonId: true },
       }),
       db.product.findFirst({
         where: { id: body.productId, deletedAt: null },
@@ -145,7 +145,12 @@ export class MappingsService {
         select: { id: true },
       }),
     ]);
-    if (!customer)
+    // A sales user may only map a customer THEY own. RLS is tenant-level, not
+    // salesperson-level, so without this a rep who knows (or guesses) another
+    // rep's customer id could create a self-owned mapping against it and read
+    // that customer's name back — the own-customer scope the list endpoint
+    // enforces, bypassed. 404 not 403: never confirm a record they can't see.
+    if (!customer || (salesOnly && customer.salespersonId !== user.userId))
       throw codedNotFound('CUSTOMER_NOT_FOUND', 'Customer not found.');
     if (!product)
       throw codedNotFound('PRODUCT_NOT_FOUND', 'Product not found.');
@@ -273,16 +278,6 @@ export class MappingsService {
     return requestedOwnerId && requestedOwnerId !== 'ALL'
       ? requestedOwnerId
       : undefined;
-  }
-
-  /** Who the new mapping belongs to. A sales user cannot assign it away. */
-  private async resolveOwnerAssignment(
-    db: TenantPrisma,
-    user: RequestUser,
-    requested?: string,
-  ): Promise<string> {
-    if (await this.isSalesOnly(db, user.roleId)) return user.userId;
-    return requested ?? user.userId;
   }
 
   private async isSalesOnly(

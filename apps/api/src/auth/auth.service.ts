@@ -329,12 +329,37 @@ export class AuthService {
       ctx,
     );
 
-    // Consume the presented token only after its replacement exists, so a crash
-    // between the two leaves the caller with a token that still works.
-    await db.refreshToken.update({
-      where: { id: row.id },
+    // Consume the presented token ATOMICALLY, and only after its replacement
+    // exists. Two properties matter here and this single conditional write gets
+    // both:
+    //   * Crash-safety — mint first, consume second, so a crash between the two
+    //     leaves the caller with a token that still works.
+    //   * Race-safety — `updateMany ... WHERE usedAt IS NULL` is one atomic,
+    //     row-locked statement, so of two concurrent refreshes of the SAME
+    //     token exactly one flips usedAt (count 1) and rotates; the other
+    //     matches 0 rows. Without this both read usedAt = null, both mint, and
+    //     the family FORKS into two live branches — a stolen token raced with
+    //     its holder stays usable. (Sequential replay of an already-consumed
+    //     token is still caught by the `row.usedAt` guard above → family
+    //     revoked.)
+    const consumed = await db.refreshToken.updateMany({
+      where: { id: row.id, usedAt: null },
       data: { usedAt: new Date(), replacedById: next.jti },
     });
+    if (consumed.count === 0) {
+      // A concurrent refresh already consumed this token. Only one rotation may
+      // exist, so discard the replacement we optimistically minted and reject;
+      // the winner keeps the single valid branch.
+      await db.refreshToken
+        .delete({ where: { id: next.jti } })
+        .catch(() => undefined);
+      this.event('refresh.race_lost', ctx, {
+        tenantId: user.tenantId,
+        userId: user.id,
+        familyId: row.familyId,
+      });
+      throw new UnauthorizedException('Invalid refresh token');
+    }
 
     this.event('refresh.rotated', ctx, {
       tenantId: user.tenantId,
@@ -501,6 +526,14 @@ export class AuthService {
     // not be separable. A crash between them would leave old sessions live on
     // a password the user believes they have already replaced.
     const revoked = await db.$transaction(async (tx) => {
+      // NOTE: deliberately does NOT bump tokenVersion. A self password change
+      // keeps the caller's CURRENT session (the current family is preserved
+      // below), and a bump would invalidate their own live access token,
+      // forcing an immediate refresh. Other sessions are contained by revoking
+      // their refresh families below; their access tokens lapse within the
+      // short access TTL. The immediate access-token kill is reserved for the
+      // ADMIN lifecycle actions (deactivate/delete/role/password-reset in
+      // users.service), which is what finding P1 was about.
       await tx.user.update({
         where: { id: principal.userId },
         data: { passwordHash, mustChangePassword: false },
@@ -614,8 +647,17 @@ export class AuthService {
     const refreshTtl = this.config.get<string>('JWT_REFRESH_TTL') ?? '7d';
     const expiresAt = new Date(Date.now() + durationMs(refreshTtl));
 
+    // Stamp the token with the user's current version so JwtAuthGuard can reject
+    // it the moment a role change or password reset bumps that version. Read
+    // here (login/refresh only — not the per-request hot path) through the
+    // tenant-scoped client, so RLS confines it to this tenant.
+    const { tokenVersion } = await db.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { tokenVersion: true },
+    });
+
     const accessToken = await this.jwt.signAsync(
-      { sub: userId, tid: tenantId, roleId, typ: 'access' },
+      { sub: userId, tid: tenantId, roleId, tv: tokenVersion, typ: 'access' },
       {
         secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
         expiresIn: accessTtl as unknown as number,

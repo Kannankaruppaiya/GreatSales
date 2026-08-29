@@ -24,6 +24,11 @@ const sales1: RequestUser = {
   roleId: 'role_sales_acme',
 };
 const SALES2 = 'user_sales2_acme';
+const sales2: RequestUser = {
+  userId: SALES2,
+  tenantId: TENANT,
+  roleId: 'role_sales_acme',
+};
 
 describe('MappingsService', () => {
   let prisma: PrismaService;
@@ -162,6 +167,17 @@ describe('MappingsService', () => {
       await expect(
         service.update(sales1, notMine.id, { customPrice: 1 }),
       ).rejects.toMatchObject({ response: { code: 'MAPPING_NOT_FOUND' } });
+    });
+
+    it("404s when a sales user maps a customer they don't own", async () => {
+      // freshPair() pairs the seeded customer, which belongs to sales1; sales2
+      // owns no customers, so mapping against it must read as not-found — a
+      // sales rep cannot reach another rep's customer via the mapping create.
+      const { customerId, productId } = await freshPair();
+
+      await expect(
+        service.create(sales2, { customerId, productId }),
+      ).rejects.toMatchObject({ response: { code: 'CUSTOMER_NOT_FOUND' } });
     });
 
     it('refuses a sales user reassigning their own mapping away', async () => {

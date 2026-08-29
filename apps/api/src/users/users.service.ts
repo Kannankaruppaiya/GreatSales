@@ -262,6 +262,18 @@ export class UsersService {
         });
       }
 
+      // Deactivation, a role change, and a new credential each invalidate what
+      // an outstanding token asserts. Refresh tokens are revoked below; the
+      // access token carries roleId outright and is otherwise valid for the
+      // rest of its TTL, so bump tokenVersion too — JwtAuthGuard re-checks it
+      // and rejects the stale token on its next request. (Deactivation is also
+      // caught by the guard's `active` check; the bump is belt-and-braces.)
+      const endsSessions =
+        patch.active === false ||
+        patch.roleId !== undefined ||
+        patch.password !== undefined;
+      if (endsSessions) data.tokenVersion = { increment: 1 };
+
       try {
         const updated = await tx.user.update({
           where: { id },
@@ -270,15 +282,6 @@ export class UsersService {
         });
         await auditUser(tx, user, 'user.updated', id, existing, updated);
 
-        // Deactivation, a role change, and a new credential each invalidate
-        // what an outstanding token asserts. The refresh path re-checks
-        // `active` only on its NEXT use, and the access token carries roleId
-        // outright, so without this the change takes effect only when the
-        // token happens to expire.
-        const endsSessions =
-          patch.active === false ||
-          patch.roleId !== undefined ||
-          patch.password !== undefined;
         if (endsSessions) {
           await this.auth.revokeAllForUser(tx, id, revocationReason(patch));
         }

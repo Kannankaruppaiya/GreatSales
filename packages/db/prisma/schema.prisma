@@ -220,6 +220,13 @@ model User {
   /// replace it before doing anything else. Enforced by MustChangePasswordGuard,
   /// not merely surfaced to the UI.
   mustChangePassword  Boolean   @default(false)
+  /// Bumped whenever a change must invalidate ALREADY-ISSUED access tokens
+  /// immediately (role change, password reset/change) — not just the refresh
+  /// tokens. Embedded in the access token (claim `tv`) and re-checked by
+  /// JwtAuthGuard on every request, so a stale token is rejected before its
+  /// ~15m TTL. Deactivation/deletion are caught by the guard's active/deletedAt
+  /// check and need no bump.
+  tokenVersion Int       @default(0)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?

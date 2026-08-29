@@ -9,6 +9,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { platformFetch } from "@/lib/platformApi";
+import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/store/auth";
 import { useUi } from "@/store/ui";
 import { useIsPlatformAuthed } from "@/store/platformAuth";
@@ -81,6 +82,11 @@ export async function openManagement(managementId: string): Promise<void> {
     `/platform/managements/${managementId}/assume`,
     { method: "POST" },
   );
+  // Drop the previous management's cached rows BEFORE installing the new tenant
+  // session. Tenant query keys carry no tenant id, so without this an owner
+  // switching managements could render the prior tenant's data within the 30s
+  // stale window before any refetch.
+  queryClient.clear();
   useAuth.setState({
     accessToken: res.accessToken,
     user: res.user,
