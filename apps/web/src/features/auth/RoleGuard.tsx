@@ -1,19 +1,30 @@
 import { ShieldAlert, ArrowLeft, Home } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuthRole } from "@/store/auth";
-import { roleLabel, type Role } from "@/data/constants";
+import { roleLabel } from "@/data/constants";
+import { featureByKey, featurePath } from "@/data/features";
+import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import { Button, Card, PageHeader } from "@/components/ui";
 
+/**
+ * Denies a route to roles the feature registry does not list for it, so the
+ * guard and the sidebar can never disagree about who may reach a page.
+ *
+ * Cosmetic only — the API is what actually authorizes. See AGENTS.md.
+ */
 export function RoleGuard({
-  allowedRoles,
+  feature,
   children,
 }: {
-  allowedRoles: Role[];
+  feature: string;
   children: React.ReactNode;
 }) {
   const role = useAuthRole();
   const navigate = useNavigate();
 
+  const managementId = useUi((s) => s.activeManagementId) || DEFAULT_MANAGEMENT_ID;
+
+  const allowedRoles = featureByKey(feature)?.roles ?? [];
   const isAllowed = allowedRoles.includes(role);
 
   if (!isAllowed) {
@@ -49,7 +60,7 @@ export function RoleGuard({
           </div>
 
           <div className="pt-2 flex items-center justify-center gap-3">
-            <Button variant="primary" size="sm" onClick={() => navigate("/dashboard")}>
+            <Button variant="primary" size="sm" onClick={() => navigate(featurePath("dashboard", managementId))}>
               <Home className="h-4 w-4 mr-1" /> Return to Dashboard
             </Button>
           </div>

@@ -182,7 +182,7 @@ function AppLayout() {
             <Route
               path="products"
               element={
-                <RoleGuard allowedRoles={["super_admin", "admin", "mgmt"]}>
+                <RoleGuard feature="products">
                   <ProductsPage />
                 </RoleGuard>
               }
@@ -190,7 +190,7 @@ function AppLayout() {
             <Route
               path="users"
               element={
-                <RoleGuard allowedRoles={["super_admin", "admin"]}>
+                <RoleGuard feature="users">
                   <UsersPage />
                 </RoleGuard>
               }
@@ -198,7 +198,7 @@ function AppLayout() {
             <Route
               path="data"
               element={
-                <RoleGuard allowedRoles={["super_admin", "admin"]}>
+                <RoleGuard feature="data">
                   <DataPage />
                 </RoleGuard>
               }

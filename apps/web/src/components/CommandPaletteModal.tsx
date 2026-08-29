@@ -1,19 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Boxes,
-  Building2,
-  CalendarClock,
-  LayoutDashboard,
-  Receipt,
-  Repeat,
-  Search,
-  ShoppingCart,
-  Target,
-  UsersRound,
-} from "lucide-react";
+import { Boxes, Building2, Receipt, Search, ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Dialog } from "@/components/ui";
 import { inr } from "@/lib/format";
+import { featuresFor, featurePath } from "@/data/features";
+import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
+import { useAuthRole } from "@/store/auth";
 import { useCustomers, flattenCustomers } from "@/features/customers/queries";
 import { useProducts, flattenProducts } from "@/features/products/queries";
 import { useOrders, flattenOrders } from "@/features/orders/queries";
@@ -30,6 +22,20 @@ export function CommandPaletteModal({
   onSelectCustomer?: (customerId: string) => void;
 }) {
   const navigate = useNavigate();
+  const role = useAuthRole();
+  const managementId = useUi((s) => s.activeManagementId) || DEFAULT_MANAGEMENT_ID;
+  // Only the pages this role can actually reach — the palette used to offer
+  // every page to everyone, so a sales user could jump into the admin surfaces.
+  const pages = useMemo(
+    () =>
+      featuresFor(role).map((f) => ({
+        label: f.paletteLabel,
+        desc: f.paletteDesc,
+        icon: f.icon,
+        path: featurePath(f.key, managementId),
+      })),
+    [role, managementId],
+  );
   const customersQ = useCustomers({}, { enabled: open });
   const productsQ = useProducts({}, { enabled: open });
   const ordersQ = useOrders({}, { enabled: open });
@@ -53,17 +59,7 @@ export function CommandPaletteModal({
     const q = query.trim().toLowerCase();
     if (!q) {
       return {
-        pages: [
-          { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard", desc: "Executive metrics & performance" },
-          { label: "Projections", icon: Repeat, path: "/projections", desc: "Recurring sales worksheet & commitments" },
-          { label: "New Sales Pipeline", icon: Target, path: "/leads", desc: "Leads & deal stages kanban" },
-          { label: "Sales Orders", icon: ShoppingCart, path: "/orders", desc: "Order fulfillment & dispatch tracking" },
-          { label: "Payments Follow-Up", icon: Receipt, path: "/payments", desc: "Aging invoices & credit control" },
-          { label: "Actionable Follow-Ups", icon: CalendarClock, path: "/followups", desc: "Unified timeline & contact agenda" },
-          { label: "Customers Directory", icon: Building2, path: "/customers", desc: "Accounts, tiers, & mapping counts" },
-          { label: "Products Catalog", icon: Boxes, path: "/products", desc: "Principals & SKU price master" },
-          { label: "Users & Governance", icon: UsersRound, path: "/users", desc: "Team roles & accounts assignment" },
-        ],
+        pages,
         customers: customers.slice(0, 5),
         products: products.slice(0, 4),
         leads: leads.slice(0, 3),
@@ -73,16 +69,9 @@ export function CommandPaletteModal({
     }
 
     return {
-      pages: [
-        { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard", desc: "Executive metrics" },
-        { label: "Projections", icon: Repeat, path: "/projections", desc: "Recurring worksheet" },
-        { label: "New Sales Pipeline", icon: Target, path: "/leads", desc: "Leads & pipeline" },
-        { label: "Sales Orders", icon: ShoppingCart, path: "/orders", desc: "Orders & fulfillment" },
-        { label: "Payments Follow-Up", icon: Receipt, path: "/payments", desc: "Outstanding invoices" },
-        { label: "Follow-Ups", icon: CalendarClock, path: "/followups", desc: "Contact agenda" },
-        { label: "Customers", icon: Building2, path: "/customers", desc: "Directory" },
-        { label: "Products", icon: Boxes, path: "/products", desc: "Catalog" },
-      ].filter((p) => p.label.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q)),
+      pages: pages.filter(
+        (p) => p.label.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q),
+      ),
 
       customers: customers
         .filter((c) => c.name.toLowerCase().includes(q) || (c.area || "").toLowerCase().includes(q) || (c.primaryContactName || "").toLowerCase().includes(q))
@@ -104,7 +93,7 @@ export function CommandPaletteModal({
         .filter((p) => (p.refNo || "").toLowerCase().includes(q) || (p.customerName || "").toLowerCase().includes(q))
         .slice(0, 4),
     };
-  }, [query, customers, products, leads, orders, payments]);
+  }, [query, pages, customers, products, leads, orders, payments]);
 
   const handleGoPage = (path: string) => {
     navigate(path);
@@ -116,7 +105,7 @@ export function CommandPaletteModal({
     if (onSelectCustomer) {
       onSelectCustomer(cid);
     } else {
-      navigate("/customers");
+      navigate(featurePath("customers", managementId));
     }
   };
 

@@ -1,29 +1,22 @@
 import { useEffect, useState } from "react";
 import {
   Bell,
-  Boxes,
   Building2,
-  CalendarClock,
   ChevronDown,
-  Database,
-  LayoutDashboard,
-  Link2,
   LogOut,
   Menu,
   Plus,
   Receipt,
-  Repeat,
   Search,
   ShieldCheck,
   ShoppingCart,
   Sparkles,
   Target,
-  UsersRound,
-  type LucideIcon,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { NAVS, MONTHS, roleLabel } from "@/data/constants";
-import { useUi } from "@/store/ui";
+import { MONTHS, roleLabel } from "@/data/constants";
+import { featureByKey, featureLabel, featuresFor, featurePath } from "@/data/features";
+import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import { useAuthRole, useAuthUser, useAuth } from "@/store/auth";
 import { cn } from "@/lib/utils";
 import { Avatar, Badge, Select } from "@/components/ui";
@@ -40,23 +33,10 @@ import { usePayments, flattenPayments } from "@/features/payments/queries";
 import { usePrincipals } from "@/features/products/queries";
 import { useUsers, flattenUsers } from "@/features/users/queries";
 
-const ICONS: Record<string, LucideIcon> = {
-  dashboard: LayoutDashboard,
-  projections: Repeat,
-  leads: Target,
-  orders: ShoppingCart,
-  payments: Receipt,
-  followups: CalendarClock,
-  customers: Building2,
-  products: Boxes,
-  mappings: Link2,
-  users: UsersRound,
-  data: Database,
-};
-
 export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => void }) {
   const navigate = useNavigate();
-  const { sidebarOpen, setSidebar, activeManagementId } = useUi();
+  const { sidebarOpen, setSidebar } = useUi();
+  const activeManagementId = useUi((s) => s.activeManagementId) || DEFAULT_MANAGEMENT_ID;
   const role = useAuthRole();
   const user = useAuthUser();
   const logout = useAuth((s) => s.logout);
@@ -71,7 +51,7 @@ export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => 
     await logout();
     navigate("/login");
   };
-  const nav = NAVS[role] ?? NAVS.admin ?? [];
+  const nav = featuresFor(role);
 
   // Calculate overdue follow-ups count for live notification badge
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -136,13 +116,13 @@ export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => 
             Operations & Analytics
           </div>
           {nav.map((n) => {
-            const Icon = ICONS[n.key] ?? LayoutDashboard;
+            const Icon = n.icon;
             const isFollowups = n.key === "followups";
 
             return (
               <NavLink
                 key={n.key}
-                to={`/managements/${activeManagementId}/${n.key}`}
+                to={featurePath(n.key, activeManagementId)}
                 onClick={() => window.innerWidth < 1024 && setSidebar(false)}
                 className={({ isActive }) =>
                   cn(
@@ -155,7 +135,7 @@ export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => 
               >
                 <div className="flex items-center gap-2.5">
                   <Icon className="h-4 w-4 transition-transform group-hover:scale-110" />
-                  <span>{n.label}</span>
+                  <span>{featureLabel(n, role)}</span>
                 </div>
                 {isFollowups && overdueCount > 0 && (
                   <span className="grid h-4.5 min-w-4.5 place-items-center rounded-full bg-red text-[10px] font-bold text-white px-1 shadow-xs">
@@ -188,20 +168,6 @@ export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => 
     </>
   );
 }
-
-const TITLES: Record<string, string> = {
-  dashboard: "Executive Overview",
-  projections: "Recurring Sales Projections",
-  leads: "New Sales Pipeline & Leads",
-  orders: "Sales Order Fulfillment",
-  payments: "Payments & Receivables Follow-up",
-  followups: "Actionable Timeline",
-  customers: "Customer Master Directory",
-  products: "Product & Principal Catalog",
-  mappings: "Customer & Product Mapping",
-  users: "Team & User Governance",
-  data: "Data Administration & Periods",
-};
 
 export function Topbar({
   onOpenCommandPalette,
@@ -268,7 +234,7 @@ export function Topbar({
           </span>
           <span className="text-muted/40 hidden sm:inline">/</span>
           <h2 className="text-[15px] font-bold text-ink tracking-tight font-sans">
-            {TITLES[key] ?? "GreatSales"}
+            {featureByKey(key)?.title ?? "GreatSales"}
           </h2>
           {role === "mgmt" && (
             <Badge variant="warn" className="text-[10px] font-bold py-0.5">
