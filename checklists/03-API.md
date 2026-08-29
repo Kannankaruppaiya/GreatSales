@@ -244,7 +244,7 @@ Extra for payments — money correctness:
 | C.3.9 | **Audit log** read API — "who changed this and when" | `AuditLog`, `PlatformAuditLog` | F16 | `[ ]` |
 | C.3.10 | **Sales targets** CRUD | `SalesTarget` | F6/F11 | `[ ]` |
 | C.3.11 | **Activities / Remarks** API (a `RemarksModal` exists in web) | `Activity`, `Remark` | F7 | `[ ]` |
-| C.3.12 | **Industries** reference data | `Industry` | F3 | `[ ]` |
+| C.3.12 | **Industries** reference data — `GET /industries`, read-only (global SELECT-only table), backs the customer + lead pickers | `Industry` | F3 | `[x]` |
 | C.3.13 | **Feature flags** read/write | `FeatureFlag`, `TenantFeatureFlag` | F14 | `[ ]` |
 | C.3.14 | **Forgot-password / self-serve reset** (only admin-initiated reset exists) | — | F1 | `[ ]` |
 | C.3.15 | **Session list / revoke-other-sessions** for a user | `RefreshToken` | F1 | `[ ]` |

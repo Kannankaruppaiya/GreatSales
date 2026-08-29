@@ -29,6 +29,7 @@ import {
 } from "@/features/projections/types";
 import type { LeadRow } from "@/features/leads/types";
 import { useDashboard } from "@/features/dashboard/queries";
+import { useIndustries } from "@/features/industries/queries";
 import type { DashboardBreakdown } from "@/features/dashboard/types";
 
 // The stage/status lists that used to live here moved to the server with the
@@ -56,6 +57,14 @@ export default function DashboardPage() {
   const [showAddLead, setShowAddLead] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showCreateOrder, setShowCreateOrder] = useState(false);
+
+  // The industry catalogue backs both quick-add modals below. Fetch it only
+  // once one is open: the dashboard's guarantee is a single /dashboard request
+  // on load (see DashboardPage.test), and reference data no page element yet
+  // needs should not break that.
+  const { data: industries = [] } = useIndustries({
+    enabled: showAddLead || showAddCustomer,
+  });
 
   const monthLabel = MONTHS.find((m) => m.value === month)?.label ?? month;
   const isSalesRole = role === "sales";
@@ -533,14 +542,16 @@ export default function DashboardPage() {
         open={showAddLead}
         onClose={() => setShowAddLead(false)}
         salespeople={salespeopleOptions}
-        // No industries: this page no longer loads leads, and there is still
-        // no industries endpoint to ask (checklists/03-API.md C.3.12). The
-        // modal already handles an empty list ("No industries yet"), and
-        // refetching every lead to fill one dropdown is what this slice
-        // removed. The Leads page, which does load leads, still offers them.
-        industries={[]}
+        // Industry options now come from the dedicated catalogue endpoint
+        // (GET /industries), fetched lazily above when a modal opens — no
+        // longer scraped from loaded leads (checklists/03-API.md C.3.12).
+        industries={industries}
       />
-      <AddCustomerModal open={showAddCustomer} onClose={() => setShowAddCustomer(false)} />
+      <AddCustomerModal
+        open={showAddCustomer}
+        onClose={() => setShowAddCustomer(false)}
+        industries={industries}
+      />
       <CreateSalesOrderModal open={showCreateOrder} onClose={() => setShowCreateOrder(false)} />
     </div>
   );
