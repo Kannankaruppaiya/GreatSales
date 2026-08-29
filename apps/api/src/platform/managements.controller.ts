@@ -1,5 +1,7 @@
 import {
+  Body,
   Controller,
+  Get,
   HttpCode,
   Param,
   Post,
@@ -10,8 +12,13 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { CookieOptions, Request, Response } from 'express';
-import { REFRESH_COOKIE } from '@greatsales/shared';
+import {
+  CreateManagementSchema,
+  REFRESH_COOKIE,
+  type CreateManagementInput,
+} from '@greatsales/shared';
 import { ManagementsService } from './managements.service';
+import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PlatformAuthGuard } from './platform-auth.guard';
 import { durationMs } from '../auth/auth.service';
 import {
@@ -26,8 +33,6 @@ import { AllowPasswordChangePending } from '../common/must-change-password.guard
  * Owner-facing management operations. Guarded by {@link PlatformAuthGuard}, and
  * opted out of the tenant guard chain with @Public()/@AllowPasswordChangePending().
  *
- * (Stage A: assume only. List + provisioning arrive with the privileged owner
- * connection.)
  */
 @ApiTags('platform-managements')
 @ApiBearerAuth()
@@ -40,6 +45,27 @@ export class ManagementsController {
     private readonly service: ManagementsService,
     private readonly config: ConfigService,
   ) {}
+
+  /** Every management with headline stats — the owner's Home grid. */
+  @Get()
+  list() {
+    return this.service.list();
+  }
+
+  /** Provision a new management. Owner roles only. */
+  @RequirePlatformRole('SuperAdmin', 'Ops')
+  @Post()
+  create(
+    @CurrentPlatformUser() principal: PlatformPrincipal,
+    @Body(new ZodValidationPipe(CreateManagementSchema))
+    body: CreateManagementInput,
+    @Req() req: Request,
+  ) {
+    return this.service.create(principal, body, {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+  }
 
   /**
    * Open a management — the token-exchange. Returns an ordinary tenant login

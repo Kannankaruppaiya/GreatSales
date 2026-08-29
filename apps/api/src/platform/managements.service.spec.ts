@@ -123,4 +123,47 @@ describe('ManagementsService (assume / token-exchange)', () => {
       await setTenantStatus('tenant_globex', 'Active');
     }
   });
+
+  it('lists every management with headline stats (cross-tenant, owner role)', async () => {
+    const list = await svc.list();
+    const byId = new Map(list.map((m) => [m.id, m]));
+
+    expect(byId.has('tenant_acme')).toBe(true);
+    expect(byId.has('tenant_globex')).toBe(true);
+    // Acme is seeded with several active users; the count must be real, not 0.
+    expect(byId.get('tenant_acme')!.userCount).toBeGreaterThan(0);
+    expect(typeof byId.get('tenant_acme')!.salesThisMonth).toBe('number');
+  });
+
+  it('provisions a working management: it appears in the list and can be opened', async () => {
+    const res = await svc.create(owner, {
+      name: 'Nova Foods',
+      industry: 'Food & Beverage',
+      region: 'in',
+      currency: 'INR (₹)',
+      adminName: 'Nova Admin',
+      adminEmail: 'admin@nova.test',
+    });
+
+    expect(res.management.name).toBe('Nova Foods');
+    expect(res.management.status).toBe('Trial');
+    expect(res.management.currency).toBe('INR (₹)');
+    expect(res.management.userCount).toBe(1);
+    expect(res.tempPassword).toBeTruthy();
+
+    const newId = res.management.id;
+
+    // It shows up on the owner's grid.
+    const list = await svc.list();
+    expect(list.some((m) => m.id === newId)).toBe(true);
+
+    // And provisioning wired the admin + system roles correctly: the owner can
+    // open it, landing as that new tenant's own admin (proves the role graph
+    // and RLS scope for a brand-new tenant).
+    const opened = await svc.assume(owner, newId);
+    expect(opened.user.tenantId).toBe(newId);
+    expect(opened.user.email).toBe('admin@nova.test');
+    expect(opened.user.role).toBe('admin');
+    expect(opened.user.mustChangePassword).toBe(true);
+  });
 });
