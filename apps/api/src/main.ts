@@ -8,8 +8,14 @@ import cookieParser from 'cookie-parser';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
+import { initSentry } from './observability/sentry';
 
 async function bootstrap() {
+  // As early as possible, before the app builds — a no-op unless SENTRY_DSN is
+  // set (see observability/sentry.ts). load-env (imported first) has already
+  // populated process.env.
+  initSentry(process.env.SENTRY_DSN, process.env.NODE_ENV);
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
 

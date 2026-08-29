@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertOctagon, Home, RefreshCw } from "lucide-react";
 import { Button, Card } from "@/components/ui";
+import { reportException } from "@/lib/sentry";
 
 interface Props {
   children: ReactNode;
@@ -26,7 +27,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ error, errorInfo });
-    // In production, send to Sentry or monitoring service
+    // Report to error tracking (no-op unless a DSN is configured), and keep the
+    // console trace for local debugging.
+    reportException(error);
     console.error("[ErrorBoundary caught an unhandled error]:", error, errorInfo);
   }
 
