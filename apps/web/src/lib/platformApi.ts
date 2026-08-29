@@ -4,35 +4,91 @@
  *
  * Kept separate on purpose: platform routes authenticate with a DIFFERENT
  * token (the platform JWT, no tenant) that the tenant `apiFetch` knows nothing
- * about, and there is no refresh flow here — a platform token simply expires
- * and the owner signs in again. Mixing the two token systems in one client is
- * exactly the confusion the separate backend auth exists to avoid.
+ * about. Like the tenant flow, a 401 triggers a single-flight refresh from the
+ * httpOnly platform refresh cookie; only if that fails is the session dropped.
  */
 import { ApiError } from "@/lib/api";
 import { env } from "@/lib/config";
 import { usePlatformAuth } from "@/store/platformAuth";
 
+interface PlatformSessionBody {
+  accessToken: string;
+  platformUser: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
+}
+
+let inFlightRefresh: Promise<string | null> | null = null;
+
+/**
+ * Exchange the httpOnly platform refresh cookie for a fresh access token,
+ * updating the store. Single-flight so concurrent 401s share one refresh.
+ * Returns the new token, or null when there is no usable session.
+ */
+export function refreshPlatformSession(): Promise<string | null> {
+  if (!inFlightRefresh) {
+    inFlightRefresh = (async () => {
+      try {
+        const res = await fetch(`${env.API_BASE_URL}/platform/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
+        if (!res.ok) {
+          usePlatformAuth.getState().clear();
+          return null;
+        }
+        const data = (await res.json()) as PlatformSessionBody;
+        usePlatformAuth.setState({
+          accessToken: data.accessToken,
+          platformUser: data.platformUser,
+        });
+        return data.accessToken;
+      } catch {
+        usePlatformAuth.getState().clear();
+        return null;
+      } finally {
+        inFlightRefresh = null;
+      }
+    })();
+  }
+  return inFlightRefresh;
+}
+
 export async function platformFetch<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
+  return doFetch<T>(path, init, false);
+}
+
+async function doFetch<T>(
+  path: string,
+  init: RequestInit,
+  isRetry: boolean,
+  overrideToken?: string,
+): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Content-Type", "application/json");
-  const token = usePlatformAuth.getState().accessToken;
+  const token = overrideToken ?? usePlatformAuth.getState().accessToken;
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const res = await fetch(`${env.API_BASE_URL}${path}`, {
     ...init,
     headers,
-    // The assume endpoint sets the tenant refresh cookie; include credentials
-    // so the browser stores it, exactly as the tenant login does.
+    // The login/refresh/assume endpoints set httpOnly cookies; include
+    // credentials so the browser stores and returns them.
     credentials: "include",
   });
 
-  if (res.status === 401) {
-    // The platform token is gone or expired. There is no refresh; drop the
-    // session so the UI routes back to the platform login.
-    usePlatformAuth.getState().clear();
+  // The refresh endpoint is the one 401 we must not try to refresh — it IS the
+  // refresh — so /refresh 401s fall straight through.
+  if (res.status === 401 && !isRetry && !path.endsWith("/platform/auth/refresh")) {
+    const fresh = await refreshPlatformSession();
+    if (fresh) return doFetch<T>(path, init, true, fresh);
   }
 
   const text = await res.text();

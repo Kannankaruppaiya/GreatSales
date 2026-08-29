@@ -10,6 +10,7 @@ import {
 import App from "@/App";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/store/auth";
+import { usePlatformAuth } from "@/store/platformAuth";
 import "./index.css";
 
 // A 401 that surfaces here means refresh already failed (api.ts self-heals otherwise).
@@ -30,6 +31,10 @@ const queryClient = new QueryClient({
 // decision. Nothing secret survives a reload by design, so without this every
 // refresh would look like a sign-out.
 void useAuth.getState().bootstrap();
+
+// Likewise restore an owner's platform session from its own refresh cookie, so
+// a reload on the management Home / switcher doesn't drop them to sign-in.
+void usePlatformAuth.getState().bootstrap();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

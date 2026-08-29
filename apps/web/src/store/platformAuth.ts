@@ -1,16 +1,15 @@
 /**
  * Platform (owner) session state — separate from the tenant `useAuth`.
  *
- * Nothing is persisted: the platform token lives in memory only, matching the
- * tenant store's "no credential in storage" rule. There is no refresh flow, so
- * a page reload signs the owner out of the PLATFORM surface (the Home grid and
- * the switcher). It does NOT sign them out of a management they already opened —
- * that is an ordinary tenant session backed by the httpOnly refresh cookie, so
- * it survives the reload; the owner just re-authenticates here to switch again.
- * A platform refresh-cookie flow mirroring the tenant one is the follow-up.
+ * Nothing is persisted: the access token lives in memory only, matching the
+ * tenant store's "no credential in storage" rule. The session survives a reload
+ * the same way the tenant one does — through an httpOnly refresh cookie the
+ * server rotates on {@link bootstrap} — so a reload no longer signs the owner
+ * out of the Home grid and switcher.
  */
 import { create } from "zustand";
-import { platformFetch } from "@/lib/platformApi";
+import { platformFetch, refreshPlatformSession } from "@/lib/platformApi";
+import { env } from "@/lib/config";
 
 /** Mirrors the `@greatsales/shared` PlatformUserView contract (local copy). */
 export interface PlatformUserView {
@@ -26,29 +25,62 @@ interface PlatformLoginResponse {
   platformUser: PlatformUserView;
 }
 
+/** "unknown" until bootstrap has run, so the guard can hold rather than bounce. */
+export type PlatformSessionStatus = "unknown" | "ready";
+
 interface PlatformAuthState {
   accessToken: string | null;
   platformUser: PlatformUserView | null;
+  status: PlatformSessionStatus;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  /** Drop the session without a server round-trip (e.g. after a 401). */
+  logout: () => Promise<void>;
+  /** Restore the session from the refresh cookie. Safe to call more than once. */
+  bootstrap: () => Promise<void>;
+  /** Drop the session without a server round-trip (e.g. after a failed refresh). */
   clear: () => void;
 }
 
-export const usePlatformAuth = create<PlatformAuthState>((set) => ({
+export const usePlatformAuth = create<PlatformAuthState>((set, get) => ({
   accessToken: null,
   platformUser: null,
+  status: "unknown",
 
   login: async (email, password) => {
     const res = await platformFetch<PlatformLoginResponse>(
       "/platform/auth/login",
       { method: "POST", body: JSON.stringify({ email, password }) },
     );
-    set({ accessToken: res.accessToken, platformUser: res.platformUser });
+    set({
+      accessToken: res.accessToken,
+      platformUser: res.platformUser,
+      status: "ready",
+    });
   },
 
-  logout: () => set({ accessToken: null, platformUser: null }),
-  clear: () => set({ accessToken: null, platformUser: null }),
+  logout: async () => {
+    try {
+      await fetch(`${env.API_BASE_URL}/platform/auth/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+    } catch {
+      // A failed logout must still clear this device's session.
+    } finally {
+      set({ accessToken: null, platformUser: null, status: "ready" });
+    }
+  },
+
+  bootstrap: async () => {
+    if (get().accessToken) {
+      set({ status: "ready" });
+      return;
+    }
+    await refreshPlatformSession(); // updates the store on success/failure
+    set({ status: "ready" });
+  },
+
+  clear: () => set({ accessToken: null, platformUser: null, status: "ready" }),
 }));
 
 /** True when an owner is signed in to the platform surface. */
@@ -57,3 +89,6 @@ export const useIsPlatformAuthed = (): boolean =>
 
 export const usePlatformUser = (): PlatformUserView | null =>
   usePlatformAuth((s) => s.platformUser);
+
+export const usePlatformStatus = (): PlatformSessionStatus =>
+  usePlatformAuth((s) => s.status);

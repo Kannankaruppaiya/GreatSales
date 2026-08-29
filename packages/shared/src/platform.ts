@@ -42,6 +42,19 @@ export interface PlatformJwtClaims {
   typ: "platform";
 }
 
+/**
+ * Platform refresh-token claims. Delivered in an httpOnly cookie (never the
+ * body), exactly like the tenant refresh token. `typ` keeps it from being
+ * replayed as an access token, and from being accepted by the tenant flow.
+ */
+export interface PlatformRefreshClaims {
+  sub: string;
+  typ: "platform_refresh";
+}
+
+/** Name of the httpOnly cookie carrying the platform refresh token. */
+export const PLATFORM_REFRESH_COOKIE = "gs_prt";
+
 /** POST /platform/auth/login. Email is globally unique for PlatformUser. */
 export const PlatformLoginSchema = z.object({
   email: z.string().email(),

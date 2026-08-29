@@ -5,9 +5,10 @@ import { PROJ_STATUSES } from "@/data/constants";
 import type { RemarkEntry } from "@/data/types";
 
 /**
- * Quick follow-up/status/probability log editor for a single Projection row
- * (edits the projection's embedded nextFollowUp/probability/status fields via
- * trackerStore — unrelated to the FollowUp entity table). Kept distinct from
+ * Quick follow-up/status/probability log editor for a single Projection row.
+ * A controlled modal: it edits the projection's embedded
+ * nextFollowUp/probability/status fields and hands them back through `onSave`
+ * (unrelated to the FollowUp entity table). Kept distinct from
  * `features/followups/FollowUpModal.tsx`, which creates/edits rows in the
  * real cross-entity FollowUp API resource. Both used to share the
  * `FollowUpModal` name/file before the followups feature was wired to the

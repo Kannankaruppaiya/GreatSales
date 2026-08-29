@@ -31,7 +31,11 @@ describe('PlatformAuthService', () => {
     svc = new PlatformAuthService(
       platformDb,
       jwt,
-      new ConfigService({ JWT_ACCESS_SECRET: ACCESS_SECRET, NODE_ENV: 'test' }),
+      new ConfigService({
+        JWT_ACCESS_SECRET: ACCESS_SECRET,
+        JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET as string,
+        NODE_ENV: 'test',
+      }),
     );
   }, 120_000);
 
@@ -53,6 +57,31 @@ describe('PlatformAuthService', () => {
     expect(claims.sub).toBe(res.platformUser.id);
     expect(claims.prole).toBe('SuperAdmin');
     expect((claims as unknown as { tid?: string }).tid).toBeUndefined();
+  });
+
+  it('issues a refresh token, and refresh() rotates it into a fresh session', async () => {
+    const first = await svc.login({ email: OWNER_EMAIL, password: PASSWORD });
+    expect(first.refreshTokenValue).toBeTruthy();
+
+    const rotated = await svc.refresh(first.refreshTokenValue);
+    expect(rotated.platformUser.email).toBe(OWNER_EMAIL);
+    const claims = jwt.verify<PlatformJwtClaims>(rotated.accessToken, {
+      secret: ACCESS_SECRET,
+    });
+    expect(claims.typ).toBe('platform');
+    expect(claims.sub).toBe(first.platformUser.id);
+  });
+
+  it('refresh() rejects a platform ACCESS token presented as a refresh token', async () => {
+    const { accessToken } = await svc.login({
+      email: OWNER_EMAIL,
+      password: PASSWORD,
+    });
+    // The access token verifies under the ACCESS secret, not the refresh one,
+    // so it fails the refresh verify outright.
+    await expect(svc.refresh(accessToken)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 
   it('rejects a wrong password', async () => {
