@@ -20,6 +20,7 @@ import { FollowUpsModule } from './followups/followups.module';
 import { MappingsModule } from './mappings/mappings.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { IndustriesModule } from './industries/industries.module';
+import { PlatformModule } from './platform/platform.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { IndustriesModule } from './industries/industries.module';
     MappingsModule,
     DashboardModule,
     IndustriesModule,
+    PlatformModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

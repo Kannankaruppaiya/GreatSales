@@ -184,6 +184,53 @@ export class AuthService {
   }
 
   /**
+   * Mint a fresh session for a user WITHOUT a password — the tenant-side half
+   * of a platform owner "assuming" a management (F14 token-exchange). There is
+   * no credential to check here because there is none: the authority is the
+   * platform access token the caller already validated, not a tenant password.
+   *
+   * The caller (PlatformModule) MUST have (a) authenticated an owner principal
+   * through the platform auth guard and (b) written the action to
+   * PlatformAuditLog before calling this. This method enforces only the tenant
+   * boundary: it runs entirely under the target tenant's RLS scope, so it can
+   * only ever see — and issue a session for — a user that genuinely belongs to
+   * that tenant.
+   */
+  async issueSessionForUser(
+    tenantId: string,
+    userId: string,
+    ctx: AuthContext = {},
+  ): Promise<
+    LoginResponse & { refreshTokenValue: string; refreshExpiresAt: Date }
+  > {
+    const db = this.prisma.forTenant(tenantId);
+    const user = await db.user.findFirst({
+      where: { id: userId, deletedAt: null, active: true },
+      include: ROLE_WITH_PERMISSIONS,
+    });
+    if (!user) {
+      throw new UnauthorizedException(
+        'Target user is not active in this tenant',
+      );
+    }
+    await db.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date(), lastIp: ctx.ip ?? null },
+    });
+    const session = await this.startSession(
+      user.tenantId,
+      user.id,
+      user.roleId,
+      ctx,
+    );
+    this.event('assume.session_issued', ctx, {
+      tenantId: user.tenantId,
+      userId: user.id,
+    });
+    return { ...session, user: this.toAuthUser(user) };
+  }
+
+  /**
    * Exchange a refresh token for a fresh pair, rotating it.
    *
    * The presented token must verify AND have a live row whose id matches its
