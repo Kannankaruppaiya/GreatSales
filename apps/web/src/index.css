@@ -1,1 +1,156 @@
 @import "tailwindcss";
+
+/*
+ * GreatSales web — design tokens.
+ *
+ * These are the SAME semantic tokens and hex values as the mobile app
+ * (apps/mobile/src/theme/tokens.ts), so the two products read as one system.
+ * Every token is defined for light (:root) and dark (.dark); components use the
+ * Tailwind utilities they generate (bg-surface, text-fg, border-border, …) and
+ * never hard-code a color.
+ */
+
+/* Dark mode is driven by a `.dark` class on <html> (set by the ThemeProvider),
+   so we can honor both the OS setting and a manual toggle. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --canvas: #f5f7fa;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-sunken: #edf0f4;
+  --input-bg: #ffffff;
+
+  --fg: #0e1420;
+  --fg-secondary: #4b5563;
+  --fg-muted: #8792a2;
+  --on-primary: #ffffff;
+
+  --primary: #1a5cd8;
+  --primary-pressed: #1447ae;
+  --primary-subtle: #e8f0fe;
+
+  --border: #d5dbe3;
+  --border-strong: #b9c1cc;
+  --divider: #e6eaef;
+
+  --success: #1b873f;
+  --success-subtle: #e6f4ea;
+  --warning: #8a5200;
+  --warning-subtle: #fbf0dd;
+  --error: #c4291c;
+  --error-subtle: #fbe9e7;
+  --info: #1a5cd8;
+  --info-subtle: #e8f0fe;
+
+  --focus: #1a5cd8;
+  --overlay: rgba(9, 14, 20, 0.45);
+
+  --disabled-bg: #e7eaef;
+  --disabled-fg: #a9b2be;
+
+  --skeleton: #e6eaef;
+}
+
+.dark {
+  --canvas: #0b0f16;
+  --surface: #131926;
+  --surface-elevated: #1a2230;
+  --surface-sunken: #0e141f;
+  --input-bg: #131926;
+
+  --fg: #f1f4f8;
+  --fg-secondary: #aeb8c4;
+  --fg-muted: #7a8494;
+  --on-primary: #ffffff;
+
+  --primary: #2c63cf;
+  --primary-pressed: #3b74e0;
+  --primary-subtle: #17233b;
+
+  --border: #273040;
+  --border-strong: #3a4555;
+  --divider: #1e2836;
+
+  --success: #43c46f;
+  --success-subtle: #12281b;
+  --warning: #e0a33e;
+  --warning-subtle: #2b2210;
+  --error: #f0776b;
+  --error-subtle: #2c1512;
+  --info: #5b94f0;
+  --info-subtle: #17233b;
+
+  --focus: #5b94f0;
+  --overlay: rgba(0, 0, 0, 0.6);
+
+  --disabled-bg: #1b2330;
+  --disabled-fg: #5a6572;
+
+  --skeleton: #1e2836;
+}
+
+/* Map tokens into Tailwind's theme. `inline` keeps utilities referencing the
+   CSS var, so flipping `.dark` re-themes everything with no rebuild. */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-input-bg: var(--input-bg);
+
+  --color-fg: var(--fg);
+  --color-fg-secondary: var(--fg-secondary);
+  --color-fg-muted: var(--fg-muted);
+  --color-on-primary: var(--on-primary);
+
+  --color-primary: var(--primary);
+  --color-primary-pressed: var(--primary-pressed);
+  --color-primary-subtle: var(--primary-subtle);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-divider: var(--divider);
+
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-error: var(--error);
+  --color-error-subtle: var(--error-subtle);
+  --color-info: var(--info);
+  --color-info-subtle: var(--info-subtle);
+
+  --color-focus: var(--focus);
+  --color-disabled-bg: var(--disabled-bg);
+  --color-disabled-fg: var(--disabled-fg);
+  --color-skeleton: var(--skeleton);
+
+  /* Radii — matches mobile (input/button 12, card 16). */
+  --radius-field: 12px;
+  --radius-card: 16px;
+
+  /* Restrained elevation. */
+  --shadow-card: 0 2px 6px rgba(11, 18, 32, 0.06);
+  --shadow-pop: 0 6px 20px rgba(11, 18, 32, 0.1);
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+  }
+  body {
+    margin: 0;
+    background-color: var(--canvas);
+    color: var(--fg);
+    font-family:
+      system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif,
+      "Apple Color Emoji", "Segoe UI Emoji";
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Visible, consistent keyboard focus everywhere. */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+}
