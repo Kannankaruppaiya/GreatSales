@@ -1,159 +1,102 @@
-# Turborepo starter
+# GreatSales
 
-This Turborepo starter is maintained by the Turborepo core team.
+A multi-tenant sales CRM: a **NestJS** API over a **PostgreSQL** database (Prisma
++ row-level security), an **Expo / React Native** mobile app, and a React web
+shell — sharing one set of typed contracts.
 
-## Using this example
+## Monorepo layout
 
-Run the following command:
+| Path              | What it is                                                         |
+| ----------------- | ----------------------------------------------------------------- |
+| `apps/api`        | NestJS REST API (`/api/v1`) — auth + CRM modules, tenant-scoped   |
+| `apps/mobile`     | Expo Router (React Native) app — the salesperson-facing client    |
+| `apps/web`        | React + Vite web shell                                             |
+| `packages/db`     | Prisma schema, migrations, RLS policies, and dev seed             |
+| `packages/shared` | Zod contracts + types shared by the API and all clients           |
+| `packages/ui`     | Shared React component stubs                                       |
 
-```sh
-npx create-turbo@latest
-```
+The wire format lives in `packages/shared`: the API validates request bodies
+against the Zod schemas there and the clients infer their request/response types
+from the same schemas, so the API and the app can never silently disagree.
 
-## What's inside?
+## Features
 
-This Turborepo includes the following packages/apps:
+- **Auth** — JWT access/refresh, per-tenant login, RBAC (`admin` / `mgmt` /
+  `sales`) enforced by a permissions guard.
+- **Dashboard** — customer / lead / order / receivable counts, revenue, and a
+  pipeline-by-stage breakdown.
+- **Customers** — list, detail with contacts, create (soft-deleted, not purged).
+- **Leads** — pipeline list, detail with products + activity timeline, create,
+  stage changes, activity notes.
+- **Orders** — list, detail with line items + status history, create with
+  computed totals, status transitions.
+- **Payments** — receivables list, detail with collection follow-ups, create,
+  status/zone updates, invoice aging.
 
-### Apps and Packages
+Every tenant-owned query runs through `PrismaService.forTenant()`, which sets
+`app.tenant_id` transaction-locally so Postgres RLS isolates tenants even if a
+`where` clause forgets the tenant filter.
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+## Running it
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
-```
-
-Without global `turbo`, use your package manager:
+Prerequisites: Node 20+, pnpm, Docker (for Postgres).
 
 ```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+pnpm install
+
+# 1. Start Postgres
+docker compose up -d
+
+# 2. Generate the client, apply migrations, seed dev data
+pnpm --filter @greatsales/db db:generate
+pnpm --filter @greatsales/db db:deploy
+pnpm --filter @greatsales/db db:seed
+
+# 3. Build shared contracts (API + mobile depend on the built types)
+pnpm --filter @greatsales/shared build
+
+# 4. Run the API  → http://localhost:3000/api/v1  (docs at /api/docs)
+pnpm --filter api start:dev
+
+# 5. Run the mobile app
+pnpm --filter mobile start
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+The API reads its config from `apps/api/.env` (`DATABASE_URL`, `JWT_ACCESS_SECRET`,
+`JWT_REFRESH_SECRET`, …). The mobile app points at the API via
+`EXPO_PUBLIC_API_URL` — set it to your machine's LAN IP when testing on a
+physical device, e.g.:
 
 ```sh
-turbo build --filter=docs
+EXPO_PUBLIC_API_URL=http://192.168.1.20:3000/api/v1 pnpm --filter mobile start
 ```
 
-Without global `turbo`:
+### Demo login
 
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+The seed creates two tenants (`tenant_acme`, `tenant_globex`) with users that all
+share the password `Passw0rd!`:
+
+| Tenant        | Email               | Role  |
+| ------------- | ------------------- | ----- |
+| `tenant_acme` | `admin@acme.test`   | admin |
+| `tenant_acme` | `manager@acme.test` | mgmt  |
+| `tenant_acme` | `sales1@acme.test`  | sales |
+
+## API surface
+
+All routes are prefixed `/api/v1` and (except auth) require a bearer token.
+
+```
+POST   /auth/login            POST /auth/refresh          GET  /auth/me
+GET    /dashboard/summary     GET  /lookups
+GET    /customers             GET  /customers/:id
+POST   /customers             PATCH /customers/:id        DELETE /customers/:id
+GET    /leads                 GET  /leads/:id
+POST   /leads                 PATCH /leads/:id            POST /leads/:id/activities
+GET    /orders                GET  /orders/:id
+POST   /orders                PATCH /orders/:id/status
+GET    /payments             GET  /payments/:id
+POST   /payments            PATCH /payments/:id          POST /payments/:id/followups
 ```
 
-### Develop
-
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+List endpoints are cursor-paginated (`?cursor=&limit=`).

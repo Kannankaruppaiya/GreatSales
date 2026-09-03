@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~57.0.11",
+    "@expo/vector-icons": "^15.0.2",
+    "@greatsales/shared": "workspace:*",
     "expo": "~57.0.13",
+    "expo-secure-store": "~57.0.1",
     "expo-constants": "~57.0.11",
     "expo-device": "~57.0.1",
     "expo-font": "~57.0.1",
