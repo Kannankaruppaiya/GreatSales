@@ -4,23 +4,68 @@
     {
       "id": 0,
       "name": "clinical-registry-regulated",
-      "prompt": "We're starting a new project from scratch. Attached is the requirement doc my consultant wrote for a surgical outcomes database — patient details, surgeon operation data, post-op histology, and follow-up questionnaires the patient fills in. Can you turn this into a proper spec so we can start building?",
-      "expected_output": "intent.md and spec.md. Onion table fully filled with no blank cells. Must surface: an administrative/maintenance role, the regulator, a negative stakeholder, and interfacing systems — none of which appear in the source doc. Must flag fields that are both entered and derived. Must use NEEDS CLARIFICATION rather than inventing thresholds.",
-      "files": ["ralp_database_v2.docx"]
+      "prompt": "We're starting a new project from scratch. Attached is the requirement doc my consultant wrote for a surgical outcomes database \u2014 patient details, surgeon operation data, post-op histology, and follow-up questionnaires the patient fills in. Can you turn this into a proper spec so we can start building?",
+      "expected_output": "intent.md and spec.md. Onion table fully filled with no blank cells. Must surface: an administrative/maintenance role, the regulator, a negative stakeholder, and interfacing systems \u2014 none of which appear in the source doc. Must flag fields that are both entered and derived. Must use NEEDS CLARIFICATION rather than inventing thresholds.",
+      "files": [
+        "ralp_database_v2.docx"
+      ],
+      "assertions": [
+        "Names an administrative or maintenance role (account creation, role assignment, backups, retention) that does not appear anywhere in the source document",
+        "Names at least one regulator or compliance body governing this data",
+        "Names at least one negative stakeholder \u2014 someone worse off if the system succeeds",
+        "Identifies at least one existing or interfacing system that already holds this data",
+        "Flags that Gleason grade and grade group determine each other, and states which is entered and which is derived",
+        "Uses NEEDS CLARIFICATION (or equivalent explicit marker) for at least one undefined clinical term rather than inventing a definition",
+        "Does not invent a numeric clinical threshold, score band, or cut-off that is absent from the source document",
+        "Every stated governance or compliance constraint carries a named owner",
+        "Produces both an intent document and a spec document as separate files",
+        "Stakeholder/actor listing has no blank or omitted entries \u2014 unknowns are explicitly marked as unresolved rather than silently dropped",
+        "Contains an explicit out-of-scope section listing what will NOT be built",
+        "Ends with a concrete end-to-end verification step describing how you would know the system works",
+        "Lists open questions together with who is able to answer each one"
+      ]
     },
     {
       "id": 1,
       "name": "internal-tool-spreadsheet-replacement",
       "prompt": "ok so right now our ops team tracks every client onboarding in a shared google sheet and it's a disaster, people overwrite each other constantly. i want to build a proper little internal web app for it. columns are: client name, account manager, contract signed date, kickoff call date, docs received y/n, status (not started / in progress / blocked / done), and notes. write me the spec for it",
       "expected_output": "intent.md and spec.md. Should identify the current spreadsheet owner as a negative stakeholder, migration as in scope, an admin/maintenance role, and who maintains the tool afterwards. Should question status lifecycle and permissions. Should not over-engineer a small internal tool.",
-      "files": []
+      "files": [],
+      "assertions": [
+        "Identifies the existing spreadsheet and its current owner as a stakeholder concern, not merely as data",
+        "Treats migration of the existing spreadsheet data as in scope",
+        "Names who administers users and permissions for the new tool",
+        "Names who maintains or owns the tool after it is delivered",
+        "Questions the status lifecycle \u2014 who may change status, and what 'blocked' means in practice",
+        "Explicitly addresses the concurrent-edit / overwrite problem the user described as their actual pain",
+        "Stays proportionate to a small internal tool: does not impose substantive regulatory, compliance, or certification requirements on data that is not regulated",
+        "Produces both an intent document and a spec document as separate files",
+        "Stakeholder/actor listing has no blank or omitted entries \u2014 unknowns are explicitly marked as unresolved rather than silently dropped",
+        "Contains an explicit out-of-scope section listing what will NOT be built",
+        "Ends with a concrete end-to-end verification step describing how you would know the system works",
+        "Lists open questions together with who is able to answer each one"
+      ]
     },
     {
       "id": 2,
       "name": "external-actor-consumer-facing",
       "prompt": "I need a spec for a customer returns portal. Customer enters their order number and email, picks the items to return and a reason, gets a printable label, and we track the return until refund. Should integrate with our existing order system. Can you write this up properly before we hand it to the dev team?",
       "expected_output": "intent.md and spec.md. Should surface: identity/auth story for a non-staff actor, operational support path when the order number doesn't match, the ops staff who process returns, the admin who configures return reasons and windows, fraud as a negative stakeholder, and the order system as an interfacing system.",
-      "files": []
+      "files": [],
+      "assertions": [
+        "Specifies how the external customer proves identity, beyond simply accepting an order number and email",
+        "Names a support path for when the customer's order number or email does not match",
+        "Names the internal staff role that processes or approves returns",
+        "Names an administrator who configures return reasons, eligibility windows, or policy",
+        "Identifies return fraud or abuse as a risk or negative stakeholder concern",
+        "Names the existing order system as an interfacing system AND addresses what happens when it is unavailable",
+        "Addresses the shipping label as an external dependency (carrier integration or equivalent)",
+        "Produces both an intent document and a spec document as separate files",
+        "Stakeholder/actor listing has no blank or omitted entries \u2014 unknowns are explicitly marked as unresolved rather than silently dropped",
+        "Contains an explicit out-of-scope section listing what will NOT be built",
+        "Ends with a concrete end-to-end verification step describing how you would know the system works",
+        "Lists open questions together with who is able to answer each one"
+      ]
     }
   ]
 }
