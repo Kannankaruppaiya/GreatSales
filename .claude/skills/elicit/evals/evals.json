@@ -1,0 +1,26 @@
+{
+  "skill_name": "elicit",
+  "evals": [
+    {
+      "id": 0,
+      "name": "clinical-registry-regulated",
+      "prompt": "We're starting a new project from scratch. Attached is the requirement doc my consultant wrote for a surgical outcomes database — patient details, surgeon operation data, post-op histology, and follow-up questionnaires the patient fills in. Can you turn this into a proper spec so we can start building?",
+      "expected_output": "intent.md and spec.md. Onion table fully filled with no blank cells. Must surface: an administrative/maintenance role, the regulator, a negative stakeholder, and interfacing systems — none of which appear in the source doc. Must flag fields that are both entered and derived. Must use NEEDS CLARIFICATION rather than inventing thresholds.",
+      "files": ["ralp_database_v2.docx"]
+    },
+    {
+      "id": 1,
+      "name": "internal-tool-spreadsheet-replacement",
+      "prompt": "ok so right now our ops team tracks every client onboarding in a shared google sheet and it's a disaster, people overwrite each other constantly. i want to build a proper little internal web app for it. columns are: client name, account manager, contract signed date, kickoff call date, docs received y/n, status (not started / in progress / blocked / done), and notes. write me the spec for it",
+      "expected_output": "intent.md and spec.md. Should identify the current spreadsheet owner as a negative stakeholder, migration as in scope, an admin/maintenance role, and who maintains the tool afterwards. Should question status lifecycle and permissions. Should not over-engineer a small internal tool.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "external-actor-consumer-facing",
+      "prompt": "I need a spec for a customer returns portal. Customer enters their order number and email, picks the items to return and a reason, gets a printable label, and we track the return until refund. Should integrate with our existing order system. Can you write this up properly before we hand it to the dev team?",
+      "expected_output": "intent.md and spec.md. Should surface: identity/auth story for a non-staff actor, operational support path when the order number doesn't match, the ops staff who process returns, the admin who configures return reasons and windows, fraud as a negative stakeholder, and the order system as an interfacing system.",
+      "files": []
+    }
+  ]
+}
