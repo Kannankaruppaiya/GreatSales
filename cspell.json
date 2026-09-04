@@ -1,0 +1,108 @@
+{
+  "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    // ── Technical / web standards ──────────────────────────────────────────
+    "booleanish",
+    "forceable",
+    "nosniff",
+    "SAMEORIGIN",
+    "geolocation",
+    "healthz",
+    "libc",
+    "nativewind",
+    "superadmin",
+    "inlines",
+    "codegen",
+    "bundlesize",
+    "lastmod",
+    "mousedown",
+    "beforeunload",
+    "unhandledrejection",
+    "THROT",
+    "viewports",
+    "prefs",
+
+    // ── Security / HTTP headers ────────────────────────────────────────────
+    "Clickjacking",
+    "Subresource",
+    "Antipattern",
+    "Lockdown",
+
+    // ── Performance / Web Vitals ───────────────────────────────────────────
+    "TTFB",
+    "FOIT",
+    "jank",
+
+    // ── Accessibility ──────────────────────────────────────────────────────
+    "WCAG",
+    "colourblind",
+    "tappable",
+    "affordances",
+    "Affordances",
+    "Swipeable",
+
+    // ── British English (used in docs) ─────────────────────────────────────
+    "defence",
+    "Sanitisation",
+    "Internationalisation",
+    "Localisation",
+    "Visualisation",
+    "visualisation",
+    "Virtualisation",
+    "virtualisation",
+    "Serialisation",
+    "serialised",
+    "Pluralisation",
+    "Optimisation",
+    "minimised",
+    "organised",
+    "initialised",
+    "analyser",
+    "anonymised",
+    "Anonymised",
+    "Minimisation",
+    "Unauthorised",
+    "unauthorised",
+    "neutralised",
+    "Behaviour",
+    "Contextualised",
+    "Interruptible",
+    "Bookmarkable",
+    "navigations",
+    "Gridlines",
+    "gridlines",
+
+    // ── UI / UX terminology ────────────────────────────────────────────────
+    "Standardised",
+
+    // ── Third-party products / services ───────────────────────────────────
+    "Hotjar",
+    "Mapbox",
+    "Globex",
+
+    // ── Domain / business data ─────────────────────────────────────────────
+    "Magnatec",
+    "Electricals",
+    "Aluminium",
+    "Lifecycles",
+    "SIPCOT",
+
+    // ── Tamil place names & proper nouns ──────────────────────────────────
+    "Ennore",
+    "Padi",
+    "Nagar",
+    "Ganesh",
+    "Priya",
+    "Mohan"
+  ],
+  "ignorePaths": [
+    "node_modules",
+    "dist",
+    ".turbo",
+    "pnpm-lock.yaml",
+    "*.lock",
+    "graphify-out"
+  ]
+}

@@ -36,8 +36,9 @@ export const CurrentUser = createParamDecorator(
  * No decorator (or an empty list) means any authenticated user may call it.
  */
 export const PERMISSIONS_KEY = 'requiredPermissions';
-export const RequirePermissions = (...perms: PermissionKey[]) =>
-  SetMetadata(PERMISSIONS_KEY, perms);
+export const RequirePermissions = (
+  ...perms: PermissionKey[]
+): MethodDecorator & ClassDecorator => SetMetadata(PERMISSIONS_KEY, perms);
 
 /**
  * Declares that a route requires ANY ONE of the listed permissions.
@@ -49,5 +50,6 @@ export const RequirePermissions = (...perms: PermissionKey[]) =>
  * admin out of their own user form or hand out role editing by accident.
  */
 export const ANY_PERMISSIONS_KEY = 'requiredAnyPermissions';
-export const RequireAnyPermission = (...perms: PermissionKey[]) =>
-  SetMetadata(ANY_PERMISSIONS_KEY, perms);
+export const RequireAnyPermission = (
+  ...perms: PermissionKey[]
+): MethodDecorator & ClassDecorator => SetMetadata(ANY_PERMISSIONS_KEY, perms);
