@@ -1,7 +1,6 @@
 ---
 name: elicit
 description: Turns a raw requirement document, brief, or feature request into a rigorous intent.md and spec.md by systematically hunting for what the source leaves out — missing actors, unowned constraints, and undecided decisions. Use whenever starting a new project or feature from a requirements doc, PRD, client brief, email, or meeting notes; whenever asked to write a spec, scope a build, or plan a new system; and before any significant greenfield implementation. Especially important when the request already looks clear enough to start building, because that is exactly when missing stakeholders and operational requirements slip through.
-argument-hint: [path-to-requirement-doc]
 allowed-tools: Read Grep Glob AskUserQuestion Write
 ---
 
