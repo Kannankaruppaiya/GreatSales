@@ -109,6 +109,13 @@ describe("LeadDetailModal Kanban stage change", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /save changes/i }));
 
-    expect(spy).not.toHaveBeenCalled();
+    // Asserts no WRITE, not no request: the modal also reads its remark
+    // timeline, which is a GET. The original `not.toHaveBeenCalled()` was a
+    // proxy for "did not save" that stopped meaning that once the modal
+    // legitimately fetched something.
+    const writes = spy.mock.calls.filter(
+      ([, init]) => init?.method && init.method !== "GET",
+    );
+    expect(writes).toHaveLength(0);
   });
 });

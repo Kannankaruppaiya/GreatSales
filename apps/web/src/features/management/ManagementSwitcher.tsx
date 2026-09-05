@@ -1,64 +1,35 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { ChevronDown, Building2, LayoutGrid } from "lucide-react";
+import { Building2 } from "lucide-react";
+import { useManagements } from "@/features/management/queries";
 import { useUi } from "@/store/ui";
-import { useManagementStore } from "@/features/management/managementStore";
-import { useIsOwner } from "@/store/auth";
 
+/**
+ * The workspace the user is in.
+ *
+ * A LABEL, not a switcher, and that is the honest shape today: a `User` row
+ * carries exactly one `tenantId`, so `GET /managements` returns one row and
+ * there is nothing to switch to. The dropdown this replaces listed workspaces
+ * from a localStorage store and "switched" by swapping which client-side mock
+ * dataset was in memory — it never changed tenant, and the data it showed
+ * afterwards belonged to no one.
+ *
+ * When platform auth lands and the endpoint returns more than one row, this
+ * becomes a menu again; until then it says where you are.
+ */
 export function ManagementSwitcher() {
-  const isOwner = useIsOwner();
   const activeManagementId = useUi((s) => s.activeManagementId);
-  const managements = useManagementStore((s) => s.managements);
-  const [open, setOpen] = useState(false);
+  const { data: managements } = useManagements();
 
-  if (!isOwner) return null;
-  const current = managements.find((m) => m.id === activeManagementId);
+  const current =
+    managements?.find((m) => m.id === activeManagementId) ?? managements?.[0];
+  if (!current) return null;
 
   return (
-    <div className="relative">
-      <button
-        type="button"
-        aria-label="Switch management"
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1 text-xs font-bold text-ink hover:border-brand/40 transition-colors"
-      >
-        <Building2 className="h-3.5 w-3.5 text-muted" />
-        <span className="max-w-[140px] truncate">{current?.name ?? "Select management"}</span>
-        <ChevronDown className="h-3 w-3" />
-      </button>
-
-      {open && (
-        <>
-          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 z-30 mt-1 w-60 rounded-xl border border-line bg-surface p-1.5 shadow-xl text-xs">
-            {managements
-              .filter((m) => m.id !== activeManagementId)
-              .map((m) => (
-                <Link
-                  key={m.id}
-                  to={`/managements/${m.id}/dashboard`}
-                  aria-label={m.name}
-                  onClick={() => setOpen(false)}
-                  className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-ink hover:bg-surface-2"
-                >
-                  <span className="grid h-5 w-5 place-items-center rounded bg-brand-soft text-[10px] font-bold text-brand-ink">
-                    {m.initials}
-                  </span>
-                  <span className="truncate">{m.name}</span>
-                </Link>
-              ))}
-            <div className="my-1 border-t border-line" />
-            <Link
-              to="/managements"
-              aria-label="Back to all managements"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-ink hover:bg-surface-2"
-            >
-              <LayoutGrid className="h-3.5 w-3.5 text-muted" /> Back to all managements
-            </Link>
-          </div>
-        </>
-      )}
+    <div
+      className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1 text-xs font-bold text-ink"
+      title={`Workspace: ${current.name}`}
+    >
+      <Building2 className="h-3.5 w-3.5 text-muted" />
+      <span className="max-w-[160px] truncate">{current.name}</span>
     </div>
   );
 }

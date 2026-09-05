@@ -35,7 +35,11 @@ export function RemarksPanel({
   const [text, setText] = useState("");
   const [error, setError] = useState("");
 
-  const remarks = q.data?.items ?? [];
+  // Defensive on shape, not paranoia: this panel is embedded INSIDE four
+  // detail modals, so an unexpected row shape here throws during the parent's
+  // render and blanks the whole modal — the note timeline taking out the order
+  // it is attached to. A missing field costs a dash instead.
+  const remarks = Array.isArray(q.data?.items) ? q.data.items : [];
 
   const handleSend = async () => {
     const body = text.trim();
@@ -108,7 +112,7 @@ export function RemarksPanel({
                     {r.userName || "System"}
                   </span>
                   <span className="tabular-nums font-semibold text-muted">
-                    {r.at.slice(0, 10)}
+                    {r.at?.slice(0, 10) ?? "—"}
                   </span>
                 </div>
                 <p className="text-ink-2 leading-relaxed text-[12.5px] font-medium">
