@@ -7,9 +7,10 @@
 > (417 customers · 234 products · 883 mappings · 94 projections · 141 payments · 8 users ·
 > 6 salespersons · 11 industrial areas).
 >
-> **Warning:** the repo-root audit reports (`POC_V6_ORIGINAL_DATA_AND_AUDIT_REPORT.md`,
-> `PAGE-ANALYSIS-AUDIT-REPORT.md`, `STAGING-READINESS-REPORT.md`) claim parity that does not
-> exist. Treat them as leads to verify, never as evidence. Verify against code.
+> **Note:** the repo-root audit reports those sections used to cite
+> (`POC_V6_ORIGINAL_DATA_AND_AUDIT_REPORT.md`, `PAGE-ANALYSIS-AUDIT-REPORT.md`,
+> `STAGING-READINESS-REPORT.md`) were deleted on 2026-09-04: they claimed a parity that did not
+> exist. Verify against code, and do not recreate them.
 
 ---
 
@@ -62,12 +63,12 @@ Read AGENTS.md first and hold it for the whole task.
 
 Workflow (non-negotiable):
 1. superpowers:brainstorming — resolve every open question with me BEFORE design.
-2. Write the design spec to docs/superpowers/specs/<date>-<module>-design.md.
-3. superpowers:writing-plans — write the task-by-task plan to
-   docs/superpowers/plans/<date>-<module>.md.
-4. superpowers:test-driven-development — test first, always. API tests are INTEGRATION
+2. Present the design in chat — files touched, shape of the change, behaviour change — and get
+   my approval. Do NOT write a spec or plan document: they go stale the day they are written
+   and nobody reads them twice.
+3. superpowers:test-driven-development — test first, always. API tests are INTEGRATION
    tests against real Postgres via the RLS-bound greatsales_app role. Never mock Prisma.
-5. superpowers:verification-before-completion — run `pnpm --filter api test`,
+4. superpowers:verification-before-completion — run `pnpm --filter api test`,
    `pnpm --filter web test`, `pnpm check-types`, `pnpm lint` and paste real output.
 
 Hard rules for this repo:

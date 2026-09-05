@@ -59,8 +59,9 @@ export default function ChangePassword() {
   };
 
   const signOut = async () => {
+    // No navigation: clearing the session flips this screen's guard in the
+    // root layout, which falls back to `index` on its own.
     await logout();
-    router.replace('/');
   };
 
   return (

@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/facts.mjs --hook",
+            "timeout": 30,
+            "statusMessage": "Reading what this app currently is"
+          }
+        ]
+      }
+    ]
+  }
+}

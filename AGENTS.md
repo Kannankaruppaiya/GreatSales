@@ -6,6 +6,48 @@
 
 ---
 
+# RUNNING AND CHECKING THIS APP LOCALLY
+
+Do not re-derive any of this. Ports, credentials and the seed command are settled; the only
+correct response to "is everything still wired?" is to run the commands below.
+
+```bash
+pnpm facts                                             # what exists: features, pages, wiring, env — answer questions from this
+docker compose up -d                                   # Postgres :5433, Redis :6380
+pnpm --filter @greatsales/db db:seed:promech           # the authoritative dataset, tenant_promech
+pnpm --filter api start:dev                            # API on :3001, prefix /api/v1
+pnpm --filter web dev                                  # web on :5174, proxies /api/v1
+pnpm wiring                                            # static: which endpoints no client calls
+pnpm smoke -- --period 2026-06                         # runtime: every feature's read endpoint, ~3s
+pnpm verify                                            # wiring + smoke + API unit + web unit suites
+pnpm test:e2e:qa                                       # browser QA sweep: pages, RBAC, CRUD, API contract
+pnpm test:e2e                                          # the whole Playwright suite (adds the older page specs)
+```
+
+- **A question about the application is answered by `pnpm facts`, not by reading the repository.**
+  It derives the feature matrix from `features.ts`, the router, the controllers and the tests on
+  every run, so it cannot go stale the way a checklist does. A SessionStart hook
+  (`.claude/settings.json`) already injects its one-line form at the start of every session.
+- Logins: `admin@greatsales.local` / `admin`, everyone else `<username>@greatsales.local` /
+  `1234`, tenant `tenant_promech`.
+- `pnpm smoke` names its own fix when it fails — a refused connection or a wrong dataset each
+  print the one command that repairs it. Trust that line instead of investigating.
+- `pnpm test:e2e:qa` drives a real browser, so it needs the API on :3001 and the Promech
+  seed already in place; Playwright starts the web server itself. It creates records through
+  the UI and deletes them through the API afterwards, so it leaves the dataset as it found it.
+  The specs live in `tests/e2e/qa/` and take their page list from
+  `apps/web/src/data/features.ts` — declare a feature there and the sweep covers it next run.
+- **The API e2e suites (`pnpm --filter api test:e2e`) reseed the same Postgres** and destroy the
+  Promech data. Re-run `db:seed:promech` afterwards.
+- `pnpm wiring` needs no running server: it reads the Nest controllers and greps web + mobile for
+  the calls, so it answers "which endpoint has no client?" while `pnpm smoke` answers "does the
+  endpoint actually work?". Run both; neither replaces the other.
+- Neither script drives a browser. For that, load each feature under
+  `/managements/:managementId/<feature key>` (keys live in `apps/web/src/data/features.ts`) and
+  watch for a non-200 in the network log.
+
+---
+
 # PRODUCTION-FIRST ENGINEERING DIRECTIVE
 
 This project is a real production application.

@@ -14,7 +14,11 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:poc": "tsx prisma/seed-poc.ts",
-    "db:seed:promech": "tsx prisma/seed-promech.ts"
+    "db:seed:promech": "tsx prisma/seed-promech.ts",
+    "db:backup": "tsx src/backup.ts",
+    "db:clear-data": "tsx src/clear-data.ts",
+    "db:restore": "tsx src/restore.ts",
+    "db:export-excel": "tsx src/export-excel.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",

@@ -29,6 +29,7 @@
     "Subresource",
     "Antipattern",
     "Lockdown",
+    "IDOR",
 
     // ── Performance / Web Vitals ───────────────────────────────────────────
     "TTFB",
@@ -89,13 +90,23 @@
     "Lifecycles",
     "SIPCOT",
 
+    // ── Testing & Tooling ──────────────────────────────────────────────────
+    "networkidle",
+    "wrongpassword",
+    "unwired",
+    "FRONTENDS",
+    "Frontends",
+    "graphify",
+    "segs",
+
     // ── Tamil place names & proper nouns ──────────────────────────────────
     "Ennore",
     "Padi",
     "Nagar",
     "Ganesh",
     "Priya",
-    "Mohan"
+    "Mohan",
+    "தமிழ்"
   ],
   "ignorePaths": [
     "node_modules",

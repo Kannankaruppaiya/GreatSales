@@ -180,12 +180,10 @@ Workflow (non-negotiable):
    tenant-identification decision (F1 "Decision required", options A/B/C) and the
    refresh-token storage decision (F1-4) are the two that must be settled with me, not
    assumed.
-2. Write the design spec to docs/superpowers/specs/<date>-f1-signin-design.md.
-3. superpowers:writing-plans — task-by-task plan to
-   docs/superpowers/plans/<date>-f1-signin.md.
-4. superpowers:test-driven-development — test first. API tests are INTEGRATION tests
+2. Present the design in chat and get my approval — no spec or plan document.
+3. superpowers:test-driven-development — test first. API tests are INTEGRATION tests
    against real Postgres via the RLS-bound greatsales_app role. Never mock Prisma.
-5. superpowers:verification-before-completion — paste real output from
+4. superpowers:verification-before-completion — paste real output from
    `pnpm --filter api test`, `pnpm --filter web test`, `pnpm check-types`, `pnpm lint`.
 
 Fix all eleven verified defects D1-D11 listed in the F1 section of
@@ -286,9 +284,8 @@ acceptance criteria today would encode assumptions that F3–F8 are going to inv
 
 # F12 — Users, roles & teams
 
-**Delivered 2026-08-23.** Design spec:
-[`docs/superpowers/specs/2026-08-23-f12-users-roles-teams-design.md`](superpowers/specs/2026-08-23-f12-users-roles-teams-design.md).
-Plan: [`docs/superpowers/plans/2026-08-23-f12-users-roles-teams.md`](superpowers/plans/2026-08-23-f12-users-roles-teams.md).
+**Delivered 2026-08-23.** The design spec and plan documents were deleted on 2026-09-04; the
+shipped code and its tests are the record.
 
 ## Decisions taken
 

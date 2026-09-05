@@ -8,6 +8,7 @@
  *   access token on startup instead of relying on a cookie
  */
 import { useSyncExternalStore } from 'react';
+import { queryClient } from './queryClient';
 import {
   apiFetch,
   setAccessToken,
@@ -186,6 +187,7 @@ export async function logout(): Promise<void> {
     // Even if the server call fails, clear local state.
   } finally {
     await clearTokens();
+    queryClient.clear();
     setState({ user: null, status: 'ready' });
   }
 }

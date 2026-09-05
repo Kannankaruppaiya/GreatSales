@@ -9,13 +9,22 @@
     "check-types": "turbo run check-types",
     "graph": "graphify extract . --code-only && graphify cluster-only . --no-label",
     "graph:update": "graphify update .",
-    "analyze:pages": "node scripts/comprehensive-page-analyzer.mjs",
-    "analyze:questionnaire": "node scripts/deep-questionnaire-audit.js",
     "staging:up": "docker compose -f docker-compose.staging.yml up -d --build",
     "staging:down": "docker compose -f docker-compose.staging.yml down",
-    "staging:test": "node scripts/test-staging-docker.mjs"
+    "facts": "node scripts/facts.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "wiring": "node scripts/check-wiring.mjs",
+    "verify": "node scripts/check-wiring.mjs && node scripts/smoke.mjs && pnpm --filter api test && pnpm --filter web test",
+    "test:e2e": "playwright test",
+    "test:e2e:qa": "playwright test tests/e2e/qa",
+    "test:e2e:ui": "playwright test --ui",
+    "db:backup": "pnpm --filter @greatsales/db db:backup",
+    "db:clear-data": "pnpm --filter @greatsales/db db:clear-data",
+    "db:restore": "pnpm --filter @greatsales/db db:restore",
+    "db:export-excel": "pnpm --filter @greatsales/db db:export-excel"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "prettier": "^3.7.4",
     "turbo": "^2.10.10",
     "typescript": "5.9.2"

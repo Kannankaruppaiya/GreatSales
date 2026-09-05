@@ -9,10 +9,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
-/** Base URL read from app.json `extra.apiBaseUrl`, falling back to a safe default. */
+/** Base URL read from EXPO_PUBLIC_API_URL or app.json extra, falling back to port 3001. */
 export const API_BASE_URL: string =
+  process.env.EXPO_PUBLIC_API_URL ||
   (Constants.expoConfig?.extra as { apiBaseUrl?: string } | undefined)
-    ?.apiBaseUrl ?? 'http://localhost:3000/api/v1';
+    ?.apiBaseUrl ||
+  'http://localhost:3001/api/v1';
 
 const REFRESH_TOKEN_KEY = 'gs_refresh_token';
 

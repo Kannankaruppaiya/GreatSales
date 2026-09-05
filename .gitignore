@@ -17,6 +17,9 @@ node_modules
 
 # Testing
 coverage
+test-results/
+playwright-report/
+tests/e2e/.auth/
 
 # Turbo
 .turbo
@@ -51,3 +54,6 @@ graphify-out/
 # synthetic fixtures and needs none of this.
 packages/db/prisma/promech-data.json
 packages/db/prisma/poc-v6-data.json
+
+# Local database backups — never commit these (can contain real data)
+backups/

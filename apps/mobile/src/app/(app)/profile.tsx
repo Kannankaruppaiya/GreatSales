@@ -27,15 +27,14 @@ export default function Profile() {
   ] as const;
 
   const handleSignOut = async () => {
+    if (signingOut) return;
     setSigningOut(true);
-    try {
-      await logout();
-    } catch {
-      // Ignored - cleanup still occurs
-    } finally {
-      setSigningOut(false);
-      router.replace('/');
-    }
+    // No navigation here. logout() always clears the session in its own
+    // `finally`, and the AuthGuard in (app)/_layout.tsx redirects on that.
+    // Replacing the route here too raced that redirect: the guard unmounted
+    // this tree, then this call navigated into a torn-down navigator and the
+    // spinner state landed on an unmounting component.
+    await logout();
   };
 
   return (

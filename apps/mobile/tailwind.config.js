@@ -22,6 +22,7 @@ module.exports = {
           dark: '#064e3b',
           soft: '#ecfdf5',
           border: '#a7f3d0',
+          ink: '#022c22',
         },
         amber: {
           DEFAULT: '#d97706',

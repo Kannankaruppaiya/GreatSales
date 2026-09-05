@@ -33,6 +33,9 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": "http://10.107.93.246:3001/api/v1"
     }
   }
 }
