@@ -132,10 +132,17 @@ export function ModalBtn({
   label,
   onPress,
   variant = 'solid',
+  disabled = false,
 }: {
   label: string;
   onPress: () => void;
   variant?: 'solid' | 'ghost' | 'danger';
+  /**
+   * Blocks the press AND dims the control. A submit that is in flight or
+   * missing a required field has to look unavailable, or the user taps it
+   * again and the form appears to have swallowed the first tap.
+   */
+  disabled?: boolean;
 }) {
   let box = 'bg-brand border border-brand shadow-sm';
   let txt = 'text-white';
@@ -151,7 +158,8 @@ export function ModalBtn({
   return (
     <Pressable
       onPress={onPress}
-      className={`flex-1 py-3.5 rounded-xl items-center justify-center ${box}`}
+      disabled={disabled}
+      className={`flex-1 py-3.5 rounded-xl items-center justify-center ${box} ${disabled ? 'opacity-40' : ''}`}
     >
       <Text className={`text-[13px] font-black ${txt}`}>{label}</Text>
     </Pressable>

@@ -44,6 +44,31 @@ export const fmtDur = (ms: number | null) => {
 };
 
 // ---- enums --------------------------------------------------------------
+export const DEAL_STAGE_VALUES = [
+  'NewEnquiries',
+  'NeedsAnalysis',
+  'TrialsAndSampleTests',
+  'ProposalsAndPriceQuote',
+  'NegotiationOralConfirmation',
+  'ClosedWon',
+  'ClosedLost',
+  'NoRequirementOrCold',
+  'TrialProblem',
+] as const;
+export type DealStageValue = (typeof DEAL_STAGE_VALUES)[number];
+
+export const DEAL_STAGE_LABELS: Record<DealStageValue, string> = {
+  NewEnquiries: 'New Enquiries',
+  NeedsAnalysis: 'Needs Analysis',
+  TrialsAndSampleTests: 'Trials & Sample Tests',
+  ProposalsAndPriceQuote: 'Proposals & Price Quote',
+  NegotiationOralConfirmation: 'Negotiation / Oral Confirmation',
+  ClosedWon: 'Closed Won',
+  ClosedLost: 'Closed Lost',
+  NoRequirementOrCold: 'No Requirement or Cold',
+  TrialProblem: 'Trial Problem',
+};
+
 export const DEAL_STAGES = [
   'New Enquiries',
   'Needs Analysis',
@@ -181,26 +206,26 @@ export const projTone = (s: string): Tone => {
   if (s === 'Lost' || s === 'Cancelled') return 'lost';
   return 'open';
 };
-export const dealTone = (s: string): Tone => {
-  if (s === 'Closed Won') return 'won';
-  if (['Closed Lost', 'No Requirement or Cold'].includes(s)) return 'lost';
-  if (['Trial Problem', 'Negotiation / Oral Confirmation', 'Proposals & Price Quote'].includes(s)) return 'hot';
+export const dealTone = (s?: string | null): Tone => {
+  if (s === 'Closed Won' || s === 'ClosedWon') return 'won';
+  if (['Closed Lost', 'ClosedLost', 'No Requirement or Cold', 'NoRequirementOrCold'].includes(s || '')) return 'lost';
+  if (['Trial Problem', 'TrialProblem', 'Negotiation / Oral Confirmation', 'NegotiationOralConfirmation', 'Proposals & Price Quote', 'ProposalsAndPriceQuote'].includes(s || '')) return 'hot';
   return 'open';
 };
-export const soTone = (s: string): Tone => {
+export const soTone = (s?: string | null): Tone => {
   if (s === 'Cancelled') return 'lost';
-  if (s === 'Customer Receipt Confirmed') return 'won';
+  if (s === 'Customer Receipt Confirmed' || s === 'CustomerReceiptConfirmed') return 'won';
   if (s === 'Created') return 'open';
   return 'hot';
 };
-export const zoneTone = (z: string): Tone => {
-  if (z === 'Green Zone') return 'won';
-  if (z === 'Yellow Zone') return 'hot';
-  if (z === 'Blacklist') return 'lost';
-  if (z === 'Unassigned') return 'neutral';
+export const zoneTone = (z?: string | null): Tone => {
+  if (z === 'Green Zone' || z === 'GreenZone') return 'won';
+  if (z === 'Yellow Zone' || z === 'YellowZone') return 'hot';
+  if (z === 'Blacklist' || z === 'Red Zone' || z === 'RedZone') return 'lost';
+  if (z === 'Unassigned' || !z) return 'neutral';
   return 'lost';
 };
-export const tierTone = (t: string): Tone => {
+export const tierTone = (t?: string | null): Tone => {
   if (t === 'Platinum') return 'won';
   if (t === 'Gold') return 'hot';
   if (t === 'Silver') return 'open';

@@ -1,32 +1,59 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Card, Badge, Chip, Empty, Kpi, KpiStrip } from '@/gs/kit';
 import { Sheet, Field, Input, ModalBtn } from '@/gs/modal';
 import { C } from '@/gs/theme';
-import { useStore, actions, OrderX, SO_FLOW } from '@/gs/store';
-import { inr, lakhs, shortDate, soTone, fmtDur, SO_STATUSES } from '@/gs/domain';
-import { SearchIcon, ChartIcon, CheckCircleIcon } from '@/gs/icons';
+import { useDebounced } from '@/gs/useDebounced';
+import { useOrders, useUpdateOrder, useDeleteOrder, type OrderRow } from '@/gs/queries/orders';
+import { DeleteButton } from '@/gs/DeleteButton';
+import { inr, lakhs, shortDate, soTone } from '@/gs/domain';
+import { SearchIcon } from '@/gs/icons';
+import { ORDER_STATUS_VALUES, type OrderStatusValue } from '@greatsales/shared';
+
+const TIMELINE_STATUSES = ORDER_STATUS_VALUES.filter(
+  (s) => s !== 'Cancelled',
+) as Exclude<OrderStatusValue, 'Cancelled'>[];
+
+const STATUS_LABELS: Record<OrderStatusValue, string> = {
+  Created: 'Created',
+  Acknowledged: 'Acknowledged',
+  DeliveryPartnerAssigned: 'Partner Assigned',
+  DeliveredFromWarehouse: 'Delivered from WH',
+  DeliveredToCustomer: 'Delivered to Cust',
+  CustomerReceiptConfirmed: 'Receipt Confirmed',
+  Cancelled: 'Cancelled',
+};
 
 export default function Orders() {
-  const orders = useStore((s) => s.orders);
+  const [searchText, setSearchText] = useState('');
+  const debouncedSearch = useDebounced(searchText, 300);
+  // The report tab totals the whole ledger, and the status chips count across
+  // it, so every page of the filtered set is fetched.
+  const {
+    items: orders,
+    total,
+    isLoadingAll: isLoading,
+    refetch,
+  } = useOrders(
+    { search: debouncedSearch.trim() || undefined },
+    { autoFetchAll: true },
+  );
   const [tab, setTab] = useState<'list' | 'report'>('list');
-  const [q, setQ] = useState('');
   const [chip, setChip] = useState<string>('ALL');
   const [openId, setOpenId] = useState<string | null>(null);
+  const deleteOrder = useDeleteOrder();
 
   const rows = useMemo(() => orders.filter((o) => {
     if (chip !== 'ALL' && o.status !== chip) return false;
-    if (q && !o.code.toLowerCase().includes(q.toLowerCase()) && !o.customerName.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
-  }), [orders, chip, q]);
+  }), [orders, chip]);
 
   const open = orders.find((o) => o.id === openId) || null;
-  const totalValue = orders.reduce((s, o) => s + o.value, 0);
-  const inTransit = orders.filter((o) => !['Customer Receipt Confirmed', 'Created'].includes(o.status)).length;
+  const inTransit = orders.filter((o) => !['CustomerReceiptConfirmed', 'Created', 'Cancelled'].includes(o.status)).length;
   const urgent = orders.filter((o) => o.isUrgent).length;
-  const completed = orders.filter((o) => o.status === 'Customer Receipt Confirmed').length;
+  const completed = orders.filter((o) => o.status === 'CustomerReceiptConfirmed').length;
 
   return (
     <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
@@ -62,20 +89,31 @@ export default function Orders() {
           </View>
           <View className="flex-row items-center bg-surface border border-line rounded-xl px-3 py-2.5">
             <SearchIcon size={16} color="#64748b" />
-            <TextInput value={q} onChangeText={setQ} placeholder="Search SO code or customer…" placeholderTextColor={C.faint}
-              className="flex-1 ml-2 text-[13px] text-ink font-medium" autoCapitalize="none" />
-            {q ? <Pressable onPress={() => setQ('')} hitSlop={8}><Text className="text-muted font-bold text-sm">x</Text></Pressable> : null}
+            <TextInput
+              value={searchText}
+              onChangeText={setSearchText}
+              placeholder="Search SO code or customer…"
+              placeholderTextColor={C.faint}
+              className="flex-1 ml-2 text-[13px] text-ink font-medium"
+              autoCapitalize="none"
+            />
+            {searchText ? <Pressable onPress={() => setSearchText('')} hitSlop={8}><Text className="text-muted font-bold text-sm">✕</Text></Pressable> : null}
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingRight: 16 }}>
             <Chip key="ALL" label="All Orders" count={orders.length} active={chip === 'ALL'} onPress={() => setChip('ALL')} />
-            {SO_STATUSES.map((s) => (
-              <Chip key={s} label={s} count={orders.filter((o) => o.status === s).length} active={chip === s} onPress={() => setChip(s)} />
+            {ORDER_STATUS_VALUES.map((s) => (
+              <Chip key={s} label={STATUS_LABELS[s] || s} count={orders.filter((o) => o.status === s).length} active={chip === s} onPress={() => setChip(s)} />
             ))}
           </ScrollView>
         </View>
       </View>
 
-      {tab === 'report' ? (
+      {isLoading ? (
+        <View className="flex-1 items-center justify-center py-20">
+          <ActivityIndicator size="large" color={C.brand} />
+          <Text className="text-xs text-muted font-medium mt-3">Loading sales orders…</Text>
+        </View>
+      ) : tab === 'report' ? (
         <Report orders={orders} />
       ) : (
         <FlatList
@@ -83,6 +121,8 @@ export default function Orders() {
           keyExtractor={(o) => o.id}
           contentContainerClassName="p-4 pb-28 gap-2.5"
           showsVerticalScrollIndicator={false}
+          onRefresh={refetch}
+          refreshing={isLoading}
           renderItem={({ item }) => <OrderCard o={item} onPress={() => setOpenId(item.id)} />}
           ItemSeparatorComponent={() => <View className="h-2" />}
           ListEmptyComponent={<Empty text="No sales orders match." />}
@@ -94,17 +134,32 @@ export default function Orders() {
         open={!!open}
         onClose={() => setOpenId(null)}
         title={open?.code || ''}
-        subtitle={open ? `${open.customerName} · ${inr(open.value)}` : ''}
-        footer={<ModalBtn label="Close" variant="ghost" onPress={() => setOpenId(null)} />}
+        subtitle={open ? `${open.customerName} · ${inr(open.total)}` : ''}
+        footer={
+          <>
+            {open ? (
+              <DeleteButton
+                label="Delete"
+                title={`Delete ${open.code}?`}
+                body="The order and its line items are removed, and it stops counting towards achievement. To keep the record, cancel it instead."
+                onDelete={() => deleteOrder.mutateAsync(open.id)}
+                onDeleted={() => setOpenId(null)}
+              />
+            ) : null}
+            <ModalBtn label="Close" variant="ghost" onPress={() => setOpenId(null)} />
+          </>
+        }
       >
-        {open ? <OrderDetail o={open} /> : null}
+        {open ? <OrderDetail o={open} onClose={() => setOpenId(null)} /> : null}
       </Sheet>
     </SafeAreaView>
   );
 }
 
-function OrderCard({ o, onPress }: { o: OrderX; onPress: () => void }) {
-  const idx = SO_FLOW.indexOf(o.status);
+function OrderCard({ o, onPress }: { o: OrderRow; onPress: () => void }) {
+  const currentIdx = TIMELINE_STATUSES.indexOf(o.status as (typeof TIMELINE_STATUSES)[number]);
+  const productSummary = o.items.map((it) => `${it.productName} (x${it.qty})`).join(', ') || 'No items';
+
   return (
     <Card onPress={onPress}>
       <View className="flex-row items-start justify-between gap-2">
@@ -114,58 +169,115 @@ function OrderCard({ o, onPress }: { o: OrderX; onPress: () => void }) {
             {o.isUrgent ? <Badge label="Urgent" tone="lost" small /> : null}
           </View>
           <Text className="text-xs text-muted font-medium mt-0.5">{o.customerName}</Text>
-          <Text className="text-[11px] text-ink2 font-semibold mt-0.5">{o.productName}</Text>
+          <Text className="text-[11px] text-ink2 font-semibold mt-0.5" numberOfLines={1}>{productSummary}</Text>
         </View>
-        <Text className="text-[15px] font-black text-brand">{inr(o.value)}</Text>
+        <Text className="text-[15px] font-black text-brand">{inr(o.total)}</Text>
       </View>
 
-      {/* Mini 6-step progress dots */}
+      {/* Progress Dots */}
       <View className="flex-row items-center gap-1 mt-2.5">
-        {SO_FLOW.map((_, i) => (
-          <View key={i} className={`flex-1 h-1.5 rounded-full ${
-            i < idx ? 'bg-brand' : i === idx ? 'bg-amber' : 'bg-surface3'
-          }`} />
+        {TIMELINE_STATUSES.map((_, i) => (
+          <View
+            key={i}
+            className={`flex-1 h-1.5 rounded-full ${
+              i < currentIdx ? 'bg-brand' : i === currentIdx ? 'bg-amber' : 'bg-surface3'
+            }`}
+          />
         ))}
-        <Text className="text-[10px] text-muted font-bold ml-1">{idx + 1}/{SO_FLOW.length}</Text>
+        <Text className="text-[10px] text-muted font-bold ml-1">
+          {currentIdx >= 0 ? `${currentIdx + 1}/${TIMELINE_STATUSES.length}` : '—'}
+        </Text>
       </View>
 
       <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-line/80 gap-2">
-        <Badge label={o.status} tone={soTone(o.status)} small showDot />
+        <Badge label={STATUS_LABELS[o.status] || o.status} tone={soTone(o.status)} small showDot />
         <Text className="text-[11px] text-muted font-semibold">
-          {o.deliveryMode} · ETA {shortDate(o.expectedDelivery)}
+          {o.deliveryMode || 'Road'} {o.expectedDelivery ? `· ETA ${shortDate(o.expectedDelivery)}` : ''}
         </Text>
       </View>
     </Card>
   );
 }
 
-function OrderDetail({ o }: { o: OrderX }) {
-  const [partner, setPartner] = useState('');
+function OrderDetail({ o, onClose }: { o: OrderRow; onClose: () => void }) {
+  const updateOrder = useUpdateOrder();
+  const [partner, setPartner] = useState(o.transporterName || '');
   const [reason, setReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
-  const idx = SO_FLOW.indexOf(o.status);
-  const nextStep = idx >= 0 && idx < SO_FLOW.length - 1 ? SO_FLOW[idx + 1] : null;
-  const needsPartner = o.status === 'Acknowledged';
+
+  const currentIdx = TIMELINE_STATUSES.indexOf(o.status as (typeof TIMELINE_STATUSES)[number]);
+  const nextStep: OrderStatusValue | null =
+    currentIdx >= 0 && currentIdx < TIMELINE_STATUSES.length - 1
+      ? TIMELINE_STATUSES[currentIdx + 1]
+      : null;
+
+  const needsPartner = o.status === 'Acknowledged' || nextStep === 'DeliveryPartnerAssigned';
+
+  const handleAdvance = () => {
+    if (!nextStep) return;
+    const isAssigningTransporter = nextStep === 'DeliveryPartnerAssigned' && partner.trim();
+    updateOrder.mutate({
+      id: o.id,
+      patch: {
+        status: nextStep,
+        ...(isAssigningTransporter ? {
+          transporterName: partner.trim(),
+          statusNote: `Transporter assigned: ${partner.trim()}`,
+        } : {}),
+      },
+    });
+  };
+
+  const handleCancel = () => {
+    if (!reason.trim()) return;
+    updateOrder.mutate({
+      id: o.id,
+      patch: {
+        status: 'Cancelled',
+        cancelReason: reason.trim(),
+      },
+    }, {
+      onSuccess: () => {
+        setCancelling(false);
+      },
+    });
+  };
 
   return (
     <View className="gap-4">
       <View className="flex-row flex-wrap gap-y-3 bg-surface3/60 rounded-xl p-3">
-        <Info label="Order Status" value={o.status} />
-        <Info label="Total Value" value={inr(o.value)} strong />
-        <Info label="Product" value={o.productName ?? '—'} />
-        <Info label="Delivery Mode" value={o.deliveryMode} />
-        <Info label="Ship to" value={o.shipTo} />
-        <Info label="Expected Delivery" value={shortDate(o.expectedDelivery)} />
+        <Info label="Order Status" value={STATUS_LABELS[o.status] || o.status} />
+        <Info label="Total Value" value={inr(o.total)} strong />
+        <Info label="Items Count" value={`${o.items.length} item(s)`} />
+        <Info label="Delivery Mode" value={o.deliveryMode ?? 'Standard'} />
+        <Info label="Ship to" value={o.deliveryAddress ?? o.customerName} />
+        <Info label="Expected Delivery" value={o.expectedDelivery ? shortDate(o.expectedDelivery) : '—'} />
+      </View>
+
+      {/* Items Breakdown */}
+      <View className="gap-2 border-t border-line pt-3">
+        <Text className="text-[11px] font-extrabold text-ink2 uppercase tracking-wide">Ordered Products</Text>
+        {o.items.map((item) => (
+          <View key={item.id} className="flex-row items-center justify-between bg-surface rounded-xl border border-line p-2.5">
+            <View className="flex-1 mr-2">
+              <Text className="text-xs font-bold text-ink">{item.productName}</Text>
+              <Text className="text-[10px] text-muted mt-0.5">Qty: {item.qty} @ {inr(item.price)}</Text>
+            </View>
+            <Text className="text-xs font-black text-brand">{inr(item.lineTotal)}</Text>
+          </View>
+        ))}
       </View>
 
       {/* Progress Timeline */}
       <View className="gap-2 border-t border-line pt-3">
         <Text className="text-[11px] font-extrabold text-ink2 uppercase tracking-wide">Fulfillment Timeline</Text>
-        {o.timeline.map((step, i) => {
-          const done = !!step.at;
-          const current = i === idx;
+        {TIMELINE_STATUSES.map((stepStatus, i) => {
+          const done = i <= currentIdx;
+          const current = i === currentIdx;
+          const historyEntry = o.statusHistory.find((h) => h.status === stepStatus);
+
           return (
-            <View key={i} className="flex-row items-start gap-3">
+            <View key={stepStatus} className="flex-row items-start gap-3">
               <View className="items-center">
                 <View
                   className={`w-5 h-5 rounded-full items-center justify-center border ${
@@ -176,17 +288,17 @@ function OrderDetail({ o }: { o: OrderX }) {
                     {done ? '✓' : i + 1}
                   </Text>
                 </View>
-                {i < o.timeline.length - 1 ? (
+                {i < TIMELINE_STATUSES.length - 1 ? (
                   <View className={`w-0.5 h-6 ${done ? 'bg-brand' : 'bg-line'}`} />
                 ) : null}
               </View>
               <View className="flex-1 pb-2">
                 <Text className={`text-xs font-black ${done ? 'text-ink' : current ? 'text-amber' : 'text-muted'}`}>
-                  {step.label}
+                  {STATUS_LABELS[stepStatus] || stepStatus}
                 </Text>
-                {step.at ? (
+                {historyEntry ? (
                   <Text className="text-[10px] text-muted font-medium mt-0.5">
-                    {shortDate(step.at.slice(0, 10))} · {step.by || 'Ops'}
+                    {shortDate(historyEntry.at.slice(0, 10))} {historyEntry.note ? `· ${historyEntry.note}` : ''}
                   </Text>
                 ) : null}
               </View>
@@ -204,16 +316,19 @@ function OrderDetail({ o }: { o: OrderX }) {
             </Field>
           ) : null}
           <Pressable
-            onPress={() => actions.advanceOrder(o.id, { partner: partner.trim() || undefined })}
+            onPress={handleAdvance}
+            disabled={updateOrder.isPending}
             className="bg-brand py-3.5 rounded-xl items-center shadow-sm"
           >
-            <Text className="text-white font-black text-xs">Advance to: {nextStep}</Text>
+            <Text className="text-white font-black text-xs">
+              {updateOrder.isPending ? 'Updating…' : `Advance to: ${STATUS_LABELS[nextStep] || nextStep}`}
+            </Text>
           </Pressable>
         </View>
       ) : null}
 
       {/* Cancel Action */}
-      {o.status !== 'Cancelled' && o.status !== 'Customer Receipt Confirmed' ? (
+      {o.status !== 'Cancelled' && o.status !== 'CustomerReceiptConfirmed' ? (
         <View className="border-t border-line pt-3">
           {cancelling ? (
             <View className="gap-2">
@@ -225,10 +340,13 @@ function OrderDetail({ o }: { o: OrderX }) {
                   <Text className="text-xs font-bold text-muted">Keep Order</Text>
                 </Pressable>
                 <Pressable
-                  onPress={() => { if (reason.trim()) actions.cancelOrder(o.id, reason.trim()); }}
+                  onPress={handleCancel}
+                  disabled={updateOrder.isPending}
                   className="flex-1 py-2.5 rounded-xl bg-danger items-center"
                 >
-                  <Text className="text-white font-black text-xs">Confirm Cancel</Text>
+                  <Text className="text-white font-black text-xs">
+                    {updateOrder.isPending ? 'Cancelling…' : 'Confirm Cancel'}
+                  </Text>
                 </Pressable>
               </View>
             </View>
@@ -243,10 +361,10 @@ function OrderDetail({ o }: { o: OrderX }) {
   );
 }
 
-function Report({ orders }: { orders: OrderX[] }) {
-  const total = orders.reduce((s, o) => s + o.value, 0);
-  const completed = orders.filter((o) => o.status === 'Customer Receipt Confirmed');
-  const delivered = orders.filter((o) => ['Delivered from Warehouse', 'Delivered to Customer', 'Customer Receipt Confirmed'].includes(o.status));
+function Report({ orders }: { orders: OrderRow[] }) {
+  const total = orders.reduce((s, o) => s + o.total, 0);
+  const completed = orders.filter((o) => o.status === 'CustomerReceiptConfirmed');
+  const delivered = orders.filter((o) => ['DeliveredFromWarehouse', 'DeliveredToCustomer', 'CustomerReceiptConfirmed'].includes(o.status));
 
   return (
     <ScrollView className="flex-1 px-4 pb-28" contentContainerClassName="gap-3 py-3">
@@ -258,11 +376,11 @@ function Report({ orders }: { orders: OrderX[] }) {
       <Card>
         <Text className="text-[14px] font-black text-ink mb-2">Fulfillment by Status</Text>
         <View className="gap-2">
-          {SO_STATUSES.map((st) => {
+          {ORDER_STATUS_VALUES.map((st) => {
             const count = orders.filter((o) => o.status === st).length;
             return (
               <View key={st} className="flex-row items-center justify-between py-2 border-b border-line/80">
-                <Text className="text-xs font-bold text-ink">{st}</Text>
+                <Text className="text-xs font-bold text-ink">{STATUS_LABELS[st] || st}</Text>
                 <View className="bg-surface3 px-2 py-0.5 rounded-full">
                   <Text className="text-xs font-black text-ink2">{count}</Text>
                 </View>

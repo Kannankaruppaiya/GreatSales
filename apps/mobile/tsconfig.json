@@ -8,6 +8,9 @@
       ],
       "@/assets/*": [
         "./assets/*"
+      ],
+      "@greatsales/shared": [
+        "../../packages/shared/src/index.ts"
       ]
     }
   },

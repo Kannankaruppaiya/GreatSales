@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, Tone, shadow } from './theme';
 import { initials } from './domain';
@@ -477,6 +477,40 @@ export function Empty({
           <Text className="text-brand-dark font-bold text-xs">{actionLabel}</Text>
         </Pressable>
       ) : null}
+    </View>
+  );
+}
+
+/**
+ * Footer for a cursor-paginated list.
+ *
+ * Says how many of the total are on screen. Without it a list that stops at
+ * the last fetched page is indistinguishable from a list that has ended —
+ * which is exactly how every mobile list behaved when they all requested a
+ * hardcoded 100 rows and dropped the cursor.
+ */
+export function ListFooter({
+  shown,
+  total,
+  loading,
+}: {
+  shown: number;
+  total: number;
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <View className="py-4 items-center">
+        <ActivityIndicator size="small" color={C.brand} />
+      </View>
+    );
+  }
+  if (shown === 0) return null;
+  return (
+    <View className="py-4 items-center">
+      <Text className="text-[11px] font-bold text-muted">
+        {shown >= total ? `${total} total` : `Showing ${shown} of ${total}`}
+      </Text>
     </View>
   );
 }

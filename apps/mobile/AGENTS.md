@@ -11,21 +11,34 @@ https://docs.expo.dev/versions/v54.0.0/
 
 Keep this link in step with `package.json` whenever the SDK moves.
 
-## Status: this is a UI prototype, not an application
+## Status: wired to the API, with two gaps named below
 
-Read this before planning any work here. All nine Expo Router screens read
-`src/gs/mock.ts` through an in-memory store. There is **no API client, no auth, and no
-network layer at all** — nothing in this app has ever talked to the GreatSales API.
+All ten Expo Router screens read the GreatSales API through `src/gs/api.ts` and the
+hooks in `src/gs/queries/`. The `src/gs/mock.ts` in-memory store this file used to
+describe is gone.
 
-So a change here does not make a feature work end to end, and no roadmap slice can claim
-mobile coverage until that changes.
+Things worth knowing before writing code here:
 
-The scope decision — ship mobile properly, or cut it from v1 and stop implying it exists —
-is recorded as still open in
-[`../../checklists/05-MOBILE.md`](../../checklists/05-MOBILE.md), along with what "ship it
-properly" would require. Two items there are worth knowing before writing any code:
+- **Lists are cursor-paginated through `useCursorList`** (`src/gs/queries/cursorList.ts`).
+  Do not go back to a fixed `limit` — every list did that once, capped at 100 rows with
+  the cursor discarded, and search filtered those 100 in JS. Filters belong in the query.
+- **Screens that aggregate pass `autoFetchAll`** (kanban, report tabs, the follow-up
+  buckets). Everything else follows the cursor on `onEndReached`.
+- **Reference data comes from the API**, not `gs/domain.ts`. Principals are
+  `/principals`, industries are `/industries`. `AREAS` is still a local constant —
+  see the gap below.
 
-- **Tokens go in the OS secure store** (Keychain / Keystore), never `AsyncStorage`.
+Two gaps remain, and they are missing FEATURES rather than broken wiring:
+
+- No order-create screen. Orders are created from the projections convert flow only.
+- `AREAS` in `gs/domain.ts` is still a hardcoded list of Chennai localities, matching
+  the web console's `INDUSTRIAL_AREAS`. There is no areas endpoint on either client.
+
+Two items from [`../../checklists/05-MOBILE.md`](../../checklists/05-MOBILE.md) are still
+open and worth knowing before writing any code:
+
+- **Tokens go in the OS secure store** (Keychain / Keystore). `src/gs/api.ts` still
+  persists the refresh token to `AsyncStorage`, which is readable on a rooted device.
 - **A production build must point at the production API** — no localhost, no tunnel.
 
 ## Local check

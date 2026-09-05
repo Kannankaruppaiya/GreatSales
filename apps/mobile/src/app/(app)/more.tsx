@@ -1,34 +1,44 @@
 import { Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { PageLayout, KpiStrip, Card, Avatar, SectionTitle } from '@/gs/kit';
-import { ME } from '@/gs/mock';
-import { useStore } from '@/gs/store';
-import { inr, lakhs, pct } from '@/gs/domain';
+import { useAuthUser } from '@/gs/auth';
+import { useDashboard } from '@/gs/queries/dashboard';
+import { useOrders } from '@/gs/queries/orders';
+import { usePayments } from '@/gs/queries/payments';
+import { useCustomers } from '@/gs/queries/customers';
+import { useLeads } from '@/gs/queries/leads';
+import { lakhs, pct } from '@/gs/domain';
 import { WalletIcon, TargetIcon, ChartIcon, GridIcon } from '@/gs/icons';
 
+const NOW = new Date();
+
 export default function More() {
-  const orders = useStore((s) => s.orders);
-  const payments = useStore((s) => s.payments);
-  const customers = useStore((s) => s.customers);
-  const leads = useStore((s) => s.leads);
-  const projections = useStore((s) => s.projections);
-  const followups = useStore((s) => s.followups);
+  const user = useAuthUser();
+  const year = NOW.getFullYear();
+  const month = NOW.getMonth() + 1;
+
+  const { data: d } = useDashboard(year, month);
+  // `total` for the hint counts, `items` for the rows the tiles reduce over.
+  // The hints used to read `orders.length` off a capped single request, so a
+  // rep with 300 orders was told they had 100.
+  const { items: orders, total: orderTotal } = useOrders();
+  const { items: payments } = usePayments();
+  const { items: customers, total: customerTotal } = useCustomers();
+  const { items: leads } = useLeads();
+
+  const totalReceivables = d?.totalPendingPayments ?? payments.reduce((s, p) => s + p.pending, 0);
+  const openLeads = leads.filter((l) => !['ClosedWon', 'ClosedLost', 'NoRequirementOrCold'].includes(l.stage));
+  const recurringAchieved = d?.recurringAchieved ?? 0;
+  const recurringCommitted = d?.totalCommitted ?? 0;
+  const overdueFollowups = d?.overdueFollowUpsCount ?? 0;
 
   const pendingPayments = payments.filter((p) => p.pending > 0);
-  const totalReceivables = pendingPayments.reduce((s, p) => s + p.pending, 0);
-  const openLeads = leads.filter((l) => !['Closed Won', 'Closed Lost', 'No Requirement or Cold'].includes(l.stage));
-  const recurringAchieved = projections.reduce((s, p) => s + p.achievedQty * p.price, 0);
-  const recurringCommitted = projections.reduce((s, p) => s + p.projectedQty * p.price, 0);
-  const overdueFollowups = followups.filter((f) => {
-    const d = new Date(f.dueDate);
-    return d <= new Date();
-  }).length;
 
   const links = [
-    { label: 'Sales Orders', to: '/(app)/orders', hint: `${orders.length} orders tracked`, icon: <ChartIcon size={20} color="#059669" /> },
+    { label: 'Sales Orders', to: '/(app)/orders', hint: `${orderTotal} orders tracked`, icon: <ChartIcon size={20} color="#059669" /> },
     { label: 'Payments Follow-up', to: '/(app)/payments', hint: `${pendingPayments.length} pending · ${lakhs(totalReceivables)} outstanding`, icon: <WalletIcon size={20} color="#d97706" /> },
-    { label: 'My Customers', to: '/(app)/customers', hint: `${customers.length} mapped accounts`, icon: <TargetIcon size={20} color="#2563eb" /> },
-    { label: 'Profile & Settings', to: '/(app)/profile', hint: 'Account security & regional division', icon: <GridIcon size={20} color="#64748b" /> },
+    { label: 'My Customers', to: '/(app)/customers', hint: `${customerTotal} mapped accounts`, icon: <TargetIcon size={20} color="#2563eb" /> },
+    { label: 'Profile & Settings', to: '/(app)/profile', hint: 'Account security & session', icon: <GridIcon size={20} color="#64748b" /> },
   ] as const;
 
   return (
@@ -39,7 +49,7 @@ export default function More() {
             <Text className="text-[11px] text-muted font-extrabold uppercase tracking-wider">More Features</Text>
             <Text className="text-[20px] font-black text-ink tracking-tight mt-0.5">Hub & Settings</Text>
           </View>
-          <Avatar name={ME.name} size={40} />
+          <Avatar name={user?.name || 'User'} size={40} />
         </View>
       }
       zone2={
@@ -54,11 +64,11 @@ export default function More() {
       {/* Salesperson Profile Card */}
       <Card onPress={() => router.push('/(app)/profile')}>
         <View className="flex-row items-center gap-3.5">
-          <Avatar name={ME.name} size={52} />
+          <Avatar name={user?.name || 'User'} size={52} />
           <View className="flex-1">
-            <Text className="text-[17px] font-black text-ink">{ME.name}</Text>
+            <Text className="text-[17px] font-black text-ink">{user?.name || 'User'}</Text>
             <Text className="text-[11px] text-brand font-extrabold mt-0.5">
-              {ME.role} · <Text className="text-muted">{ME.region}</Text>
+              {user?.role || 'Salesperson'} · <Text className="text-muted">{user?.email || ''}</Text>
             </Text>
           </View>
           <View className="bg-surface3 w-8 h-8 rounded-full items-center justify-center">
@@ -98,32 +108,24 @@ export default function More() {
         </View>
       </Card>
 
-      {/* Feature Links */}
-      <SectionTitle>Quick Access</SectionTitle>
-      <View className="gap-2.5">
-        {links.map((l) => (
-          <Pressable key={l.to} onPress={() => router.push(l.to as never)}>
-            <Card className="flex-row items-center gap-3.5 p-4">
-              <View className="w-10 h-10 rounded-xl bg-surface3/80 items-center justify-center">{l.icon}</View>
-              <View className="flex-1">
-                <Text className="text-[14px] font-black text-ink">{l.label}</Text>
-                <Text className="text-[11px] text-muted font-medium mt-0.5">{l.hint}</Text>
+      {/* Module Links */}
+      <View className="gap-2">
+        <SectionTitle>Modules</SectionTitle>
+        {links.map((link) => (
+          <Card key={link.to} onPress={() => router.push(link.to as any)}>
+            <View className="flex-row items-center gap-3.5">
+              <View className="w-10 h-10 rounded-xl bg-surface3 items-center justify-center">
+                {link.icon}
               </View>
-              <Text className="text-lg text-muted font-bold">›</Text>
-            </Card>
-          </Pressable>
+              <View className="flex-1">
+                <Text className="text-[14px] font-black text-ink">{link.label}</Text>
+                <Text className="text-[11px] text-muted font-medium mt-0.5">{link.hint}</Text>
+              </View>
+              <Text className="text-muted font-black text-base">›</Text>
+            </View>
+          </Card>
         ))}
       </View>
-
-      {/* Sign Out */}
-      <Pressable onPress={() => router.replace('/')}
-        className="mt-2 py-3.5 rounded-xl bg-red-soft border border-red-border/60 items-center"
-      >
-        <Text className="text-danger font-black text-[13px]">Sign Out</Text>
-      </Pressable>
-      <Text className="text-center text-muted font-medium text-[11px] mt-3">
-        GreatSales Mobile Enterprise · v7.0 · Built with ui-ux-pro-max
-      </Text>
     </PageLayout>
   );
 }

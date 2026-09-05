@@ -24,6 +24,9 @@ export default function RootLayout() {
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.canvas } }}>
         <Stack.Screen name="index" />
+        {/* Outside (app): a user with a pending forced change must not be able
+            to reach the tab bar, where every request 403s. */}
+        <Stack.Screen name="change-password" options={{ gestureEnabled: false }} />
         <Stack.Screen name="(app)" />
       </Stack>
     </SafeAreaProvider>
