@@ -1,6 +1,6 @@
 # Unwired features — what was found, and what was done
 
-Audited at `1ddfcbf` (2026-09-05), fixed across six commits ending `1e3ab59`.
+Audited at `1ddfcbf` (2026-09-05), fixed across eight commits ending `903ad1e`.
 
 `pnpm facts` counts endpoints. This counted the other direction — **controls
 that existed in the UI but did not reach the backend** — because a `queries.ts`
@@ -31,6 +31,26 @@ rather than a rediscovery.
 |---|---|
 | Data page record counts read `items.length` off a **20-row default page** — 20 customers out of 417. The CSV export inherited it. | Every cursor list returns `total`, counted in the same transaction as the page so a concurrent insert cannot make a header disagree with its rows. Verified in the browser: **417**. |
 | Mobile list hints (`orders.length`, `customers.length`) capped at the request size. | Read `total`. |
+
+### Values that were frozen in time
+
+Found by looking at the Data page's own period dropdown, not by the audit — the
+screenshot showed it offering to lock **April** in September.
+
+| Was | Now |
+|---|---|
+| `MONTHS` in `data/constants.ts`: a hardcoded twelve-entry fiscal window, Apr 2026 – Mar 2027. It would have **expired in April 2027** with no current month left to select; it could not reach **any** month before Apr 2026, so last year's figures were unreachable however long the tenant had run; and labels were a lookup into it, so anything outside rendered as the raw `"2027-04"`. | Generated. `periodLabel` formats any valid period, `monthOptions` builds the range, and one `MonthSelect` replaces four hand-rolled dropdowns — the Data page had already drifted, defaulting to `MONTHS[0]`. |
+| The range, once generated, was floored at `Tenant.createdAt`. | Floored at the earliest period that **has data** (`firstPeriod`, an indexed ordered read on `Projection.period`, returned by `/managements`). Caught in the browser: Promech's tenant row is dated today while its projections start in June, so a `createdAt` floor hid three months of real history. Runs to **+3 months** ahead, because a projection worksheet you cannot open for next month is not a planning tool. Grouped by year, capped at 15 years. |
+| `ui.month` was **persisted**, so a user who looked at June once opened the app in June for the rest of the year — every page, every reload. | Session state. Always the real current month on open; a month you select holds while you move between pages and is gone on reload. Store version bumped to 8 so existing installs drop the stale value. |
+| Two of the three copies of the period regex accepted `2026-00` and `2026-99`, which reach Prisma as a period matching no rows — a bad request that looks like an empty month. | One checked `PeriodSchema`, used by dashboard, projections and period-locks. |
+| Mobile's month stepper could walk into 2099 one tap at a time; `gs/domain.ts` carried a dead hardcoded `MONTH = '2026-08'`. | Reads the same shared helpers and stops at the same forward horizon. Dead constants removed. |
+
+`months.test.ts` fixes "now" rather than trusting the clock, and two of its
+cases sit years out. It paid for itself immediately: it caught an inverted
+guard in the range builder that would have collapsed every list to the current
+month, and forced a decision worth writing down — `currentPeriod` is **local**,
+because "this month" is about the viewer's own calendar, while the period
+arithmetic is UTC because it operates on strings rather than instants.
 
 ### Things that silently dropped what the user typed
 
@@ -132,6 +152,7 @@ compiling and passing is not the same as working.
 | Mobile order-create screen | Orders are created from the projections convert flow. A second full order form is new product scope, not wiring. |
 | `AREAS` on both clients | Still a hardcoded list of Chennai localities. No areas endpoint exists on either side; unlike industries there is no table behind it. |
 | `POST /projections` | Rows come from mappings plus seed by design. Recorded so it is not rediscovered as a gap. |
+| `DELETE /remarks/:id` | A remark is an activity-trail entry — the schema calls it "audit-friendly" and gives it no `deletedAt`. Append-only is the position, not an oversight. Say so if a note posted by mistake should be removable and it is a small addition. |
 | Refresh token in `AsyncStorage` (mobile) | Pre-existing, tracked in `checklists/05-MOBILE.md`. Belongs in the OS secure store; out of scope for this pass and now named in `apps/mobile/AGENTS.md`. |
 
 ---
@@ -141,16 +162,17 @@ compiling and passing is not the same as working.
 - **408 API tests**, including the RLS inventory check that fails if a new
   tenant-owned table ships without a policy — `PeriodLock` ships with one, and
   `Remark` was missing from the original policy list entirely.
-- **206 web tests**, clean production build.
+- **215 web tests**, clean production build.
 - **`pnpm smoke` 20/20**, now covering `period-locks`, `industries` and
   `managements` so the next session checks the new surface without finding it.
 - **Browser**: logged in, confirmed the top-bar filters differ per page as
   declared, the Data page reads 417, locking a period from the UI flips the
   worksheet read-only.
-- **Direct probe of the running API**: the lock refuses an admin PATCH and
-  leaves the row untouched; a remark round-trips and is attributed; a remark on
-  an unreachable record is refused; `total` (417) exceeds the page length; the
-  principal filter narrows customers through mappings.
+- **Direct probe of the running API** (13 checks, re-run on a freshly seeded
+  database): the lock refuses an admin PATCH and leaves the row untouched; a
+  remark round-trips and is attributed; a remark on an unreachable record is
+  refused; `total` (417) exceeds the page length; the principal filter narrows
+  customers through mappings.
 
 Two web tests changed rather than being deleted, both because their assertion
 had stopped matching their intent: the lead modal's "does not PATCH" asserted no
