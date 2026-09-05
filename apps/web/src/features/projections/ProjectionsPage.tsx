@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
-import { MONTHS } from "@/data/constants";
+import { periodLabel } from "@/data/months";
+import { MonthSelect } from "@/components/MonthSelect";
 import { useUi } from "@/store/ui";
 import { usePeriodLock } from "@/features/data/periodQueries";
 import { useAuth, useAuthRole } from "@/store/auth";
@@ -61,7 +62,7 @@ export default function ProjectionsPage() {
     return [...map.entries()].map(([id, name]) => ({ id, name }));
   }, [data]);
 
-  const monthLabel = MONTHS.find((m) => m.value === period)?.label ?? period;
+  const monthLabel = periodLabel(period);
   const lines = data?.lines ?? [];
   const summary = data?.summary;
 
@@ -95,17 +96,12 @@ export default function ProjectionsPage() {
 
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2.5 border-b border-line bg-surface p-3">
-          <Select
+          <MonthSelect
             value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            className="w-36 text-xs"
-          >
-            {MONTHS.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </Select>
+            onChange={setPeriod}
+            ariaLabel="Worksheet month"
+            className="w-[140px]"
+          />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}

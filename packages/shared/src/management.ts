@@ -46,6 +46,16 @@ export interface ManagementRow {
   userCount: number;
   customerCount: number;
   productCount: number;
+  /**
+   * Earliest reporting period that has data, `YYYY-MM`, or null when none does.
+   *
+   * The floor for every month selector. It is NOT `createdAt`: a workspace
+   * created today can be imported with years of history — the Promech tenant is
+   * exactly that, seeded in one run with months of projections behind it — so a
+   * selector built from the tenant's creation date would refuse to show the
+   * data the tenant actually has.
+   */
+  firstPeriod: string | null;
 }
 
 /** POST /managements response — carries the generated first-login password ONCE. */

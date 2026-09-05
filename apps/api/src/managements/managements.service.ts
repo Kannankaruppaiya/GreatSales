@@ -43,11 +43,19 @@ export class ManagementsService {
     const tenant = await db.tenant.findFirst({ where: { id } });
     if (!tenant) throw new NotFoundException('Management not found');
 
-    const [userCount, customerCount, productCount] = await db.$transaction([
-      db.user.count({ where: { deletedAt: null } }),
-      db.customer.count({ where: { deletedAt: null } }),
-      db.product.count({ where: { deletedAt: null } }),
-    ]);
+    const [userCount, customerCount, productCount, earliest] =
+      await db.$transaction([
+        db.user.count({ where: { deletedAt: null } }),
+        db.customer.count({ where: { deletedAt: null } }),
+        db.product.count({ where: { deletedAt: null } }),
+        // The oldest period that actually has a worksheet row. Indexed on
+        // Projection.period, so this is a cheap ordered read rather than a scan.
+        db.projection.findFirst({
+          where: { deletedAt: null },
+          orderBy: { period: 'asc' },
+          select: { period: true },
+        }),
+      ]);
 
     return {
       id: tenant.id,
@@ -60,6 +68,7 @@ export class ManagementsService {
       userCount,
       customerCount,
       productCount,
+      firstPeriod: earliest?.period ?? null,
     };
   }
 }

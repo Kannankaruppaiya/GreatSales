@@ -1,6 +1,13 @@
 import { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  FUTURE_PERIOD_MONTHS,
+  currentPeriod,
+  monthsBetween,
+  periodLabel,
+  toPeriod,
+} from '@greatsales/shared';
 import { C, Tone, shadow } from './theme';
 import { initials } from './domain';
 
@@ -16,15 +23,23 @@ export function MonthBar({
   onPrev: () => void;
   onNext: () => void;
 }) {
-  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const display = `${MONTHS[month - 1]} ${year}`;
+  const display = periodLabel(toPeriod(year, month));
+  // The forward arrow stops at the same horizon the web dropdown offers,
+  // rather than letting a stepper walk into 2099 one tap at a time.
+  const atCeiling =
+    monthsBetween(currentPeriod(), toPeriod(year, month)) >= FUTURE_PERIOD_MONTHS;
   return (
     <View className="flex-row items-center justify-center gap-3 py-1">
       <Pressable onPress={onPrev} hitSlop={12} className="w-7 h-7 rounded-full bg-surface3 border border-line items-center justify-center">
         <Text className="text-muted font-black text-sm">‹</Text>
       </Pressable>
       <Text className="text-[13px] font-extrabold text-ink tracking-tight min-w-[90px] text-center">{display}</Text>
-      <Pressable onPress={onNext} hitSlop={12} className="w-7 h-7 rounded-full bg-surface3 border border-line items-center justify-center">
+      <Pressable
+        onPress={onNext}
+        disabled={atCeiling}
+        hitSlop={12}
+        className={`w-7 h-7 rounded-full bg-surface3 border border-line items-center justify-center ${atCeiling ? 'opacity-30' : ''}`}
+      >
         <Text className="text-muted font-black text-sm">›</Text>
       </Pressable>
     </View>

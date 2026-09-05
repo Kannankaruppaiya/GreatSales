@@ -15,21 +15,12 @@ export const ROLES: { value: Role; label: string }[] = [
 export const roleLabel = (r: Role) =>
   ROLES.find((x) => x.value === r)?.label ?? "Administrator";
 
-/** Fiscal months (Apr–Mar), value = YYYY-MM. */
-export const MONTHS: { value: string; label: string }[] = [
-  ["2026-04", "Apr 2026"],
-  ["2026-05", "May 2026"],
-  ["2026-06", "Jun 2026"],
-  ["2026-07", "Jul 2026"],
-  ["2026-08", "Aug 2026"],
-  ["2026-09", "Sep 2026"],
-  ["2026-10", "Oct 2026"],
-  ["2026-11", "Nov 2026"],
-  ["2026-12", "Dec 2026"],
-  ["2027-01", "Jan 2027"],
-  ["2027-02", "Feb 2027"],
-  ["2027-03", "Mar 2027"],
-].map(([value, label]) => ({ value, label }));
+/*
+ * MONTHS used to live here: a hardcoded Apr 2026 – Mar 2027 fiscal window that
+ * would have expired in April 2027, could not reach any month before it, and
+ * was used as a lookup table for labels. Months are generated from the calendar
+ * now — see data/months.ts.
+ */
 
 /** Recurring projection line statuses. */
 export const PROJ_STATUSES = [

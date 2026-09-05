@@ -14,7 +14,8 @@ import {
   Target,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { MONTHS, roleLabel } from "@/data/constants";
+import { roleLabel } from "@/data/constants";
+import { MonthSelect } from "@/components/MonthSelect";
 import { featureByKey, featureLabel, featuresFor, featurePath } from "@/data/features";
 import type { GlobalFilter } from "@/data/features";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
@@ -395,18 +396,12 @@ export function Topbar({
 
         {/* Month selector */}
         {shows("month") && (
-        <Select
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          aria-label="Filter by month"
-          className="w-[125px] h-8 text-xs font-bold"
-        >
-          {MONTHS.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
-            </option>
-          ))}
-        </Select>
+          <MonthSelect
+            value={month}
+            onChange={setMonth}
+            ariaLabel="Filter by month"
+            className="w-[135px] h-8 text-xs font-bold"
+          />
         )}
 
         {/* Principal selector */}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PeriodSchema } from "./period";
 import type { LeadRow } from "./lead";
 import type { ProjectionLine } from "./projection";
 
@@ -27,7 +28,7 @@ import type { ProjectionLine } from "./projection";
 
 export const DashboardQuerySchema = z.object({
   /** `YYYY-MM`. The recurring half is per-period; the new-sales half is not. */
-  period: z.string().regex(/^\d{4}-\d{2}$/, "period must be YYYY-MM"),
+  period: PeriodSchema,
   /** Admin/management may scope to one salesperson; sales is forced to self. */
   ownerId: z.string().optional(),
 });

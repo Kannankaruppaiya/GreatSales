@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PeriodSchema } from "./period";
 
 /**
  * Period lock contracts, shared by the API and web.
@@ -9,11 +10,6 @@ import { z } from "zod";
  * state, which meant the card claimed to prevent "unauthorized row overrides
  * after accounting close" while every row stayed editable.
  */
-
-/** `YYYY-MM`, the same period key Projection.period carries. */
-export const PeriodSchema = z
-  .string()
-  .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Period must be YYYY-MM");
 
 export const PeriodLockListQuerySchema = z.object({
   /** Omit for every lock in the tenant; pass to ask about one month. */

@@ -179,9 +179,7 @@ export class RemarksService {
             where: {
               id: entityId,
               deletedAt: null,
-              ...(ownerId
-                ? { mapping: { salespersonId: ownerId } }
-                : {}),
+              ...(ownerId ? { mapping: { salespersonId: ownerId } } : {}),
             },
             select: { id: true },
           });

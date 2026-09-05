@@ -16,7 +16,9 @@ import {
 } from "lucide-react";
 import { Button, Card, CardHeader, MetricCard, PageHeader } from "@/components/ui";
 import { useAuthRole, useAuthUser } from "@/store/auth";
-import { MONTHS, roleLabel } from "@/data/constants";
+import { roleLabel } from "@/data/constants";
+import { currentPeriod } from "@/data/months";
+import { MonthSelect } from "@/components/MonthSelect";
 import { useCustomers } from "@/features/customers/queries";
 import { useProducts, usePrincipals } from "@/features/products/queries";
 import { useOrders } from "@/features/orders/queries";
@@ -55,7 +57,11 @@ export default function DataPage() {
   // The month this card acts on. Deliberately NOT the top-bar month: the Data
   // page does not read the global filters (see features.ts globalFilters), and
   // locking is an explicit act that should name its own period.
-  const [lockPeriod, setLockPeriod] = useState(() => MONTHS[0]?.value ?? "");
+  //
+  // Starts at the CURRENT month. It used to start at MONTHS[0] — the first
+  // entry of a hardcoded fiscal list — so in September the card offered to lock
+  // April, and an administrator closing the books had to notice and correct it.
+  const [lockPeriod, setLockPeriod] = useState(currentPeriod);
   const [lockError, setLockError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -357,18 +363,12 @@ export default function DataPage() {
               >
                 Period
               </label>
-              <select
-                id="lock-period"
+              <MonthSelect
                 value={lockPeriod}
-                onChange={(e) => setLockPeriod(e.target.value)}
-                className="rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-bold text-ink focus:outline-brand focus:border-brand"
-              >
-                {MONTHS.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
+                onChange={setLockPeriod}
+                ariaLabel="Period to lock or unlock"
+                className="w-[140px]"
+              />
             </div>
 
             <div className="flex items-center justify-between p-3.5 rounded-xl border border-line bg-surface-2">

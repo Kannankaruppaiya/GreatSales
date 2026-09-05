@@ -18,7 +18,8 @@ import { useDashboard } from "@/features/dashboard/queries";
 import { useUsers, flattenUsers } from "@/features/users/queries";
 import { featurePath } from "@/data/features";
 import { inr, lakhs, pct } from "@/lib/format";
-import { MONTHS } from "@/data/constants";
+import { periodLabel } from "@/data/months";
+import { MonthSelect } from "@/components/MonthSelect";
 import { Button, Card, PageHeader } from "@/components/ui";
 import { QueryBoundary } from "@/components/common/QueryBoundary";
 import { GroupedBars } from "@/components/charts";
@@ -84,7 +85,7 @@ export default function ManagementHomePage() {
     )
     .sort((a, b) => b.achieved - a.achieved);
 
-  const monthLabel = MONTHS.find((m) => m.value === month)?.label ?? month;
+  const monthLabel = periodLabel(month);
 
   return (
     <div className="space-y-5">
@@ -102,18 +103,12 @@ export default function ManagementHomePage() {
         />
         </div>
         <div className="flex items-center gap-2">
-          <select
+          <MonthSelect
             value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            aria-label="Reporting month"
-            className="rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-bold text-ink focus:outline-brand focus:border-brand"
-          >
-            {MONTHS.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
+            onChange={setMonth}
+            ariaLabel="Reporting month"
+            className="w-[140px]"
+          />
           {activeManagementId && (
             <Button
               size="sm"

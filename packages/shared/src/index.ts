@@ -18,5 +18,6 @@ export * from "./followup";
 export * from "./mapping";
 export * from "./dashboard";
 export * from "./remark";
+export * from "./period";
 export * from "./period-lock";
 export * from "./management";

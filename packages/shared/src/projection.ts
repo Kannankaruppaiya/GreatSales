@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PeriodSchema } from "./period";
 
 /**
  * Projection (recurring-sales worksheet) contracts, shared by the API and web.
@@ -67,9 +68,7 @@ export type ProjectionLineFilter = z.infer<typeof ProjectionLineFilterSchema>;
 
 /** GET /projections query. `principalId`/`ownerId` omitted (or "ALL") = no filter. */
 export const ProjectionListQuerySchema = z.object({
-  period: z
-    .string()
-    .regex(/^\d{4}-\d{2}$/, "period must be YYYY-MM"),
+  period: PeriodSchema,
   principalId: z.string().optional(),
   ownerId: z.string().optional(),
   search: z.string().optional(),

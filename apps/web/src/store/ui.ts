@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { currentPeriod } from "@/data/months";
 
 /**
  * The month the app opens on, as `YYYY-MM`.
@@ -16,9 +17,20 @@ import { persist } from "zustand/middleware";
  * Computing it costs nothing and removes the edge entirely.
  */
 function currentMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  return currentPeriod();
 }
+
+/**
+ * The month is SESSION state, not a saved preference.
+ *
+ * It used to be persisted with the rest of this store, so a user who looked at
+ * June once opened the app in June for the rest of the year — every page,
+ * every reload, until they noticed. The app must open on the real current
+ * month every time; looking at another one is an act, and acts do not outlive
+ * the tab. Selecting a past month still works, and still holds while you move
+ * between pages, because the value lives in this store for the session.
+ */
+const SESSION_ONLY: (keyof UiState)[] = ["month"];
 
 /** The pre-existing seeded company — the default management every session opens with.
  *  Value is a human-readable slug (matches the slug of "GreatSales Industrial Corp"). */
@@ -56,14 +68,25 @@ export const useUi = create<UiState>()(
     }),
     {
       name: "greatsales_ui_state",
-      version: 7,
+      version: 8,
+      // Only the durable preferences are written. `month` is omitted on
+      // purpose — see SESSION_ONLY.
+      partialize: (state) =>
+        Object.fromEntries(
+          Object.entries(state).filter(
+            ([k]) => !SESSION_ONLY.includes(k as keyof UiState),
+          ),
+        ) as UiState,
       // v6→v7: auth fields (authed/role/isOwner/ownerId) moved out to useAuth.
       // Drop any legacy keys so an old blob can't rehydrate a fake session.
+      // v7→v8: `month` stopped being persisted. A stored one is IGNORED rather
+      // than restored, which is the whole point of the version bump — every
+      // existing install is carrying a stale month right now.
       migrate: (persistedState: any) => {
         const base = persistedState ?? {};
         return {
           activeManagementId: base.activeManagementId ?? DEFAULT_MANAGEMENT_ID,
-          month: base.month ?? currentMonth(),
+          month: currentMonth(),
           principalId: base.principalId ?? "ALL",
           ownerFilter: base.ownerFilter ?? "ALL",
           sidebarOpen: base.sidebarOpen ?? true,

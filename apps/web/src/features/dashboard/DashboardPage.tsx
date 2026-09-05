@@ -5,7 +5,8 @@ import {
   ShoppingCart,
   TrendingUp,
 } from "lucide-react";
-import { MONTHS, projTone } from "@/data/constants";
+import { projTone } from "@/data/constants";
+import { periodLabel } from "@/data/months";
 import { useUi } from "@/store/ui";
 import { useAuth, useAuthRole } from "@/store/auth";
 import { inr, lakhs } from "@/lib/format";
@@ -58,7 +59,7 @@ export default function DashboardPage() {
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showCreateOrder, setShowCreateOrder] = useState(false);
 
-  const monthLabel = MONTHS.find((m) => m.value === month)?.label ?? month;
+  const monthLabel = periodLabel(month);
   const isSalesRole = role === "sales";
 
   // ONE request for the whole page scoped by period and topbar salesperson filter.

@@ -185,8 +185,9 @@ export const INDUSTRIES = Object.keys(INDUSTRY_TAXONOMY);
 export const AREAS = ['Ambattur', 'Guindy', 'Sriperumbudur', 'Oragadam', 'Irungattukottai', 'Hosur', 'Coimbatore', 'Ennore', 'Padi', 'Other'] as const;
 export const PRINCIPALS = ['Shell Lubricants', 'Castrol', 'Fuchs', 'Gulf Oil', 'Valvoline'] as const;
 
-export const MONTH_LABEL = 'Aug 2026';
-export const MONTH = '2026-08';
+// MONTH / MONTH_LABEL used to be hardcoded here ('2026-08' / 'Aug 2026') and
+// were read by nothing. Periods come from `currentPeriod()` / `periodLabel()`
+// in @greatsales/shared — a month is a function of the calendar.
 
 // ---- aging helpers ------------------------------------------------------
 export const agingBucket = (days: number | null) => {

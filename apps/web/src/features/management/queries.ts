@@ -25,6 +25,8 @@ export interface ManagementRow {
   userCount: number;
   customerCount: number;
   productCount: number;
+  /** Earliest period with data — the floor for month selectors. */
+  firstPeriod: string | null;
 }
 
 /**
