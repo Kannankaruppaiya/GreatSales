@@ -49,6 +49,15 @@ export const ERROR_CODES = [
   "CUSTOMER_NOT_FOUND",
   "PRODUCT_NOT_FOUND",
 
+  // --- Sales orders -------------------------------------------------------
+  /** The requested status change is not a legal step in the fulfilment
+   *  lifecycle (a skip, a move backwards, or a change out of a terminal
+   *  state). The server owns the state machine; the client is never trusted. */
+  "INVALID_ORDER_TRANSITION",
+  /** A new order may only start at `Created`; it cannot be created already
+   *  part-way (or fully) through the fulfilment lifecycle. */
+  "INVALID_INITIAL_ORDER_STATUS",
+
   // --- Auth ---------------------------------------------------------------
   /** The supplied current password did not verify. */
   "WRONG_CURRENT_PASSWORD",

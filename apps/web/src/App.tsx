@@ -1,30 +1,27 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import {
   useIsAuthed,
   useMustChangePassword,
-  useAuthRole,
-  useIsOwner,
+  useAuthTenantId,
   useSessionStatus,
 } from "@/store/auth";
 import { Layout } from "@/components/layout";
 import { Skeleton } from "@/components/ui";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { RoleGuard } from "@/features/auth/RoleGuard";
-import { RequireOwner } from "@/features/auth/RequireOwner";
+import { RequirePlatformAuth } from "@/features/auth/RequirePlatformAuth";
 import type { LoginRole } from "@/features/auth/LoginPage";
 
-// Lazy like every page, and for a stronger reason than code size: this is the
-// only static import that reaches `trackerStore`, the client-side mock the
-// management feature still reads (roadmap F14). Keeping it lazy keeps that
-// whole subtree off the pre-auth path.
 const ManagementProvider = lazy(() =>
   import("@/features/management/ManagementProvider").then((m) => ({
     default: m.ManagementProvider,
   })),
 );
 const LoginPage = lazy(() => import("@/features/auth/LoginPage"));
+const PlatformLoginPage = lazy(
+  () => import("@/features/auth/PlatformLoginPage"),
+);
 const DashboardPage = lazy(() => import("@/features/dashboard/DashboardPage"));
 const ProjectionsPage = lazy(() => import("@/features/projections/ProjectionsPage"));
 const LeadsPage = lazy(() => import("@/features/leads/LeadsPage"));
@@ -100,9 +97,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function PublicAuthRoute({ initialRole }: { initialRole?: LoginRole }) {
   const authed = useIsAuthed();
-  const isOwner = useIsOwner();
-  const role = useAuthRole();
-  const activeManagementId = useUi((s) => s.activeManagementId);
+  const tenantId = useAuthTenantId();
   const location = useLocation();
   const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
 
@@ -110,10 +105,12 @@ function PublicAuthRoute({ initialRole }: { initialRole?: LoginRole }) {
     if (from && from !== "/login") {
       return <Navigate to={from} replace />;
     }
-    if (isOwner || role === "super_admin") {
-      return <Navigate to="/managements" replace />;
+    // A tenant user — any role, super_admin included — belongs to exactly one
+    // management and lands in it. The cross-management Home is the platform
+    // owner's surface (separate auth), never reached from the tenant login.
+    if (tenantId) {
+      return <Navigate to={`/managements/${tenantId}/dashboard`} replace />;
     }
-    return <Navigate to={`/managements/${activeManagementId || DEFAULT_MANAGEMENT_ID}/dashboard`} replace />;
   }
 
   return (
@@ -132,7 +129,7 @@ function PublicAuthRoute({ initialRole }: { initialRole?: LoginRole }) {
 /** Route handler for direct role paths (e.g. /super-admin, /admin, /management) */
 function RoleDirectRoute({ role: targetRole }: { role: "super_admin" | "admin" | "mgmt" | "sales" }) {
   const authed = useIsAuthed();
-  const activeManagementId = useUi((s) => s.activeManagementId) || DEFAULT_MANAGEMENT_ID;
+  const tenantId = useAuthTenantId();
 
   if (!authed) {
     if (targetRole === "super_admin") return <Navigate to="/super-admin/login" replace />;
@@ -141,22 +138,21 @@ function RoleDirectRoute({ role: targetRole }: { role: "super_admin" | "admin" |
     return <Navigate to="/admin/login" replace />;
   }
 
-  if (targetRole === "super_admin") {
-    return <Navigate to="/managements" replace />;
+  if (tenantId) {
+    return <Navigate to={`/managements/${tenantId}/dashboard`} replace />;
   }
-
-  return <Navigate to={`/managements/${activeManagementId}/dashboard`} replace />;
+  return <Navigate to="/login" replace />;
 }
 
-/** Sends the authenticated user to the right entry point based on role:
- *  super_admin → management list home
- *  admin / mgmt → their management dashboard */
+/** Sends the authenticated tenant user to their management's dashboard. The
+ *  platform owner never routes through here — their Home lives behind the
+ *  separate platform login. */
 function RootRedirect() {
-  const role = useAuthRole();
-  const isOwner = useIsOwner();
-  const activeManagementId = useUi((s) => s.activeManagementId) || DEFAULT_MANAGEMENT_ID;
-  if (isOwner || role === "super_admin") return <Navigate to="/managements" replace />;
-  return <Navigate to={`/managements/${activeManagementId}/dashboard`} replace />;
+  const tenantId = useAuthTenantId();
+  if (tenantId) {
+    return <Navigate to={`/managements/${tenantId}/dashboard`} replace />;
+  }
+  return <Navigate to="/login" replace />;
 }
 
 function AppLayout() {
@@ -234,17 +230,25 @@ export default function App() {
         <Route path="/mgmt" element={<Navigate to="/management" replace />} />
         <Route path="/sales" element={<RoleDirectRoute role="sales" />} />
 
-        {/* Workspaces & Management Hub */}
+        {/* Platform (owner) surface — separate auth from the tenant portal. */}
+        <Route
+          path="/platform/login"
+          element={
+            <Suspense fallback={<PageLoadingSkeleton />}>
+              <PlatformLoginPage />
+            </Suspense>
+          }
+        />
+
+        {/* Management Home — the owner's cross-company grid (platform auth). */}
         <Route
           path="/managements"
           element={
-            <ProtectedRoute>
-              <RequireOwner>
-                <Suspense fallback={<PageLoadingSkeleton />}>
-                  <ManagementHomePage />
-                </Suspense>
-              </RequireOwner>
-            </ProtectedRoute>
+            <RequirePlatformAuth>
+              <Suspense fallback={<PageLoadingSkeleton />}>
+                <ManagementHomePage />
+              </Suspense>
+            </RequirePlatformAuth>
           }
         />
         <Route

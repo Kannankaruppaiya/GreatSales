@@ -1,94 +1,109 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import ManagementHomePage from "@/features/management/ManagementHomePage";
-import { useManagementStore } from "@/features/management/managementStore";
-import { useTrackerStore } from "@/store/trackerStore";
-import { DEFAULT_MANAGEMENT_ID } from "@/store/ui";
-import type { User } from "@/data/types";
+import { usePlatformAuth } from "@/store/platformAuth";
+import * as platformApi from "@/lib/platformApi";
 
-const ACME = {
-  id: "m_acme",
-  name: "Acme Traders",
-  initials: "AC",
-  industry: "Pharma",
-  currency: "INR (₹)",
-  createdAt: "2026-08-19",
+const MANAGEMENTS = [
+  {
+    id: "tenant_gs",
+    name: "GreatSales Industrial Corp",
+    status: "Active",
+    region: "in",
+    industry: "Industrial",
+    currency: "INR (₹)",
+    userCount: 5,
+    salesThisMonth: 0,
+    createdAt: "2026-08-19T00:00:00.000Z",
+  },
+  {
+    id: "tenant_acme",
+    name: "Acme Traders",
+    status: "Trial",
+    region: "in",
+    industry: "Pharma",
+    currency: "INR (₹)",
+    userCount: 3,
+    salesThisMonth: 0,
+    createdAt: "2026-08-19T00:00:00.000Z",
+  },
+];
+
+const ASSUME_RESPONSE = {
+  accessToken: "tenant-token",
+  expiresIn: 900,
+  user: {
+    id: "user_admin_acme",
+    tenantId: "tenant_acme",
+    name: "Acme Admin",
+    email: "admin@acme.test",
+    username: "admin",
+    roleId: "role_admin",
+    role: "admin",
+    permissions: [],
+    mustChangePassword: false,
+  },
 };
 
-const DEFAULT_WORKSPACE = {
-  id: DEFAULT_MANAGEMENT_ID,
-  name: "GreatSales Industrial Corp",
-  initials: "GS",
-  industry: "Industrial",
-  currency: "INR (₹)",
-  createdAt: "2026-08-19",
-};
-
-/** Surfaces the current router pathname so navigation can be asserted. */
 function LocationDisplay() {
   const location = useLocation();
   return <div data-testid="location">{location.pathname}</div>;
 }
 
+function wrap(children: ReactNode) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return (
+    <QueryClientProvider client={qc}>
+      <MemoryRouter initialEntries={["/managements"]}>{children}</MemoryRouter>
+    </QueryClientProvider>
+  );
+}
+
 describe("ManagementHomePage", () => {
   beforeEach(() => {
-    useManagementStore.setState({
-      managements: [DEFAULT_WORKSPACE, ACME],
-      datasets: {},
+    vi.restoreAllMocks();
+    usePlatformAuth.setState({
+      accessToken: "platform",
+      platformUser: { id: "pu", name: "Owner", email: "o@x.io", role: "SuperAdmin" },
+    });
+    vi.spyOn(platformApi, "platformFetch").mockImplementation((path: string) => {
+      if (path.includes("/assume")) return Promise.resolve(ASSUME_RESPONSE);
+      return Promise.resolve(MANAGEMENTS);
     });
   });
 
-  it("lists all workspaces and the create-workspace action", () => {
-    render(
-      <MemoryRouter>
-        <ManagementHomePage />
-      </MemoryRouter>,
-    );
-    // Overview tab (default) surfaces every workspace in the Workspaces pod.
+  it("renders a card per management plus the create action", async () => {
+    render(wrap(<ManagementHomePage />));
+    expect(
+      await screen.findByText("GreatSales Industrial Corp"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Acme Traders")).toBeInTheDocument();
-    expect(screen.getByText("GreatSales Industrial Corp")).toBeInTheDocument();
-    expect(screen.getByText(/create workspace/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /create management/i }),
+    ).toBeInTheDocument();
   });
 
-  it("filters salespeople by search on the sales-team tab", async () => {
-    const reps: User[] = [
-      { id: "u_anitha", name: "Anitha Kumar", email: "anitha@greatsales.test", role: "sales", active: true, lastLogin: null },
-      { id: "u_bala", name: "Bala Suresh", email: "bala@greatsales.test", role: "sales", active: true, lastLogin: null },
-    ];
-    useTrackerStore.setState({ users: reps });
-
+  it("opens a management into its dashboard", async () => {
     render(
-      <MemoryRouter>
-        <ManagementHomePage />
-      </MemoryRouter>,
+      wrap(
+        <>
+          <ManagementHomePage />
+          <LocationDisplay />
+        </>,
+      ),
     );
 
-    await userEvent.click(screen.getByRole("button", { name: /sales team performance/i }));
-    expect(screen.getByText("Anitha Kumar")).toBeInTheDocument();
-    expect(screen.getByText("Bala Suresh")).toBeInTheDocument();
+    const card = await screen.findByRole("button", { name: /acme traders/i });
+    await userEvent.click(card);
 
-    await userEvent.type(
-      screen.getByPlaceholderText(/search salesperson or workspace/i),
-      "anitha",
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        "/managements/tenant_acme/dashboard",
+      ),
     );
-    expect(screen.getByText("Anitha Kumar")).toBeInTheDocument();
-    expect(screen.queryByText("Bala Suresh")).not.toBeInTheDocument();
-  });
-
-  it("launches a workspace to its dashboard", async () => {
-    // Isolate to a single workspace so the Launch control is unambiguous.
-    useManagementStore.setState({ managements: [ACME], datasets: {} });
-
-    render(
-      <MemoryRouter initialEntries={["/"]}>
-        <ManagementHomePage />
-        <LocationDisplay />
-      </MemoryRouter>,
-    );
-
-    await userEvent.click(screen.getByRole("button", { name: /launch/i }));
-    expect(screen.getByTestId("location")).toHaveTextContent("/managements/m_acme/dashboard");
   });
 });

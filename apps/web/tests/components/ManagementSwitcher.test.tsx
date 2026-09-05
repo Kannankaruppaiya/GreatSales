@@ -1,80 +1,88 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { ManagementSwitcher } from "@/features/management/ManagementSwitcher";
-import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
-import { useAuth } from "@/store/auth";
-import { useManagementStore } from "@/features/management/managementStore";
-import { permissionsFor } from "../helpers/authFixtures";
+import { useUi } from "@/store/ui";
+import { usePlatformAuth } from "@/store/platformAuth";
+import * as platformApi from "@/lib/platformApi";
 
+const MANAGEMENTS = [
+  {
+    id: "tenant_gs",
+    name: "GreatSales Industrial Corp",
+    status: "Active",
+    region: "in",
+    industry: "Industrial",
+    currency: "INR (₹)",
+    userCount: 5,
+    salesThisMonth: 0,
+    createdAt: "2026-08-19T00:00:00.000Z",
+  },
+  {
+    id: "tenant_acme",
+    name: "Acme Traders",
+    status: "Active",
+    region: "in",
+    industry: "Pharma",
+    currency: "INR (₹)",
+    userCount: 3,
+    salesThisMonth: 0,
+    createdAt: "2026-08-19T00:00:00.000Z",
+  },
+];
 
-function seedAuth(role: "super_admin" | "admin") {
-  useAuth.setState({
-    accessToken: "test",
-    user: {
-      id: "u1",
-      tenantId: "tenant_acme",
-      name: "User",
-      email: "user@acme.test",
-      username: "user",
-      roleId: `role_${role}`,
-      role,
-      permissions: permissionsFor(role),
-      mustChangePassword: false,
-    },
+function wrap(children: ReactNode) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return (
+    <QueryClientProvider client={qc}>
+      <MemoryRouter>{children}</MemoryRouter>
+    </QueryClientProvider>
+  );
+}
+
+function asOwner() {
+  usePlatformAuth.setState({
+    accessToken: "platform",
+    platformUser: { id: "pu", name: "Owner", email: "o@x.io", role: "SuperAdmin" },
   });
 }
 
 describe("ManagementSwitcher", () => {
   beforeEach(() => {
-    useUi.setState({ activeManagementId: DEFAULT_MANAGEMENT_ID });
-    seedAuth("super_admin");
-    useManagementStore.setState({
-      managements: [
-        {
-          id: DEFAULT_MANAGEMENT_ID,
-          name: "GreatSales Industrial Corp",
-          initials: "GS",
-          industry: "Industrial",
-          currency: "INR (₹)",
-          createdAt: "2026-08-19",
-        },
-        {
-          id: "m_acme",
-          name: "Acme Traders",
-          initials: "AC",
-          industry: "Pharma",
-          currency: "INR (₹)",
-          createdAt: "2026-08-19",
-        },
-      ],
-      datasets: {},
-    });
+    vi.restoreAllMocks();
+    useUi.setState({ activeManagementId: "tenant_gs" });
+    usePlatformAuth.setState({ accessToken: null, platformUser: null });
+    vi.spyOn(platformApi, "platformFetch").mockResolvedValue(MANAGEMENTS);
   });
 
-  it("hides for non-owners", () => {
-    seedAuth("admin");
-    const { container } = render(
-      <MemoryRouter>
-        <ManagementSwitcher />
-      </MemoryRouter>,
-    );
+  it("hides when there is no platform (owner) session", () => {
+    const { container } = render(wrap(<ManagementSwitcher />));
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("owner sees current management and can open the menu", async () => {
-    render(
-      <MemoryRouter>
-        <ManagementSwitcher />
-      </MemoryRouter>,
-    );
-    expect(screen.getByText("GreatSales Industrial Corp")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /switch management/i }));
-    const link = screen.getByRole("link", { name: /acme traders/i });
-    expect(link.getAttribute("href")).toBe("/managements/m_acme/dashboard");
+  it("shows the current management and lists the others to switch to", async () => {
+    asOwner();
+    render(wrap(<ManagementSwitcher />));
+
     expect(
-      screen.getByRole("link", { name: /back to all managements/i }).getAttribute("href"),
-    ).toBe("/managements");
+      await screen.findByText("GreatSales Industrial Corp"),
+    ).toBeInTheDocument();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /switch management/i }),
+    );
+
+    // The other management is offered; the current one is not repeated.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /acme traders/i }),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("button", { name: /back to all managements/i }),
+    ).toBeInTheDocument();
   });
 });

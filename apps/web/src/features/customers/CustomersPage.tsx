@@ -9,6 +9,7 @@ import { EditCustomerModal } from "@/features/customers/EditCustomerModal";
 import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
 import { ReassignCustomersModal } from "@/features/customers/ReassignCustomersModal";
 import { useCustomers, flattenCustomers } from "@/features/customers/queries";
+import { useIndustries } from "@/features/industries/queries";
 import type { CustomerRow } from "@/features/customers/types";
 
 /**
@@ -43,6 +44,14 @@ export default function CustomersPage() {
   // fetch (which only sees an unfiltered first page).
   const [selectedDrawerCustomer, setSelectedDrawerCustomer] = useState<CustomerRow | null>(null);
   const [showReassign, setShowReassign] = useState(false);
+
+  // The add/edit industry picker reads the dedicated catalogue endpoint
+  // (GET /industries), fetched only while one of those modals is open. Distinct
+  // from `industryOptions` below, which derives the row FILTER from whatever
+  // industries the loaded customers already have (checklists/03-API.md C.3.12).
+  const { data: industryCatalogue = [] } = useIndustries({
+    enabled: showAddCustomer || !!editCustomer,
+  });
 
   const canEdit = role !== "mgmt";
 
@@ -322,6 +331,7 @@ export default function CustomersPage() {
         open={showAddCustomer}
         onClose={() => setShowAddCustomer(false)}
         salespeople={salespersonOptions}
+        industries={industryCatalogue}
       />
 
       {editCustomer && (
@@ -330,6 +340,7 @@ export default function CustomersPage() {
           onClose={() => setEditCustomer(null)}
           customer={editCustomer}
           salespeople={salespersonOptions}
+          industries={industryCatalogue}
         />
       )}
 

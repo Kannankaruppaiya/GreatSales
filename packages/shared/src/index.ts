@@ -7,6 +7,8 @@ export * from "./http";
 export * from "./enums";
 export * from "./projection";
 export * from "./customer";
+export * from "./industry";
+export * from "./platform";
 export * from "./lead";
 export * from "./order";
 export * from "./payment";

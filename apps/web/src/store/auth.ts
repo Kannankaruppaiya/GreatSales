@@ -149,6 +149,10 @@ export const useAuthUser = (): AuthUser | null => useAuth((s) => s.user);
 export const useAuthRole = (): Role => useAuth((s) => mapRole(s.user?.role));
 export const useIsOwner = (): boolean =>
   useAuth((s) => mapRole(s.user?.role) === "super_admin");
+
+/** The signed-in tenant user's tenant (management) id — the workspace they belong to. */
+export const useAuthTenantId = (): string | null =>
+  useAuth((s) => s.user?.tenantId ?? null);
 export const useLastTenantId = (): string | null =>
   useAuth((s) => s.lastTenantId);
 

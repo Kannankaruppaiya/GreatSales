@@ -21,11 +21,10 @@ import type { CustomerRow } from "@/features/customers/types";
  * `customer` avoids that gap entirely.
  *
  * The recurring-projections / sales-orders / payments tabs the old mock
- * drawer showed are dropped here: they read `trackerStore.projections` /
- * `.orders` / `.payments`, which are out of scope for this task (those pages
- * are wired in later tasks) and forbidden by the "zero trackerStore reads"
- * constraint. This now shows only the customer record itself, sourced from
- * the real `/customers` API.
+ * drawer showed are gone: they read the client-side mock store, which has
+ * since been deleted entirely. This shows only the customer record itself,
+ * sourced from the real `/customers` API; those cross-entity views belong to
+ * their own pages.
  */
 export function CustomerDrawer({
   customerId,

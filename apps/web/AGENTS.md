@@ -23,10 +23,11 @@ what you pull into the app shell. One constant imported from the wrong module on
 a 33,000-line dataset of real customer records into the pre-login entry chunk — see
 [`../../checklists/07-SECURITY.md`](../../checklists/07-SECURITY.md) G.3.9.
 
-**The mock modules are being removed, not extended.** `src/data/mock.ts`,
-`src/data/pocSeedData.ts` and `src/store/trackerStore.ts` are legacy client-side fixtures
-holding real records. Do not add a new import of any of them. The one remaining consumer
-is the management feature (roadmap F14), which is tracked as unfinished for this reason.
+**The client-side mock stores are gone — do not reintroduce them.** The legacy fixtures
+`src/data/mock.ts`, `src/data/pocSeedData.ts`, `src/store/trackerStore.ts` and
+`src/data/demoSeedData.ts` held real records and have all been removed; every feature now
+reads its own real API. Do not add these files back or import a client-side dataset into a
+page. The CI build asserts the first set never returns; the same rule applies to the rest.
 
 **Role gating in the UI is cosmetic.** Hiding a button is not authorization — the server
 decides. Every role-gated route must also be denied by the API; assume a user will paste

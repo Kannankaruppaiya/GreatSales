@@ -48,9 +48,14 @@ const baseEnvSchema = z.object({
   DATABASE_URL: z.string().url(),
 
   /**
-   * Owner/migration connection, used by the Prisma CLI (migrate/seed) — NOT
-   * by the running API. Optional here because the API process does not need
-   * it; the migration job does.
+   * Owner connection (the `greatsales` role: superuser, RLS-bypass). Used by
+   * the Prisma CLI (migrate/seed) AND, since F14, by the running API's platform
+   * (owner) surface — PlatformModule reads platform tables and lists tenants
+   * across RLS through it, which the RLS-bound DATABASE_URL role cannot do.
+   *
+   * Still optional in the contract so a deploy that does not expose the owner
+   * surface can omit it, but PlatformModule fails fast at boot if it is absent,
+   * and production must never set it equal to DATABASE_URL (enforced below).
    */
   DIRECT_URL: z.string().url().optional(),
 
