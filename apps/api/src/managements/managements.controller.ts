@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { RequestUser } from '@greatsales/shared';
 import { ManagementsService } from './managements.service';
@@ -22,10 +22,5 @@ export class ManagementsController {
   @Get()
   list(@CurrentUser() user: RequestUser) {
     return this.service.list(user);
-  }
-
-  @Get(':id')
-  get(@CurrentUser() user: RequestUser, @Param('id') id: string) {
-    return this.service.get(user, id);
   }
 }

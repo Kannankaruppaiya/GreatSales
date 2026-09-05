@@ -29,7 +29,12 @@ export class ManagementsService {
     return [await this.get(user, user.tenantId)];
   }
 
-  async get(user: RequestUser, id: string): Promise<ManagementRow> {
+  /**
+   * Not a route. `list` is the only caller — a per-id endpoint would have had
+   * no client, since the list already returns the whole row and there is only
+   * ever one of them.
+   */
+  private async get(user: RequestUser, id: string): Promise<ManagementRow> {
     const db = this.prisma.forTenant(user.tenantId);
 
     // RLS already restricts `Tenant` to the caller's own row, so a mismatched

@@ -22,6 +22,19 @@
  */
 import { loadDataset } from "./dataset";
 import { assertDestructiveSeedAllowed } from "./seed-guard";
+/**
+ * The RBAC catalogue is IMPORTED, never restated.
+ *
+ * It used to be copy-pasted here and in seed.ts as well as living in
+ * packages/shared/src/rbac.ts — three copies, true in at most one. Adding
+ * `period.manage` to the shared list left the database without it, so the API
+ * guarded a route against a permission no role had actually been granted and
+ * every lock attempt 403'd while the code said admin held it. One source now.
+ */
+import {
+  PERMISSIONS,
+  ROLE_PERMISSIONS as ROLE_PERMS,
+} from "@greatsales/shared";
 import {
   PrismaClient,
   type DealStage,
@@ -130,37 +143,7 @@ const PM = loadDataset<{
 }>("promech-data.json", __dirname);
 
 // Permission catalog (global, tenant-agnostic keys).
-const PERMISSIONS: { key: string; module: string }[] = [
-  { key: "customer.read", module: "customer" },
-  { key: "customer.write", module: "customer" },
-  { key: "lead.read", module: "lead" },
-  { key: "lead.write", module: "lead" },
-  { key: "projection.read", module: "projection" },
-  { key: "projection.write", module: "projection" },
-  { key: "order.read", module: "order" },
-  { key: "order.write", module: "order" },
-  { key: "payment.read", module: "payment" },
-  { key: "payment.write", module: "payment" },
-  { key: "user.manage", module: "admin" },
-  { key: "role.manage", module: "admin" },
-  { key: "report.view", module: "report" },
-];
 
-const ROLE_PERMS: Record<string, string[]> = {
-  admin: PERMISSIONS.map((p) => p.key),
-  mgmt: ["customer.read", "lead.read", "projection.read", "order.read", "payment.read", "report.view"],
-  sales: [
-    "customer.read",
-    "customer.write",
-    "lead.read",
-    "lead.write",
-    "projection.read",
-    "projection.write",
-    "order.read",
-    "order.write",
-    "payment.read",
-  ],
-};
 
 // ---------------------------------------------------------------- helpers
 const slug = (s: string) =>
