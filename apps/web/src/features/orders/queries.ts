@@ -22,6 +22,8 @@ import type {
 const PAGE_SIZE = 50;
 
 export interface OrderParams {
+  /** Orders with at least one item whose product belongs to this principal. */
+  principalId?: string;
   search?: string;
   status?: string;
   customerId?: string;
@@ -39,6 +41,7 @@ export function ordersQueryFn(p: OrderParams, cursor: string | undefined) {
       status: p.status,
       customerId: p.customerId,
       ownerId: p.ownerId,
+      principalId: p.principalId,
       cursor,
       limit: String(PAGE_SIZE),
     })}`,

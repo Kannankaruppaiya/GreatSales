@@ -49,6 +49,8 @@ export interface PaymentRow {
 export interface PaymentListResponse {
   items: PaymentRow[];
   nextCursor: string | null;
+  /** Rows matching the filter, ignoring the cursor window. */
+  total: number;
 }
 
 export interface PaymentCreate {

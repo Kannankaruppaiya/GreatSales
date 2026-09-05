@@ -7,7 +7,7 @@ import { Button, Card, Select } from "@/components/ui";
 import { QueryBoundary } from "@/components/common/QueryBoundary";
 import { UserFormModal } from "@/features/users/modals/UserFormModal";
 import { ResetPasswordModal } from "@/features/users/modals/ResetPasswordModal";
-import { ConfirmActionModal } from "@/features/users/modals/ConfirmActionModal";
+import { ConfirmActionModal } from "@/components/modals/ConfirmActionModal";
 import {
   flattenUsers,
   useDeleteUser,

@@ -43,10 +43,11 @@ function KpiSkeleton() {
 }
 
 export default function DashboardPage() {
-  const { month } = useUi();
+  const { month, ownerFilter } = useUi();
   const role = useAuthRole();
   const accessToken = useAuth((s) => s.accessToken);
   const enabled = !!accessToken;
+  const ownerId = ownerFilter === "ALL" ? undefined : ownerFilter;
 
   const [selectedLead, setSelectedLead] = useState<LeadRow | null>(null);
   const [selectedFuProj, setSelectedFuProj] = useState<ProjectionLine | null>(null);
@@ -60,16 +61,8 @@ export default function DashboardPage() {
   const monthLabel = MONTHS.find((m) => m.value === month)?.label ?? month;
   const isSalesRole = role === "sales";
 
-  // ONE request for the whole page.
-  //
-  // This used to be a projections query PLUS a loop that paged EVERY lead in
-  // the tenant (`fetchNextPage` until exhausted) before a single KPI could
-  // render — O(leads) round trips to show six numbers. The server now computes
-  // all of it: see checklists/03-API.md C.3.2.
-  //
-  // Nothing below is recomputed here. Every figure is final, which is what
-  // stops this page and the projections worksheet from disagreeing.
-  const dashQuery = useDashboard(month, { enabled });
+  // ONE request for the whole page scoped by period and topbar salesperson filter.
+  const dashQuery = useDashboard(month, { ownerId, enabled });
   const updateProjection = useUpdateProjection();
 
   const kpis = dashQuery.data?.kpis;
@@ -503,7 +496,7 @@ export default function DashboardPage() {
           currentDate={selectedFuProj.nextFollowUp}
           currentProb={selectedFuProj.probability ?? undefined}
           currentStatus={PROJ_STATUS_LABELS[selectedFuProj.status] ?? selectedFuProj.status}
-          remarks={[]}
+          projectionId={selectedFuProj.id}
           onSave={(nextDate, _note, prob, nextStatusLabel) => {
             const rawStatus = projStatusFromLabel(nextStatusLabel);
             updateProjection.mutate(

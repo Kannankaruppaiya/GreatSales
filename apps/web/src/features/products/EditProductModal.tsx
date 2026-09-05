@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, Loader2, Pencil } from "lucide-react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { useUpdateProduct } from "@/features/products/queries";
+import { useDeleteProduct, useUpdateProduct } from "@/features/products/queries";
+import { DeleteAction } from "@/components/modals/DeleteAction";
 import type {
   DivisionValue,
   PrincipalRow,
@@ -43,6 +44,7 @@ export function EditProductModal({
   principals?: PrincipalRow[];
 }) {
   const update = useUpdateProduct();
+  const del = useDeleteProduct();
 
   const [principalId, setPrincipalId] = useState("");
   const [name, setName] = useState("");
@@ -140,6 +142,14 @@ export function EditProductModal({
       maxWidth="max-w-lg"
       footer={
         <>
+          <DeleteAction
+            label="Delete Product"
+            title={`Delete ${product.name}?`}
+            body="The SKU is removed from the catalog. Existing orders and mappings that reference it keep their own copy of the line, so history is not rewritten."
+            onDelete={() => del.mutateAsync(product.id)}
+            onDeleted={handleClose}
+            disabled={update.isPending}
+          />
           <Button
             variant="outline"
             size="sm"

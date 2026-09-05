@@ -2,7 +2,9 @@ import { useState } from "react";
 import { CalendarClock, Check } from "lucide-react";
 import { Button, Dialog, Input, Select, Textarea } from "@/components/ui";
 import { PROJ_STATUSES } from "@/data/constants";
-import type { RemarkEntry } from "@/data/types";
+import { ApiError } from "@/lib/api";
+import { useCreateRemark } from "@/features/remarks/queries";
+import { RemarksPanel } from "@/features/remarks/RemarksPanel";
 
 /**
  * Quick follow-up/status/probability log editor for a single Projection row
@@ -22,7 +24,7 @@ export function ProjectionFollowUpModal({
   currentDate,
   currentProb,
   currentStatus,
-  remarks = [],
+  projectionId,
   onSave,
 }: {
   open: boolean;
@@ -32,7 +34,8 @@ export function ProjectionFollowUpModal({
   currentDate?: string | null;
   currentProb?: number;
   currentStatus?: string;
-  remarks?: RemarkEntry[];
+  /** The projection this log belongs to. Notes are posted against it. */
+  projectionId: string;
   onSave: (
     nextDate: string | null,
     note: string,
@@ -45,9 +48,35 @@ export function ProjectionFollowUpModal({
   const [status, setStatus] = useState<string | undefined>(currentStatus);
   const [note, setNote] = useState("");
 
-  const handleSave = (e: React.FormEvent) => {
+  const createRemark = useCreateRemark();
+  const [error, setError] = useState("");
+
+  /**
+   * The note used to be handed to a caller that dropped it — DashboardPage's
+   * handler named the parameter `_note`. It is now posted to /remarks against
+   * this projection, BEFORE the fields are saved: if the note fails, the modal
+   * stays open with the text still in it rather than closing on a half-done
+   * save the user believes worked.
+   */
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(date || null, note.trim(), prob, status);
+    setError("");
+    const body = note.trim();
+    if (body) {
+      try {
+        await createRemark.mutateAsync({
+          entityType: "Projection",
+          entityId: projectionId,
+          text: body,
+        });
+      } catch (err) {
+        setError(
+          err instanceof ApiError ? err.message : "Could not save the note.",
+        );
+        return;
+      }
+    }
+    onSave(date || null, body, prob, status);
     onClose();
   };
 
@@ -74,7 +103,7 @@ export function ProjectionFollowUpModal({
         </>
       }
     >
-      <form onSubmit={handleSave} className="space-y-4 text-xs">
+      <form onSubmit={(e) => void handleSave(e)} className="space-y-4 text-xs">
         {subtitle && (
           <div className="p-2.5 rounded-lg bg-surface-2 border border-line text-xs text-muted leading-relaxed">
             {subtitle}
@@ -139,35 +168,17 @@ export function ProjectionFollowUpModal({
           />
         </div>
 
-        {/* Existing History */}
-        {remarks.length > 0 && (
-          <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5">
-              Previous Interaction History ({remarks.length})
-            </label>
-            <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-              {remarks.map((r, i) => (
-                <div
-                  key={i}
-                  className="rounded-lg border border-line bg-surface-2/60 p-2 text-xs text-ink space-y-0.5"
-                >
-                  <div className="flex items-center justify-between text-[10.5px] text-muted">
-                    <span className="font-semibold">{r.userName || r.user || "Sales Rep"}</span>
-                    <span>
-                      {new Date(r.timestamp || r.date || Date.now()).toLocaleString("en-IN", {
-                        day: "2-digit",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
-                  <div>{r.text}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+        {error && (
+          <p className="text-[11.5px] font-medium text-red">{error}</p>
         )}
+
+        {/* Interaction history, from /remarks rather than a prop nobody filled. */}
+        <RemarksPanel
+          entityType="Projection"
+          entityId={projectionId}
+          enabled={open}
+          canWrite={false}
+        />
       </form>
     </Dialog>
   );

@@ -20,6 +20,7 @@ import type {
 const PAGE_SIZE = 50;
 
 export interface ProductParams {
+  division?: string;
   search?: string;
   principalId?: string;
 }
@@ -33,6 +34,7 @@ export function productsQueryFn(p: ProductParams, cursor: string | undefined) {
     `/products${buildQuery({
       search: p.search,
       principalId: p.principalId,
+      division: p.division,
       cursor,
       limit: String(PAGE_SIZE),
     })}`,

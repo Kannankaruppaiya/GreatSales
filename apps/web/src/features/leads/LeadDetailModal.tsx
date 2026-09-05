@@ -4,7 +4,9 @@ import { Button, Dialog, Input, Select } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { inr } from "@/lib/format";
 import { useAuthRole } from "@/store/auth";
-import { useUpdateLead } from "@/features/leads/queries";
+import { useDeleteLead, useUpdateLead } from "@/features/leads/queries";
+import { DeleteAction } from "@/components/modals/DeleteAction";
+import { RemarksPanel } from "@/features/remarks/RemarksPanel";
 import {
   DEAL_STAGE_VALUES,
   DEAL_STAGE_LABELS,
@@ -24,6 +26,7 @@ export function LeadDetailModal({
   const role = useAuthRole();
   const canEdit = role !== "mgmt";
   const update = useUpdateLead();
+  const del = useDeleteLead();
 
   const [stage, setStage] = useState<DealStageValue>((lead?.stage as DealStageValue) || "NewEnquiries");
   const [nextFollowUp, setNextFollowUp] = useState(lead?.nextFollowUp || "");
@@ -75,6 +78,15 @@ export function LeadDetailModal({
       maxWidth="max-w-2xl"
       footer={
         <>
+          {canEdit && (
+            <DeleteAction
+              label="Delete Lead"
+              title={`Delete ${lead.customerName}?`}
+              body="The deal, its line items and its activity history are removed. Won deals are usually better left in place for reporting — cancel the lead instead."
+              onDelete={() => del.mutateAsync(lead.id)}
+              onDeleted={onClose}
+            />
+          )}
           <Button variant="outline" size="sm" onClick={onClose} type="button">
             Cancel
           </Button>
@@ -208,6 +220,13 @@ export function LeadDetailModal({
             {update.error instanceof ApiError ? update.error.message : "Failed to save change."}
           </p>
         )}
+
+        <RemarksPanel
+          entityType="Lead"
+          entityId={lead.id}
+          enabled={open}
+          canWrite={canEdit}
+        />
       </div>
     </Dialog>
   );

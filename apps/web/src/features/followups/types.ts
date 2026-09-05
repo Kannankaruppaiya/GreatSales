@@ -38,6 +38,8 @@ export interface FollowUpRow {
 export interface FollowUpListResponse {
   items: FollowUpRow[];
   nextCursor: string | null;
+  /** Rows matching the filter, ignoring the cursor window. */
+  total: number;
 }
 
 export interface FollowUpCreate {

@@ -51,7 +51,12 @@ export class AuthController {
    * lockout in AuthService (AGENTS.md §5, §7).
    */
   @Public()
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({
+    default: {
+      limit: process.env.NODE_ENV === 'production' ? 5 : 100,
+      ttl: 60_000,
+    },
+  })
   @Post('login')
   async login(
     @Body(new ZodValidationPipe(LoginSchema)) body: LoginInput,
@@ -85,7 +90,12 @@ export class AuthController {
    * browser clients, or from the body for clients that cannot hold cookies.
    */
   @Public()
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Throttle({
+    default: {
+      limit: process.env.NODE_ENV === 'production' ? 20 : 200,
+      ttl: 60_000,
+    },
+  })
   @Post('refresh')
   async refresh(
     @Body(new ZodValidationPipe(RefreshSchema)) body: RefreshInput,

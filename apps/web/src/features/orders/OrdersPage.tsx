@@ -7,6 +7,7 @@ import {
   Printer,
 } from "lucide-react";
 import { useAuthRole } from "@/store/auth";
+import { useUi } from "@/store/ui";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
@@ -61,6 +62,8 @@ function orderTone(status: string): "won" | "lost" | "open" | "hot" {
 
 export default function OrdersPage() {
   const role = useAuthRole();
+  const globalOwnerFilter = useUi((s) => s.ownerFilter);
+  const globalPrincipal = useUi((s) => s.principalId);
   const canEdit = role !== "mgmt";
 
   const [search, setSearch] = useState("");
@@ -71,10 +74,13 @@ export default function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<OrderRow | null>(null);
   const [printOrder, setPrintOrder] = useState<OrderRow | null>(null);
 
+  const effectiveOwner = ownerId !== "ALL" ? ownerId : globalOwnerFilter !== "ALL" ? globalOwnerFilter : undefined;
+
   const params = {
     search: search.trim() || undefined,
     status: statusChip === "ALL" ? undefined : statusChip,
-    ownerId: ownerId === "ALL" ? undefined : ownerId,
+    ownerId: effectiveOwner,
+    principalId: globalPrincipal === "ALL" ? undefined : globalPrincipal,
   };
   const q = useOrders(params);
   const orders = flattenOrders(q.data);

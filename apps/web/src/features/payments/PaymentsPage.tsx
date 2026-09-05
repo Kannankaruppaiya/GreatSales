@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FileSpreadsheet, LayoutList, Loader2, Plus, RefreshCw, Upload, X } from "lucide-react";
 import { useAuthRole } from "@/store/auth";
+import { useUi } from "@/store/ui";
 import { inr, lakhs } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api";
@@ -70,6 +71,7 @@ const ZONE_CLASSES: Record<string, string> = {
 
 export default function PaymentsPage() {
   const role = useAuthRole();
+  const globalOwnerFilter = useUi((s) => s.ownerFilter);
   // Payments write actions require the `payment.write` RBAC permission
   // (payments.controller.ts), which only `admin` (and `super_admin`, treated
   // as admin-equivalent everywhere else — see the Users/Products/Data
@@ -92,10 +94,12 @@ export default function PaymentsPage() {
   const [selectedPayment, setSelectedPayment] = useState<PaymentRow | null>(null);
   const [selectedDrawerCustId, setSelectedDrawerCustId] = useState<string | null>(null);
 
+  const effectiveOwner = ownerId !== "ALL" ? ownerId : globalOwnerFilter !== "ALL" ? globalOwnerFilter : undefined;
+
   const params = {
     search: debouncedSearch.trim() || undefined,
     status: statusFilter === "ALL" ? undefined : statusFilter,
-    ownerId: ownerId === "ALL" ? undefined : ownerId,
+    ownerId: effectiveOwner,
   };
   const q = usePayments(params);
   const update = useUpdatePayment();

@@ -16,14 +16,19 @@ import {
 } from "lucide-react";
 import { Button, Card, CardHeader, MetricCard, PageHeader } from "@/components/ui";
 import { useAuthRole, useAuthUser } from "@/store/auth";
-import { roleLabel } from "@/data/constants";
-import { useCustomers, flattenCustomers } from "@/features/customers/queries";
-import { useProducts, usePrincipals, flattenProducts } from "@/features/products/queries";
-import { useOrders, flattenOrders } from "@/features/orders/queries";
-import { usePayments, flattenPayments } from "@/features/payments/queries";
-import { useLeads, flattenLeads } from "@/features/leads/queries";
+import { MONTHS, roleLabel } from "@/data/constants";
+import { useCustomers } from "@/features/customers/queries";
+import { useProducts, usePrincipals } from "@/features/products/queries";
+import { useOrders } from "@/features/orders/queries";
+import { usePayments } from "@/features/payments/queries";
+import { useLeads } from "@/features/leads/queries";
 import { useQuery } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
+import {
+  useLockPeriod,
+  usePeriodLock,
+  useUnlockPeriod,
+} from "@/features/data/periodQueries";
 
 /**
  * Sanitizes CSV field values to prevent CSV / Excel Formula Injection (DDE attacks).
@@ -47,7 +52,11 @@ export default function DataPage() {
   const role = useAuthRole();
   const user = useAuthUser();
 
-  const [periodLocked, setPeriodLocked] = useState(false);
+  // The month this card acts on. Deliberately NOT the top-bar month: the Data
+  // page does not read the global filters (see features.ts globalFilters), and
+  // locking is an explicit act that should name its own period.
+  const [lockPeriod, setLockPeriod] = useState(() => MONTHS[0]?.value ?? "");
+  const [lockError, setLockError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -67,12 +76,22 @@ export default function DataPage() {
     refetchInterval: 30000,
   });
 
-  const customers = flattenCustomers(customersQ.data);
-  const products = flattenProducts(productsQ.data);
-  const orders = flattenOrders(ordersQ.data);
-  const payments = flattenPayments(paymentsQ.data);
-  const leads = flattenLeads(leadsQ.data);
-  const principals = principalsQ.data?.items ?? [];
+  // COUNTS, not rows. These cards used to render `items.length` off a
+  // cursor-paginated query whose default page is 20, so a tenant with 417
+  // customers was told it had 20 — and the CSV below exported that number.
+  // `total` is the server's count for the whole filter, read in the same
+  // transaction as the page.
+  const countOf = (data?: { pages: { total: number }[] }) =>
+    data?.pages[0]?.total;
+  const counts = {
+    customers: countOf(customersQ.data),
+    products: countOf(productsQ.data),
+    orders: countOf(ordersQ.data),
+    payments: countOf(paymentsQ.data),
+    leads: countOf(leadsQ.data),
+    // /principals is not paginated — the whole list is the answer.
+    principals: principalsQ.data?.items.length,
+  };
 
   const isLoadingStats =
     customersQ.isLoading ||
@@ -87,12 +106,12 @@ export default function DataPage() {
       const headers = ["Entity Type", "Total Records", "Tenant ID", "Last Refreshed"];
       const now = new Date().toISOString();
       const rows = [
-        ["Customers", customers.length, user?.tenantId || "default", now],
-        ["Principal Brands", principals.length, user?.tenantId || "default", now],
-        ["Product Catalog SKUs", products.length, user?.tenantId || "default", now],
-        ["Sales Orders", orders.length, user?.tenantId || "default", now],
-        ["Invoices & Receivables", payments.length, user?.tenantId || "default", now],
-        ["Sales Leads", leads.length, user?.tenantId || "default", now],
+        ["Customers", counts.customers ?? 0, user?.tenantId || "default", now],
+        ["Principal Brands", counts.principals ?? 0, user?.tenantId || "default", now],
+        ["Product Catalog SKUs", counts.products ?? 0, user?.tenantId || "default", now],
+        ["Sales Orders", counts.orders ?? 0, user?.tenantId || "default", now],
+        ["Invoices & Receivables", counts.payments ?? 0, user?.tenantId || "default", now],
+        ["Sales Leads", counts.leads ?? 0, user?.tenantId || "default", now],
       ];
 
       const csvContent =
@@ -119,6 +138,37 @@ export default function DataPage() {
       setStatusMessage("Export failed. Please try again.");
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  // undefined while loading, null when open, the row when locked.
+  const lock = usePeriodLock(lockPeriod);
+  const lockQ = lock === undefined ? undefined : lock;
+  const isLocked = !!lock;
+  const lockMutation = useLockPeriod();
+  const unlockMutation = useUnlockPeriod();
+  const lockPending = lockMutation.isPending || unlockMutation.isPending;
+
+  const handleToggleLock = async () => {
+    setLockError(null);
+    try {
+      if (isLocked) {
+        await unlockMutation.mutateAsync(lockPeriod);
+        setStatusMessage(`${lockPeriod} unlocked — projections are editable again.`);
+      } else {
+        await lockMutation.mutateAsync({
+          period: lockPeriod,
+          reason: "Locked from Data administration",
+        });
+        setStatusMessage(`${lockPeriod} locked — projection edits are now refused.`);
+      }
+      setTimeout(() => setStatusMessage(null), 4000);
+    } catch (err) {
+      setLockError(
+        err instanceof ApiError
+          ? err.message
+          : "Could not change the lock. Try again.",
+      );
     }
   };
 
@@ -215,42 +265,42 @@ export default function DataPage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <MetricCard
             title="Customers"
-            value={isLoadingStats ? "…" : `${customers.length}`}
+            value={isLoadingStats ? "…" : `${counts.customers ?? 0}`}
             subvalue="accounts"
             icon={Building2}
             accentColor="brand"
           />
           <MetricCard
             title="Products"
-            value={isLoadingStats ? "…" : `${products.length}`}
+            value={isLoadingStats ? "…" : `${counts.products ?? 0}`}
             subvalue="active SKUs"
             icon={Boxes}
             accentColor="blue"
           />
           <MetricCard
             title="Brands"
-            value={isLoadingStats ? "…" : `${principals.length}`}
+            value={isLoadingStats ? "…" : `${counts.principals ?? 0}`}
             subvalue="principals"
             icon={Repeat}
             accentColor="amber"
           />
           <MetricCard
             title="Sales Leads"
-            value={isLoadingStats ? "…" : `${leads.length}`}
+            value={isLoadingStats ? "…" : `${counts.leads ?? 0}`}
             subvalue="pipeline deals"
             icon={Target}
             accentColor="violet"
           />
           <MetricCard
             title="Orders"
-            value={isLoadingStats ? "…" : `${orders.length}`}
+            value={isLoadingStats ? "…" : `${counts.orders ?? 0}`}
             subvalue="dispatches"
             icon={ShoppingCart}
             accentColor="brand"
           />
           <MetricCard
             title="Invoices"
-            value={isLoadingStats ? "…" : `${payments.length}`}
+            value={isLoadingStats ? "…" : `${counts.payments ?? 0}`}
             subvalue="receivables"
             icon={Receipt}
             accentColor="red"
@@ -300,31 +350,69 @@ export default function DataPage() {
             hint="Freeze historical months to prevent projection drift after reporting close"
           />
           <div className="p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor="lock-period"
+                className="text-[11px] font-bold uppercase tracking-wider text-muted"
+              >
+                Period
+              </label>
+              <select
+                id="lock-period"
+                value={lockPeriod}
+                onChange={(e) => setLockPeriod(e.target.value)}
+                className="rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-bold text-ink focus:outline-brand focus:border-brand"
+              >
+                {MONTHS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex items-center justify-between p-3.5 rounded-xl border border-line bg-surface-2">
               <div className="flex items-center gap-2.5">
-                <Lock className={`h-4 w-4 ${periodLocked ? "text-amber" : "text-muted"}`} />
+                <Lock className={`h-4 w-4 ${isLocked ? "text-amber" : "text-muted"}`} />
                 <div>
                   <div className="font-bold text-ink text-xs">
-                    {periodLocked ? "Period is Locked" : "Period is Open for Edits"}
+                    {lockQ === undefined
+                      ? "Checking…"
+                      : isLocked
+                        ? "Period is Locked"
+                        : "Period is Open for Edits"}
                   </div>
                   <div className="text-[11px] text-muted font-medium">
-                    {periodLocked
-                      ? "Projections are read-only for reporting"
+                    {isLocked && lock
+                      ? `Locked by ${lock.lockedByName} on ${lock.lockedAt.slice(0, 10)}`
                       : "Sales team can edit quantities & prices"}
                   </div>
                 </div>
               </div>
               <Button
-                variant={periodLocked ? "primary" : "outline"}
+                variant={isLocked ? "primary" : "outline"}
                 size="sm"
-                onClick={() => setPeriodLocked(!periodLocked)}
+                disabled={lockQ === undefined || lockPending}
+                onClick={handleToggleLock}
               >
-                {periodLocked ? "Unlock Period" : "Lock Period"}
+                {lockPending
+                  ? "Saving…"
+                  : isLocked
+                    ? "Unlock Period"
+                    : "Lock Period"}
               </Button>
             </div>
 
+            {lockError && (
+              <div className="rounded-xl border border-red-200 bg-red-50/60 p-3 text-xs text-red-900 font-medium">
+                {lockError}
+              </div>
+            )}
+
             <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-xs text-amber-900 leading-relaxed font-medium">
-              Locking a period freezes monthly targets for management reporting and prevents unauthorized row overrides after accounting close.
+              Locking a period freezes its projection worksheet server-side:
+              every edit to a row in that month is refused for every role,
+              including administrators.
             </div>
           </div>
         </Card>

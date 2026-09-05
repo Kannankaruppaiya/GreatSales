@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CursorSchema } from "./pagination";
 
 /**
  * User (tenant member) management contracts, shared by the API and web. This is
@@ -35,7 +36,7 @@ export type BoolFlag = z.infer<typeof BoolFlag>;
 
 /** GET /users query. */
 export const UserListQuerySchema = z.object({
-  cursor: z.string().optional(),
+  cursor: CursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   /** Bounded so a pathological term cannot be used to drive an expensive scan. */
   search: z.string().max(200).optional(),
@@ -93,9 +94,9 @@ export interface UserListResponse {
 
 /** POST /users body. `password` is plaintext, hashed server-side before store. */
 export const UserCreateSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).max(120),
   email: z.string().email(),
-  username: z.string().min(1),
+  username: z.string().min(1).max(60),
   /**
    * Presence only. The STRENGTH rules live in `validatePassword` and are
    * applied by the service, so there is exactly one source of truth for what

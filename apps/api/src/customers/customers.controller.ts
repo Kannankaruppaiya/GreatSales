@@ -43,6 +43,13 @@ export class CustomersController {
     return this.service.list(user, query);
   }
 
+  /** Get a single customer by id. */
+  @Get(':id')
+  @RequirePermissions('customer.read')
+  getById(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.service.getById(user, id);
+  }
+
   /** Create a customer. */
   @Post()
   @RequirePermissions('customer.write')

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link2, Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { inr } from "@/lib/format";
+import { useUi } from "@/store/ui";
 import { ApiError } from "@/lib/api";
 import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import { QueryBoundary } from "@/components/common/QueryBoundary";
@@ -34,12 +35,16 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
  * worksheet could only ever show rows that arrived with the seed.
  */
 export default function MappingsPage() {
+  const globalOwnerFilter = useUi((s) => s.ownerFilter);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<MappingRow | null>(null);
 
-  const q = useMappings({ search: debouncedSearch || undefined });
+  const q = useMappings({
+    search: debouncedSearch || undefined,
+    ownerId: globalOwnerFilter === "ALL" ? undefined : globalOwnerFilter,
+  });
   const mappings = flattenMappings(q.data);
 
   // The form needs pickers. Both are already cached by their own pages, so this

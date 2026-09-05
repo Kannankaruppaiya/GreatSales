@@ -70,6 +70,19 @@ export interface CustomerRow {
 
 export type CustomerListResponse = CursorPage<CustomerRow>;
 
+/**
+ * One row of the GLOBAL industry catalogue (`GET /industries`).
+ *
+ * Not tenant data: the table has no tenantId and the runtime role may only read
+ * it. Lives here rather than in its own module because its only consumer is the
+ * customer industry picker and the customers list's `industryId` filter.
+ */
+export interface IndustryRow {
+  id: string;
+  name: string;
+  subIndustries: string[];
+}
+
 /** POST /customers body. `salespersonId` is required (the owning FK). */
 export const CustomerCreateSchema = z.object({
   name: z.string().min(1).max(200),

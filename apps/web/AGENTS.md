@@ -49,6 +49,7 @@ expect to extend those rather than dismiss the result as a flake.
 
 ## Repo-root reports are not evidence
 
-`FRONTEND-PRODUCTION-READINESS-QUESTIONNAIRE.md`, `PAGE-ANALYSIS-AUDIT-REPORT.md` and the
-other root-level audit files are historical and contain claims that do not match the code.
-Verify against the source and a running production build instead.
+`FRONTEND-PRODUCTION-READINESS-QUESTIONNAIRE.md` is a question bank, not a status report. The
+generated audit files that used to sit beside it were deleted on 2026-09-04 for claiming a
+parity the code never had — do not regenerate them. Verify against the source and a running
+production build instead.

@@ -71,6 +71,8 @@ export interface OrderRow {
 export interface OrderListResponse {
   items: OrderRow[];
   nextCursor: string | null;
+  /** Rows matching the filter, ignoring the cursor window. */
+  total: number;
 }
 
 export interface OrderCreate {

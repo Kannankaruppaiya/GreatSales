@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarClock, CheckCircle2, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useAuthRole } from "@/store/auth";
+import { useUi } from "@/store/ui";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api";
@@ -41,6 +42,7 @@ function dueDateLabel(dueDate: string, todayStr: string): string {
 
 export default function FollowUpsPage() {
   const role = useAuthRole();
+  const globalOwnerFilter = useUi((s) => s.ownerFilter);
   const canEdit = role !== "mgmt"; // mgmt is read-only; admin and sales can edit
 
   const [search, setSearch] = useState("");
@@ -50,10 +52,12 @@ export default function FollowUpsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [editRow, setEditRow] = useState<FollowUpRow | null>(null);
 
+  const effectiveOwner = ownerId !== "ALL" ? ownerId : globalOwnerFilter !== "ALL" ? globalOwnerFilter : undefined;
+
   const params = {
     search: debouncedSearch.trim() || undefined,
     entityType: entityType === "ALL" ? undefined : (entityType as (typeof ENTITY_TYPE_VALUES)[number]),
-    ownerId: ownerId === "ALL" ? undefined : ownerId,
+    ownerId: effectiveOwner,
     done: false,
   };
   const q = useFollowUps(params);

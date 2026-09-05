@@ -22,13 +22,18 @@ import { ApiError } from "@/lib/api";
 type LineFilter = ProjectionParams["lineFilter"];
 
 export default function ProjectionsPage() {
-  const monthFromUi = useUi((s) => s.month);
+  // The month is the app-wide one from the UI store, not a copy of it: this
+  // page used to seed local state from the store at mount, so the topbar month
+  // selector silently stopped applying once the worksheet was open, and the two
+  // month controls on screen could disagree.
+  const period = useUi((s) => s.month);
+  const setPeriod = useUi((s) => s.setMonth);
+  const ownerFilter = useUi((s) => s.ownerFilter);
   const accessToken = useAuth((s) => s.accessToken);
   const role = useAuthRole();
   const showSalesperson = role !== "sales";
   const colCount = showSalesperson ? 12 : 11;
 
-  const [period, setPeriod] = useState(monthFromUi || "2026-08");
   const [search, setSearch] = useState("");
   const [principalId, setPrincipalId] = useState("ALL");
   const [lineFilter, setLineFilter] = useState<LineFilter>("all");
@@ -37,6 +42,7 @@ export default function ProjectionsPage() {
     period,
     search: search.trim() || undefined,
     principalId: principalId === "ALL" ? undefined : principalId,
+    ownerId: ownerFilter === "ALL" ? undefined : ownerFilter,
     lineFilter,
   };
 

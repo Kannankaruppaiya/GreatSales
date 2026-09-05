@@ -1,31 +1,24 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Building2, MessageCircle, Phone, Trash2, X } from "lucide-react";
 import { useAuthRole } from "@/store/auth";
 import { ApiError } from "@/lib/api";
 import { Button, Skeleton } from "@/components/ui";
-import { useCustomers, useDeleteCustomer, flattenCustomers } from "@/features/customers/queries";
+import { useCustomer, useDeleteCustomer } from "@/features/customers/queries";
+import { useMappings } from "@/features/mappings/queries";
+import { useOrders } from "@/features/orders/queries";
+import { usePayments } from "@/features/payments/queries";
+import { RemarksPanel } from "@/features/remarks/RemarksPanel";
 import type { CustomerRow } from "@/features/customers/types";
 
 /**
  * Customer 360 slide-over. Rendered from several pages (CustomersPage, the
  * global layout quick-view, Dashboard, FollowUps, Payments, the mock
  * Projections page) so its prop shape (`customerId: string | null`) stays
- * unchanged — only this component's internals were rewired to the real API.
+ * unchanged.
  *
- * `customer` is an optional row a caller can pass directly (CustomersPage
- * does — it already has the row from its own filtered/paginated list).
- * There is no GET /customers/:id endpoint, so a caller that only has an id
- * (the other call sites below) falls back to an unfiltered, first-page
- * `useCustomers()` fetch + `.find()` — which will legitimately miss a row
- * that's filtered out or beyond page 1 of that fallback fetch. Passing
- * `customer` avoids that gap entirely.
- *
- * The recurring-projections / sales-orders / payments tabs the old mock
- * drawer showed are dropped here: they read `trackerStore.projections` /
- * `.orders` / `.payments`, which are out of scope for this task (those pages
- * are wired in later tasks) and forbidden by the "zero trackerStore reads"
- * constraint. This now shows only the customer record itself, sourced from
- * the real `/customers` API.
+ * When `customer` prop is passed directly (CustomersPage), it renders immediately.
+ * Otherwise, when only `customerId` is provided (Payments, Dashboard, Global Quick-view),
+ * it fetches the customer record directly via GET /customers/:id.
  */
 export function CustomerDrawer({
   customerId,
@@ -37,19 +30,29 @@ export function CustomerDrawer({
   onClose: () => void;
 }) {
   const role = useAuthRole();
-  // Only fall back to the unfiltered list fetch when the caller didn't
-  // already hand us the row. Gated on `customerId` being set too: this
-  // drawer is mounted unconditionally from `layout.tsx` on every page, so an
-  // ungated query would fetch the customers list on every route even while
-  // the drawer is closed.
   const needsFetch = !customerProp && !!customerId;
-  const q = useCustomers({}, { enabled: needsFetch });
+  const q = useCustomer(customerId, { enabled: needsFetch });
   const del = useDeleteCustomer();
+
+  // Related-record counts for the 360° block. `total` is the server's count for
+  // the filter, so these are real totals rather than "however many fit on the
+  // first page"; the rows themselves are not needed, only the counts.
+  const relatedEnabled = !!customerId;
+  const mappingsQ = useMappings(
+    { customerId: customerId ?? undefined },
+    { enabled: relatedEnabled },
+  );
+  const ordersQ = useOrders(
+    { customerId: customerId ?? undefined },
+    { enabled: relatedEnabled },
+  );
+  const paymentsQ = usePayments(
+    { customerId: customerId ?? undefined },
+    { enabled: relatedEnabled },
+  );
   const [deleteError, setDeleteError] = useState("");
 
-  const fetchedCustomers = useMemo(() => flattenCustomers(q.data), [q.data]);
-  const customer =
-    customerProp ?? (needsFetch ? (fetchedCustomers.find((c) => c.id === customerId) ?? null) : null);
+  const customer = customerProp ?? (needsFetch ? (q.data ?? null) : null);
   const isLoading = needsFetch && q.isLoading;
   const isError = needsFetch && q.isError;
 
@@ -248,10 +251,20 @@ export function CustomerDrawer({
                 </div>
               </div>
 
-              <div className="py-8 text-center text-xs text-muted border border-dashed border-line rounded-xl">
-                Mapped SKUs, sales orders and invoices will appear here once those pages are
-                wired to the API.
+              {/* The 360° view. This was a "will appear here once those pages
+                  are wired to the API" placeholder long after those pages were
+                  wired — the three endpoints all take a customerId filter. */}
+              <div className="grid grid-cols-3 gap-2">
+                <RelatedStat label="Mapped SKUs" value={mappingsQ.data?.pages[0]?.total} />
+                <RelatedStat label="Sales orders" value={ordersQ.data?.pages[0]?.total} />
+                <RelatedStat label="Invoices" value={paymentsQ.data?.pages[0]?.total} />
               </div>
+
+              <RemarksPanel
+                entityType="Customer"
+                entityId={customer.id}
+                canWrite={role !== "mgmt"}
+              />
 
               {role === "admin" && (
                 <Button
@@ -271,5 +284,19 @@ export function CustomerDrawer({
         )}
       </div>
     </>
+  );
+}
+
+/** One related-record count. `undefined` means the query has not answered yet. */
+function RelatedStat({ label, value }: { label: string; value?: number }) {
+  return (
+    <div className="rounded-xl border border-line bg-surface-2 p-2.5 text-center">
+      <div className="text-sm font-bold text-ink tabular-nums">
+        {value ?? "…"}
+      </div>
+      <div className="text-[10.5px] font-semibold uppercase tracking-wider text-muted">
+        {label}
+      </div>
+    </div>
   );
 }

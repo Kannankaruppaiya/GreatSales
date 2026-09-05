@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Kanban, LayoutList, Loader2, Plus, RefreshCw } from "lucide-react";
 import { useAuthRole } from "@/store/auth";
+import { useUi } from "@/store/ui";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
@@ -33,6 +34,8 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 
 export default function LeadsPage() {
   const role = useAuthRole();
+  const globalOwnerFilter = useUi((s) => s.ownerFilter);
+  const globalPrincipal = useUi((s) => s.principalId);
   const isReadOnly = role === "mgmt";
 
   const [search, setSearch] = useState("");
@@ -42,9 +45,12 @@ export default function LeadsPage() {
   const [showAddLead, setShowAddLead] = useState(false);
   const [selectedLead, setSelectedLead] = useState<LeadRow | null>(null);
 
+  const effectiveOwner = ownerId !== "ALL" ? ownerId : globalOwnerFilter !== "ALL" ? globalOwnerFilter : undefined;
+
   const params = {
     search: debouncedSearch.trim() || undefined,
-    ownerId: ownerId === "ALL" ? undefined : ownerId,
+    ownerId: effectiveOwner,
+    principalId: globalPrincipal === "ALL" ? undefined : globalPrincipal,
   };
   const q = useLeads(params);
   const update = useUpdateLead();

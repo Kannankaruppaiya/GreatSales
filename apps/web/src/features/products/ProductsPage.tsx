@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Building,
   Loader2,
@@ -10,6 +10,8 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useAuthRole } from "@/store/auth";
+import { useUi } from "@/store/ui";
+import { DIVISIONS } from "@/data/constants";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api";
@@ -17,6 +19,7 @@ import { Badge, Button, Card, PageHeader } from "@/components/ui";
 import { QueryBoundary } from "@/components/common/QueryBoundary";
 import { AddProductModal } from "@/features/products/AddProductModal";
 import { AddPrincipalModal } from "@/features/products/AddPrincipalModal";
+import { EditPrincipalModal } from "@/features/products/EditPrincipalModal";
 import { EditProductModal } from "@/features/products/EditProductModal";
 import {
   useProducts,
@@ -24,7 +27,7 @@ import {
   useUpdateProduct,
   flattenProducts,
 } from "@/features/products/queries";
-import type { ProductRow } from "@/features/products/types";
+import type { PrincipalRow, ProductRow } from "@/features/products/types";
 
 function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -37,6 +40,7 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 
 export default function ProductsPage() {
   const role = useAuthRole();
+  const globalPrincipal = useUi((s) => s.principalId);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -44,6 +48,7 @@ export default function ProductsPage() {
   const [division, setDivision] = useState("ALL");
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showAddPrincipal, setShowAddPrincipal] = useState(false);
+  const [editPrincipal, setEditPrincipal] = useState<PrincipalRow | null>(null);
   const [editProduct, setEditProduct] = useState<ProductRow | null>(null);
 
   const canEdit = role !== "mgmt";
@@ -51,9 +56,20 @@ export default function ProductsPage() {
   const principalsQuery = usePrincipals();
   const principals = principalsQuery.data?.items ?? [];
 
+  // The top bar's principal narrows the page; the local picker narrows it
+  // further. Division moved server-side with them — it used to filter the rows
+  // already loaded, which on a cursor-paginated catalog means "of the first
+  // page only", as the comment below the old code admitted.
+  const effectivePrincipal =
+    principalId !== "ALL"
+      ? principalId
+      : globalPrincipal !== "ALL"
+        ? globalPrincipal
+        : undefined;
   const params = {
     search: debouncedSearch.trim() || undefined,
-    principalId: principalId === "ALL" ? undefined : principalId,
+    principalId: effectivePrincipal,
+    division: division === "ALL" ? undefined : division,
   };
   const q = useProducts(params);
   const update = useUpdateProduct();
@@ -63,21 +79,10 @@ export default function ProductsPage() {
 
   const products = flattenProducts(q.data);
 
-  // Division filter options are derived from the rows already loaded — there is
-  // no dedicated endpoint and `ProductListQuerySchema` has no `division` param,
-  // same pattern as CustomersPage's category filter. NOTE: because the list is
-  // cursor-paginated, this narrows only the pages fetched so far; push it into
-  // the API query when the catalog outgrows a few pages.
-  const divisionOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const p of products) if (p.division) set.add(p.division);
-    return [...set].sort();
-  }, [products]);
-
-  const visibleProducts = useMemo(
-    () => (division === "ALL" ? products : products.filter((p) => p.division === division)),
-    [products, division],
-  );
+  // Division is a fixed Prisma enum, so the options come from the enum rather
+  // than from the rows on screen. Deriving them from rows was fine while the
+  // filter ran client-side; now that it narrows the QUERY, picking a division
+  // would leave it as the only division left to pick.
 
   return (
     <div className="space-y-4">
@@ -150,6 +155,30 @@ export default function ProductsPage() {
                   >
                     {pr.productCount ?? 0}
                   </span>
+                  {canEdit && (
+                    // A span, not a nested <button>: the chip itself is a
+                    // button and nesting one inside it is invalid HTML that
+                    // React will warn about and browsers render unpredictably.
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Edit ${pr.name}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditPrincipal(pr);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setEditPrincipal(pr);
+                        }
+                      }}
+                      className="ml-0.5 opacity-60 hover:opacity-100"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </span>
+                  )}
                 </button>
               );
             })
@@ -195,7 +224,7 @@ export default function ProductsPage() {
                 className="rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
               >
                 <option value="ALL">All Product Divisions</option>
-                {divisionOptions.map((d) => (
+                {DIVISIONS.map((d) => (
                   <option key={d} value={d}>
                     {d}
                   </option>
@@ -204,7 +233,10 @@ export default function ProductsPage() {
             </div>
 
             <span className="text-xs text-muted font-semibold px-1">
-              {visibleProducts.length} {visibleProducts.length === 1 ? "product" : "products"}
+              {q.data?.pages[0]?.total ?? products.length}{" "}
+              {(q.data?.pages[0]?.total ?? products.length) === 1
+                ? "product"
+                : "products"}
             </span>
 
             <Button
@@ -238,7 +270,7 @@ export default function ProductsPage() {
             isLoading={q.isLoading}
             isError={q.isError}
             error={q.error}
-            isEmpty={visibleProducts.length === 0}
+            isEmpty={products.length === 0}
             emptyLabel="No catalog products match your filter criteria."
           >
             <table className="w-full text-left text-xs border-collapse">
@@ -254,7 +286,7 @@ export default function ProductsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line/60">
-                {visibleProducts.map((p) => (
+                {products.map((p) => (
                   <tr key={p.id} className="hover:bg-surface-2/60 transition-colors">
                     <td className="py-2 px-3 whitespace-nowrap">
                       {p.sku ? (
@@ -381,6 +413,11 @@ export default function ProductsPage() {
       <AddPrincipalModal
         open={showAddPrincipal}
         onClose={() => setShowAddPrincipal(false)}
+      />
+      <EditPrincipalModal
+        open={!!editPrincipal}
+        onClose={() => setEditPrincipal(null)}
+        principal={editPrincipal}
       />
 
       <EditProductModal

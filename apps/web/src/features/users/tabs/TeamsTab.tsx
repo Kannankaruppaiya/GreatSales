@@ -4,7 +4,7 @@ import { useHasPermission } from "@/store/auth";
 import { ApiError } from "@/lib/api";
 import { Button, Card, Input, Select } from "@/components/ui";
 import { QueryBoundary } from "@/components/common/QueryBoundary";
-import { ConfirmActionModal } from "@/features/users/modals/ConfirmActionModal";
+import { ConfirmActionModal } from "@/components/modals/ConfirmActionModal";
 import {
   flattenUsers,
   useAddTeamMembers,

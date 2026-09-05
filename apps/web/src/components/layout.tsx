@@ -16,6 +16,7 @@ import {
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { MONTHS, roleLabel } from "@/data/constants";
 import { featureByKey, featureLabel, featuresFor, featurePath } from "@/data/features";
+import type { GlobalFilter } from "@/data/features";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import { useAuthRole, useAuthUser, useAuth } from "@/store/auth";
 import { cn } from "@/lib/utils";
@@ -186,6 +187,9 @@ export function Topbar({
     toggleSidebar,
   } = useUi();
   const role = useAuthRole();
+  const navigate = useNavigate();
+  const activeManagementId =
+    useUi((s) => s.activeManagementId) || DEFAULT_MANAGEMENT_ID;
 
   // Live queries from backend API
   const principalsQ = usePrincipals();
@@ -206,8 +210,19 @@ export function Topbar({
   const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
 
-  const segs = useLocation().pathname.split("/").filter(Boolean);
-  const key = segs[segs.length - 1] || "dashboard";
+  const segments = useLocation().pathname.split("/").filter(Boolean);
+  const key = segments[segments.length - 1] || "dashboard";
+
+  // Only the filters this surface actually passes to its query are rendered.
+  // Declared per feature in data/features.ts — see the comment on
+  // `Feature.globalFilters` for why a filter that does nothing is not drawn.
+  const shows = (f: GlobalFilter) =>
+    featureByKey(key)?.globalFilters.includes(f) ?? false;
+
+  const openAlert = (featureKey: string) => {
+    setShowNotifMenu(false);
+    navigate(featurePath(featureKey, activeManagementId));
+  };
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const overdueFollowUps = pendingFollowUps.filter(
@@ -341,18 +356,30 @@ export function Topbar({
                 </div>
 
                 <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                  {/* Each alert navigates to the surface that can action it —
+                      an alert you cannot click is a label, not a notification. */}
                   {overdueFollowUps.slice(0, 4).map((f) => (
-                    <div key={f.id} className="p-2 rounded-lg bg-amber-soft border border-amber/20 text-amber text-[11.5px] space-y-0.5">
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => openAlert("followups")}
+                      className="w-full text-left p-2 rounded-lg bg-amber-soft border border-amber/20 text-amber text-[11.5px] space-y-0.5 hover:border-amber/50 cursor-pointer"
+                    >
                       <div className="font-bold">{f.note || "Pending Follow-Up"}</div>
                       <div className="text-[10.5px] text-amber/80 truncate">Due date was {f.dueDate} ({f.entityType})</div>
-                    </div>
+                    </button>
                   ))}
 
                   {redZonePayments.slice(0, 3).map((pmt) => (
-                    <div key={pmt.id} className="p-2 rounded-lg bg-red-soft border border-red/20 text-red text-[11.5px] space-y-0.5">
+                    <button
+                      key={pmt.id}
+                      type="button"
+                      onClick={() => openAlert("payments")}
+                      className="w-full text-left p-2 rounded-lg bg-red-soft border border-red/20 text-red text-[11.5px] space-y-0.5 hover:border-red/50 cursor-pointer"
+                    >
                       <div className="font-bold">Red Zone Overdue: {pmt.customerName}</div>
                       <div className="text-[10.5px] text-red/80">Ref: {pmt.refNo}</div>
-                    </div>
+                    </button>
                   ))}
 
                   {totalAlerts === 0 && (
@@ -367,6 +394,7 @@ export function Topbar({
         </div>
 
         {/* Month selector */}
+        {shows("month") && (
         <Select
           value={month}
           onChange={(e) => setMonth(e.target.value)}
@@ -379,24 +407,27 @@ export function Topbar({
             </option>
           ))}
         </Select>
+        )}
 
         {/* Principal selector */}
+        {shows("principal") && (
         <Select
           value={principalId}
           onChange={(e) => setPrincipal(e.target.value)}
           aria-label="Filter by principal brand"
           className="w-[135px] h-8 text-xs font-semibold"
         >
-          <option value="ALL">All Principals ({principals.length})</option>
+          <option value="ALL">All Principals</option>
           {principals.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
             </option>
           ))}
         </Select>
+        )}
 
         {/* Salesperson selector */}
-        {role !== "sales" && (
+        {shows("owner") && role !== "sales" && (
           <Select
             value={ownerFilter}
             onChange={(e) => setOwnerFilter(e.target.value)}

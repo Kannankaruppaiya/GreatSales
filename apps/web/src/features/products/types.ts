@@ -25,6 +25,8 @@ export interface ProductRow {
 export interface ProductListResponse {
   items: ProductRow[];
   nextCursor: string | null;
+  /** Rows matching the filter, ignoring the cursor window. */
+  total: number;
 }
 
 export interface ProductCreate {

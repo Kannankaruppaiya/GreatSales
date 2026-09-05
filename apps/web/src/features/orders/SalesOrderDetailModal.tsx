@@ -5,7 +5,9 @@ import { ApiError } from "@/lib/api";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useAuthRole } from "@/store/auth";
-import { useUpdateOrder } from "@/features/orders/queries";
+import { useDeleteOrder, useUpdateOrder } from "@/features/orders/queries";
+import { DeleteAction } from "@/components/modals/DeleteAction";
+import { RemarksPanel } from "@/features/remarks/RemarksPanel";
 import {
   ORDER_STATUS_VALUES,
   ORDER_STATUS_LABELS,
@@ -49,6 +51,7 @@ export function SalesOrderDetailModal({
 }) {
   const role = useAuthRole();
   const update = useUpdateOrder();
+  const del = useDeleteOrder();
 
   // The `order` prop is a snapshot the parent captured on row-click — it
   // does not re-render after a mutation invalidates the orders list (the
@@ -138,6 +141,15 @@ export function SalesOrderDetailModal({
       maxWidth="max-w-2xl"
       footer={
         <>
+          {canEdit && (
+            <DeleteAction
+              label="Delete Order"
+              title={`Delete ${liveOrder.code}?`}
+              body="The order and its line items are removed, and it stops counting towards achievement. To keep the record for reporting, set the status to Cancelled instead."
+              onDelete={() => del.mutateAsync(liveOrder.id)}
+              onDeleted={onClose}
+            />
+          )}
           <Button variant="outline" size="sm" onClick={onClose} type="button">
             Close
           </Button>
@@ -304,6 +316,13 @@ export function SalesOrderDetailModal({
             ))}
           </div>
         </div>
+
+        <RemarksPanel
+          entityType="Order"
+          entityId={liveOrder.id}
+          enabled={open}
+          canWrite={canEdit}
+        />
       </div>
     </Dialog>
   );

@@ -21,6 +21,8 @@ import type {
 const PAGE_SIZE = 50;
 
 export interface LeadParams {
+  /** Leads carrying at least one line item for this principal. */
+  principalId?: string;
   search?: string;
   stage?: string;
   tier?: string;
@@ -38,6 +40,7 @@ export function leadsQueryFn(p: LeadParams, cursor: string | undefined) {
       stage: p.stage,
       tier: p.tier,
       ownerId: p.ownerId,
+      principalId: p.principalId,
       cursor,
       limit: String(PAGE_SIZE),
     })}`,

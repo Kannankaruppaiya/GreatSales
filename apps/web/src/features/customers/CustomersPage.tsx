@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Phone, Plus, RefreshCw, User, UserCheck } from "lucide-react";
 import { useAuthRole } from "@/store/auth";
+import { useUi } from "@/store/ui";
 import { cn } from "@/lib/utils";
 import { Button, Card, PageHeader } from "@/components/ui";
 import { QueryBoundary } from "@/components/common/QueryBoundary";
@@ -8,7 +9,9 @@ import { AddCustomerModal } from "@/features/customers/AddCustomerModal";
 import { EditCustomerModal } from "@/features/customers/EditCustomerModal";
 import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
 import { ReassignCustomersModal } from "@/features/customers/ReassignCustomersModal";
-import { useCustomers, flattenCustomers } from "@/features/customers/queries";
+import { useCustomers, flattenCustomers, useIndustries } from "@/features/customers/queries";
+import { useUsers, flattenUsers } from "@/features/users/queries";
+import { CUSTOMER_TIERS, INDUSTRIAL_AREAS } from "@/data/constants";
 import type { CustomerRow } from "@/features/customers/types";
 
 /**
@@ -28,6 +31,8 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 
 export default function CustomersPage() {
   const role = useAuthRole();
+  const globalOwnerFilter = useUi((s) => s.ownerFilter);
+  const globalPrincipal = useUi((s) => s.principalId);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -45,49 +50,39 @@ export default function CustomersPage() {
   const [showReassign, setShowReassign] = useState(false);
 
   const canEdit = role !== "mgmt";
+  const effectiveOwner = ownerId !== "ALL" ? ownerId : globalOwnerFilter !== "ALL" ? globalOwnerFilter : undefined;
 
+  // Every filter on this page is a server filter. They used to be split: the
+  // API narrowed by search/category/owner while area and industry were applied
+  // with Array.filter over the rows already loaded, so a page-2 match simply
+  // did not exist as far as the user could tell.
   const params = {
     search: debouncedSearch.trim() || undefined,
     category: category === "ALL" ? undefined : category,
-    ownerId: ownerId === "ALL" ? undefined : ownerId,
+    ownerId: effectiveOwner,
+    area: area === "ALL" ? undefined : area,
+    industryId: industry === "ALL" ? undefined : industry,
+    principalId: globalPrincipal === "ALL" ? undefined : globalPrincipal,
   };
   const q = useCustomers(params);
   const customers = flattenCustomers(q.data);
 
-  // Category / area / industry / salesperson filter options — there is no
-  // dedicated endpoint for any of them, so all are derived from the loaded
-  // rows, same pattern as ProductsPage's divisions / UsersPage's roles.
-  const { categoryOptions, salespersonOptions, areaOptions, industryOptions } = useMemo(() => {
-    const categories = new Set<string>();
-    const areas = new Set<string>();
-    const industries = new Set<string>();
-    const salespeople = new Map<string, string>();
-    for (const c of customers) {
-      if (c.category) categories.add(c.category);
-      if (c.area) areas.add(c.area);
-      if (c.industryName) industries.add(c.industryName);
-      salespeople.set(c.salespersonId, c.salespersonName);
-    }
-    return {
-      categoryOptions: [...categories].sort(),
-      areaOptions: [...areas].sort(),
-      industryOptions: [...industries].sort(),
-      salespersonOptions: [...salespeople.entries()].map(([id, name]) => ({ id, name })),
-    };
-  }, [customers]);
-
-  // Area / industry are not query params on the customers endpoint, so these two
-  // narrow client-side over the pages already fetched — same trade-off as the
-  // derived options above. Move both into `CustomerParams` when the account
-  // list outgrows a few pages.
-  const visibleCustomers = useMemo(
-    () =>
-      customers.filter(
-        (c) =>
-          (area === "ALL" || c.area === area) &&
-          (industry === "ALL" || c.industryName === industry),
-      ),
-    [customers, area, industry],
+  // Filter options come from sources INDEPENDENT of the current filter.
+  //
+  // They used to be derived from the loaded rows, which worked only while the
+  // filters were applied client-side. Now that area/industry/owner narrow the
+  // QUERY, a row-derived list would collapse to the value you just picked —
+  // choose "Ambattur" and Ambattur becomes the only area you can choose.
+  //
+  //   area      → INDUSTRIAL_AREAS, the same list Add/Edit Customer writes from
+  //   industry  → GET /industries, the global catalogue
+  //   owner     → GET /users, not "owners seen so far"
+  //   category  → CUSTOMER_TIERS, a fixed enum
+  const industriesQ = useIndustries();
+  const industryOptions = industriesQ.data ?? [];
+  const usersQ = useUsers();
+  const salespersonOptions = flattenUsers(usersQ.data).filter((u) =>
+    u.roleName?.toLowerCase().includes("sales"),
   );
 
   return (
@@ -108,20 +103,18 @@ export default function CustomersPage() {
             className="rounded-xl border border-line bg-surface-2 px-3 py-1.5 text-xs text-ink placeholder:text-muted focus:outline-brand focus:border-brand w-64 shadow-2xs"
           />
 
-          {categoryOptions.length > 0 && (
-            <select
+          <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="h-full rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
             >
               <option value="ALL">All categories</option>
-              {categoryOptions.map((c) => (
+              {CUSTOMER_TIERS.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
               ))}
             </select>
-          )}
 
           {salespersonOptions.length > 0 && (
             <select
@@ -138,21 +131,19 @@ export default function CustomersPage() {
             </select>
           )}
 
-          {areaOptions.length > 0 && (
-            <select
+          <select
               value={area}
               onChange={(e) => setArea(e.target.value)}
               aria-label="Filter customers by industrial area"
               className="h-full rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
             >
               <option value="ALL">All Industrial Areas</option>
-              {areaOptions.map((a) => (
+              {INDUSTRIAL_AREAS.map((a) => (
                 <option key={a} value={a}>
                   {a}
                 </option>
               ))}
             </select>
-          )}
 
           {industryOptions.length > 0 && (
             <select
@@ -163,15 +154,15 @@ export default function CustomersPage() {
             >
               <option value="ALL">All Industry Sectors</option>
               {industryOptions.map((i) => (
-                <option key={i} value={i}>
-                  {i}
+                <option key={i.id} value={i.id}>
+                  {i.name}
                 </option>
               ))}
             </select>
           )}
 
           <span className="text-xs text-muted font-medium">
-            {visibleCustomers.length} accounts
+            {q.data?.pages[0]?.total ?? customers.length} accounts
           </span>
 
           <Button size="sm" variant="outline" onClick={() => q.refetch()}>
@@ -200,7 +191,7 @@ export default function CustomersPage() {
             isLoading={q.isLoading}
             isError={q.isError}
             error={q.error}
-            isEmpty={visibleCustomers.length === 0}
+            isEmpty={customers.length === 0}
             emptyLabel="No customer accounts found matching search."
           >
             <table className="w-full text-left text-xs border-collapse">
@@ -218,7 +209,7 @@ export default function CustomersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line/60">
-                {visibleCustomers.map((c) => (
+                {customers.map((c) => (
                   <tr key={c.id} className="hover:bg-surface-2/70 transition-colors">
                     <td className="py-2.5 px-3">
                       <button

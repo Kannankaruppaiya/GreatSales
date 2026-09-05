@@ -24,7 +24,6 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 @ApiTags('principals')
 @ApiBearerAuth()
-// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 @UseGuards(PermissionsGuard)
 @Controller('principals')
 export class PrincipalsController {

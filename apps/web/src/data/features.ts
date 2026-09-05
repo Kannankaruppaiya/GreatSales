@@ -37,7 +37,20 @@ export type Feature = {
   icon: LucideIcon;
   /** Roles allowed to reach the surface. Drives the sidebar, the palette and RoleGuard alike. */
   roles: Role[];
+  /**
+   * Which top-bar filters this surface actually reads.
+   *
+   * The top bar renders only these. Before it did, the month and principal
+   * selectors were drawn on every page while just two pages read `month` and
+   * NOTHING read `principalId` — a control that silently does nothing is worse
+   * than an absent one, because the user believes the list in front of them is
+   * filtered. A filter belongs here only once the page passes it to its query.
+   */
+  globalFilters: GlobalFilter[];
 };
+
+/** The filters the top bar can offer. Each maps to a field on the `ui` store. */
+export type GlobalFilter = "month" | "principal" | "owner";
 
 const ALL_ROLES: Role[] = ["super_admin", "admin", "mgmt", "sales"];
 
@@ -50,6 +63,8 @@ export const FEATURES: Feature[] = [
     paletteDesc: "Executive metrics & performance",
     icon: LayoutDashboard,
     roles: ALL_ROLES,
+  // No principal: DashboardQuerySchema takes period + ownerId only.
+    globalFilters: ["month", "owner"],
   },
   {
     key: "projections",
@@ -59,6 +74,7 @@ export const FEATURES: Feature[] = [
     paletteDesc: "Recurring sales worksheet & commitments",
     icon: Repeat,
     roles: ALL_ROLES,
+    globalFilters: ["month", "principal", "owner"],
   },
   {
     key: "leads",
@@ -68,6 +84,7 @@ export const FEATURES: Feature[] = [
     paletteDesc: "Leads & deal stages kanban",
     icon: Target,
     roles: ALL_ROLES,
+    globalFilters: ["principal", "owner"],
   },
   {
     key: "orders",
@@ -77,6 +94,7 @@ export const FEATURES: Feature[] = [
     paletteDesc: "Order fulfillment & dispatch tracking",
     icon: ShoppingCart,
     roles: ALL_ROLES,
+    globalFilters: ["principal", "owner"],
   },
   {
     key: "payments",
@@ -86,6 +104,8 @@ export const FEATURES: Feature[] = [
     paletteDesc: "Aging invoices & credit control",
     icon: Receipt,
     roles: ALL_ROLES,
+  // No principal: a Payment has no product or principal relation at all.
+    globalFilters: ["owner"],
   },
   {
     key: "followups",
@@ -95,6 +115,8 @@ export const FEATURES: Feature[] = [
     paletteDesc: "Unified timeline & contact agenda",
     icon: CalendarClock,
     roles: ALL_ROLES,
+  // No month: FollowUp has a dueDate, not a reporting period.
+    globalFilters: ["owner"],
   },
   {
     key: "customers",
@@ -105,6 +127,7 @@ export const FEATURES: Feature[] = [
     paletteDesc: "Accounts, tiers, & mapping counts",
     icon: Building2,
     roles: ALL_ROLES,
+    globalFilters: ["principal", "owner"],
   },
   {
     key: "products",
@@ -114,6 +137,7 @@ export const FEATURES: Feature[] = [
     paletteDesc: "Principals & SKU price master",
     icon: Boxes,
     roles: ["super_admin", "admin", "mgmt"],
+    globalFilters: ["principal"],
   },
   {
     key: "mappings",
@@ -124,6 +148,7 @@ export const FEATURES: Feature[] = [
     paletteDesc: "Customer × product mapping grid",
     icon: Link2,
     roles: ALL_ROLES,
+    globalFilters: ["owner"],
   },
   {
     key: "users",
@@ -133,6 +158,8 @@ export const FEATURES: Feature[] = [
     paletteDesc: "Team roles & accounts assignment",
     icon: UsersRound,
     roles: ["super_admin", "admin"],
+  // Governance surfaces are tenant-wide; none of the three filters apply.
+    globalFilters: [],
   },
   {
     key: "data",
@@ -142,6 +169,8 @@ export const FEATURES: Feature[] = [
     paletteDesc: "Import jobs, periods & data admin",
     icon: Database,
     roles: ["super_admin", "admin"],
+  // Administration is tenant-wide; the period it acts on is chosen on the page.
+    globalFilters: [],
   },
 ];
 

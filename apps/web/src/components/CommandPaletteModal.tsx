@@ -207,7 +207,7 @@ export function CommandPaletteModal({
                 {results.products.map((pr) => (
                   <button
                     key={pr.id}
-                    onClick={() => handleGoPage("/products")}
+                    onClick={() => handleGoPage(featurePath("products", managementId))}
                     className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-surface-2 text-left cursor-pointer transition-colors group"
                   >
                     <div className="flex items-center gap-2.5">
@@ -240,7 +240,7 @@ export function CommandPaletteModal({
                 {results.orders.map((o) => (
                   <button
                     key={o.id}
-                    onClick={() => handleGoPage("/orders")}
+                    onClick={() => handleGoPage(featurePath("orders", managementId))}
                     className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-surface-2 text-left cursor-pointer transition-colors"
                   >
                     <div className="flex items-center gap-2.5">
@@ -271,7 +271,7 @@ export function CommandPaletteModal({
                 {results.payments.map((p) => (
                   <button
                     key={p.id}
-                    onClick={() => handleGoPage("/payments")}
+                    onClick={() => handleGoPage(featurePath("payments", managementId))}
                     className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-surface-2 text-left cursor-pointer transition-colors"
                   >
                     <div className="flex items-center gap-2.5">

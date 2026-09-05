@@ -7,6 +7,13 @@
 
 export type DivisionValue = "LUB" | "WES";
 
+/** One row of the global industry catalogue (`GET /industries`). */
+export interface IndustryRow {
+  id: string;
+  name: string;
+  subIndustries: string[];
+}
+
 export interface CustomerRow {
   id: string;
   name: string;
@@ -34,6 +41,8 @@ export interface CustomerRow {
 export interface CustomerListResponse {
   items: CustomerRow[];
   nextCursor: string | null;
+  /** Rows matching the filter, ignoring the cursor window. */
+  total: number;
 }
 
 export interface CustomerCreate {

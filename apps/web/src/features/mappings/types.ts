@@ -34,6 +34,8 @@ export interface MappingRow {
 export interface MappingListResponse {
   items: MappingRow[];
   nextCursor: string | null;
+  /** Rows matching the filter, ignoring the cursor window. */
+  total: number;
 }
 
 export interface MappingCreate {

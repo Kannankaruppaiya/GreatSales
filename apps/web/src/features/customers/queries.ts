@@ -6,6 +6,7 @@
 import {
   useInfiniteQuery,
   useMutation,
+  useQuery,
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
@@ -15,6 +16,7 @@ import type {
   CustomerListResponse,
   CustomerCreate,
   CustomerUpdate,
+  IndustryRow,
 } from "./types";
 
 const PAGE_SIZE = 50;
@@ -23,11 +25,24 @@ export interface CustomerParams {
   search?: string;
   category?: string;
   ownerId?: string;
+  area?: string;
+  industryId?: string;
+  /** Accounts mapped to at least one product of this principal. */
+  principalId?: string;
 }
 
 export const customerKeys = {
   list: (p: CustomerParams) => ["customers", p] as const,
+  detail: (id: string) => ["customers", "detail", id] as const,
 };
+
+export function useCustomer(id: string | null, opts: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: id ? customerKeys.detail(id) : ["customers", "detail", "null"],
+    queryFn: () => apiFetch<CustomerRow>(`/customers/${id}`),
+    enabled: !!id && (opts.enabled ?? true),
+  });
+}
 
 export function customersQueryFn(p: CustomerParams, cursor: string | undefined) {
   return apiFetch<CustomerListResponse>(
@@ -35,6 +50,9 @@ export function customersQueryFn(p: CustomerParams, cursor: string | undefined) 
       search: p.search,
       category: p.category,
       ownerId: p.ownerId,
+      area: p.area,
+      industryId: p.industryId,
+      principalId: p.principalId,
       cursor,
       limit: String(PAGE_SIZE),
     })}`,
@@ -60,6 +78,21 @@ export function flattenCustomers(data?: { pages: CustomerListResponse[] }): Cust
 
 export function onCustomerMutationSuccess(qc: QueryClient) {
   return qc.invalidateQueries({ queryKey: ["customers"] });
+}
+
+/**
+ * The global industry catalogue.
+ *
+ * Cached with a long staleTime because it is reference data that changes about
+ * never, and it is fetched by both the customers filter bar and the customer
+ * form — one request per session rather than one per mount.
+ */
+export function useIndustries() {
+  return useQuery({
+    queryKey: ["industries"],
+    staleTime: 60 * 60 * 1000,
+    queryFn: () => apiFetch<IndustryRow[]>("/industries"),
+  });
 }
 
 export function useCreateCustomer() {
