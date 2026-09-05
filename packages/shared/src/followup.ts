@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CursorSchema, QueryBool, type CursorPage } from "./pagination";
 import { EntityTypeSchema, type EntityTypeValue } from "./enums";
 
 /**
@@ -12,11 +13,11 @@ import { EntityTypeSchema, type EntityTypeValue } from "./enums";
  */
 
 export const FollowUpListQuerySchema = z.object({
-  cursor: z.string().optional(),
+  cursor: CursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().optional(),
   entityType: EntityTypeSchema.optional(),
-  done: z.coerce.boolean().optional(),
+  done: QueryBool.optional(),
   ownerId: z.string().optional(),
 });
 export type FollowUpListQuery = z.infer<typeof FollowUpListQuerySchema>;
@@ -37,10 +38,7 @@ export interface FollowUpRow {
   updatedAt: string;
 }
 
-export interface FollowUpListResponse {
-  items: FollowUpRow[];
-  nextCursor: string | null;
-}
+export type FollowUpListResponse = CursorPage<FollowUpRow>;
 
 /** POST /followups body. `salespersonId` defaults to the caller when omitted. */
 export const FollowUpCreateSchema = z.object({

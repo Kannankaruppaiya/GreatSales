@@ -87,21 +87,30 @@ export class LeadsService {
     const db = this.prisma.forTenant(user.tenantId);
     const ownerId = await this.resolveOwnerScope(db, user, query.ownerId);
 
-    const rows = await db.lead.findMany({
-      where: {
-        deletedAt: null,
-        ...(ownerId ? { salespersonId: ownerId } : {}),
-        ...(query.stage ? { stage: query.stage } : {}),
-        ...(query.tier ? { tier: query.tier } : {}),
-        ...(query.search
-          ? { customerName: { contains: query.search, mode: 'insensitive' } }
-          : {}),
-      },
-      include: LEAD_INCLUDE,
-      orderBy: { id: 'asc' },
-      take: query.limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-    });
+    const where: Prisma.LeadWhereInput = {
+      deletedAt: null,
+      ...(ownerId ? { salespersonId: ownerId } : {}),
+      ...(query.stage ? { stage: query.stage } : {}),
+      ...(query.tier ? { tier: query.tier } : {}),
+      // Leads carry principal on their line items, not on the lead itself.
+      ...(query.principalId
+        ? { products: { some: { principalId: query.principalId } } }
+        : {}),
+      ...(query.search
+        ? { customerName: { contains: query.search, mode: 'insensitive' } }
+        : {}),
+    };
+
+    const [rows, total] = await db.$transaction([
+      db.lead.findMany({
+        where,
+        include: LEAD_INCLUDE,
+        orderBy: { id: 'asc' },
+        take: query.limit + 1,
+        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+      }),
+      db.lead.count({ where }),
+    ]);
 
     const hasMore = rows.length > query.limit;
     const page = hasMore ? rows.slice(0, query.limit) : rows;
@@ -114,6 +123,7 @@ export class LeadsService {
         toRow(l, l.industryId ? (names.get(l.industryId) ?? null) : null),
       ),
       nextCursor: hasMore ? page[page.length - 1].id : null,
+      total,
     };
   }
 

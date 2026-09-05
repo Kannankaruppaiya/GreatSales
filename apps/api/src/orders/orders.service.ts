@@ -99,27 +99,41 @@ export class OrdersService {
     const db = this.prisma.forTenant(user.tenantId);
     const ownerId = await this.resolveOwnerScope(db, user, query.ownerId);
 
-    const rows = await db.salesOrder.findMany({
-      where: {
-        deletedAt: null,
-        ...(ownerId ? { salespersonId: ownerId } : {}),
-        ...(query.status ? { status: query.status } : {}),
-        ...(query.customerId ? { customerId: query.customerId } : {}),
-        ...(query.search
-          ? { code: { contains: query.search, mode: 'insensitive' } }
-          : {}),
-      },
-      include: ORDER_INCLUDE,
-      orderBy: { id: 'asc' },
-      take: query.limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-    });
+    const where: Prisma.SalesOrderWhereInput = {
+      deletedAt: null,
+      ...(ownerId ? { salespersonId: ownerId } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.customerId ? { customerId: query.customerId } : {}),
+      // Principal reaches an order through its line items' products.
+      ...(query.principalId
+        ? {
+            items: {
+              some: { product: { principalId: query.principalId } },
+            },
+          }
+        : {}),
+      ...(query.search
+        ? { code: { contains: query.search, mode: 'insensitive' } }
+        : {}),
+    };
+
+    const [rows, total] = await db.$transaction([
+      db.salesOrder.findMany({
+        where,
+        include: ORDER_INCLUDE,
+        orderBy: { id: 'asc' },
+        take: query.limit + 1,
+        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+      }),
+      db.salesOrder.count({ where }),
+    ]);
 
     const hasMore = rows.length > query.limit;
     const page = hasMore ? rows.slice(0, query.limit) : rows;
     return {
       items: page.map(toRow),
       nextCursor: hasMore ? page[page.length - 1].id : null,
+      total,
     };
   }
 

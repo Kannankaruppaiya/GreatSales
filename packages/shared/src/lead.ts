@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CursorSchema, type CursorPage } from "./pagination";
 import {
   CustomerCategorySchema,
   CustomerTypeSchema,
@@ -20,7 +21,7 @@ import {
 
 /** One line item attached to a lead. */
 export const LeadProductInputSchema = z.object({
-  productName: z.string().min(1),
+  productName: z.string().min(1).max(200),
   principalId: z.string().nullable().optional(),
   productId: z.string().nullable().optional(),
   brand: z.string().nullable().optional(),
@@ -45,12 +46,14 @@ export interface LeadProductRow {
 
 /** GET /leads query. `ownerId` omitted (or "ALL") = no salesperson filter. */
 export const LeadListQuerySchema = z.object({
-  cursor: z.string().optional(),
+  cursor: CursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().optional(),
   stage: DealStageSchema.optional(),
   tier: CustomerCategorySchema.optional(),
   ownerId: z.string().optional(),
+  /** Leads carrying at least one line item for this principal. */
+  principalId: z.string().optional(),
 });
 export type LeadListQuery = z.infer<typeof LeadListQuerySchema>;
 
@@ -84,14 +87,11 @@ export interface LeadRow {
   updatedAt: string;
 }
 
-export interface LeadListResponse {
-  items: LeadRow[];
-  nextCursor: string | null;
-}
+export type LeadListResponse = CursorPage<LeadRow>;
 
 /** POST /leads body. `salespersonId` is required (the owning FK). */
 export const LeadCreateSchema = z.object({
-  customerName: z.string().min(1),
+  customerName: z.string().min(1).max(200),
   salespersonId: z.string().min(1),
   stage: DealStageSchema.optional(),
   division: DivisionSchema.nullable().optional(),

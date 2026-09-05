@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CursorSchema, type CursorPage } from "./pagination";
 
 /**
  * Customer x Product mapping contracts, shared by the API and web.
@@ -21,7 +22,7 @@ import { z } from "zod";
  */
 
 export const MappingListQuerySchema = z.object({
-  cursor: z.string().optional(),
+  cursor: CursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   customerId: z.string().optional(),
   productId: z.string().optional(),
@@ -53,10 +54,7 @@ export interface MappingRow {
   updatedAt: string;
 }
 
-export interface MappingListResponse {
-  items: MappingRow[];
-  nextCursor: string | null;
-}
+export type MappingListResponse = CursorPage<MappingRow>;
 
 /**
  * POST /mappings body.

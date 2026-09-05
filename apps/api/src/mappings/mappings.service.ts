@@ -103,20 +103,25 @@ export class MappingsService {
         : {}),
     };
 
-    // limit + 1 so the extra row tells us a next page exists without a count().
-    const rows = await db.mapping.findMany({
-      where,
-      include: MAPPING_INCLUDE,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: query.limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-    });
+    // limit + 1 so the extra row tells us a next page exists; the count beside
+    // it answers "how many in total", which the pickers show as "50 of 417".
+    const [rows, total] = await db.$transaction([
+      db.mapping.findMany({
+        where,
+        include: MAPPING_INCLUDE,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: query.limit + 1,
+        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+      }),
+      db.mapping.count({ where }),
+    ]);
 
     const hasMore = rows.length > query.limit;
     const items = hasMore ? rows.slice(0, query.limit) : rows;
     return {
       items: items.map(toRow),
       nextCursor: hasMore ? items[items.length - 1].id : null,
+      total,
     };
   }
 

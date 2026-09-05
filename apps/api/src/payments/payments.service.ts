@@ -84,38 +84,47 @@ export class PaymentsService {
     const db = this.prisma.forTenant(user.tenantId);
     const ownerId = await this.resolveOwnerScope(db, user, query.ownerId);
 
-    const rows = await db.payment.findMany({
-      where: {
-        deletedAt: null,
-        ...(ownerId ? { salespersonId: ownerId } : {}),
-        ...(query.status ? { status: query.status } : {}),
-        ...(query.customerId ? { customerId: query.customerId } : {}),
-        ...(query.search
-          ? {
-              OR: [
-                { refNo: { contains: query.search, mode: 'insensitive' } },
-                { invoiceNo: { contains: query.search, mode: 'insensitive' } },
-                {
-                  customerName: {
-                    contains: query.search,
-                    mode: 'insensitive',
-                  },
+    // A Payment has no product or principal relation of any kind — it hangs off
+    // a Customer and an invoice — so there is deliberately no principalId
+    // filter here, and the top bar hides that control on this page.
+    const where: Prisma.PaymentWhereInput = {
+      deletedAt: null,
+      ...(ownerId ? { salespersonId: ownerId } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.customerId ? { customerId: query.customerId } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { refNo: { contains: query.search, mode: 'insensitive' } },
+              { invoiceNo: { contains: query.search, mode: 'insensitive' } },
+              {
+                customerName: {
+                  contains: query.search,
+                  mode: 'insensitive',
                 },
-              ],
-            }
-          : {}),
-      },
-      include: PAYMENT_INCLUDE,
-      orderBy: { id: 'asc' },
-      take: query.limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-    });
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const [rows, total] = await db.$transaction([
+      db.payment.findMany({
+        where,
+        include: PAYMENT_INCLUDE,
+        orderBy: { id: 'asc' },
+        take: query.limit + 1,
+        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+      }),
+      db.payment.count({ where }),
+    ]);
 
     const hasMore = rows.length > query.limit;
     const page = hasMore ? rows.slice(0, query.limit) : rows;
     return {
       items: page.map((p) => toRow(p, today)),
       nextCursor: hasMore ? page[page.length - 1].id : null,
+      total,
     };
   }
 

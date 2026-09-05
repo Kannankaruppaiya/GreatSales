@@ -51,26 +51,32 @@ export class FollowUpsService {
     const db = this.prisma.forTenant(user.tenantId);
     const ownerId = await this.resolveOwnerScope(db, user, query.ownerId);
 
-    const rows = await db.followUp.findMany({
-      where: {
-        ...(ownerId ? { salespersonId: ownerId } : {}),
-        ...(query.entityType ? { entityType: query.entityType } : {}),
-        ...(query.done !== undefined ? { done: query.done } : {}),
-        ...(query.search
-          ? { title: { contains: query.search, mode: 'insensitive' } }
-          : {}),
-      },
-      include: FOLLOWUP_INCLUDE,
-      orderBy: { id: 'asc' },
-      take: query.limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-    });
+    const where: Prisma.FollowUpWhereInput = {
+      ...(ownerId ? { salespersonId: ownerId } : {}),
+      ...(query.entityType ? { entityType: query.entityType } : {}),
+      ...(query.done !== undefined ? { done: query.done } : {}),
+      ...(query.search
+        ? { title: { contains: query.search, mode: 'insensitive' } }
+        : {}),
+    };
+
+    const [rows, total] = await db.$transaction([
+      db.followUp.findMany({
+        where,
+        include: FOLLOWUP_INCLUDE,
+        orderBy: { id: 'asc' },
+        take: query.limit + 1,
+        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+      }),
+      db.followUp.count({ where }),
+    ]);
 
     const hasMore = rows.length > query.limit;
     const page = hasMore ? rows.slice(0, query.limit) : rows;
     return {
       items: page.map(toRow),
       nextCursor: hasMore ? page[page.length - 1].id : null,
+      total,
     };
   }
 

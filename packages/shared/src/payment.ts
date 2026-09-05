@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CursorSchema, type CursorPage } from "./pagination";
 import {
   PaymentStatusSchema,
   PayZoneSchema,
@@ -22,7 +23,7 @@ export interface PaymentFollowupRow {
 
 /** GET /payments query. `ownerId` omitted (or "ALL") = no salesperson filter. */
 export const PaymentListQuerySchema = z.object({
-  cursor: z.string().optional(),
+  cursor: CursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().optional(),
   status: PaymentStatusSchema.optional(),
@@ -58,10 +59,7 @@ export interface PaymentRow {
   updatedAt: string;
 }
 
-export interface PaymentListResponse {
-  items: PaymentRow[];
-  nextCursor: string | null;
-}
+export type PaymentListResponse = CursorPage<PaymentRow>;
 
 /** POST /payments body. Only `amount` is required (manual payments allowed). */
 export const PaymentCreateSchema = z.object({

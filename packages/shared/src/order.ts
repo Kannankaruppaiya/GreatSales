@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CursorSchema, type CursorPage } from "./pagination";
 import {
   DeliveryModeSchema,
   OrderStatusSchema,
@@ -42,12 +43,14 @@ export interface OrderStatusHistoryRow {
 
 /** GET /orders query. `ownerId` omitted (or "ALL") = no salesperson filter. */
 export const OrderListQuerySchema = z.object({
-  cursor: z.string().optional(),
+  cursor: CursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().optional(),
   status: OrderStatusSchema.optional(),
   customerId: z.string().optional(),
   ownerId: z.string().optional(),
+  /** Orders carrying at least one item whose product belongs to this principal. */
+  principalId: z.string().optional(),
 });
 export type OrderListQuery = z.infer<typeof OrderListQuerySchema>;
 
@@ -80,14 +83,11 @@ export interface OrderRow {
   updatedAt: string;
 }
 
-export interface OrderListResponse {
-  items: OrderRow[];
-  nextCursor: string | null;
-}
+export type OrderListResponse = CursorPage<OrderRow>;
 
 /** POST /orders body. `total` is computed server-side from `items`. */
 export const OrderCreateSchema = z.object({
-  code: z.string().min(1),
+  code: z.string().min(1).max(60),
   customerId: z.string().min(1),
   salespersonId: z.string().min(1),
   items: z.array(OrderItemInputSchema).min(1),

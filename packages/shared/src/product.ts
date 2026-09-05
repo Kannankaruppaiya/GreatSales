@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CursorSchema, QueryBool, type CursorPage } from "./pagination";
 import { DivisionSchema, type DivisionValue } from "./enums";
 
 /**
@@ -12,11 +13,12 @@ import { DivisionSchema, type DivisionValue } from "./enums";
  */
 
 export const ProductListQuerySchema = z.object({
-  cursor: z.string().optional(),
+  cursor: CursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().optional(),
   principalId: z.string().optional(),
-  active: z.coerce.boolean().optional(),
+  active: QueryBool.optional(),
+  division: DivisionSchema.optional(),
 });
 export type ProductListQuery = z.infer<typeof ProductListQuerySchema>;
 
@@ -34,14 +36,11 @@ export interface ProductRow {
   updatedAt: string;
 }
 
-export interface ProductListResponse {
-  items: ProductRow[];
-  nextCursor: string | null;
-}
+export type ProductListResponse = CursorPage<ProductRow>;
 
 /** POST /products body. `principalId` is required (the owning brand FK). */
 export const ProductCreateSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).max(200),
   principalId: z.string().min(1),
   sku: z.string().nullable().optional(),
   division: DivisionSchema.nullable().optional(),

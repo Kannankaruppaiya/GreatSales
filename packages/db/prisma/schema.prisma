@@ -189,6 +189,7 @@ model Tenant {
   attachments   Attachment[]
   auditLogs     AuditLog[]
   importJobs    ImportJob[]
+  periodLocks   PeriodLock[]
   featureFlags  TenantFeatureFlag[]
   refreshTokens RefreshToken[]
 
@@ -242,6 +243,7 @@ model User {
   followUps          FollowUp[]
   activities         Activity[]
   remarks            Remark[]
+  periodLocks        PeriodLock[]
   notifications      Notification[]
   attachments        Attachment[]
   auditLogs          AuditLog[]
@@ -778,6 +780,25 @@ model Remark {
 
   @@index([tenantId])
   @@index([entityType, entityId])
+}
+
+// A reporting month frozen for edits. Presence of the row IS the lock; unlock
+// deletes it, so there is no "locked: false" state to disagree with itself.
+// Enforced in ProjectionsService.update — the Data page toggle it replaces was
+// local React state that reset on reload.
+model PeriodLock {
+  id         String   @id @default(cuid())
+  tenantId   String
+  period     String // YYYY-MM, matching Projection.period
+  reason     String?
+  lockedById String
+  lockedAt   DateTime @default(now())
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  lockedBy User   @relation(fields: [lockedById], references: [id])
+
+  @@unique([tenantId, period])
+  @@index([tenantId])
 }
 
 model Notification {

@@ -58,31 +58,38 @@ export class ProductsService {
     query: ProductListQuery,
   ): Promise<ProductListResponse> {
     const db = this.prisma.forTenant(user.tenantId);
-    const rows = await db.product.findMany({
-      where: {
-        deletedAt: null,
-        ...(query.principalId ? { principalId: query.principalId } : {}),
-        ...(query.active !== undefined ? { active: query.active } : {}),
-        ...(query.search
-          ? {
-              OR: [
-                { name: { contains: query.search, mode: 'insensitive' } },
-                { sku: { contains: query.search, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
-      },
-      include: PRODUCT_INCLUDE,
-      orderBy: { id: 'asc' },
-      take: query.limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-    });
+    const where: Prisma.ProductWhereInput = {
+      deletedAt: null,
+      ...(query.principalId ? { principalId: query.principalId } : {}),
+      ...(query.active !== undefined ? { active: query.active } : {}),
+      ...(query.division ? { division: query.division } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { sku: { contains: query.search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+
+    const [rows, total] = await db.$transaction([
+      db.product.findMany({
+        where,
+        include: PRODUCT_INCLUDE,
+        orderBy: { id: 'asc' },
+        take: query.limit + 1,
+        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+      }),
+      db.product.count({ where }),
+    ]);
 
     const hasMore = rows.length > query.limit;
     const page = hasMore ? rows.slice(0, query.limit) : rows;
     return {
       items: page.map(toRow),
       nextCursor: hasMore ? page[page.length - 1].id : null,
+      total,
     };
   }
 

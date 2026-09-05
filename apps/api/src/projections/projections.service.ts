@@ -12,6 +12,7 @@ import type {
   RequestUser,
 } from '@greatsales/shared';
 import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
+import { PeriodLocksService } from '../period-locks/period-locks.service';
 import {
   applyFilters,
   sortLines,
@@ -103,6 +104,17 @@ export class ProjectionsService {
     const restrictToSelf = await this.isSalesOnly(db, user.roleId);
     if (restrictToSelf && existing.mapping.salespersonId !== user.userId) {
       throw new ForbiddenException('Cannot edit another salesperson line');
+    }
+
+    // A closed month is frozen for everyone, including admins. This is the ONLY
+    // enforcement of the Data page's period lock: that toggle used to be local
+    // React state, so the card promised the figures were frozen while every row
+    // stayed editable. Checked against the row's own period rather than any
+    // period the client sends, so a client cannot pick an unlocked month.
+    if (await PeriodLocksService.isLocked(db, existing.period)) {
+      throw new ForbiddenException(
+        `${existing.period} is locked for reporting and cannot be edited`,
+      );
     }
 
     const data: Prisma.ProjectionUpdateInput = {};

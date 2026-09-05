@@ -72,28 +72,56 @@ export class CustomersService {
     const db = this.prisma.forTenant(user.tenantId);
     const ownerId = await this.resolveOwnerScope(db, user, query.ownerId);
 
-    const rows = await db.customer.findMany({
-      where: {
-        deletedAt: null,
-        ...(ownerId ? { salespersonId: ownerId } : {}),
-        ...(query.category ? { category: query.category } : {}),
-        ...(query.active !== undefined ? { active: query.active } : {}),
-        ...(query.search
-          ? { name: { contains: query.search, mode: 'insensitive' } }
-          : {}),
-      },
-      include: CUSTOMER_INCLUDE,
-      orderBy: { id: 'asc' },
-      take: query.limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-    });
+    const where: Prisma.CustomerWhereInput = {
+      deletedAt: null,
+      ...(ownerId ? { salespersonId: ownerId } : {}),
+      ...(query.category ? { category: query.category } : {}),
+      ...(query.active !== undefined ? { active: query.active } : {}),
+      ...(query.area ? { area: query.area } : {}),
+      ...(query.industryId ? { industryId: query.industryId } : {}),
+      // A customer has no principal column; the relation is
+      // customer → mappings → product → principal, so this is a `some` filter.
+      ...(query.principalId
+        ? { mappings: { some: { product: { principalId: query.principalId } } } }
+        : {}),
+      ...(query.search
+        ? { name: { contains: query.search, mode: 'insensitive' } }
+        : {}),
+    };
+
+    // Page and count in ONE transaction: read separately, a concurrent insert
+    // makes the header total disagree with the rows under it.
+    const [rows, total] = await db.$transaction([
+      db.customer.findMany({
+        where,
+        include: CUSTOMER_INCLUDE,
+        orderBy: { id: 'asc' },
+        take: query.limit + 1,
+        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+      }),
+      db.customer.count({ where }),
+    ]);
 
     const hasMore = rows.length > query.limit;
     const page = hasMore ? rows.slice(0, query.limit) : rows;
     return {
       items: page.map(toRow),
       nextCursor: hasMore ? page[page.length - 1].id : null,
+      total,
     };
+  }
+
+  /**
+   * Fetch a single customer by id with tenant RLS isolation.
+   */
+  async getById(user: RequestUser, id: string): Promise<CustomerRow> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const existing = await db.customer.findFirst({
+      where: { id, deletedAt: null },
+      include: CUSTOMER_INCLUDE,
+    });
+    if (!existing) throw new NotFoundException('Customer not found');
+    return toRow(existing);
   }
 
   /** Create a customer. Salespeople always own what they create. */

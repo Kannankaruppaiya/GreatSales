@@ -19,6 +19,9 @@ import { ProductsModule } from './products/products.module';
 import { FollowUpsModule } from './followups/followups.module';
 import { MappingsModule } from './mappings/mappings.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { RemarksModule } from './remarks/remarks.module';
+import { PeriodLocksModule } from './period-locks/period-locks.module';
+import { ManagementsModule } from './managements/managements.module';
 
 @Module({
   imports: [
@@ -42,6 +45,9 @@ import { DashboardModule } from './dashboard/dashboard.module';
     FollowUpsModule,
     MappingsModule,
     DashboardModule,
+    RemarksModule,
+    PeriodLocksModule,
+    ManagementsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

@@ -18,6 +18,7 @@ export const PERMISSIONS = [
   { key: "payment.write", module: "payment" },
   { key: "user.manage", module: "admin" },
   { key: "role.manage", module: "admin" },
+  { key: "period.manage", module: "admin" },
   { key: "report.view", module: "report" },
 ] as const;
 
@@ -43,6 +44,7 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   "payment.write": "Record payments",
   "user.manage": "Manage users",
   "role.manage": "Manage roles and permissions",
+  "period.manage": "Lock and unlock reporting periods",
   "report.view": "View reports and dashboards",
 };
 
@@ -70,6 +72,7 @@ export type SystemRole = (typeof SYSTEM_ROLES)[number];
 export const ROLE_PERMISSIONS: Record<SystemRole, PermissionKey[]> = {
   admin: PERMISSION_KEYS,
   mgmt: [
+    "period.manage",
     "customer.read",
     "lead.read",
     "projection.read",

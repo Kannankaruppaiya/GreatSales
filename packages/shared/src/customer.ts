@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CursorSchema, QueryBool, type CursorPage } from "./pagination";
 import {
   CustomerCategorySchema,
   CustomerTypeSchema,
@@ -23,12 +24,22 @@ import {
 
 /** GET /customers query. `ownerId` omitted (or "ALL") = no salesperson filter. */
 export const CustomerListQuerySchema = z.object({
-  cursor: z.string().optional(),
+  cursor: CursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().optional(),
   category: CustomerCategorySchema.optional(),
   ownerId: z.string().optional(),
-  active: z.coerce.boolean().optional(),
+  active: QueryBool.optional(),
+  /** Industrial area, matched exactly against Customer.area. */
+  area: z.string().optional(),
+  /** Industry master id, not the display name. */
+  industryId: z.string().optional(),
+  /**
+   * Accounts that carry at least one mapping for a product of this principal.
+   * A customer has no principal column — the relation runs
+   * customer → mappings → product → principal — so this is a `some` filter.
+   */
+  principalId: z.string().optional(),
 });
 export type CustomerListQuery = z.infer<typeof CustomerListQuerySchema>;
 
@@ -57,14 +68,11 @@ export interface CustomerRow {
   updatedAt: string;
 }
 
-export interface CustomerListResponse {
-  items: CustomerRow[];
-  nextCursor: string | null;
-}
+export type CustomerListResponse = CursorPage<CustomerRow>;
 
 /** POST /customers body. `salespersonId` is required (the owning FK). */
 export const CustomerCreateSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).max(200),
   salespersonId: z.string().min(1),
   division: DivisionSchema.nullable().optional(),
   category: CustomerCategorySchema.nullable().optional(),
