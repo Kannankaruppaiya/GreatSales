@@ -47,13 +47,16 @@ describe("App routing", () => {
     });
   });
 
-  it("owner hitting / lands on the management home", async () => {
+  // A tenant user (super_admin included) belongs to one management and lands in
+  // its dashboard. The cross-company Home is now the platform owner's surface,
+  // reached only through the separate platform login — not from a tenant session.
+  it("a tenant user hitting / lands on their management dashboard", async () => {
     renderApp(["/"]);
-    expect(await screen.findByText(/super admin hub/i, undefined, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByText(/executive overview/i, undefined, { timeout: 5000 })).toBeInTheDocument();
   });
 
   it("opening a management renders the dashboard shell", async () => {
-    renderApp([`/managements/${DEFAULT_MANAGEMENT_ID}/dashboard`]);
+    renderApp([`/managements/tenant_acme/dashboard`]);
     expect(await screen.findByText(/executive overview/i, undefined, { timeout: 5000 })).toBeInTheDocument();
   });
 
@@ -62,7 +65,7 @@ describe("App routing", () => {
   // their own mappings. A guard here would only hide the page from the people
   // who maintain it, so this asserts the route resolves rather than 404s.
   it("the mappings route renders the mapping page", async () => {
-    renderApp([`/managements/${DEFAULT_MANAGEMENT_ID}/mappings`]);
+    renderApp([`/managements/tenant_acme/mappings`]);
     expect(
       await screen.findByText(/customer & product mapping/i, undefined, { timeout: 5000 }),
     ).toBeInTheDocument();

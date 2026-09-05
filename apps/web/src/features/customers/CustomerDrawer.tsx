@@ -4,6 +4,7 @@ import { useAuthRole } from "@/store/auth";
 import { ApiError } from "@/lib/api";
 import { Button, Skeleton } from "@/components/ui";
 import { useCustomers, useDeleteCustomer, flattenCustomers } from "@/features/customers/queries";
+import { ContactsPanel } from "@/features/customers/ContactsPanel";
 import type { CustomerRow } from "@/features/customers/types";
 
 /**
@@ -21,11 +22,10 @@ import type { CustomerRow } from "@/features/customers/types";
  * `customer` avoids that gap entirely.
  *
  * The recurring-projections / sales-orders / payments tabs the old mock
- * drawer showed are dropped here: they read `trackerStore.projections` /
- * `.orders` / `.payments`, which are out of scope for this task (those pages
- * are wired in later tasks) and forbidden by the "zero trackerStore reads"
- * constraint. This now shows only the customer record itself, sourced from
- * the real `/customers` API.
+ * drawer showed are gone: they read the client-side mock store, which has
+ * since been deleted entirely. This shows only the customer record itself,
+ * sourced from the real `/customers` API; those cross-entity views belong to
+ * their own pages.
  */
 export function CustomerDrawer({
   customerId,
@@ -247,6 +247,8 @@ export function CustomerDrawer({
                   <span className="font-semibold text-ink">{customer.collectorName || "—"}</span>
                 </div>
               </div>
+
+              <ContactsPanel customerId={customer.id} canEdit={role !== "mgmt"} />
 
               <div className="py-8 text-center text-xs text-muted border border-dashed border-line rounded-xl">
                 Mapped SKUs, sales orders and invoices will appear here once those pages are

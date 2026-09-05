@@ -154,4 +154,127 @@ describe('PaymentsService (integration)', () => {
       service.update(admin('tenant_acme', 'acme'), created.id, { amount: 1 }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  describe('import (bulk)', () => {
+    it('creates new rows, skips duplicates, and reports per row', async () => {
+      const res = await service.import(admin('tenant_acme', 'acme'), {
+        rows: [
+          { rowNumber: 1, refNo: 'IMP-A', amount: 1000, received: 400 },
+          // Repeated later in the same sheet — first wins, this one skips.
+          { rowNumber: 2, refNo: 'IMP-A', amount: 9999 },
+          // Already live in the ledger (created by an earlier test) — skips.
+          { rowNumber: 3, refNo: 'PAY-ACME-001', amount: 5 },
+          { rowNumber: 4, refNo: 'IMP-B', amount: 2000 },
+          // No reference — always inserts, never a duplicate.
+          { rowNumber: 5, customerName: 'Walk-in', amount: 300 },
+        ],
+      });
+
+      expect(res.created).toBe(3);
+      expect(res.skippedDuplicates).toBe(2);
+      expect(res.failed).toBe(0);
+      expect(res.totalRows).toBe(5);
+      expect(res.importJobId).toBeTruthy();
+
+      const byRow = new Map(res.results.map((r) => [r.rowNumber, r]));
+      expect(byRow.get(1)!.status).toBe('created');
+      expect(byRow.get(2)!.status).toBe('skipped_duplicate');
+      expect(byRow.get(3)!.status).toBe('skipped_duplicate');
+      expect(byRow.get(4)!.status).toBe('created');
+      expect(byRow.get(5)!.status).toBe('created');
+
+      // The created row's money was derived server-side, not trusted.
+      const list = await service.list(
+        admin('tenant_acme', 'acme'),
+        { limit: 100 },
+        TODAY,
+      );
+      const impA = list.items.find((p) => p.refNo === 'IMP-A')!;
+      expect(impA.amount).toBe(1000);
+      expect(impA.pending).toBe(600);
+      expect(impA.status).toBe('PartiallyPaid');
+    });
+
+    it('re-importing the same sheet double-counts nothing (skips everything)', async () => {
+      const rows = [
+        { rowNumber: 1, refNo: 'IMP-RERUN-1', amount: 111 },
+        { rowNumber: 2, refNo: 'IMP-RERUN-2', amount: 222 },
+      ];
+      const first = await service.import(admin('tenant_acme', 'acme'), {
+        rows,
+      });
+      expect(first.created).toBe(2);
+
+      const second = await service.import(admin('tenant_acme', 'acme'), {
+        rows,
+      });
+      expect(second.created).toBe(0);
+      expect(second.skippedDuplicates).toBe(2);
+
+      const list = await service.list(
+        admin('tenant_acme', 'acme'),
+        { limit: 100 },
+        TODAY,
+      );
+      expect(list.items.filter((p) => p.refNo === 'IMP-RERUN-1')).toHaveLength(
+        1,
+      );
+    });
+
+    it('records an ImportJob for the attempt', async () => {
+      const before = await prisma
+        .forTenant('tenant_acme')
+        .importJob.count({ where: { type: 'payments' } });
+      await service.import(admin('tenant_acme', 'acme'), {
+        rows: [{ rowNumber: 1, refNo: 'IMP-JOB-1', amount: 10 }],
+      });
+      const after = await prisma
+        .forTenant('tenant_acme')
+        .importJob.count({ where: { type: 'payments' } });
+      expect(after).toBe(before + 1);
+    });
+
+    it('lets a soft-deleted reference be re-imported (partial-unique on live rows)', async () => {
+      const created = await service.import(admin('tenant_acme', 'acme'), {
+        rows: [{ rowNumber: 1, refNo: 'IMP-REUSE', amount: 50 }],
+      });
+      const id = created.results[0].paymentId!;
+      await service.remove(admin('tenant_acme', 'acme'), id);
+
+      const again = await service.import(admin('tenant_acme', 'acme'), {
+        rows: [{ rowNumber: 1, refNo: 'IMP-REUSE', amount: 70 }],
+      });
+      expect(again.created).toBe(1);
+      expect(again.skippedDuplicates).toBe(0);
+    });
+
+    it('the DB backstop rejects a second live row with the same (tenant, refNo)', async () => {
+      await service.create(admin('tenant_acme', 'acme'), {
+        amount: 10,
+        refNo: 'IMP-BACKSTOP',
+      });
+      // Bypass the service dedupe and insert straight through the tenant client:
+      // the partial-unique index must still refuse the duplicate.
+      await expect(
+        prisma.forTenant('tenant_acme').payment.create({
+          data: {
+            tenant: { connect: { id: 'tenant_acme' } },
+            amount: 10,
+            refNo: 'IMP-BACKSTOP',
+          },
+        }),
+      ).rejects.toMatchObject({ code: 'P2002' });
+    });
+
+    it('isolates tenants — an Acme reference does not collide with Globex', async () => {
+      await service.import(admin('tenant_acme', 'acme'), {
+        rows: [{ rowNumber: 1, refNo: 'IMP-SHARED', amount: 1 }],
+      });
+      const globex = await service.import(admin('tenant_globex', 'globex'), {
+        rows: [{ rowNumber: 1, refNo: 'IMP-SHARED', amount: 1 }],
+      });
+      expect(globex.created).toBe(1);
+      expect(globex.skippedDuplicates).toBe(0);
+    });
+  });
 });

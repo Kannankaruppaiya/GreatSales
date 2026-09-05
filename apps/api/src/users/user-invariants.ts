@@ -285,6 +285,18 @@ export async function assertNotLastAdmin(
   `;
   if (targetIsAdmin.length === 0) return;
 
+  // Serialise every admin-removal for this tenant on a transaction-scoped
+  // advisory lock, taken BEFORE the row locks below. Without it, two admins
+  // removing EACH OTHER lock the other's row FOR UPDATE and then try to write
+  // it — an A→B / B→A lock-order inversion that Postgres breaks with a
+  // deadlock (nondeterministic winner) instead of the clean "one succeeds"
+  // this guard promises. The advisory lock makes the second caller wait for the
+  // first to commit and then observe its effect. Released automatically at
+  // COMMIT/ROLLBACK; the tenant-scoped key keeps unrelated tenants concurrent.
+  // Wrapped so the row carries a real boolean, not pg_advisory_xact_lock's
+  // `void` (which the query client will not deserialize).
+  await tx.$queryRaw`SELECT true AS locked FROM (SELECT pg_advisory_xact_lock(hashtext(${`admin-guard:${tenantId}`}))) _lock`;
+
   // Lock every OTHER live administrator for the duration of this transaction.
   const others = await tx.$queryRaw<{ id: string }[]>`
     SELECT u."id"

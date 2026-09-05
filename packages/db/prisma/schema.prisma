@@ -220,6 +220,13 @@ model User {
   /// replace it before doing anything else. Enforced by MustChangePasswordGuard,
   /// not merely surfaced to the UI.
   mustChangePassword  Boolean   @default(false)
+  /// Bumped whenever a change must invalidate ALREADY-ISSUED access tokens
+  /// immediately (role change, password reset/change) — not just the refresh
+  /// tokens. Embedded in the access token (claim `tv`) and re-checked by
+  /// JwtAuthGuard on every request, so a stale token is rejected before its
+  /// ~15m TTL. Deactivation/deletion are caught by the guard's active/deletedAt
+  /// check and need no bump.
+  tokenVersion Int       @default(0)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
@@ -410,6 +417,13 @@ model CustomerContact {
   customer Customer @relation(fields: [customerId], references: [id])
 
   @@index([customerId])
+  // At most ONE primary contact per customer. Enforced by a PARTIAL UNIQUE
+  // index CustomerContact_customerId_primary_key ON ("customerId") WHERE
+  // "isPrimary" — Prisma cannot model a partial index, so (like the RLS
+  // policies and the Payment refNo backstop) it lives in raw SQL: migration
+  // 20260829140000_customer_contact_one_primary. The customers service demotes
+  // the current primary before promoting a new one, so the invariant holds
+  // without ever momentarily having two.
 }
 
 // ============================================================
@@ -704,6 +718,15 @@ model Payment {
   @@index([customerId])
   @@index([salespersonId])
   @@index([status])
+  // Backs the whole-table refNo dedupe lookup on import (equality: refNo IN (…)).
+  // A PARTIAL UNIQUE index on (tenantId, refNo) WHERE refNo IS NOT NULL AND
+  // deletedAt IS NULL enforces receipt-reference uniqueness per tenant — it is
+  // the hard backstop the bulk import relies on. Prisma cannot express a
+  // filtered/partial index, so (exactly like the RLS policies and the User
+  // identity indexes) it lives in raw SQL: see the migration
+  // 20260829120000_payment_refno_dedupe. This plain @@index stays so Prisma
+  // keeps the equality lookup index-backed.
+  @@index([tenantId, refNo])
 }
 
 model PaymentFollowup {

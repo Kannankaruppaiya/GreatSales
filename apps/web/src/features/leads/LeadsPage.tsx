@@ -9,6 +9,7 @@ import { StatusBadge, TierBadge } from "@/components/StatusBadge";
 import { AddLeadModal } from "@/features/leads/AddLeadModal";
 import { LeadDetailModal } from "@/features/leads/LeadDetailModal";
 import { useLeads, useUpdateLead, flattenLeads } from "@/features/leads/queries";
+import { useIndustries } from "@/features/industries/queries";
 import {
   DEAL_STAGE_VALUES,
   DEAL_STAGE_LABELS,
@@ -75,17 +76,11 @@ export default function LeadsPage() {
     return [...m.entries()].map(([id, name]) => ({ id, name }));
   }, [leads]);
 
-  // Industry filter options — likewise no dedicated /industries endpoint,
-  // derived from whatever industryId/industryName pairs already appear on
-  // loaded leads (mirrors AddCustomerModal's `industries` prop, which
-  // CustomersPage also never has a dedicated source for).
-  const industryOptions = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const l of leads) {
-      if (l.industryId && l.industryName) m.set(l.industryId, l.industryName);
-    }
-    return [...m.entries()].map(([id, name]) => ({ id, name }));
-  }, [leads]);
+  // Industry options for the add-lead picker come from the dedicated catalogue
+  // endpoint (GET /industries), fetched only while the modal is open. This
+  // replaces the old hack of scraping id/name pairs off loaded leads, which
+  // could only ever offer industries that already appeared in the pipeline.
+  const { data: industryOptions = [] } = useIndustries({ enabled: showAddLead });
 
   // Drag and drop for Kanban — drop target carries the raw DealStageValue
   // (the Kanban column key), so this always PATCHes the raw enum string,

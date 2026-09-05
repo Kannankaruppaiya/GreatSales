@@ -1,18 +1,50 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { ChevronDown, Building2, LayoutGrid } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ChevronDown, Building2, LayoutGrid, Loader2 } from "lucide-react";
 import { useUi } from "@/store/ui";
-import { useManagementStore } from "@/features/management/managementStore";
-import { useIsOwner } from "@/store/auth";
+import { useIsPlatformAuthed } from "@/store/platformAuth";
+import {
+  useManagements,
+  openManagement,
+  type ManagementSummary,
+} from "@/features/management/queries";
 
+/** Two-letter initials from a company name, for the compact list rows. */
+const initials = (name: string) =>
+  name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("") || "M";
+
+/**
+ * Topbar management switcher — shown ONLY to a signed-in platform owner (a
+ * tenant admin has no platform session, so it stays hidden for them). Switching
+ * mints a fresh tenant session for the target via assume, then navigates.
+ */
 export function ManagementSwitcher() {
-  const isOwner = useIsOwner();
+  const navigate = useNavigate();
+  const isOwner = useIsPlatformAuthed();
   const activeManagementId = useUi((s) => s.activeManagementId);
-  const managements = useManagementStore((s) => s.managements);
+  const { data: managements = [] } = useManagements();
   const [open, setOpen] = useState(false);
+  const [switchingTo, setSwitchingTo] = useState<string | null>(null);
 
   if (!isOwner) return null;
+
   const current = managements.find((m) => m.id === activeManagementId);
+
+  const switchTo = async (m: ManagementSummary) => {
+    setSwitchingTo(m.id);
+    try {
+      await openManagement(m.id);
+      setOpen(false);
+      navigate(`/managements/${m.id}/dashboard`);
+    } finally {
+      setSwitchingTo(null);
+    }
+  };
 
   return (
     <div className="relative">
@@ -23,7 +55,9 @@ export function ManagementSwitcher() {
         className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1 text-xs font-bold text-ink hover:border-brand/40 transition-colors"
       >
         <Building2 className="h-3.5 w-3.5 text-muted" />
-        <span className="max-w-[140px] truncate">{current?.name ?? "Select management"}</span>
+        <span className="max-w-[140px] truncate">
+          {current?.name ?? "Select management"}
+        </span>
         <ChevronDown className="h-3 w-3" />
       </button>
 
@@ -34,28 +68,36 @@ export function ManagementSwitcher() {
             {managements
               .filter((m) => m.id !== activeManagementId)
               .map((m) => (
-                <Link
+                <button
                   key={m.id}
-                  to={`/managements/${m.id}/dashboard`}
+                  type="button"
                   aria-label={m.name}
-                  onClick={() => setOpen(false)}
-                  className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-ink hover:bg-surface-2"
+                  disabled={switchingTo !== null}
+                  onClick={() => switchTo(m)}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-ink hover:bg-surface-2 disabled:opacity-60"
                 >
                   <span className="grid h-5 w-5 place-items-center rounded bg-brand-soft text-[10px] font-bold text-brand-ink">
-                    {m.initials}
+                    {initials(m.name)}
                   </span>
-                  <span className="truncate">{m.name}</span>
-                </Link>
+                  <span className="flex-1 truncate">{m.name}</span>
+                  {switchingTo === m.id && (
+                    <Loader2 className="h-3 w-3 animate-spin text-muted" />
+                  )}
+                </button>
               ))}
             <div className="my-1 border-t border-line" />
-            <Link
-              to="/managements"
+            <button
+              type="button"
               aria-label="Back to all managements"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-ink hover:bg-surface-2"
+              onClick={() => {
+                setOpen(false);
+                navigate("/managements");
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-ink hover:bg-surface-2"
             >
-              <LayoutGrid className="h-3.5 w-3.5 text-muted" /> Back to all managements
-            </Link>
+              <LayoutGrid className="h-3.5 w-3.5 text-muted" /> Back to all
+              managements
+            </button>
           </div>
         </>
       )}

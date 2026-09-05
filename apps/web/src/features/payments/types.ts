@@ -73,6 +73,47 @@ export interface PaymentCreate {
 export type PaymentUpdate = Partial<PaymentCreate>;
 
 /**
+ * Bulk-import wire types. Mirrors @greatsales/shared PaymentImport* — the API
+ * is the source of truth. The browser parses the spreadsheet only to PREVIEW
+ * it; these rows are re-validated and re-deduped server-side, so the client is
+ * never the integrity boundary. `rowNumber` is the 1-based source-sheet row so
+ * the server's per-row result points back at the exact line the user sees.
+ */
+export const PAYMENT_IMPORT_MAX_ROWS = 5000;
+
+export interface PaymentImportRow {
+  rowNumber: number;
+  amount: number;
+  refNo?: string | null;
+  customerName?: string | null;
+  invoiceDate?: string | null;
+  received?: number;
+  payZone?: PayZoneValue | null;
+  delayReason?: string | null;
+}
+
+export interface PaymentImport {
+  rows: PaymentImportRow[];
+}
+
+export interface PaymentImportRowResult {
+  rowNumber: number;
+  refNo: string | null;
+  status: "created" | "skipped_duplicate" | "error";
+  message?: string;
+  paymentId?: string;
+}
+
+export interface PaymentImportResult {
+  importJobId: string;
+  totalRows: number;
+  created: number;
+  skippedDuplicates: number;
+  failed: number;
+  results: PaymentImportRowResult[];
+}
+
+/**
  * `payZone` is a raw DB enum string on the wire (see
  * packages/shared/src/enums.ts — PayZoneSchema); the API rejects anything
  * else with a 400. The web shows friendly labels in `<select>`s / filter

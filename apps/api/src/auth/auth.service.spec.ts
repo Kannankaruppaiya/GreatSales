@@ -423,6 +423,31 @@ describe('AuthService', () => {
       ).resolves.toBeDefined();
     });
 
+    it('does not fork the family when the same token is refreshed concurrently', async () => {
+      const first = await signIn();
+
+      // Two requests present the SAME token at once. Exactly one may rotate;
+      // if both did, the family would fork into two live branches.
+      const outcomes = await Promise.allSettled([
+        auth.refresh(first.refreshTokenValue),
+        auth.refresh(first.refreshTokenValue),
+      ]);
+      const fulfilled = outcomes.filter(
+        (
+          r,
+        ): r is PromiseFulfilledResult<
+          Awaited<ReturnType<typeof auth.refresh>>
+        > => r.status === 'fulfilled',
+      );
+      expect(fulfilled).toHaveLength(1);
+      expect(outcomes.filter((r) => r.status === 'rejected')).toHaveLength(1);
+
+      // The single winning replacement is the only live branch and rotates on.
+      await expect(
+        auth.refresh(fulfilled[0].value.refreshTokenValue),
+      ).resolves.toBeDefined();
+    });
+
     it('rejects a well-signed token with no matching row', async () => {
       const forged = await jwt.signAsync(
         {

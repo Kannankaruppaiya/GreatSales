@@ -1,4 +1,12 @@
-import { computeTotal, lineTotal, type EngineItem } from './order-engine';
+import {
+  allowedNextStatuses,
+  canTransition,
+  computeTotal,
+  isTerminalOrderStatus,
+  lineTotal,
+  ORDER_STATUS_FLOW,
+  type EngineItem,
+} from './order-engine';
 
 /**
  * Pure order arithmetic — no DB. Money is Decimal(14,2) in the store, so every
@@ -39,6 +47,55 @@ describe('order-engine', () => {
         { qty: 1, price: 0.2 },
       ];
       expect(computeTotal(items)).toBe(0.3);
+    });
+  });
+
+  describe('fulfilment state machine', () => {
+    it('allows each forward step along the chain, plus cancel', () => {
+      for (let i = 0; i < ORDER_STATUS_FLOW.length - 1; i++) {
+        const from = ORDER_STATUS_FLOW[i];
+        const to = ORDER_STATUS_FLOW[i + 1];
+        expect(canTransition(from, to)).toBe(true);
+        expect(canTransition(from, 'Cancelled')).toBe(true);
+      }
+    });
+
+    it('rejects skipping a stage', () => {
+      expect(canTransition('Created', 'DeliveryPartnerAssigned')).toBe(false);
+      expect(canTransition('Acknowledged', 'DeliveredToCustomer')).toBe(false);
+      expect(canTransition('Created', 'CustomerReceiptConfirmed')).toBe(false);
+    });
+
+    it('rejects moving backwards', () => {
+      expect(canTransition('Acknowledged', 'Created')).toBe(false);
+      expect(canTransition('DeliveredToCustomer', 'Acknowledged')).toBe(false);
+    });
+
+    it('treats a no-op (same status) as not a transition', () => {
+      expect(canTransition('Acknowledged', 'Acknowledged')).toBe(false);
+    });
+
+    it('has no moves out of a terminal state', () => {
+      expect(isTerminalOrderStatus('Cancelled')).toBe(true);
+      expect(isTerminalOrderStatus('CustomerReceiptConfirmed')).toBe(true);
+      expect(allowedNextStatuses('Cancelled')).toEqual([]);
+      expect(allowedNextStatuses('CustomerReceiptConfirmed')).toEqual([]);
+      expect(canTransition('Cancelled', 'Created')).toBe(false);
+      expect(canTransition('CustomerReceiptConfirmed', 'Cancelled')).toBe(
+        false,
+      );
+    });
+
+    it('final delivered stage can still be cancelled, but not advanced', () => {
+      expect(
+        canTransition('DeliveredToCustomer', 'CustomerReceiptConfirmed'),
+      ).toBe(true);
+      expect(canTransition('DeliveredToCustomer', 'Cancelled')).toBe(true);
+      // CustomerReceiptConfirmed is the terminal success — nothing follows it.
+      expect(allowedNextStatuses('DeliveredToCustomer')).toEqual([
+        'CustomerReceiptConfirmed',
+        'Cancelled',
+      ]);
     });
   });
 });

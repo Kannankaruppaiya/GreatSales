@@ -115,8 +115,8 @@ Extra for orders — the 7-step lifecycle:
 
 | # | Item | Status | Evidence |
 | --- | --- | --- | --- |
-| C.2.orders.1 | Every status transition is validated server-side against an explicit state machine; invalid transitions are rejected | `[ ]` | |
-| C.2.orders.2 | `OrderStatusHistory` is written in the same transaction as the status change | `[ ]` | |
+| C.2.orders.1 | Every status transition is validated server-side against an explicit state machine; invalid transitions are rejected | `[x]` | `order-engine.canTransition` + `orders.service`; `INVALID_ORDER_TRANSITION` / `INVALID_INITIAL_ORDER_STATUS` |
+| C.2.orders.2 | `OrderStatusHistory` is written in the same transaction as the status change | `[x]` | nested `statusHistory.create` inside the one `salesOrder.update` — atomic |
 | C.2.orders.3 | Order totals are computed server-side from items — never trusted from the client | `[ ]` | |
 | C.2.orders.4 | Concurrent status changes cannot produce two histories or skip a step | `[ ]` | |
 
@@ -244,7 +244,7 @@ Extra for payments — money correctness:
 | C.3.9 | **Audit log** read API — "who changed this and when" | `AuditLog`, `PlatformAuditLog` | F16 | `[ ]` |
 | C.3.10 | **Sales targets** CRUD | `SalesTarget` | F6/F11 | `[ ]` |
 | C.3.11 | **Activities / Remarks** API (a `RemarksModal` exists in web) | `Activity`, `Remark` | F7 | `[ ]` |
-| C.3.12 | **Industries** reference data | `Industry` | F3 | `[ ]` |
+| C.3.12 | **Industries** reference data — `GET /industries`, read-only (global SELECT-only table), backs the customer + lead pickers | `Industry` | F3 | `[x]` |
 | C.3.13 | **Feature flags** read/write | `FeatureFlag`, `TenantFeatureFlag` | F14 | `[ ]` |
 | C.3.14 | **Forgot-password / self-serve reset** (only admin-initiated reset exists) | — | F1 | `[ ]` |
 | C.3.15 | **Session list / revoke-other-sessions** for a user | `RefreshToken` | F1 | `[ ]` |

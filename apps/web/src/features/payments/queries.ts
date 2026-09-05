@@ -19,6 +19,8 @@ import type {
   PaymentListResponse,
   PaymentCreate,
   PaymentUpdate,
+  PaymentImport,
+  PaymentImportResult,
 } from "./types";
 
 const PAGE_SIZE = 50;
@@ -82,6 +84,25 @@ export function useUpdatePayment() {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: PaymentUpdate }) =>
       apiFetch<PaymentRow>(`/payments/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+    onSuccess: () => onPaymentMutationSuccess(qc),
+  });
+}
+
+/**
+ * Bulk-import parsed rows through the one server endpoint. The server dedupes
+ * against the whole table and commits in a single transaction, returning a
+ * per-row report — this replaces the old per-row POST loop, which had no
+ * transaction and deduped only against the loaded page. Invalidates the list so
+ * every open filter refetches the newly imported invoices.
+ */
+export function useImportPayments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: PaymentImport) =>
+      apiFetch<PaymentImportResult>("/payments/import", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => onPaymentMutationSuccess(qc),
   });
 }

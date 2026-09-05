@@ -6,14 +6,19 @@ import {
 import { Prisma } from '@prisma/client';
 import type {
   PaymentCreate,
+  PaymentImport,
+  PaymentImportResult,
+  PaymentImportRowResult,
   PaymentListQuery,
   PaymentListResponse,
   PaymentRow,
   PaymentUpdate,
   RequestUser,
 } from '@greatsales/shared';
+import { codedConflict } from '../common/error-codes';
 import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
 import { agingDays, deriveStatus, pending } from './payment-engine';
+import { normalizeRefNo, planPaymentImport } from './payment-import';
 
 /** Prisma include graph that carries everything a {@link PaymentRow} needs. */
 const PAYMENT_INCLUDE = {
@@ -140,7 +145,7 @@ export class PaymentsService {
         received,
         pending: pending(body.amount, received),
         status: deriveStatus(body.amount, received, dueDate, today),
-        refNo: body.refNo ?? null,
+        refNo: normalizeRefNo(body.refNo),
         customerName: body.customerName ?? null,
         invoiceNo: body.invoiceNo ?? null,
         invoiceDate: body.invoiceDate ? new Date(body.invoiceDate) : null,
@@ -164,6 +169,169 @@ export class PaymentsService {
     return toRow(created, today);
   }
 
+  /**
+   * Bulk-import a parsed outstanding-invoice sheet.
+   *
+   * The browser parses the spreadsheet only to PREVIEW it; this is the
+   * authoritative path. Every row is re-validated by the controller's schema,
+   * then here:
+   *
+   *   1. De-dupe against the WHOLE table (all live rows for this tenant), not a
+   *      client-loaded page — the pagination gap that let re-imports
+   *      double-count. Only the refs present in THIS sheet are queried, so the
+   *      read stays index-backed and bounded by sheet size, not ledger size.
+   *   2. Insert the survivors inside ONE transaction: a failure cannot leave
+   *      half the sheet committed. A repeat reference is a FLAGGED SKIP, not an
+   *      error — it is reported and the rest of the sheet still imports.
+   *   3. Record an ImportJob either way, OUTSIDE the payment transaction, so the
+   *      attempt is audited even when the transaction rolls back.
+   *
+   * The DB partial-unique index on (tenantId, refNo) is the hard backstop for a
+   * reference that races past step 1 (a concurrent import of the same sheet):
+   * it aborts the transaction, nothing commits, and the caller re-runs.
+   */
+  async import(
+    user: RequestUser,
+    body: PaymentImport,
+  ): Promise<PaymentImportResult> {
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = body.rows;
+    const db = this.prisma.forTenant(user.tenantId);
+
+    // A sales-only importer owns every row they bring in (mirrors create()); an
+    // admin import carries no salesperson unless the sheet grows one later.
+    const salespersonId = (await this.isSalesOnly(db, user.roleId))
+      ? user.userId
+      : null;
+
+    // Audit the attempt up front. Written through forTenant (its own scoped
+    // op), NOT inside the payment transaction: the money insert is the atomic
+    // unit; this job row is its ledger and must survive a rollback.
+    const job = await db.importJob.create({
+      data: {
+        tenant: { connect: { id: user.tenantId } },
+        type: 'payments',
+        status: 'pending',
+        total: rows.length,
+      },
+      select: { id: true },
+    });
+
+    try {
+      const { results, created, skipped } =
+        await this.prisma.transactionForTenant(user.tenantId, async (tx) => {
+          const candidateRefs = [
+            ...new Set(
+              rows
+                .map((r) => normalizeRefNo(r.refNo))
+                .filter((r): r is string => r !== null),
+            ),
+          ];
+          const existingRows = candidateRefs.length
+            ? await tx.payment.findMany({
+                where: { refNo: { in: candidateRefs }, deletedAt: null },
+                select: { refNo: true },
+              })
+            : [];
+          const existingRefs = existingRows
+            .map((p) => p.refNo)
+            .filter((r): r is string => r !== null);
+
+          const plan = planPaymentImport(rows, existingRefs);
+          const rowResults: PaymentImportRowResult[] = [];
+          let createdCount = 0;
+          let skippedCount = 0;
+
+          // Insert survivors in source order. A throw here aborts the WHOLE
+          // transaction (Postgres marks it aborted on first error), so the
+          // import is all-or-nothing — never a half-committed sheet.
+          for (let i = 0; i < rows.length; i++) {
+            const src = rows[i];
+            const decision = plan[i];
+            if (decision.action === 'skip') {
+              skippedCount++;
+              rowResults.push({
+                rowNumber: src.rowNumber,
+                refNo: decision.refNo,
+                status: 'skipped_duplicate',
+                message:
+                  decision.reason === 'duplicate_existing'
+                    ? 'A live payment with this reference already exists — skipped.'
+                    : 'This reference is repeated earlier in the sheet — skipped.',
+              });
+              continue;
+            }
+
+            const received = src.received ?? 0;
+            const createdRow = await tx.payment.create({
+              data: {
+                tenantId: user.tenantId,
+                amount: src.amount,
+                received,
+                // Imports carry no due date, so status is Paid/PartiallyPaid/
+                // Pending — never Overdue — derived from amount vs. received.
+                pending: pending(src.amount, received),
+                status: deriveStatus(src.amount, received, null, today),
+                refNo: decision.refNo,
+                customerName: src.customerName ?? null,
+                invoiceDate: src.invoiceDate ? new Date(src.invoiceDate) : null,
+                payZone: src.payZone ?? null,
+                delayReason: src.delayReason ?? null,
+                ...(salespersonId ? { salespersonId } : {}),
+              },
+              select: { id: true },
+            });
+            createdCount++;
+            rowResults.push({
+              rowNumber: src.rowNumber,
+              refNo: decision.refNo,
+              status: 'created',
+              paymentId: createdRow.id,
+            });
+          }
+
+          return {
+            results: rowResults,
+            created: createdCount,
+            skipped: skippedCount,
+          };
+        });
+
+      await db.importJob.update({
+        where: { id: job.id },
+        data: { status: 'completed', errors: [] },
+      });
+
+      return {
+        importJobId: job.id,
+        totalRows: rows.length,
+        created,
+        skippedDuplicates: skipped,
+        failed: 0,
+        results,
+      };
+    } catch (e) {
+      // The transaction rolled back — NOTHING was committed. A P2002 is the
+      // (tenantId, refNo) backstop firing on a reference that raced past the
+      // in-transaction dedupe (a concurrent import of the same sheet).
+      const raced =
+        e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002';
+      const message = raced
+        ? 'A payment reference in this sheet was imported by a concurrent request. Nothing was saved — re-run the import and the duplicate will be skipped.'
+        : 'The import failed and was rolled back. No payments were saved.';
+      // Record the failure for the audit trail; never let a logging write mask
+      // the original error.
+      await db.importJob
+        .update({
+          where: { id: job.id },
+          data: { status: 'failed', errors: [{ message }] },
+        })
+        .catch(() => undefined);
+      if (raced) throw codedConflict('PAYMENT_IMPORT_CONFLICT', message);
+      throw e;
+    }
+  }
+
   /** Partial edit; recomputes the pending/status snapshot from the new figures. */
   async update(
     user: RequestUser,
@@ -177,7 +345,7 @@ export class PaymentsService {
     const data: Prisma.PaymentUpdateInput = {};
     if (patch.amount !== undefined) data.amount = patch.amount;
     if (patch.received !== undefined) data.received = patch.received;
-    if ('refNo' in patch) data.refNo = patch.refNo ?? null;
+    if ('refNo' in patch) data.refNo = normalizeRefNo(patch.refNo);
     if ('customerName' in patch) data.customerName = patch.customerName ?? null;
     if ('invoiceNo' in patch) data.invoiceNo = patch.invoiceNo ?? null;
     if ('invoiceDate' in patch)

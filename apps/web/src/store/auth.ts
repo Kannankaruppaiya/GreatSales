@@ -13,6 +13,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { apiFetch, setTokenGetter, setRefreshHandler } from "@/lib/api";
+import { queryClient } from "@/lib/queryClient";
 import { mapRole } from "@/lib/authRole";
 import type { Role } from "@/data/constants";
 import type { AuthUser, LoginResponse } from "@/features/projections/types";
@@ -78,6 +79,10 @@ export const useAuth = create<AuthState>()(
           // A failed logout must still sign the user out of this device.
         } finally {
           set({ accessToken: null, user: null, status: "ready" });
+          // Drop every cached tenant query. Query keys carry no tenant id, so a
+          // later sign-in (same tab, different user/tenant) must not read the
+          // previous session's rows out of cache.
+          queryClient.clear();
         }
       },
 
@@ -149,6 +154,10 @@ export const useAuthUser = (): AuthUser | null => useAuth((s) => s.user);
 export const useAuthRole = (): Role => useAuth((s) => mapRole(s.user?.role));
 export const useIsOwner = (): boolean =>
   useAuth((s) => mapRole(s.user?.role) === "super_admin");
+
+/** The signed-in tenant user's tenant (management) id — the workspace they belong to. */
+export const useAuthTenantId = (): string | null =>
+  useAuth((s) => s.user?.tenantId ?? null);
 export const useLastTenantId = (): string | null =>
   useAuth((s) => s.lastTenantId);
 

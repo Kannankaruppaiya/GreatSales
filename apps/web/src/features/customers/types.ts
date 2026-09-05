@@ -95,3 +95,40 @@ export const PAY_ZONE_LABELS: Record<PayZoneValue, string> = {
   GreenZone: "Green Zone",
   Blacklist: "Blacklist",
 };
+
+/**
+ * Customer contacts sub-resource. Mirrors @greatsales/shared CustomerContact* —
+ * the API owns the "at most one primary per customer" invariant, so `isPrimary`
+ * is set by promoting a contact (isPrimary: true), never by hand-clearing one.
+ */
+export interface CustomerContactRow {
+  id: string;
+  customerId: string;
+  name: string;
+  designation: string | null;
+  phone: string | null;
+  mobile: string | null;
+  whatsapp: string | null;
+  sameAsMobile: boolean;
+  email: string | null;
+  isPrimary: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerContactListResponse {
+  items: CustomerContactRow[];
+}
+
+export interface CustomerContactCreate {
+  name: string;
+  designation?: string | null;
+  phone?: string | null;
+  mobile?: string | null;
+  whatsapp?: string | null;
+  sameAsMobile?: boolean;
+  email?: string | null;
+  isPrimary?: boolean;
+}
+
+export type CustomerContactUpdate = Partial<CustomerContactCreate>;

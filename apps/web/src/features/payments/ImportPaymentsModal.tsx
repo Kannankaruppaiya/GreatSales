@@ -3,8 +3,14 @@ import { CheckCircle2, Upload } from "lucide-react";
 import { Button, Dialog } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { inr } from "@/lib/format";
-import { useCreatePayment } from "@/features/payments/queries";
-import { PAY_ZONE_LABELS, type PayZoneValue, type PaymentCreate } from "@/features/payments/types";
+import { useImportPayments } from "@/features/payments/queries";
+import {
+  PAY_ZONE_LABELS,
+  PAYMENT_IMPORT_MAX_ROWS,
+  type PayZoneValue,
+  type PaymentImportRow,
+  type PaymentImportResult,
+} from "@/features/payments/types";
 
 // Flexible header normalizer
 function normH(h: unknown): string {
@@ -57,53 +63,50 @@ function normalizeZone(raw: string): PayZoneValue {
   return "GreenZone";
 }
 
-interface ParsedRow {
-  refNo: string;
-  customerName: string;
-  invoiceDate: string;
-  amount: number;
-  received: number;
-  payZone: PayZoneValue;
-  delayReason: string;
+/**
+ * A parsed spreadsheet row, ready to POST. `rowNumber` is the 1-based line in
+ * the source sheet (header is row 1), so the server's per-row report points
+ * back at the exact line the user sees.
+ */
+interface ParsedRow extends PaymentImportRow {
+  rowNumber: number;
 }
 
 export function ImportPaymentsModal({
   open,
   onClose,
-  existingRefNos = [],
 }: {
   open: boolean;
   onClose: () => void;
-  /**
-   * Ref numbers already visible in the currently-loaded (paginated) payments
-   * list, used only to skip obvious duplicates during parsing. There is no
-   * server-side "check all invoices" endpoint, so this can miss a duplicate
-   * that exists beyond the currently loaded page(s) — the API itself is the
-   * real source of truth and may still reject/accept as it sees fit.
-   */
-  existingRefNos?: string[];
 }) {
-  const create = useCreatePayment();
+  // The server is the sole integrity boundary: it re-validates every row,
+  // de-dupes references against the WHOLE table (not a loaded page), and
+  // commits the sheet in one transaction with a per-row report. The browser
+  // parses only to PREVIEW — deliberately no client-side dedupe here, which is
+  // what let a duplicate slip through while the payments list was paginated.
+  const imp = useImportPayments();
 
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<{
     totalRows: number;
     validRows: number;
-    duplicatesSkipped: number;
     totalPending: number;
   } | null>(null);
   const [parsedRecords, setParsedRecords] = useState<ParsedRow[]>([]);
-  const [importing, setImporting] = useState(false);
-  const [results, setResults] = useState<{ success: number; failed: number; errors: string[] } | null>(
-    null,
-  );
+  const [results, setResults] = useState<PaymentImportResult | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const resetOutcome = () => {
+    setResults(null);
+    setImportError(null);
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setLoading(true);
-    setResults(null);
+    resetOutcome();
     const reader = new FileReader();
 
     reader.onload = async (evt) => {
@@ -143,10 +146,7 @@ export function ImportPaymentsModal({
         const reasonIdx = mappedIndices["delayReason"] ?? -1;
 
         const newRecords: ParsedRow[] = [];
-        let dupCount = 0;
         let pendingSum = 0;
-
-        const existingRefSet = new Set(existingRefNos.map((r) => r.toLowerCase().trim()));
 
         for (let i = 1; i < rawJson.length; i++) {
           const row = rawJson[i] as unknown[];
@@ -155,11 +155,6 @@ export function ImportPaymentsModal({
           const refNo = String(row[refIdx] || "").trim();
           const party = String(row[partyIdx] || "").trim();
           if (!refNo && !party) continue;
-
-          if (refNo && existingRefSet.has(refNo.toLowerCase())) {
-            dupCount++;
-            continue;
-          }
 
           let dateStr = String(row[dateIdx] || "").trim();
           if (/^\d{5}$/.test(dateStr)) {
@@ -185,11 +180,13 @@ export function ImportPaymentsModal({
                 : 0;
 
           newRecords.push({
-            refNo,
+            // Header is sheet row 1, so data row i maps to sheet line i + 1.
+            rowNumber: i + 1,
+            refNo: refNo || null,
             customerName: party || "Customer",
             invoiceDate: dateStr,
-            amount: openAmt || pendAmt,
-            received: recvAmt,
+            amount: Math.max(0, openAmt || pendAmt),
+            received: Math.max(0, recvAmt),
             payZone: normalizeZone(zoneIdx >= 0 ? String(row[zoneIdx] || "") : ""),
             delayReason: reasonIdx >= 0 ? String(row[reasonIdx] || "").trim() : "",
           });
@@ -197,11 +194,19 @@ export function ImportPaymentsModal({
           pendingSum += pendAmt;
         }
 
+        if (newRecords.length > PAYMENT_IMPORT_MAX_ROWS) {
+          alert(
+            `This sheet has ${newRecords.length} rows — more than the ${PAYMENT_IMPORT_MAX_ROWS}` +
+              ` allowed in one import. Split it into smaller files.`,
+          );
+          setLoading(false);
+          return;
+        }
+
         setParsedRecords(newRecords);
         setStats({
           totalRows: rawJson.length - 1,
-          validRows: newRecords.length + dupCount,
-          duplicatesSkipped: dupCount,
+          validRows: newRecords.length,
           totalPending: pendingSum,
         });
       } catch (err) {
@@ -216,37 +221,35 @@ export function ImportPaymentsModal({
 
   const handleApply = async () => {
     if (parsedRecords.length === 0) return;
-    setImporting(true);
+    resetOutcome();
 
-    let success = 0;
-    const errors: string[] = [];
+    const rows: PaymentImportRow[] = parsedRecords.map((r) => ({
+      rowNumber: r.rowNumber,
+      amount: r.amount,
+      refNo: r.refNo ?? null,
+      customerName: r.customerName ?? null,
+      invoiceDate: r.invoiceDate ?? null,
+      received: r.received || undefined,
+      payZone: r.payZone ?? null,
+      delayReason: r.delayReason || undefined,
+    }));
 
-    // Sequential, not Promise.all: keeps errors attributable to a specific
-    // row and avoids hammering the API with 100+ concurrent POSTs on a large
-    // spreadsheet.
-    for (const rec of parsedRecords) {
-      const body: PaymentCreate = {
-        amount: rec.amount,
-        refNo: rec.refNo || undefined,
-        customerName: rec.customerName,
-        invoiceDate: rec.invoiceDate,
-        received: rec.received || undefined,
-        payZone: rec.payZone,
-        delayReason: rec.delayReason || undefined,
-      };
-      try {
-        await create.mutateAsync(body);
-        success++;
-      } catch (err) {
-        const msg = err instanceof ApiError ? err.message : "Failed to create invoice.";
-        errors.push(`${rec.refNo || rec.customerName}: ${msg}`);
-      }
+    try {
+      const res = await imp.mutateAsync({ rows });
+      setResults(res);
+    } catch (err) {
+      // A hard failure means the whole import rolled back — nothing was saved.
+      setImportError(
+        err instanceof ApiError
+          ? err.message
+          : "The import failed and was rolled back. No payments were saved.",
+      );
     }
-
-    setImporting(false);
-    setResults({ success, failed: parsedRecords.length - success, errors });
-    if (errors.length === 0) onClose();
   };
+
+  // Rows the server did not create, worth surfacing line-by-line.
+  const flaggedRows =
+    results?.results.filter((r) => r.status !== "created") ?? [];
 
   return (
     <Dialog
@@ -268,10 +271,12 @@ export function ImportPaymentsModal({
           <Button
             size="sm"
             onClick={handleApply}
-            disabled={!stats || parsedRecords.length === 0 || importing}
+            disabled={
+              !stats || parsedRecords.length === 0 || imp.isPending || results !== null
+            }
           >
             <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-            {importing ? "Importing…" : `Import ${parsedRecords.length} Invoices`}
+            {imp.isPending ? "Importing…" : `Import ${parsedRecords.length} Invoices`}
           </Button>
         </>
       }
@@ -309,12 +314,20 @@ export function ImportPaymentsModal({
               <div className="text-muted">Ready to import:</div>
               <div className="font-bold text-brand text-right tabular-nums">{parsedRecords.length}</div>
 
-              <div className="text-muted">Duplicates skipped:</div>
-              <div className="font-bold text-muted text-right tabular-nums">{stats.duplicatesSkipped}</div>
-
               <div className="text-muted">Total pending value:</div>
               <div className="font-bold text-ink text-right tabular-nums">{inr(stats.totalPending)}</div>
             </div>
+            <div className="text-[11px] text-muted">
+              Duplicate references are detected and skipped on the server, checked against every
+              invoice — not just the ones on screen.
+            </div>
+          </div>
+        )}
+
+        {/* Hard failure — the whole import rolled back */}
+        {importError && (
+          <div className="rounded-xl border border-red/40 bg-red-soft p-3.5 text-[11px] font-medium text-red">
+            {importError}
           </div>
         )}
 
@@ -324,19 +337,28 @@ export function ImportPaymentsModal({
             <div className="font-bold text-ink text-xs uppercase tracking-wider">Import Result</div>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="text-muted">Created:</div>
-              <div className="font-bold text-brand text-right tabular-nums">{results.success}</div>
+              <div className="font-bold text-brand text-right tabular-nums">{results.created}</div>
+              <div className="text-muted">Duplicates skipped:</div>
+              <div className="font-bold text-muted text-right tabular-nums">{results.skippedDuplicates}</div>
               <div className="text-muted">Failed:</div>
               <div className={`font-bold text-right tabular-nums ${results.failed > 0 ? "text-red" : "text-ink"}`}>
                 {results.failed}
               </div>
             </div>
-            {results.errors.length > 0 && (
-              <ul className="space-y-1 max-h-28 overflow-y-auto text-[11px] text-red">
-                {results.errors.map((msg, i) => (
-                  <li key={i}>{msg}</li>
+            {flaggedRows.length > 0 && (
+              <ul className="space-y-1 max-h-28 overflow-y-auto text-[11px]">
+                {flaggedRows.map((r) => (
+                  <li
+                    key={r.rowNumber}
+                    className={r.status === "error" ? "text-red" : "text-muted"}
+                  >
+                    Row {r.rowNumber}
+                    {r.refNo ? ` (${r.refNo})` : ""}: {r.message ?? r.status}
+                  </li>
                 ))}
               </ul>
             )}
+            <div className="text-[11px] text-muted">Re-upload a file to import again.</div>
           </div>
         )}
       </div>

@@ -86,3 +86,65 @@ export const CustomerUpdateSchema = CustomerCreateSchema.partial().refine(
   { message: "At least one field must be provided" },
 );
 export type CustomerUpdate = z.infer<typeof CustomerUpdateSchema>;
+
+// ============================================================
+// CUSTOMER CONTACTS (sub-resource of a customer)
+// ============================================================
+/**
+ * A customer's contact people. Managed under the parent customer
+ * (`/customers/:customerId/contacts`); tenancy + sales-ownership are enforced
+ * through that parent, and CustomerContact's RLS policy isolates it via the
+ * Customer it belongs to. A customer has AT MOST ONE primary contact — the
+ * server owns that invariant (a DB partial-unique index backs it), so `isPrimary`
+ * is set by promoting a contact, never by hand-clearing another. The customer
+ * list row's `primaryContactName`/`primaryContactPhone` are sourced from it.
+ */
+export interface CustomerContactRow {
+  id: string;
+  customerId: string;
+  name: string;
+  designation: string | null;
+  phone: string | null;
+  mobile: string | null;
+  whatsapp: string | null;
+  sameAsMobile: boolean;
+  email: string | null;
+  isPrimary: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerContactListResponse {
+  items: CustomerContactRow[];
+}
+
+/**
+ * POST /customers/:customerId/contacts. Only `name` is required. `isPrimary:
+ * true` promotes this contact and demotes any current primary; the FIRST
+ * contact a customer gets is always primary regardless. Contact channels
+ * (phone/mobile/whatsapp/email) are free text, consistent with the rest of the
+ * customer master — the UI, not the wire schema, formats them.
+ */
+export const CustomerContactCreateSchema = z.object({
+  name: z.string().min(1),
+  designation: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  mobile: z.string().nullable().optional(),
+  whatsapp: z.string().nullable().optional(),
+  sameAsMobile: z.boolean().optional(),
+  email: z.string().nullable().optional(),
+  isPrimary: z.boolean().optional(),
+});
+export type CustomerContactCreate = z.infer<typeof CustomerContactCreateSchema>;
+
+/**
+ * PATCH /customers/:customerId/contacts/:contactId — partial edit, at least one
+ * field. `isPrimary: true` promotes this contact; `isPrimary: false` is ignored
+ * (a customer with contacts always keeps exactly one primary — promote a
+ * different contact to move the flag).
+ */
+export const CustomerContactUpdateSchema = CustomerContactCreateSchema.partial()
+  .refine((o) => Object.keys(o).length > 0, {
+    message: "At least one field must be provided",
+  });
+export type CustomerContactUpdate = z.infer<typeof CustomerContactUpdateSchema>;

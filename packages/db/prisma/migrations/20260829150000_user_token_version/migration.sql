@@ -1,0 +1,20 @@
+-- Access-token invalidation: a per-user token version.
+--
+-- WHY
+-- ----------------------------------------------------------------------------
+-- Deactivating, deleting, resetting the password of, or changing the role of a
+-- user only revoked that user's REFRESH tokens. JwtAuthGuard verifies an access
+-- token's signature and trusts its embedded claims (roleId included) without
+-- re-reading the user, so an already-issued access token stayed valid — and
+-- authorized against its stale roleId — until its ~15m TTL expired.
+--
+-- `tokenVersion` is embedded in every access token (claim `tv`) and re-checked
+-- by the guard against the current row on each request. Bumping it (role
+-- change, password reset/change) makes every outstanding access token for that
+-- user fail the next request immediately. Deactivation and deletion are already
+-- caught by the guard's active/deletedAt check, so they need no bump.
+--
+-- Default 0, and the guard treats a missing `tv` claim as 0, so access tokens
+-- issued before this migration keep working until they expire or the user's
+-- version is first bumped — no forced global re-login on deploy.
+ALTER TABLE "User" ADD COLUMN "tokenVersion" INTEGER NOT NULL DEFAULT 0;

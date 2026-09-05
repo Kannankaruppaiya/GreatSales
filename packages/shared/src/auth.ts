@@ -108,6 +108,14 @@ export interface JwtAccessClaims {
   sub: string;
   tid: string;
   roleId: string;
+  /**
+   * The user's token version at issue time (see User.tokenVersion). JwtAuthGuard
+   * rejects the token if it no longer matches the current row — how a role
+   * change or password reset invalidates an outstanding access token before its
+   * TTL. Optional for backward compatibility: a token issued before this claim
+   * existed is treated as version 0.
+   */
+  tv?: number;
   typ: "access";
 }
 
