@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { MONTHS } from "@/data/constants";
 import { useUi } from "@/store/ui";
+import { usePeriodLock } from "@/features/data/periodQueries";
 import { useAuth, useAuthRole } from "@/store/auth";
 import {
   useProjections,
@@ -64,11 +65,25 @@ export default function ProjectionsPage() {
   const lines = data?.lines ?? [];
   const summary = data?.summary;
 
+  // A locked month is read-only. The server is the enforcement — it refuses the
+  // PATCH for every role — and this is what stops the user finding that out by
+  // typing a number and watching it bounce back with an error.
+  const lock = usePeriodLock(period);
+  const isLocked = !!lock;
+
   const patchCell = (id: string, patch: Parameters<typeof update.mutate>[0]["patch"]) =>
     update.mutate({ id, patch });
 
   return (
     <div className="space-y-4">
+      {isLocked && lock && (
+        <div className="rounded-xl border border-amber/40 bg-amber-soft px-3.5 py-2.5 text-xs font-semibold text-amber-900">
+          {monthLabel} is locked for reporting — locked by {lock.lockedByName} on{" "}
+          {lock.lockedAt.slice(0, 10)}. Figures are read-only until an
+          administrator unlocks the period on the Data page.
+        </div>
+      )}
+
       <Card className="overflow-hidden p-0 shadow-xs">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line/60 bg-surface-2/30 px-4 pb-2 pt-3.5">
@@ -231,6 +246,7 @@ export default function ProjectionsPage() {
                         type="number"
                         defaultValue={l.achievedQty || ""}
                         placeholder="0"
+                        disabled={isLocked}
                         onBlur={(e) => {
                           const val = e.target.value === "" ? 0 : Number(e.target.value);
                           if (val !== l.achievedQty)
@@ -267,6 +283,7 @@ export default function ProjectionsPage() {
                     <td className="px-3 py-2">
                       <select
                         value={l.status}
+                        disabled={isLocked}
                         onChange={(e) =>
                           patchCell(l.id, {
                             status: e.target.value as ProjStatusValue,

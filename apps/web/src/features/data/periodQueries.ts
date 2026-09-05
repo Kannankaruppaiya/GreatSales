@@ -33,13 +33,23 @@ export function usePeriodLocks(opts: { enabled?: boolean } = {}) {
   });
 }
 
-/** The lock covering `period`, or null. Undefined while the list is loading. */
+/**
+ * The lock covering `period`, or null. Undefined while the list is loading.
+ *
+ * Defensive about the response shape because the projections worksheet calls
+ * this during its own render: a non-array here throws inside that render and
+ * blanks the entire page, so a hiccup on a secondary query would take out the
+ * worksheet it is only annotating. An unreadable answer means "not known to be
+ * locked" — the server still refuses the write either way, so the worst case is
+ * an editable-looking cell rather than a lost edit.
+ */
 export function usePeriodLock(
   period: string,
   opts: { enabled?: boolean } = {},
 ): PeriodLockRow | null | undefined {
   const q = usePeriodLocks(opts);
   if (!q.data) return undefined;
+  if (!Array.isArray(q.data)) return null;
   return q.data.find((l) => l.period === period) ?? null;
 }
 
