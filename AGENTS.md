@@ -107,7 +107,19 @@ that the box is unreachable *from outside*, which is the failure the customer ac
 Route 53 health-check metrics only exist in us-east-1 and a CloudWatch alarm can only notify a
 topic in its own region, which is why the SNS topic exists twice.
 
-**Neither alarm reports application errors.** `SENTRY_DSN` is still empty — see Still open.
+**Neither alarm reports application errors.** That is Sentry's job — project `greatsales-api`
+in org `greatsales`, EU region. `SENTRY_DSN` lives in `/opt/greatsales/.env` and nowhere else;
+it is a write-only ingest key, not a credential that can read anything back.
+
+Only errors that are NOT `HttpException` are reported: a 400 or a 404 is a decision the code
+made, and paging on those buries the ones that matter
+(`apps/api/src/common/all-exceptions.filter.ts`). To raise a real one on purpose, POST a
+customer with an `industryId` that does not exist — Prisma throws a foreign key error, the
+filter reports it, and nothing is written:
+
+```bash
+curl -X POST https://18-130-99-225.sslip.io/api/v1/customers -H "Authorization: Bearer $TOK"   -H 'Content-Type: application/json'   -d '{"name":"__sentry_probe__","salespersonId":"<a real user id>","industryId":"nope"}'
+```
 
 ## Onboarding a customer
 
@@ -124,10 +136,10 @@ catalogue, and prints the generated admin password once. The admin is created wi
 
 ## Still open
 
-- **`SENTRY_DSN` is empty**, so application errors are reported nowhere — the two alarms above
-  tell you the app is *down*, not that it is throwing. The wiring is in place
-  (`apps/api/src/observability.ts`); it needs a DSN in `.env` and an API restart. Creating the
-  Sentry project requires a signup, which is why this is still open.
+- **The instance role cannot ship container logs.** Only the application's own uncaught
+  errors reach Sentry; a container that dies before Nest starts leaves nothing outside
+  journald. Granting `logs:*` on `/greatsales/*` and switching the compose logging driver to
+  `awslogs` closes it.
 - **The instance role cannot read its own backups.** `greatsales-deploy-buckets` grants
   `s3:PutObject` on the backups bucket and nothing else, so a restore cannot be driven from
   the box — `pnpm backup:drill` works around it by shipping the dump in over SSM, which stops
