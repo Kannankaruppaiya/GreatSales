@@ -1,3 +1,7 @@
+// First, and before the stylesheet: importing this initialises Sentry as a
+// side effect, and an error thrown while the first screen mounts is exactly
+// the one worth catching.
+import { Sentry } from '@/gs/observability';
 import '@/global.css';
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
@@ -12,7 +16,7 @@ import { useFonts,
 import { C } from '@/gs/theme';
 import { useSessionStatus, useIsAuthed, useAuthUser, bootstrap } from '@/gs/auth';
 
-export default function RootLayout() {
+function RootLayout() {
   // Fonts load in the background; the app renders with the system fallback
   // until they arrive rather than holding the navigator back.
   useFonts({
@@ -67,3 +71,8 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
+
+// Sentry.wrap adds an error boundary around the whole tree and connects the
+// navigation container, so a render error is reported with the route it
+// happened on rather than as a bare stack. It is a no-op when no DSN is set.
+export default Sentry.wrap(RootLayout);

@@ -6,6 +6,7 @@
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@greatsales/shared": "workspace:*",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@sentry/react-native": "~7.2.0",
     "@tanstack/react-query": "^5.101.4",
     "expo": "~54.0.0",
     "expo-constants": "~18.0.14",

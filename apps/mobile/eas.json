@@ -11,7 +11,8 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "production",
-        "EXPO_PUBLIC_API_URL": "https://18-130-99-225.sslip.io/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://18-130-99-225.sslip.io/api/v1",
+        "EXPO_PUBLIC_SENTRY_DSN": ""
       }
     },
     "production": {
@@ -21,7 +22,8 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "production",
-        "EXPO_PUBLIC_API_URL": "https://18-130-99-225.sslip.io/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://18-130-99-225.sslip.io/api/v1",
+        "EXPO_PUBLIC_SENTRY_DSN": ""
       }
     }
   }
