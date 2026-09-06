@@ -427,7 +427,7 @@ export function Topbar({
             value={ownerFilter}
             onChange={(e) => setOwnerFilter(e.target.value)}
             aria-label="Filter by salesperson"
-            className="w-[150px] h-8 text-xs font-semibold"
+            className="w-[155px] min-w-[145px] h-8 text-xs font-semibold shrink-0"
           >
             <option value="ALL">All Salespersons</option>
             {salespeople.map((s) => (

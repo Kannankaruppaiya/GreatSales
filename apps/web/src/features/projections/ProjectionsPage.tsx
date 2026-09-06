@@ -161,20 +161,20 @@ export default function ProjectionsPage() {
         {/* Table */}
         <div className="max-h-[64vh] overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
-            <thead className="sticky top-0 z-10 border-b border-line bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted">
+            <thead className="sticky top-0 z-10 border-b border-line bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted whitespace-nowrap">
               <tr>
                 <th className="w-10 px-3 py-2.5">#</th>
                 <th className="min-w-[200px] px-3 py-2.5">Customer</th>
                 {showSalesperson && (
-                  <th className="min-w-[110px] px-3 py-2.5">Salesperson</th>
+                  <th className="min-w-[120px] px-3 py-2.5">Salesperson</th>
                 )}
                 <th className="min-w-[120px] px-3 py-2.5">Principal</th>
                 <th className="min-w-[160px] px-3 py-2.5">Product</th>
-                <th className="px-3 py-2.5 text-right">Price ₹</th>
-                <th className="px-3 py-2.5 text-right">Proj qty</th>
-                <th className="px-3 py-2.5 text-right">Proj value</th>
-                <th className="px-3 py-2.5 text-right">Ach qty</th>
-                <th className="px-3 py-2.5 text-right text-brand">Ach value</th>
+                <th className="px-3 py-2.5 text-right">Price (₹)</th>
+                <th className="px-3 py-2.5 text-right">Proj Qty</th>
+                <th className="px-3 py-2.5 text-right">Proj Value</th>
+                <th className="px-3 py-2.5 text-right">Ach Qty</th>
+                <th className="px-3 py-2.5 text-right text-brand">Ach Value</th>
                 <th className="px-3 py-2.5 text-right">Ach %</th>
                 <th className="min-w-[150px] px-3 py-2.5">Status</th>
               </tr>
@@ -227,17 +227,17 @@ export default function ProjectionsPage() {
                       {l.principalName}
                     </td>
                     <td className="px-3 py-2 text-xs text-ink">{l.productName}</td>
-                    <td className="px-3 py-2 text-right tabular-nums font-semibold">
+                    <td className="px-3 py-2 text-right tabular-nums font-semibold whitespace-nowrap">
                       {l.price}
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums font-bold">
+                    <td className="px-3 py-2 text-right tabular-nums font-bold whitespace-nowrap">
                       {l.committedQty || "—"}
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums font-bold text-ink">
+                    <td className="px-3 py-2 text-right tabular-nums font-bold text-ink whitespace-nowrap">
                       {l.projValue > 0 ? inr(l.projValue) : "—"}
                     </td>
                     {/* Inline-editable achieved qty → PATCH */}
-                    <td className="px-3 py-2 text-right">
+                    <td className="px-3 py-2 text-right whitespace-nowrap">
                       <input
                         type="number"
                         defaultValue={l.achievedQty || ""}
@@ -255,10 +255,10 @@ export default function ProjectionsPage() {
                         className="w-16 rounded-md border border-line bg-surface px-1.5 py-1 text-right text-xs font-bold tabular-nums text-brand focus:border-brand focus:outline-brand"
                       />
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums font-bold text-brand">
+                    <td className="px-3 py-2 text-right tabular-nums font-bold text-brand whitespace-nowrap">
                       {l.achValue > 0 ? inr(l.achValue) : "—"}
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums font-bold">
+                    <td className="px-3 py-2 text-right tabular-nums font-bold whitespace-nowrap">
                       {l.achPct != null ? (
                         <span
                           className={cn(

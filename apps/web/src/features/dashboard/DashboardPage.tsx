@@ -213,7 +213,7 @@ export default function DashboardPage() {
                 <QueryBoundary isLoading={dashQuery.isLoading} isError={dashQuery.isError} error={dashQuery.error}>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
-                      <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted border-b border-line">
+                      <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted border-b border-line whitespace-nowrap">
                         <tr>
                           <th className="py-2.5 px-3">Customer</th>
                           <th className="py-2.5 px-3">Contact</th>
@@ -277,7 +277,7 @@ export default function DashboardPage() {
 
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
-                    <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted border-b border-line">
+                    <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted border-b border-line whitespace-nowrap">
                       <tr>
                         <th className="py-2.5 px-3">Customer</th>
                         <th className="py-2.5 px-3">Principal</th>
@@ -369,7 +369,7 @@ export default function DashboardPage() {
                 <QueryBoundary isLoading={dashQuery.isLoading} isError={dashQuery.isError} error={dashQuery.error}>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
-                      <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted border-b border-line">
+                      <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted border-b border-line whitespace-nowrap">
                         <tr>
                           <th className="py-2.5 px-3">Customer</th>
                           <th className="py-2.5 px-3">Salesperson</th>

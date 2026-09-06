@@ -36,11 +36,7 @@ export function InvoicePrintModal({
     <Dialog
       open={open}
       onClose={onClose}
-      title={
-        <div className="flex items-center justify-between w-full">
-          <span>Order Invoice Preview — {order.code}</span>
-        </div>
-      }
+      title={`Order Invoice Preview — ${order.code}`}
       description="Official commercial sales order and delivery challan"
       maxWidth="max-w-2xl"
       footer={

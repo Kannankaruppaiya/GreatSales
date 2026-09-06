@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, Loader2, Pencil } from "lucide-react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
+import { ConfirmActionModal } from "@/components/modals/ConfirmActionModal";
 import { ApiError } from "@/lib/api";
 import { useDeleteProduct, useUpdateProduct } from "@/features/products/queries";
 import { DeleteAction } from "@/components/modals/DeleteAction";
@@ -54,9 +55,8 @@ export function EditProductModal({
   const [listPrice, setListPrice] = useState("");
   const [active, setActive] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
-  // Re-seed the form whenever a different product is opened. Keyed on the row's
-  // updatedAt too, so re-opening after a save shows the persisted values.
   useEffect(() => {
     if (!open || !product) return;
     setPrincipalId(product.principalId);
@@ -67,7 +67,37 @@ export function EditProductModal({
     setListPrice(product.basePrice != null ? String(product.basePrice) : "");
     setActive(product.active);
     setErrorMessage("");
-  }, [open, product]);
+    setShowDiscardConfirm(false);
+  }, [open, product?.id, product?.updatedAt]);
+
+  const isDirty = useMemo(() => {
+    if (!product) return false;
+    const currentPrice = listPrice.trim() ? Number(listPrice) : null;
+    return (
+      name.trim() !== product.name ||
+      principalId !== product.principalId ||
+      (sku.trim() || null) !== product.sku ||
+      (division || null) !== product.division ||
+      (unit.trim() || null) !== product.unit ||
+      currentPrice !== product.basePrice ||
+      active !== product.active
+    );
+  }, [product, name, principalId, sku, division, unit, listPrice, active]);
+
+  const handleAttemptClose = () => {
+    if (update.isPending) return;
+    if (isDirty) {
+      setShowDiscardConfirm(true);
+    } else {
+      setErrorMessage("");
+      onClose();
+    }
+  };
+
+  const handleForceClose = () => {
+    setErrorMessage("");
+    onClose();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,12 +140,6 @@ export function EditProductModal({
     }
   };
 
-  const handleClose = () => {
-    if (update.isPending) return;
-    setErrorMessage("");
-    onClose();
-  };
-
   const unitOptions = useMemo(
     () =>
       !unit || UNIT_OPTIONS.some((o) => o.value === unit)
@@ -124,206 +148,244 @@ export function EditProductModal({
     [unit],
   );
 
+  const shortUnit = unit ? unit.split(" ")[0] : "unit";
+
   if (!product) return null;
 
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      title={
-        <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg bg-brand/10 text-brand flex items-center justify-center">
-            <Pencil className="h-4 w-4" />
+    <>
+      <Dialog
+        open={open}
+        onClose={handleAttemptClose}
+        title={
+          <div className="flex items-center gap-2">
+            <Pencil className="h-4.5 w-4.5 text-brand shrink-0" />
+            <span>Edit Catalog Product</span>
           </div>
-          <span className="font-bold text-ink">Edit Catalog Product</span>
-        </div>
-      }
-      description="Update the SKU, brand mapping, unit of measure, or default selling price."
-      maxWidth="max-w-lg"
-      footer={
-        <>
-          <DeleteAction
-            label="Delete Product"
-            title={`Delete ${product.name}?`}
-            body="The SKU is removed from the catalog. Existing orders and mappings that reference it keep their own copy of the line, so history is not rewritten."
-            onDelete={() => del.mutateAsync(product.id)}
-            onDeleted={handleClose}
-            disabled={update.isPending}
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleClose}
-            type="button"
-            disabled={update.isPending}
-          >
-            Cancel
-          </Button>
-          <Button size="sm" onClick={handleSubmit} disabled={!name.trim() || update.isPending}>
-            {update.isPending ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                Saving…
-              </>
-            ) : (
-              "Save Changes"
-            )}
-          </Button>
-        </>
-      }
-    >
-      <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-        {errorMessage && (
-          <div className="rounded-lg bg-red-soft/80 border border-red/30 p-2.5 text-xs text-red font-medium flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0 text-red" />
-            <span>{errorMessage}</span>
-          </div>
-        )}
-
-        <div>
-          <label
-            htmlFor="edit-product-principal"
-            className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
-          >
-            Principal Brand
-          </label>
-          <Select
-            id="edit-product-principal"
-            value={principalId}
-            onChange={(e) => {
-              setPrincipalId(e.target.value);
-              if (errorMessage) setErrorMessage("");
-            }}
-            disabled={update.isPending || principals.length === 0}
-          >
-            {principals.length === 0 ? (
-              <option value={product.principalId}>{product.principalName}</option>
-            ) : (
-              principals.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))
-            )}
-          </Select>
-        </div>
-
-        <div>
-          <label
-            htmlFor="edit-product-name"
-            className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
-          >
-            Sub Product Name *
-          </label>
-          <Input
-            id="edit-product-name"
-            required
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              if (errorMessage) setErrorMessage("");
-            }}
-            disabled={update.isPending}
-          />
-        </div>
-
-        <div>
-          <label
-            htmlFor="edit-product-sku"
-            className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
-          >
-            Product SKU / Part Number
-          </label>
-          <Input
-            id="edit-product-sku"
-            placeholder="e.g. CAS-HYS-50"
-            value={sku}
-            onChange={(e) => {
-              setSku(e.target.value.toUpperCase());
-              if (errorMessage) setErrorMessage("");
-            }}
-            className="uppercase font-mono text-xs"
-            disabled={update.isPending}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label
-              htmlFor="edit-product-division"
-              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
-            >
-              Division
-            </label>
-            <Select
-              id="edit-product-division"
-              value={division}
-              onChange={(e) => setDivision(e.target.value as DivisionValue | "")}
+        }
+        description="Update SKU, principal brand mapping, unit of measure, or benchmark price."
+        maxWidth="max-w-xl"
+        footer={
+          <>
+            <DeleteAction
+              label="Delete Product"
+              title={`Delete ${product.name}?`}
+              body="The SKU is removed from the catalog. Existing orders and mappings that reference it keep their own copy of the line, so history is not rewritten."
+              onDelete={() => del.mutateAsync(product.id)}
+              onDeleted={onClose}
+              disabled={update.isPending}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAttemptClose}
+              type="button"
               disabled={update.isPending}
             >
-              <option value="">Unassigned</option>
-              <option value="LUB">Lubricants (LUB)</option>
-              <option value="WES">Welding &amp; Equip (WES)</option>
-            </Select>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleSubmit} disabled={!name.trim() || update.isPending}>
+              {update.isPending ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          {errorMessage && (
+            <div
+              role="alert"
+              className="rounded-lg bg-red-soft/80 border border-red/30 p-2.5 text-xs text-red font-medium flex items-center gap-2 animate-in fade-in-50"
+            >
+              <AlertCircle className="h-4 w-4 shrink-0 text-red" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {/* 2-Column Responsive Form Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3.5">
+            <div>
+              <label
+                htmlFor="edit-product-principal"
+                className="text-xs font-semibold text-ink block mb-1.5"
+              >
+                Principal Brand <span className="text-red font-semibold" aria-hidden="true">*</span>
+              </label>
+              <Select
+                id="edit-product-principal"
+                className="w-full"
+                selectClassName="w-full h-9"
+                value={principalId}
+                onChange={(e) => {
+                  setPrincipalId(e.target.value);
+                  if (errorMessage) setErrorMessage("");
+                }}
+                disabled={update.isPending || principals.length === 0}
+              >
+                {principals.length === 0 ? (
+                  <option value={product.principalId}>{product.principalName}</option>
+                ) : (
+                  principals.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))
+                )}
+              </Select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="edit-product-name"
+                className="text-xs font-semibold text-ink block mb-1.5"
+              >
+                Product Name <span className="text-red font-semibold" aria-hidden="true">*</span>
+              </label>
+              <Input
+                id="edit-product-name"
+                required
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (errorMessage) setErrorMessage("");
+                }}
+                disabled={update.isPending}
+                className="h-9"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <label
+                  htmlFor="edit-product-sku"
+                  className="text-xs font-semibold text-ink"
+                >
+                  Product SKU / Code
+                </label>
+                <span className="text-[11px] text-muted font-normal">(Optional)</span>
+              </div>
+              <Input
+                id="edit-product-sku"
+                placeholder="e.g. CAS-HYS-50"
+                value={sku}
+                onChange={(e) => {
+                  setSku(e.target.value.toUpperCase());
+                  if (errorMessage) setErrorMessage("");
+                }}
+                className="h-9 uppercase font-mono text-xs"
+                disabled={update.isPending}
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <label
+                  htmlFor="edit-product-price"
+                  className="text-xs font-semibold text-ink"
+                >
+                  Default Benchmark Price
+                </label>
+                <span className="text-[11px] text-muted font-normal">(Optional)</span>
+              </div>
+              <div className="relative flex items-center">
+                <span className="pointer-events-none absolute left-3 text-xs font-semibold text-muted select-none">
+                  ₹
+                </span>
+                <Input
+                  id="edit-product-price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Leave blank for custom"
+                  value={listPrice}
+                  onChange={(e) => {
+                    setListPrice(e.target.value);
+                    if (errorMessage) setErrorMessage("");
+                  }}
+                  disabled={update.isPending}
+                  className="h-9 pl-7 pr-16 tabular-nums text-xs"
+                />
+                <span className="pointer-events-none absolute right-3 text-[11px] font-semibold text-muted/70 select-none">
+                  / {shortUnit}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="edit-product-division"
+                className="text-xs font-semibold text-ink block mb-1.5"
+              >
+                Division
+              </label>
+              <Select
+                id="edit-product-division"
+                className="w-full"
+                selectClassName="w-full h-9"
+                value={division}
+                onChange={(e) => setDivision(e.target.value as DivisionValue | "")}
+                disabled={update.isPending}
+              >
+                <option value="">Unassigned</option>
+                <option value="LUB">Lubricants (LUB)</option>
+                <option value="WES">Welding &amp; Equip (WES)</option>
+              </Select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="edit-product-unit"
+                className="text-xs font-semibold text-ink block mb-1.5"
+              >
+                Unit of Measure
+              </label>
+              <Select
+                id="edit-product-unit"
+                className="w-full"
+                selectClassName="w-full h-9"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                disabled={update.isPending}
+              >
+                <option value="">Unset</option>
+                {unitOptions.map((u) => (
+                  <option key={u.value} value={u.value}>
+                    {u.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
 
-          <div>
-            <label
-              htmlFor="edit-product-unit"
-              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
-            >
-              Unit of Measure
-            </label>
-            <Select
-              id="edit-product-unit"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
+          <label className="flex items-center gap-2 text-xs font-medium text-ink cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              checked={active}
+              onChange={(e) => setActive(e.target.checked)}
               disabled={update.isPending}
-            >
-              <option value="">Unset</option>
-              {unitOptions.map((u) => (
-                <option key={u.value} value={u.value}>
-                  {u.label}
-                </option>
-              ))}
-            </Select>
-          </div>
-        </div>
-
-        <div>
-          <label
-            htmlFor="edit-product-price"
-            className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
-          >
-            Default Selling Price ₹
+              className="h-3.5 w-3.5 rounded border-line accent-brand"
+            />
+            <span>Active in catalog</span>
           </label>
-          <Input
-            id="edit-product-price"
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="Leave blank for custom pricing"
-            value={listPrice}
-            onChange={(e) => {
-              setListPrice(e.target.value);
-              if (errorMessage) setErrorMessage("");
-            }}
-            disabled={update.isPending}
-            className="tabular-nums"
-          />
-        </div>
+        </form>
+      </Dialog>
 
-        <label className="flex items-center gap-2 text-xs font-medium text-ink cursor-pointer">
-          <input
-            type="checkbox"
-            checked={active}
-            onChange={(e) => setActive(e.target.checked)}
-            disabled={update.isPending}
-            className="h-3.5 w-3.5 rounded border-line accent-brand"
-          />
-          <span>Active in catalog</span>
-        </label>
-      </form>
-    </Dialog>
+      {/* Discard confirmation modal if user attempts to exit with unsaved edits */}
+      <ConfirmActionModal
+        open={showDiscardConfirm}
+        onClose={() => setShowDiscardConfirm(false)}
+        onConfirm={handleForceClose}
+        title="Discard unsaved changes?"
+        body="You have edited product details. Closing now will discard all unsaved changes."
+        confirmLabel="Discard Changes"
+        destructive
+      />
+    </>
   );
 }

@@ -196,7 +196,7 @@ export default function ProductsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search catalog by name or SKU…"
-              className="w-full rounded-lg border border-line bg-surface-2 pl-8 pr-3 py-1.5 text-xs text-ink placeholder:text-muted focus:outline-brand focus:border-brand"
+              className="h-8.5 w-full rounded-lg border border-line bg-surface pl-8 pr-3 text-xs text-ink placeholder:text-muted/60 transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs"
             />
           </div>
 
@@ -207,7 +207,7 @@ export default function ProductsPage() {
                 value={principalId}
                 onChange={(e) => setPrincipalId(e.target.value)}
                 aria-label="Filter products by principal brand"
-                className="rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
+                className="h-8.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs cursor-pointer"
               >
                 <option value="ALL">All Brands ({principals.length})</option>
                 {principals.map((p) => (
@@ -221,7 +221,7 @@ export default function ProductsPage() {
                 value={division}
                 onChange={(e) => setDivision(e.target.value)}
                 aria-label="Filter products by division"
-                className="rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
+                className="h-8.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs cursor-pointer"
               >
                 <option value="ALL">All Product Divisions</option>
                 {DIVISIONS.map((d) => (
@@ -274,14 +274,14 @@ export default function ProductsPage() {
             emptyLabel="No catalog products match your filter criteria."
           >
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs">
+              <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs whitespace-nowrap">
                 <tr>
                   <th className="py-2.5 px-3 w-[120px]">SKU Code</th>
                   <th className="py-2.5 px-3 min-w-[220px]">Product Name</th>
                   <th className="py-2.5 px-3">Principal Brand</th>
                   <th className="py-2.5 px-3">Division</th>
                   <th className="py-2.5 px-3 text-center">Unit (UOM)</th>
-                  <th className="py-2.5 px-3 text-right">List Price ₹</th>
+                  <th className="py-2.5 px-3 text-right">List Price (₹)</th>
                   {canEdit && <th className="py-2.5 px-3 text-center w-[70px]">Action</th>}
                 </tr>
               </thead>

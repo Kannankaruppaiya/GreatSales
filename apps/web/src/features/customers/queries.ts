@@ -87,11 +87,12 @@ export function onCustomerMutationSuccess(qc: QueryClient) {
  * never, and it is fetched by both the customers filter bar and the customer
  * form — one request per session rather than one per mount.
  */
-export function useIndustries() {
+export function useIndustries(opts: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ["industries"],
     staleTime: 60 * 60 * 1000,
     queryFn: () => apiFetch<IndustryRow[]>("/industries"),
+    enabled: opts.enabled ?? true,
   });
 }
 

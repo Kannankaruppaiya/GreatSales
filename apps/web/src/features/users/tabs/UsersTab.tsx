@@ -165,7 +165,7 @@ export function UsersTab() {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search users…"
               aria-label="Search users"
-              className="rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-xs text-ink placeholder:text-muted focus:outline-brand focus:border-brand w-48"
+              className="h-8.5 w-48 rounded-lg border border-line bg-surface px-3 text-xs text-ink placeholder:text-muted/60 transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs"
             />
 
             <Select
@@ -247,7 +247,7 @@ export function UsersTab() {
                 Users in this workspace, with their role, team, manager, and
                 status
               </caption>
-              <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs">
+              <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs whitespace-nowrap">
                 <tr>
                   {SORTABLE.map(({ field, label }) => (
                     <th

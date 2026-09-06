@@ -111,13 +111,13 @@ export default function FollowUpsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search follow-ups…"
-            className="rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-xs text-ink placeholder:text-muted focus:outline-brand focus:border-brand w-64"
+            className="h-8.5 w-64 rounded-lg border border-line bg-surface px-3 text-xs text-ink placeholder:text-muted/60 transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs"
           />
 
           <select
             value={entityType}
             onChange={(e) => setEntityType(e.target.value)}
-            className="h-full rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
+            className="h-8.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs cursor-pointer"
           >
             <option value="ALL">All entity types</option>
             {ENTITY_TYPE_VALUES.map((t) => (
@@ -131,7 +131,7 @@ export default function FollowUpsPage() {
             <select
               value={ownerId}
               onChange={(e) => setOwnerId(e.target.value)}
-              className="h-full rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
+              className="h-8.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs cursor-pointer"
             >
               <option value="ALL">All salespersons</option>
               {salespersonOptions.map((s) => (
@@ -151,7 +151,7 @@ export default function FollowUpsPage() {
 
           {canEdit && (
             <Button size="sm" onClick={() => setShowAdd(true)}>
-              <Plus className="h-3.5 w-3.5 mr-1" /> + Add follow-up
+              <Plus className="h-3.5 w-3.5 mr-1" /> Add Follow-Up
             </Button>
           )}
         </div>

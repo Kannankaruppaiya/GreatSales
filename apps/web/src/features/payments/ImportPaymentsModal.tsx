@@ -74,13 +74,6 @@ export function ImportPaymentsModal({
 }: {
   open: boolean;
   onClose: () => void;
-  /**
-   * Ref numbers already visible in the currently-loaded (paginated) payments
-   * list, used only to skip obvious duplicates during parsing. There is no
-   * server-side "check all invoices" endpoint, so this can miss a duplicate
-   * that exists beyond the currently loaded page(s) — the API itself is the
-   * real source of truth and may still reject/accept as it sees fit.
-   */
   existingRefNos?: string[];
 }) {
   const create = useCreatePayment();
@@ -252,13 +245,8 @@ export function ImportPaymentsModal({
     <Dialog
       open={open}
       onClose={onClose}
-      title={
-        <div className="flex items-center gap-2">
-          <Upload className="h-4 w-4 text-brand" />
-          <span>Import Weekly Outstanding Invoices</span>
-        </div>
-      }
-      description="Upload an .xlsx or .xls file from Tally/ERP to synchronize pending balances"
+      title="Import Weekly Outstanding Invoices"
+      description="Upload an .xlsx or .xls file from Tally/ERP to synchronize pending balances."
       maxWidth="max-w-lg"
       footer={
         <>

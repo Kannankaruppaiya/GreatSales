@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { Receipt } from "lucide-react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
 import { ApiError } from "@/lib/api";
+import { ConfirmActionModal } from "@/components/modals/ConfirmActionModal";
 import {
   PAY_ZONE_VALUES,
   PAY_ZONE_LABELS,
@@ -54,16 +54,43 @@ export function AddPaymentModal({
   const [salespersonId, setSalespersonId] = useState("");
   const [payZone, setPayZone] = useState<PayZoneValue>("GreenZone");
   const [delayReason, setDelayReason] = useState("");
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
-  // A typed party name that exactly matches (case-insensitive) an existing
-  // customer derived from already-loaded payment rows resolves to that
-  // customer's id; anything else is sent as a bare `customerName` with no
-  // `customerId` (there is no FK picker / customers fetch here — see the
-  // brief's "derive FK options from rows" instruction).
   const matchedCustomer = useMemo(
     () => customers.find((c) => c.name.toLowerCase() === customerName.trim().toLowerCase()),
     [customers, customerName],
   );
+
+  const isDirty =
+    refNo.trim() !== "" ||
+    customerName.trim() !== "" ||
+    dueDate !== "" ||
+    amount.trim() !== "" ||
+    received.trim() !== "" ||
+    salespersonId !== "" ||
+    delayReason.trim() !== "";
+
+  const handleAttemptClose = () => {
+    if (isDirty && !create.isPending) {
+      setShowDiscardConfirm(true);
+    } else {
+      handleForceClose();
+    }
+  };
+
+  const handleForceClose = () => {
+    setShowDiscardConfirm(false);
+    setRefNo("");
+    setCustomerName("");
+    setInvoiceDate(new Date().toISOString().slice(0, 10));
+    setDueDate("");
+    setAmount("");
+    setReceived("");
+    setSalespersonId("");
+    setPayZone("GreenZone");
+    setDelayReason("");
+    onClose();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,161 +111,232 @@ export function AddPaymentModal({
         delayReason: delayReason.trim() || undefined,
       });
 
-      setRefNo("");
-      setCustomerName("");
-      setInvoiceDate(new Date().toISOString().slice(0, 10));
-      setDueDate("");
-      setAmount("");
-      setReceived("");
-      setSalespersonId("");
-      setPayZone("GreenZone");
-      setDelayReason("");
-      onClose();
+      handleForceClose();
     } catch {
       // Surfaced inline below via create.error.
     }
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      title={
-        <div className="flex items-center gap-2">
-          <Receipt className="h-4 w-4 text-brand" />
-          <span>Add Invoice Manually</span>
-        </div>
-      }
-      description="Add a single outstanding invoice to the payments tracker"
-      maxWidth="max-w-md"
-      footer={
-        <>
-          <Button variant="outline" size="sm" onClick={onClose} type="button">
-            Cancel
-          </Button>
-          <Button size="sm" onClick={handleSubmit} disabled={!amount.trim() || create.isPending}>
-            {create.isPending ? "Saving…" : "Save Invoice"}
-          </Button>
-        </>
-      }
-    >
-      <form onSubmit={handleSubmit} className="space-y-3 text-xs">
-        <div className="grid grid-cols-2 gap-2.5">
-          <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Invoice Date
-            </label>
-            <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
+    <>
+      <Dialog
+        open={open}
+        onClose={handleAttemptClose}
+        title="Add Invoice Manually"
+        description="Add a single outstanding invoice to the payments tracker."
+        maxWidth="max-w-md"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAttemptClose}
+              type="button"
+              disabled={create.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+              disabled={!amount.trim() || create.isPending}
+            >
+              {create.isPending ? "Saving…" : "Save Invoice"}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label
+                htmlFor="payment-invoice-date"
+                className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+              >
+                Invoice Date
+              </label>
+              <Input
+                id="payment-invoice-date"
+                type="date"
+                value={invoiceDate}
+                onChange={(e) => setInvoiceDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="payment-ref-no"
+                className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+              >
+                Ref No.
+              </label>
+              <Input
+                id="payment-ref-no"
+                placeholder="e.g. PMTPL/1842/24-25"
+                value={refNo}
+                onChange={(e) => setRefNo(e.target.value)}
+              />
+            </div>
           </div>
+
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Ref No.
+            <label
+              htmlFor="payment-customer-name"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+            >
+              Party&apos;s Name
             </label>
             <Input
-              placeholder="e.g. PMTPL/1842/24-25"
-              value={refNo}
-              onChange={(e) => setRefNo(e.target.value)}
+              id="payment-customer-name"
+              placeholder="e.g. Anand Automotive Systems Pvt Ltd"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
             />
           </div>
-        </div>
 
-        <div>
-          <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-            Party&apos;s Name
-          </label>
-          <Input
-            placeholder="e.g. Anand Automotive Systems Pvt Ltd"
-            value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
-          />
-        </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label
+                htmlFor="payment-amount"
+                className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+              >
+                Invoice Amount <span className="text-red">*</span>
+              </label>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted">
+                  ₹
+                </span>
+                <Input
+                  id="payment-amount"
+                  type="number"
+                  step="0.01"
+                  required
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0"
+                  className="pl-7"
+                />
+              </div>
+            </div>
+            <div>
+              <label
+                htmlFor="payment-received"
+                className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+              >
+                Received Amount
+              </label>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted">
+                  ₹
+                </span>
+                <Input
+                  id="payment-received"
+                  type="number"
+                  step="0.01"
+                  value={received}
+                  onChange={(e) => setReceived(e.target.value)}
+                  placeholder="0"
+                  className="pl-7"
+                />
+              </div>
+            </div>
+          </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
-          <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Invoice Amount ₹ *
-            </label>
-            <Input
-              type="number"
-              step="0.01"
-              required
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label
+                htmlFor="payment-due-date"
+                className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+              >
+                Due Date
+              </label>
+              <Input
+                id="payment-due-date"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="payment-risk-zone"
+                className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+              >
+                Risk Zone
+              </label>
+              <Select
+                id="payment-risk-zone"
+                value={payZone}
+                onChange={(e) => setPayZone(e.target.value as PayZoneValue)}
+              >
+                {PAY_ZONE_VALUES.map((z) => (
+                  <option key={z} value={z}>
+                    {PAY_ZONE_LABELS[z]}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
-          <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Received ₹
-            </label>
-            <Input
-              type="number"
-              step="0.01"
-              value={received}
-              onChange={(e) => setReceived(e.target.value)}
-              placeholder="0"
-            />
-          </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Due Date
+            <label
+              htmlFor="payment-salesperson"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+            >
+              Salesperson
             </label>
-            <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Risk Zone
-            </label>
-            <Select value={payZone} onChange={(e) => setPayZone(e.target.value as PayZoneValue)}>
-              {PAY_ZONE_VALUES.map((z) => (
-                <option key={z} value={z}>
-                  {PAY_ZONE_LABELS[z]}
-                </option>
-              ))}
-            </Select>
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-            Salesperson
-          </label>
-          {salespeopleLoading ? (
-            <p className="text-[11px] text-muted">Loading salespersons…</p>
-          ) : salespersonOptions.length === 0 ? (
-            <p className="text-[11px] text-muted">No salespersons yet.</p>
-          ) : (
-            <Select value={salespersonId} onChange={(e) => setSalespersonId(e.target.value)}>
-              <option value="">— Unassigned —</option>
+            <Select
+              id="payment-salesperson"
+              value={salespersonId}
+              onChange={(e) => setSalespersonId(e.target.value)}
+              disabled={salespeopleLoading || salespersonOptions.length === 0}
+            >
+              <option value="">
+                {salespeopleLoading
+                  ? "Loading salespersons…"
+                  : salespersonOptions.length === 0
+                    ? "— No salespersons available —"
+                    : "— Unassigned —"}
+              </option>
               {salespersonOptions.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
               ))}
             </Select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="payment-delay-reason"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+            >
+              Reason
+            </label>
+            <Input
+              id="payment-delay-reason"
+              placeholder="e.g. Bill under verification / MSME"
+              value={delayReason}
+              onChange={(e) => setDelayReason(e.target.value)}
+            />
+          </div>
+
+          {create.isError && (
+            <p role="alert" className="text-[11.5px] font-medium text-red">
+              {create.error instanceof ApiError ? create.error.message : "Failed to create invoice."}
+            </p>
           )}
-        </div>
+        </form>
+      </Dialog>
 
-        <div>
-          <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-            Reason
-          </label>
-          <Input
-            placeholder="e.g. Bill under verification / MSME"
-            value={delayReason}
-            onChange={(e) => setDelayReason(e.target.value)}
-          />
-        </div>
-
-        {create.isError && (
-          <p className="text-[11.5px] font-medium text-red">
-            {create.error instanceof ApiError ? create.error.message : "Failed to create invoice."}
-          </p>
-        )}
-      </form>
-    </Dialog>
+      <ConfirmActionModal
+        open={showDiscardConfirm}
+        onClose={() => setShowDiscardConfirm(false)}
+        title="Discard Invoice Changes?"
+        body="You have unsaved invoice information entered. Are you sure you want to discard your changes?"
+        confirmLabel="Discard Changes"
+        destructive
+        onConfirm={handleForceClose}
+      />
+    </>
   );
 }

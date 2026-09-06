@@ -1,22 +1,26 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import { forwardRef, useEffect, useId } from "react";
+import { forwardRef, useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ---------------- Button (shadcn/ui style with active tactile feedback) ---------------- */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-1 disabled:opacity-50 disabled:pointer-events-none select-none cursor-pointer active:scale-[0.98]",
+  "inline-flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-1 select-none cursor-pointer active:scale-[0.98]",
   {
     variants: {
       variant: {
-        primary: "bg-brand text-white hover:bg-brand-ink shadow-sm hover:shadow hover:shadow-brand/20",
-        secondary: "bg-surface border border-line text-ink hover:bg-surface-2 hover:border-muted/30 shadow-xs",
-        soft: "bg-brand-soft text-brand-ink hover:bg-brand-soft/80 font-semibold border border-brand/20",
-        outline: "border border-line bg-surface text-ink hover:bg-surface-2 hover:border-muted/40",
-        ghost: "text-muted hover:bg-surface-2 hover:text-ink",
-        danger: "bg-red text-white hover:bg-red/90 shadow-sm",
-        dangerOutline: "border border-red/30 text-red bg-red-soft/30 hover:bg-red-soft/70",
+        primary:
+          "bg-brand text-white hover:bg-brand-hover shadow-sm hover:shadow hover:shadow-brand/20 disabled:bg-slate-100 disabled:text-slate-400 disabled:border disabled:border-slate-200 disabled:cursor-not-allowed disabled:shadow-none disabled:active:scale-100",
+        secondary:
+          "bg-surface border border-line text-ink hover:bg-surface-2 hover:border-muted/30 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed",
+        soft: "bg-brand-soft text-brand-ink hover:bg-brand-soft/80 font-semibold border border-brand/20 disabled:opacity-50 disabled:cursor-not-allowed",
+        outline:
+          "border border-slate-200 bg-surface text-ink hover:bg-surface-2 hover:border-slate-300 shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed",
+        ghost: "text-muted hover:bg-surface-2 hover:text-ink disabled:opacity-50 disabled:cursor-not-allowed",
+        danger:
+          "bg-red text-white hover:bg-red/90 shadow-sm disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed disabled:shadow-none",
+        dangerOutline: "border border-red/30 text-red bg-red-soft/30 hover:bg-red-soft/70 disabled:opacity-50 disabled:cursor-not-allowed",
       },
       size: {
         xs: "h-7 px-2.5 text-xs rounded-md",
@@ -98,7 +102,7 @@ export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTML
     <input
       ref={ref}
       className={cn(
-        "h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink placeholder:text-muted/50 transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:bg-surface-2 disabled:cursor-not-allowed",
+        "h-9 w-full rounded-lg border border-slate-200 bg-surface px-3 text-sm text-ink placeholder:text-muted/50 transition-all hover:border-slate-300 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:bg-surface-2 disabled:cursor-not-allowed shadow-2xs",
         className,
       )}
       {...props}
@@ -112,7 +116,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttrib
     <textarea
       ref={ref}
       className={cn(
-        "w-full rounded-lg border border-line bg-surface p-3 text-sm text-ink placeholder:text-muted/50 transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:bg-surface-2",
+        "w-full rounded-lg border border-slate-200 bg-surface p-3 text-sm text-ink placeholder:text-muted/50 transition-all hover:border-slate-300 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:bg-surface-2 shadow-2xs",
         className,
       )}
       {...props}
@@ -128,10 +132,10 @@ export function Select({
   ...props
 }: React.SelectHTMLAttributes<HTMLSelectElement> & { selectClassName?: string }) {
   return (
-    <div className={cn("relative inline-block", className)}>
+    <div className={cn("relative w-full", className)}>
       <select
         className={cn(
-          "h-full w-full appearance-none rounded-lg border border-line bg-surface pl-3 pr-7 text-[12.5px] text-ink font-medium transition-all hover:border-muted/50 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:bg-surface-2 cursor-pointer shadow-xs",
+          "h-9 w-full appearance-none rounded-lg border border-slate-200 bg-surface pl-3 pr-8 text-sm text-ink font-medium transition-all hover:border-slate-300 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:bg-surface-2 disabled:text-muted disabled:cursor-not-allowed shadow-2xs cursor-pointer",
           selectClassName,
         )}
         {...props}
@@ -375,25 +379,33 @@ export function Dialog({
   const titleId = useId();
   const descriptionId = useId();
 
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  const openerRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
     if (!open) return;
 
+    openerRef.current = document.activeElement as HTMLElement | null;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCloseRef.current();
+    };
+
     document.addEventListener("keydown", handleKeyDown);
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     // Return focus where it came from on close. Without this a keyboard user
     // is dropped at the top of the document every time a dialog closes, and
     // has to tab back to where they were.
-    const opener = document.activeElement as HTMLElement | null;
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "unset";
-      opener?.focus?.();
+      document.body.style.overflow = prevOverflow;
+      openerRef.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -418,7 +430,7 @@ export function Dialog({
           maxWidth,
         )}
       >
-        <div className="flex shrink-0 items-start justify-between border-b border-line px-6 py-4 bg-surface-2/80">
+        <div className="flex shrink-0 items-start justify-between border-b border-line px-6 py-4.5 bg-surface-2/60">
           <div className="min-w-0 pr-4">
             <h3 id={titleId} className="text-base font-bold text-ink tracking-tight font-sans">{title}</h3>
             {description && <p id={descriptionId} className="text-xs text-muted mt-0.5 leading-normal font-medium">{description}</p>}
@@ -426,16 +438,16 @@ export function Dialog({
           <button
             onClick={onClose}
             aria-label="Close"
-            className="shrink-0 grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-surface hover:text-ink border border-transparent hover:border-line transition-colors cursor-pointer"
+            className="shrink-0 grid h-7 w-7 place-items-center rounded-lg text-muted hover:bg-surface hover:text-ink border border-line/60 bg-surface/80 hover:border-line shadow-2xs transition-all cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-6 py-5.5 space-y-4">{children}</div>
 
         {footer && (
-          <div className="shrink-0 flex items-center justify-end gap-2.5 border-t border-line bg-surface-2/80 px-6 py-3.5">
+          <div className="shrink-0 flex items-center justify-end gap-2.5 border-t border-line bg-surface-2/60 px-6 py-3.5">
             {footer}
           </div>
         )}
@@ -463,6 +475,7 @@ export function FormField({
   hint,
   children,
   className,
+  htmlFor,
 }: {
   label?: React.ReactNode;
   required?: boolean;
@@ -470,11 +483,12 @@ export function FormField({
   hint?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  htmlFor?: string;
 }) {
   return (
     <div className={cn("space-y-1.5", className)}>
       {label && (
-        <label className="text-xs font-bold text-ink flex items-center gap-1">
+        <label htmlFor={htmlFor} className="text-xs font-bold text-ink flex items-center gap-1">
           <span>{label}</span>
           {required && <span className="text-red font-black" title="Required field">*</span>}
         </label>
@@ -482,7 +496,7 @@ export function FormField({
       {children}
       {hint && !error && <div className="text-[11px] text-muted">{hint}</div>}
       {error && (
-        <div className="text-[11.5px] font-medium text-red animate-in fade-in flex items-center gap-1">
+        <div role="alert" className="text-[11.5px] font-medium text-red animate-in fade-in flex items-center gap-1">
           <span>⚠</span>
           <span>{error}</span>
         </div>

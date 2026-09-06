@@ -301,7 +301,7 @@ export default function PaymentsPage() {
                 <Upload className="h-3.5 w-3.5 mr-1" /> Import Tally Excel
               </Button>
               <Button variant="outline" size="sm" onClick={() => setShowAddPayment(true)}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> + Add Invoice
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add Invoice
               </Button>
             </div>
           )}
@@ -316,13 +316,13 @@ export default function PaymentsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search party or ref no…"
-                className="rounded-xl border border-line bg-surface px-3 py-1.5 text-xs text-ink placeholder:text-muted focus:outline-brand focus:border-brand w-64 shadow-2xs"
+                className="h-8.5 w-64 rounded-lg border border-line bg-surface px-3 text-xs text-ink placeholder:text-muted/60 transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs"
               />
 
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
+                className="h-8.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs cursor-pointer"
               >
                 <option value="ALL">All statuses</option>
                 {PAYMENT_STATUS_VALUES.map((s) => (
@@ -336,7 +336,7 @@ export default function PaymentsPage() {
                 <select
                   value={ownerId}
                   onChange={(e) => setOwnerId(e.target.value)}
-                  className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
+                  className="h-8.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs cursor-pointer"
                 >
                   <option value="ALL">All salespersons</option>
                   {salespersonOptions.map((s) => (
@@ -353,10 +353,10 @@ export default function PaymentsPage() {
                     key={z}
                     onClick={() => setZoneChip(z)}
                     className={cn(
-                      "rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap transition-all cursor-pointer",
+                      "rounded-lg border px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shadow-2xs",
                       zoneChip === z
-                        ? "border-brand bg-brand text-white shadow-2xs"
-                        : "border-line bg-surface text-muted hover:border-muted/50 hover:text-ink"
+                        ? "border-brand bg-brand text-white shadow-xs"
+                        : "border-line bg-surface text-muted hover:border-muted/40 hover:text-ink"
                     )}
                   >
                     {z === "ALL" ? "All zones" : z === "Unassigned" ? "Unassigned" : PAY_ZONE_LABELS[z as PayZoneValue]}
@@ -375,7 +375,7 @@ export default function PaymentsPage() {
                 emptyLabel="No invoices match this filter."
               >
                 <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs">
+                  <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs whitespace-nowrap">
                     <tr>
                       <th className="py-2.5 px-3">Ref no.</th>
                       <th className="py-2.5 px-3">Date</th>
@@ -550,7 +550,7 @@ export default function PaymentsPage() {
               <div className="text-xs font-bold uppercase tracking-wider text-muted mb-2">Salesperson-wise aging (₹)</div>
               <div className="overflow-x-auto border border-line rounded-xl">
                 <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted border-b border-line">
+                  <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted border-b border-line whitespace-nowrap">
                     <tr>
                       <th className="py-2.5 px-3">Salesperson</th>
                       {buckets.map((b) => (
@@ -592,7 +592,7 @@ export default function PaymentsPage() {
               <div className="text-xs font-bold uppercase tracking-wider text-muted mb-2">Organization-wise pending</div>
               <div className="overflow-x-auto border border-line rounded-xl">
                 <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted border-b border-line">
+                  <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted border-b border-line whitespace-nowrap">
                     <tr>
                       <th className="py-2.5 px-3">Party</th>
                       <th className="py-2.5 px-3 text-right">Invoices</th>
@@ -661,6 +661,7 @@ export default function PaymentsPage() {
 
       {selectedPayment && (
         <PaymentDetailModal
+          key={selectedPayment.id}
           open={!!selectedPayment}
           onClose={() => setSelectedPayment(null)}
           payment={selectedPayment}

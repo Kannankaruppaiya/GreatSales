@@ -48,7 +48,15 @@ export function MappingFormModal({
     setCustomPrice(
       editing?.customPrice != null ? String(editing.customPrice) : "",
     );
-  }, [open, editing, customers, products]);
+  }, [open, editing?.id, editing?.updatedAt]);
+
+  // Set default customer / product once loaded if selection is still empty
+  useEffect(() => {
+    if (open && !editing) {
+      if (!customerId && customers.length > 0) setCustomerId(customers[0].id);
+      if (!productId && products.length > 0) setProductId(products[0].id);
+    }
+  }, [open, editing, customerId, productId, customers.length, products.length]);
 
   const selectedProduct = products.find((p) => p.id === productId);
   const basePrice = isEdit ? editing?.basePrice : (selectedProduct?.basePrice ?? null);

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Receipt } from "lucide-react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { inr } from "@/lib/format";
@@ -74,12 +73,7 @@ export function PaymentDetailModal({
     <Dialog
       open={open}
       onClose={onClose}
-      title={
-        <div className="flex items-center gap-2">
-          <Receipt className="h-4 w-4 text-brand" />
-          <span>Invoice Details: {payment.refNo || "—"}</span>
-        </div>
-      }
+      title={`Invoice Details: ${payment.refNo || "—"}`}
       description={`${payment.customerName || "Customer"} · Pending ${inr(payment.pending)} · ${statusLabel}`}
       maxWidth="max-w-lg"
       footer={
@@ -128,13 +122,20 @@ export function PaymentDetailModal({
         </div>
 
         {/* Salesperson & Risk Zone */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+            <label
+              htmlFor="pd-salesperson"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+            >
               Salesperson Allocation
             </label>
             {canEdit ? (
-              <Select value={salespersonId} onChange={(e) => setSalespersonId(e.target.value)}>
+              <Select
+                id="pd-salesperson"
+                value={salespersonId}
+                onChange={(e) => setSalespersonId(e.target.value)}
+              >
                 <option value="">— Unassigned —</option>
                 {salespeople.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -149,11 +150,18 @@ export function PaymentDetailModal({
             )}
           </div>
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+            <label
+              htmlFor="pd-payzone"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+            >
               Risk Zone Classification
             </label>
             {canEdit ? (
-              <Select value={payZone} onChange={(e) => setPayZone(e.target.value as PayZoneValue)}>
+              <Select
+                id="pd-payzone"
+                value={payZone}
+                onChange={(e) => setPayZone(e.target.value as PayZoneValue)}
+              >
                 {PAY_ZONE_VALUES.map((z) => (
                   <option key={z} value={z}>
                     {PAY_ZONE_LABELS[z]}
@@ -169,12 +177,16 @@ export function PaymentDetailModal({
         </div>
 
         {/* Delay Reason & Next Follow-Up */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+            <label
+              htmlFor="pd-reason"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+            >
               Delay Reason / Note
             </label>
             <Input
+              id="pd-reason"
               disabled={!canEdit}
               placeholder="e.g. MSME payment terms / pending certification"
               value={delayReason}
@@ -182,10 +194,14 @@ export function PaymentDetailModal({
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+            <label
+              htmlFor="pd-next-followup"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+            >
               Next Follow-Up Date
             </label>
             <Input
+              id="pd-next-followup"
               disabled={!canEdit}
               type="date"
               value={nextFollowUp}
@@ -247,7 +263,7 @@ export function PaymentDetailModal({
         </div>
 
         {update.isError && (
-          <p className="text-[11.5px] font-medium text-red">
+          <p role="alert" className="text-[11.5px] font-medium text-red">
             {update.error instanceof ApiError ? update.error.message : "Failed to save changes."}
           </p>
         )}
@@ -262,3 +278,5 @@ export function PaymentDetailModal({
     </Dialog>
   );
 }
+
+

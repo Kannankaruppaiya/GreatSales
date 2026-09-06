@@ -98,6 +98,12 @@ export const CustomerCreateSchema = z.object({
   outstanding: z.number().nonnegative().optional(),
   collectorId: z.string().nullable().optional(),
   active: z.boolean().optional(),
+  contactName: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  whatsapp: z.string().nullable().optional(),
+  sameAsMobile: z.boolean().optional(),
+  email: z.string().nullable().optional(),
+  designation: z.string().nullable().optional(),
 });
 export type CustomerCreate = z.infer<typeof CustomerCreateSchema>;
 

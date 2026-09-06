@@ -313,6 +313,10 @@ function AddCustomerForm({ customer, onDone }: { customer?: CustomerRow; onDone:
   const updateCustomer = useUpdateCustomer();
   const editing = !!customer;
   const [name, setName] = useState(customer?.name ?? '');
+  const [contact, setContact] = useState(customer?.primaryContactName ?? '');
+  const [phone, setPhone] = useState(customer?.primaryContactPhone ?? '');
+  const [wa, setWa] = useState(customer?.primaryContactPhone ?? '');
+  const [sameAsMobile, setSameAsMobile] = useState(true);
   const [area, setArea] = useState<string>(customer?.area ?? AREAS[0]);
   const [terms, setTerms] = useState<PaymentTermsValue>(
     (customer?.paymentTerms as PaymentTermsValue) ?? 'Credit30',
@@ -341,6 +345,10 @@ function AddCustomerForm({ customer, onDone }: { customer?: CustomerRow; onDone:
       paymentTerms: terms,
       payZone: zone,
       outstanding: outstanding === '' ? 0 : +outstanding || 0,
+      contactName: contact.trim() || null,
+      phone: phone.trim() || null,
+      whatsapp: sameAsMobile ? (phone.trim() || null) : (wa.trim() || null),
+      sameAsMobile,
     };
 
     const handlers = {
@@ -371,6 +379,25 @@ function AddCustomerForm({ customer, onDone }: { customer?: CustomerRow; onDone:
   return (
     <View className="gap-3">
       <Field label="Customer Account Name"><Input value={name} onChangeText={setName} placeholder="Company name" /></Field>
+      <Field label="Contact Person"><Input value={contact} onChangeText={setContact} placeholder="e.g. Priya Ramesh" /></Field>
+      <Field label="Mobile Number"><Input value={phone} onChangeText={(t) => { setPhone(t); if (sameAsMobile) setWa(t); }} placeholder="10-digit mobile" keyboardType="phone-pad" /></Field>
+
+      {/* WhatsApp toggle */}
+      <View className="gap-1">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-[11px] font-extrabold text-ink2 uppercase tracking-wide">WhatsApp Number</Text>
+          <Pressable onPress={() => { setSameAsMobile(!sameAsMobile); if (!sameAsMobile) setWa(phone); }} className="flex-row items-center gap-1.5">
+            <View className={`w-4 h-4 rounded border items-center justify-center ${sameAsMobile ? 'bg-brand border-brand' : 'border-line bg-surface'}`}>
+              {sameAsMobile ? <Text className="text-white text-[10px] font-black">✓</Text> : null}
+            </View>
+            <Text className="text-xs text-muted font-bold">Same as mobile</Text>
+          </Pressable>
+        </View>
+        {!sameAsMobile ? (
+          <Input value={wa} onChangeText={setWa} placeholder="WhatsApp number" keyboardType="phone-pad" />
+        ) : null}
+      </View>
+
       <Field label="Industrial Area"><Pills options={AREAS} value={area} onChange={setArea} /></Field>
       <Field label="Account Tier"><Pills options={CUSTOMER_CATEGORY_VALUES as unknown as string[]} value={cat} onChange={(v) => setCat(v as CustomerCategoryValue)} /></Field>
       <Field label="Agreed Payment Terms">

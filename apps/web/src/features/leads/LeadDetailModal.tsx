@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Target } from "lucide-react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { inr } from "@/lib/format";
@@ -32,12 +31,11 @@ export function LeadDetailModal({
   const [nextFollowUp, setNextFollowUp] = useState(lead?.nextFollowUp || "");
   const [expClose, setExpClose] = useState(lead?.expClose || "");
 
-  // Reset local edit state whenever a different lead is opened.
   useEffect(() => {
     setStage((lead?.stage as DealStageValue) || "NewEnquiries");
     setNextFollowUp(lead?.nextFollowUp || "");
     setExpClose(lead?.expClose || "");
-  }, [lead]);
+  }, [lead?.id, lead?.updatedAt]);
 
   if (!lead) return null;
 
@@ -68,12 +66,7 @@ export function LeadDetailModal({
     <Dialog
       open={open}
       onClose={onClose}
-      title={
-        <div className="flex items-center gap-2">
-          <Target className="h-4 w-4 text-brand" />
-          <span>New Sales Lead: {lead.customerName}</span>
-        </div>
-      }
+      title={`Sales Lead: ${lead.customerName}`}
       description={`${lead.contactName || "Direct Contact"} · ${lead.area || "Territory"} · Total ${inr(lead.totalValue)}`}
       maxWidth="max-w-2xl"
       footer={
@@ -101,12 +94,11 @@ export function LeadDetailModal({
       <div className="space-y-4 text-xs">
         {/* Deal Stage Selector */}
         <div className="rounded-xl border border-line bg-surface-2 p-3 flex items-center justify-between gap-3">
-          <span className="font-bold text-xs text-ink uppercase tracking-wider">
+          <label htmlFor="lead-stage" className="font-bold text-xs text-ink uppercase tracking-wider">
             Deal Pipeline Stage:
-          </span>
-          {/* `<option value>` is the raw DealStageValue — DEAL_STAGE_LABELS
-              supplies only the visible text (see features/leads/types.ts). */}
+          </label>
           <Select
+            id="lead-stage"
             value={stage}
             onChange={(e) => setStage(e.target.value as DealStageValue)}
             disabled={!canEdit}
@@ -121,9 +113,9 @@ export function LeadDetailModal({
         </div>
 
         {/* Lead Metadata Grid */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5">
               Salesperson
             </label>
             <div className="font-semibold text-ink p-2 rounded-lg bg-surface border border-line">
@@ -131,10 +123,14 @@ export function LeadDetailModal({
             </div>
           </div>
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+            <label
+              htmlFor="lead-next-followup"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+            >
               Next Follow-Up
             </label>
             <Input
+              id="lead-next-followup"
               type="date"
               disabled={!canEdit}
               value={nextFollowUp}
@@ -142,10 +138,14 @@ export function LeadDetailModal({
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+            <label
+              htmlFor="lead-exp-close"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+            >
               Expected Closure
             </label>
             <Input
+              id="lead-exp-close"
               type="date"
               disabled={!canEdit}
               value={expClose}
@@ -155,9 +155,9 @@ export function LeadDetailModal({
         </div>
 
         {/* Contact & Location */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5">
               Contact
             </label>
             <div className="font-semibold text-ink p-2 rounded-lg bg-surface border border-line">
@@ -165,7 +165,7 @@ export function LeadDetailModal({
             </div>
           </div>
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5">
               Mobile / WhatsApp
             </label>
             <div className="font-semibold text-ink p-2 rounded-lg bg-surface border border-line">
@@ -173,7 +173,7 @@ export function LeadDetailModal({
             </div>
           </div>
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5">
               Industry
             </label>
             <div className="font-semibold text-ink p-2 rounded-lg bg-surface border border-line">
@@ -183,9 +183,7 @@ export function LeadDetailModal({
           </div>
         </div>
 
-        {/* Product Requirements Table — read-only this cycle: LeadUpdate
-            omits `products`, so line items can only be set at create time
-            (see features/leads/types.ts doc comment). */}
+        {/* Product Requirements Table — read-only this cycle */}
         <div className="rounded-xl border border-line bg-surface p-3.5 space-y-2.5">
           <span className="text-xs font-bold text-ink uppercase tracking-wider block">
             Enquiry Products & Estimated Values
@@ -216,7 +214,7 @@ export function LeadDetailModal({
         </div>
 
         {update.isError && (
-          <p className="text-[11.5px] font-medium text-red">
+          <p role="alert" className="text-[11.5px] font-medium text-red">
             {update.error instanceof ApiError ? update.error.message : "Failed to save change."}
           </p>
         )}
@@ -231,3 +229,4 @@ export function LeadDetailModal({
     </Dialog>
   );
 }
+

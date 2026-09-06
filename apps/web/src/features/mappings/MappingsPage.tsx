@@ -149,7 +149,7 @@ export default function MappingsPage() {
             }
           >
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs">
+              <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs whitespace-nowrap">
                 <tr>
                   <th className="py-2.5 px-3 min-w-[200px]">Customer</th>
                   <th className="py-2.5 px-3 min-w-[200px]">Product</th>

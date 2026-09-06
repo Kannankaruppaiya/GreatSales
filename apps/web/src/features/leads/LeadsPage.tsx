@@ -133,14 +133,14 @@ export default function LeadsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search new sales pipeline…"
-            className="rounded-xl border border-line bg-surface-2 px-3 py-1.5 text-xs text-ink placeholder:text-muted focus:outline-brand focus:border-brand w-64 shadow-2xs"
+            className="h-8.5 w-64 rounded-lg border border-line bg-surface px-3 text-xs text-ink placeholder:text-muted/60 transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs"
           />
 
           {salespersonOptions.length > 0 && (
             <select
               value={ownerId}
               onChange={(e) => setOwnerId(e.target.value)}
-              className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
+              className="h-8.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs cursor-pointer"
             >
               <option value="ALL">All salespersons</option>
               {salespersonOptions.map((s) => (
@@ -155,10 +155,10 @@ export default function LeadsPage() {
             <button
               onClick={() => setViewMode("list")}
               className={cn(
-                "rounded-full border px-3 py-1 text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1",
+                "rounded-lg border px-3 py-1 text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1 shadow-2xs",
                 viewMode === "list"
-                  ? "border-brand bg-brand text-white shadow-2xs"
-                  : "border-line bg-surface text-muted hover:border-muted/50 hover:text-ink"
+                  ? "border-brand bg-brand text-white shadow-xs"
+                  : "border-line bg-surface text-muted hover:border-muted/40 hover:text-ink"
               )}
             >
               <LayoutList className="h-3 w-3" /> List ({leads.length})
@@ -166,13 +166,13 @@ export default function LeadsPage() {
             <button
               onClick={() => setViewMode("kanban")}
               className={cn(
-                "rounded-full border px-3 py-1 text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1",
+                "rounded-lg border px-3 py-1 text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1 shadow-2xs",
                 viewMode === "kanban"
-                  ? "border-brand bg-brand text-white shadow-2xs"
-                  : "border-line bg-surface text-muted hover:border-muted/50 hover:text-ink"
+                  ? "border-brand bg-brand text-white shadow-xs"
+                  : "border-line bg-surface text-muted hover:border-muted/40 hover:text-ink"
               )}
             >
-              <Kanban className="h-3 w-3" /> Kanban Board
+              <Kanban className="h-3 w-3" /> Kanban ({leads.length})
             </button>
           </div>
 
@@ -184,7 +184,7 @@ export default function LeadsPage() {
           {!isReadOnly && (
             <div className="ml-auto">
               <Button size="sm" onClick={() => setShowAddLead(true)}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> + Add New Sales Lead
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add New Sales Lead
               </Button>
             </div>
           )}
@@ -195,13 +195,13 @@ export default function LeadsPage() {
           isError={q.isError}
           error={q.error}
           isEmpty={leads.length === 0}
-          emptyLabel='No new sales leads found. Click "+ Add New Sales Lead" to log your first opportunity.'
+          emptyLabel='No new sales leads found. Click "Add New Sales Lead" to log your first opportunity.'
         >
           {viewMode === "list" ? (
             /* List Table View */
             <div className="overflow-x-auto max-h-[68vh]">
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs">
+                <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs whitespace-nowrap">
                   <tr>
                     <th className="py-2.5 px-3 min-w-[200px]">Customer</th>
                     <th className="py-2.5 px-3">Contact</th>

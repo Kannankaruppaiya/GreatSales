@@ -229,7 +229,7 @@ export default function ManagementHomePage() {
               </div>
             ) : (
               <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-surface-2 text-[11px] uppercase tracking-wider text-muted">
+                <thead className="sticky top-0 bg-surface-2 text-[11px] uppercase tracking-wider text-muted whitespace-nowrap">
                   <tr>
                     <th className="px-3 py-2 text-left font-bold">Rep</th>
                     <th className="px-3 py-2 text-right font-bold">Committed</th>

@@ -99,10 +99,11 @@ export const principalKeys = {
   all: ["principals"] as const,
 };
 
-export function usePrincipals() {
+export function usePrincipals(opts: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: principalKeys.all,
     queryFn: () => apiFetch<PrincipalListResponse>("/principals"),
+    enabled: opts.enabled ?? true,
   });
 }
 

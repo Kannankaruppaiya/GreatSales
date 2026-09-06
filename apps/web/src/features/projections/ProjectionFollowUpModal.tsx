@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarClock, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import { Button, Dialog, Input, Select, Textarea } from "@/components/ui";
 import { PROJ_STATUSES } from "@/data/constants";
 import { ApiError } from "@/lib/api";
@@ -84,12 +84,7 @@ export function ProjectionFollowUpModal({
     <Dialog
       open={open}
       onClose={onClose}
-      title={
-        <div className="flex items-center gap-2">
-          <CalendarClock className="h-4 w-4 text-brand" />
-          <span>Follow-Up & Status Log</span>
-        </div>
-      }
+      title="Follow-Up & Status Log"
       description={title}
       maxWidth="max-w-lg"
       footer={
@@ -97,8 +92,9 @@ export function ProjectionFollowUpModal({
           <Button variant="outline" size="sm" onClick={onClose} type="button">
             Cancel
           </Button>
-          <Button size="sm" onClick={handleSave}>
-            <Check className="h-3.5 w-3.5 mr-1" /> Save Follow-Up
+          <Button size="sm" onClick={handleSave} disabled={createRemark.isPending}>
+            <Check className="h-3.5 w-3.5 mr-1" />
+            {createRemark.isPending ? "Saving…" : "Save Follow-Up"}
           </Button>
         </>
       }
@@ -112,10 +108,17 @@ export function ProjectionFollowUpModal({
 
         {/* Status after follow-up */}
         <div>
-          <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+          <label
+            htmlFor="pf-status"
+            className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+          >
             Status after this follow-up
           </label>
-          <Select value={status || ""} onChange={(e) => setStatus(e.target.value)}>
+          <Select
+            id="pf-status"
+            value={status || ""}
+            onChange={(e) => setStatus(e.target.value)}
+          >
             <option value="">(keep current status)</option>
             {PROJ_STATUSES.map((st) => (
               <option key={st} value={st}>
@@ -126,22 +129,30 @@ export function ProjectionFollowUpModal({
         </div>
 
         {/* Date & Win Probability */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+            <label
+              htmlFor="pf-date"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+            >
               Next Follow-Up Date
             </label>
             <Input
+              id="pf-date"
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+            <label
+              htmlFor="pf-prob"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+            >
               Win Probability % (0–100)
             </label>
             <Input
+              id="pf-prob"
               type="number"
               min={0}
               max={100}
@@ -157,10 +168,14 @@ export function ProjectionFollowUpModal({
 
         {/* Interaction Notes */}
         <div>
-          <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+          <label
+            htmlFor="pf-note"
+            className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+          >
             Interaction Note / Conversation Details
           </label>
           <Textarea
+            id="pf-note"
             rows={3}
             placeholder="Met purchase manager, confirmed 10 drums requirement for 25th delivery…"
             value={note}
@@ -169,7 +184,7 @@ export function ProjectionFollowUpModal({
         </div>
 
         {error && (
-          <p className="text-[11.5px] font-medium text-red">{error}</p>
+          <p role="alert" className="text-[11.5px] font-medium text-red">{error}</p>
         )}
 
         {/* Interaction history, from /remarks rather than a prop nobody filled. */}
@@ -183,3 +198,6 @@ export function ProjectionFollowUpModal({
     </Dialog>
   );
 }
+
+
+

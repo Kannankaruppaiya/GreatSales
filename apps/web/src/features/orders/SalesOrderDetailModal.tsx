@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Package } from "lucide-react";
 import { Button, Dialog, Input } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { inr } from "@/lib/format";
@@ -68,7 +67,7 @@ export function SalesOrderDetailModal({
   useEffect(() => {
     setLiveOrder(order);
     setTransporterInput(order?.transporterName || "");
-  }, [order]);
+  }, [order?.id, order?.updatedAt]);
 
   if (!liveOrder) return null;
 
@@ -131,12 +130,7 @@ export function SalesOrderDetailModal({
     <Dialog
       open={open}
       onClose={onClose}
-      title={
-        <div className="flex items-center gap-2">
-          <Package className="h-4 w-4 text-brand" />
-          <span>Sales Order: {liveOrder.code}</span>
-        </div>
-      }
+      title={`Sales Order: ${liveOrder.code}`}
       description={`${liveOrder.customerName} · Total ${inr(totalVal)} · Status: ${ORDER_STATUS_LABELS[liveOrder.status as OrderStatusValue] ?? liveOrder.status}`}
       maxWidth="max-w-2xl"
       footer={
@@ -231,9 +225,16 @@ export function SalesOrderDetailModal({
             </div>
 
             {nextStatus === "DeliveryPartnerAssigned" && (
-              <div className="grid grid-cols-2 gap-2 mb-2">
+              <div className="space-y-1.5 mb-2">
+                <label
+                  htmlFor="transporter-name-input"
+                  className="text-xs font-semibold text-muted uppercase tracking-wider block"
+                >
+                  Transporter Partner Name
+                </label>
                 <Input
-                  placeholder="Transporter Name (e.g. VRL Logistics)"
+                  id="transporter-name-input"
+                  placeholder="e.g. VRL Logistics / TCI Express"
                   value={transporterInput}
                   onChange={(e) => setTransporterInput(e.target.value)}
                 />
@@ -262,10 +263,14 @@ export function SalesOrderDetailModal({
 
             {showCancelPrompt && (
               <form onSubmit={handleCancel} className="p-3 bg-red-soft rounded-lg border border-red/30 space-y-2">
-                <label className="text-[11px] font-bold text-red uppercase tracking-wider block">
+                <label
+                  htmlFor="cancel-reason-input"
+                  className="text-[11px] font-bold text-red uppercase tracking-wider block"
+                >
                   Reason for Order Cancellation *
                 </label>
                 <Input
+                  id="cancel-reason-input"
                   required
                   placeholder="e.g. Customer cancelled due to project delay"
                   value={cancelReasonInput}
@@ -283,7 +288,7 @@ export function SalesOrderDetailModal({
             )}
 
             {update.isError && (
-              <p className="text-[11.5px] font-medium text-red">
+              <p role="alert" className="text-[11.5px] font-medium text-red">
                 {update.error instanceof ApiError ? update.error.message : "Failed to update order."}
               </p>
             )}
@@ -298,8 +303,7 @@ export function SalesOrderDetailModal({
           </div>
         )}
 
-        {/* Order Product Lines — qty/price/lineTotal rendered exactly as
-            the API returned them (lineTotal is server-computed). */}
+        {/* Order Product Lines */}
         <div className="rounded-xl border border-line bg-surface p-3.5 space-y-2">
           <div className="text-xs font-bold text-ink uppercase tracking-wider">Ordered Products</div>
           <div className="divide-y divide-line/60">
@@ -327,3 +331,4 @@ export function SalesOrderDetailModal({
     </Dialog>
   );
 }
+

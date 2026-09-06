@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { UserPlus, Users } from "lucide-react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
 import { ApiError } from "@/lib/api";
+import { ConfirmActionModal } from "@/components/modals/ConfirmActionModal";
 import {
   useCreateUser,
   useRoles,
@@ -55,6 +55,7 @@ export function UserFormModal({
   const [teamId, setTeamId] = useState(user?.teamId ?? "");
   const [active, setActive] = useState(user?.active ?? true);
   const [localError, setLocalError] = useState("");
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const roleOptions = roles.data ?? [];
   const teamOptions = teams.data ?? [];
@@ -95,6 +96,31 @@ export function UserFormModal({
     (!isNew || !!password.trim()) &&
     !mutation.isPending;
 
+  const isDirty = isNew
+    ? name.trim() !== "" || username.trim() !== "" || email.trim() !== "" || password.trim() !== ""
+    : name.trim() !== user.name ||
+      username.trim() !== user.username ||
+      email.trim() !== user.email ||
+      password.trim() !== "" ||
+      roleId !== user.roleId ||
+      managerId !== (user.managerId ?? "") ||
+      teamId !== (user.teamId ?? "") ||
+      active !== user.active;
+
+  const handleAttemptClose = () => {
+    if (isDirty && !mutation.isPending) {
+      setShowDiscardConfirm(true);
+    } else {
+      handleForceClose();
+    }
+  };
+
+  const handleForceClose = () => {
+    setShowDiscardConfirm(false);
+    setLocalError("");
+    onClose();
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setLocalError("");
@@ -134,224 +160,245 @@ export function UserFormModal({
           },
         });
       }
-      onClose();
+      handleForceClose();
     } catch {
       // Surfaced inline below from mutation.error.
     }
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      title={
-        <div className="flex items-center gap-2">
-          {isNew ? (
-            <UserPlus className="h-4 w-4 text-brand" />
-          ) : (
-            <Users className="h-4 w-4 text-brand" />
-          )}
-          <span>{isNew ? "Add team user" : `Edit user: ${user.name}`}</span>
-        </div>
-      }
-      description={
-        isNew
-          ? "They will be asked to choose their own password the first time they sign in."
-          : "Changing the role or password ends every session this user has open."
-      }
-      maxWidth="max-w-lg"
-      footer={
-        <>
-          <Button variant="outline" size="sm" onClick={onClose} type="button">
-            Cancel
-          </Button>
-          <Button size="sm" type="button" onClick={handleSubmit} disabled={!canSubmit}>
-            {mutation.isPending
-              ? "Saving…"
-              : isNew
-                ? "Create user"
-                : "Save changes"}
-          </Button>
-        </>
-      }
-    >
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div>
-          <label
-            htmlFor="uf-name"
-            className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
-          >
-            Full name *
-          </label>
-          <Input
-            id="uf-name"
-            required
-            placeholder="e.g. Ramesh Kumar"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
+    <>
+      <Dialog
+        open={open}
+        onClose={handleAttemptClose}
+        title={isNew ? "Add Team User" : `Edit User: ${user.name}`}
+        description={
+          isNew
+            ? "They will be asked to choose their own password the first time they sign in."
+            : "Changing the role or password ends every session this user has open."
+        }
+        maxWidth="max-w-lg"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAttemptClose}
+              type="button"
+              disabled={mutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              type="button"
+              onClick={handleSubmit}
+              disabled={!canSubmit}
+            >
+              {mutation.isPending
+                ? "Saving…"
+                : isNew
+                  ? "Create User"
+                  : "Save Changes"}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmit} className="space-y-3.5">
           <div>
             <label
-              htmlFor="uf-username"
-              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
+              htmlFor="uf-name"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
             >
-              Username *
+              Full name <span className="text-red">*</span>
             </label>
             <Input
-              id="uf-username"
+              id="uf-name"
               required
-              placeholder="e.g. ramesh"
-              value={username}
-              aria-invalid={!!identityError}
-              onChange={(e) => setUsername(e.target.value)}
+              placeholder="e.g. Ramesh Kumar"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
             />
           </div>
-          <div>
-            <label
-              htmlFor="uf-email"
-              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
-            >
-              Email *
-            </label>
-            <Input
-              id="uf-email"
-              type="email"
-              required
-              placeholder="ramesh@greatsales.in"
-              value={email}
-              aria-invalid={!!identityError}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-        </div>
 
-        {identityError && (
-          <p role="alert" className="text-[11.5px] font-medium text-red">
-            {identityError}
-          </p>
-        )}
-
-        <PasswordField
-          value={password}
-          onChange={setPassword}
-          identity={{ name, email, username }}
-          required={isNew}
-          label={isNew ? "Password" : "New password"}
-          helpText={
-            isNew
-              ? undefined
-              : "Leave blank to keep the current password. Setting one signs them out everywhere."
-          }
-          serverError={passwordError}
-        />
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label
-              htmlFor="uf-role"
-              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
-            >
-              Access role *
-            </label>
-            {roles.isLoading ? (
-              <p className="text-[11px] text-muted">Loading roles…</p>
-            ) : roleOptions.length === 0 ? (
-              <p className="text-[11px] text-muted">
-                No roles available. Create one on the Roles tab first.
-              </p>
-            ) : (
-              <Select
-                id="uf-role"
-                value={selectedRoleId}
-                onChange={(e) => setRoleId(e.target.value)}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label
+                htmlFor="uf-username"
+                className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
               >
-                {roleOptions.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
+                Username <span className="text-red">*</span>
+              </label>
+              <Input
+                id="uf-username"
+                required
+                placeholder="e.g. ramesh"
+                value={username}
+                aria-invalid={!!identityError}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="uf-email"
+                className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+              >
+                Email <span className="text-red">*</span>
+              </label>
+              <Input
+                id="uf-email"
+                type="email"
+                required
+                placeholder="ramesh@greatsales.in"
+                value={email}
+                aria-invalid={!!identityError}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {identityError && (
+            <p role="alert" className="text-[11.5px] font-medium text-red">
+              {identityError}
+            </p>
+          )}
+
+          <PasswordField
+            value={password}
+            onChange={setPassword}
+            identity={{ name, email, username }}
+            required={isNew}
+            label={isNew ? "Password" : "New password"}
+            helpText={
+              isNew
+                ? undefined
+                : "Leave blank to keep the current password. Setting one signs them out everywhere."
+            }
+            serverError={passwordError}
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label
+                htmlFor="uf-role"
+                className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+              >
+                Access role <span className="text-red">*</span>
+              </label>
+              {roles.isLoading ? (
+                <p className="text-[11px] text-muted">Loading roles…</p>
+              ) : roleOptions.length === 0 ? (
+                <p className="text-[11px] text-muted">
+                  No roles available. Create one on the Roles tab first.
+                </p>
+              ) : (
+                <Select
+                  id="uf-role"
+                  value={selectedRoleId}
+                  onChange={(e) => setRoleId(e.target.value)}
+                >
+                  {roleOptions.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </div>
+
+            <div>
+              <label
+                htmlFor="uf-team"
+                className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+              >
+                Team
+              </label>
+              <Select
+                id="uf-team"
+                value={teamId}
+                onChange={(e) => setTeamId(e.target.value)}
+              >
+                <option value="">No team</option>
+                {teamOptions.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
                   </option>
                 ))}
               </Select>
-            )}
+            </div>
           </div>
 
           <div>
             <label
-              htmlFor="uf-team"
-              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
+              htmlFor="uf-manager"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
             >
-              Team
+              Reporting manager
             </label>
             <Select
-              id="uf-team"
-              value={teamId}
-              onChange={(e) => setTeamId(e.target.value)}
+              id="uf-manager"
+              value={managerId}
+              aria-invalid={!!managerError}
+              onChange={(e) => setManagerId(e.target.value)}
             >
-              <option value="">No team</option>
-              {teamOptions.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
+              <option value="">No manager</option>
+              {managerOptions.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
                 </option>
               ))}
             </Select>
+            {managerError && (
+              <p role="alert" className="text-[11.5px] font-medium text-red mt-1">
+                {managerError}
+              </p>
+            )}
           </div>
-        </div>
 
-        <div>
           <label
-            htmlFor="uf-manager"
-            className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1"
+            htmlFor="uf-active"
+            className="flex items-center gap-2 text-xs font-semibold text-ink pt-1 cursor-pointer"
           >
-            Reporting manager
+            <input
+              id="uf-active"
+              type="checkbox"
+              checked={active}
+              onChange={(e) => setActive(e.target.checked)}
+              className="h-4 w-4 rounded accent-brand cursor-pointer"
+            />
+            Active — can sign in and use GreatSales
           </label>
-          <Select
-            id="uf-manager"
-            value={managerId}
-            aria-invalid={!!managerError}
-            onChange={(e) => setManagerId(e.target.value)}
-          >
-            <option value="">No manager</option>
-            {managerOptions.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </Select>
-          {managerError && (
-            <p role="alert" className="text-[11.5px] font-medium text-red mt-1">
-              {managerError}
+
+          {localError && (
+            <p role="alert" className="text-xs text-red font-medium">
+              {localError}
             </p>
           )}
-        </div>
+          {referenceError && (
+            <p role="alert" className="text-[11.5px] font-medium text-red">
+              {referenceError}
+            </p>
+          )}
+          {unmappedError && (
+            <p role="alert" className="text-[11.5px] font-medium text-red">
+              {unmappedError}
+            </p>
+          )}
+        </form>
+      </Dialog>
 
-        <label className="flex items-center gap-2 text-xs font-semibold text-ink pt-1 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={active}
-            onChange={(e) => setActive(e.target.checked)}
-            className="h-4 w-4 rounded accent-brand cursor-pointer"
-          />
-          Active — can sign in and use GreatSales
-        </label>
-
-        {localError && (
-          <p role="alert" className="text-xs text-red font-medium">
-            {localError}
-          </p>
-        )}
-        {referenceError && (
-          <p role="alert" className="text-[11.5px] font-medium text-red">
-            {referenceError}
-          </p>
-        )}
-        {unmappedError && (
-          <p role="alert" className="text-[11.5px] font-medium text-red">
-            {unmappedError}
-          </p>
-        )}
-      </form>
-    </Dialog>
+      <ConfirmActionModal
+        open={showDiscardConfirm}
+        onClose={() => setShowDiscardConfirm(false)}
+        title="Discard User Changes?"
+        body="You have unsaved user details entered. Are you sure you want to discard your changes?"
+        confirmLabel="Discard Changes"
+        destructive
+        onConfirm={handleForceClose}
+      />
+    </>
   );
 }
+
+
+

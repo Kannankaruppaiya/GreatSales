@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarClock, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import { Button, Dialog, Input, Select, Textarea } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { useCreateFollowUp, useUpdateFollowUp } from "@/features/followups/queries";
@@ -77,12 +77,7 @@ export function FollowUpModal({
     <Dialog
       open={open}
       onClose={onClose}
-      title={
-        <div className="flex items-center gap-2">
-          <CalendarClock className="h-4 w-4 text-brand" />
-          <span>{isEdit ? "Edit Follow-Up" : "Add Follow-Up"}</span>
-        </div>
-      }
+      title={isEdit ? "Edit Follow-Up" : "Add Follow-Up"}
       description="A cross-entity follow-up task, linked to a customer / lead / order / payment / projection."
       maxWidth="max-w-lg"
       footer={
@@ -98,12 +93,16 @@ export function FollowUpModal({
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Entity Type *
+            <label
+              htmlFor="fu-entity-type"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+            >
+              Entity Type <span className="text-red">*</span>
             </label>
             <Select
+              id="fu-entity-type"
               value={entityType}
               onChange={(e) => setEntityType(e.target.value as EntityTypeValue)}
             >
@@ -115,10 +114,14 @@ export function FollowUpModal({
             </Select>
           </div>
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Entity ID *
+            <label
+              htmlFor="fu-entity-id"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+            >
+              Entity ID <span className="text-red">*</span>
             </label>
             <Input
+              id="fu-entity-id"
               required
               placeholder="e.g. cust_1, lead_2…"
               value={entityId}
@@ -127,33 +130,56 @@ export function FollowUpModal({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Due Date *
-            </label>
-            <Input type="date" required value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
-              Amount ₹ (Optional)
+            <label
+              htmlFor="fu-due-date"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+            >
+              Due Date <span className="text-red">*</span>
             </label>
             <Input
-              type="number"
-              min={0}
-              step="0.01"
-              placeholder="e.g. 25000"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              id="fu-due-date"
+              type="date"
+              required
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
             />
+          </div>
+          <div>
+            <label
+              htmlFor="fu-amount"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+            >
+              Amount (Optional)
+            </label>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted">
+                ₹
+              </span>
+              <Input
+                id="fu-amount"
+                type="number"
+                min={0}
+                step="0.01"
+                placeholder="0"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="pl-7"
+              />
+            </div>
           </div>
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+          <label
+            htmlFor="fu-title"
+            className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+          >
             Title
           </label>
           <Input
+            id="fu-title"
             placeholder="e.g. Anand Automotive Systems · CN-42 Oil"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -161,10 +187,14 @@ export function FollowUpModal({
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+          <label
+            htmlFor="fu-subtitle"
+            className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+          >
             Subtitle
           </label>
           <Input
+            id="fu-subtitle"
             placeholder="e.g. Proj 10 drums @ ₹5,000"
             value={subtitle}
             onChange={(e) => setSubtitle(e.target.value)}
@@ -172,10 +202,14 @@ export function FollowUpModal({
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+          <label
+            htmlFor="fu-note"
+            className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+          >
             Note
           </label>
           <Textarea
+            id="fu-note"
             rows={3}
             placeholder="Met purchase manager, confirmed 10 drums requirement for 25th delivery…"
             value={note}
@@ -184,19 +218,23 @@ export function FollowUpModal({
         </div>
 
         {isEdit && (
-          <label className="flex items-center gap-2 text-xs font-semibold text-ink cursor-pointer select-none">
+          <label
+            htmlFor="fu-done"
+            className="flex items-center gap-2 text-xs font-semibold text-ink cursor-pointer select-none"
+          >
             <input
+              id="fu-done"
               type="checkbox"
               checked={done}
               onChange={(e) => setDone(e.target.checked)}
               className="h-4 w-4 rounded border-line accent-brand"
             />
-            Done
+            Mark as Done
           </label>
         )}
 
         {mutation.isError && (
-          <p className="text-[11.5px] font-medium text-red">
+          <p role="alert" className="text-[11.5px] font-medium text-red">
             {mutation.error instanceof ApiError ? mutation.error.message : "Failed to save follow-up."}
           </p>
         )}
@@ -204,3 +242,5 @@ export function FollowUpModal({
     </Dialog>
   );
 }
+
+

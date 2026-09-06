@@ -59,6 +59,12 @@ export interface CustomerCreate {
   outstanding?: number;
   collectorId?: string | null;
   active?: boolean;
+  contactName?: string | null;
+  phone?: string | null;
+  whatsapp?: string | null;
+  sameAsMobile?: boolean;
+  email?: string | null;
+  designation?: string | null;
 }
 
 export type CustomerUpdate = Partial<CustomerCreate>;

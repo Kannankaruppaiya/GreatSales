@@ -2,13 +2,18 @@ import { useState } from "react";
 import { Building2, MessageCircle, Phone, Trash2, X } from "lucide-react";
 import { useAuthRole } from "@/store/auth";
 import { ApiError } from "@/lib/api";
-import { Button, Skeleton } from "@/components/ui";
+import { inr } from "@/lib/format";
+import { Badge, Button, Skeleton } from "@/components/ui";
 import { useCustomer, useDeleteCustomer } from "@/features/customers/queries";
 import { useMappings } from "@/features/mappings/queries";
 import { useOrders } from "@/features/orders/queries";
 import { usePayments } from "@/features/payments/queries";
 import { RemarksPanel } from "@/features/remarks/RemarksPanel";
-import type { CustomerRow } from "@/features/customers/types";
+import {
+  PAY_ZONE_LABELS,
+  type PayZoneValue,
+  type CustomerRow,
+} from "@/features/customers/types";
 
 /**
  * Customer 360 slide-over. Rendered from several pages (CustomersPage, the
@@ -190,9 +195,9 @@ export function CustomerDrawer({
             </div>
 
             {/* Financial Summary */}
-            <div className="grid grid-cols-2 gap-2 p-4 bg-surface-2/30 border-b border-line">
+            <div className="grid grid-cols-2 gap-2.5 p-4 bg-surface-2/30 border-b border-line">
               <div
-                className={`rounded-xl border p-2.5 text-center shadow-2xs ${
+                className={`rounded-xl border p-3 text-center shadow-2xs ${
                   customer.outstanding > 0 ? "border-red/40 bg-red-soft" : "border-line bg-surface"
                 }`}
               >
@@ -201,21 +206,38 @@ export function CustomerDrawer({
                     customer.outstanding > 0 ? "text-red" : "text-muted"
                   }`}
                 >
-                  Outstanding
+                  Outstanding Balance
                 </div>
                 <div
-                  className={`text-sm font-bold mt-0.5 tabular-nums ${
+                  className={`text-base font-extrabold mt-0.5 tabular-nums ${
                     customer.outstanding > 0 ? "text-red" : "text-ink"
                   }`}
                 >
-                  {customer.outstanding}
+                  {inr(customer.outstanding)}
                 </div>
               </div>
-              <div className="rounded-xl border border-line bg-surface p-2.5 text-center shadow-2xs">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-muted">
+              <div className="rounded-xl border border-line bg-surface p-3 text-center shadow-2xs flex flex-col justify-center items-center">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">
                   Payment Risk Zone
                 </div>
-                <div className="text-sm font-bold text-ink mt-0.5">{customer.payZone || "—"}</div>
+                {customer.payZone ? (
+                  <Badge
+                    variant={
+                      customer.payZone === "GreenZone"
+                        ? "good"
+                        : customer.payZone === "YellowZone"
+                          ? "warn"
+                          : customer.payZone === "RedZone"
+                            ? "bad"
+                            : "default"
+                    }
+                    dot
+                  >
+                    {PAY_ZONE_LABELS[customer.payZone as PayZoneValue] || customer.payZone}
+                  </Badge>
+                ) : (
+                  <span className="text-xs font-semibold text-muted">—</span>
+                )}
               </div>
             </div>
 
@@ -290,11 +312,11 @@ export function CustomerDrawer({
 /** One related-record count. `undefined` means the query has not answered yet. */
 function RelatedStat({ label, value }: { label: string; value?: number }) {
   return (
-    <div className="rounded-xl border border-line bg-surface-2 p-2.5 text-center">
-      <div className="text-sm font-bold text-ink tabular-nums">
+    <div className="rounded-xl border border-line bg-surface p-2.5 text-center shadow-2xs">
+      <div className="text-base font-extrabold text-ink tabular-nums font-sans">
         {value ?? "…"}
       </div>
-      <div className="text-[10.5px] font-semibold uppercase tracking-wider text-muted">
+      <div className="text-[10px] font-bold uppercase tracking-wider text-muted mt-0.5">
         {label}
       </div>
     </div>

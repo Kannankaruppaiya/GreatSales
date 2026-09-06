@@ -183,7 +183,7 @@ export default function OrdersPage() {
           {canEdit && tab === "list" && (
             <div className="ml-auto">
               <Button size="sm" onClick={() => setShowCreateSo(true)}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> + Create Sales Order
+                <Plus className="h-3.5 w-3.5 mr-1" /> Create Sales Order
               </Button>
             </div>
           )}
@@ -198,14 +198,14 @@ export default function OrdersPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search SO no., customer, or transporter…"
-                className="rounded-xl border border-line bg-surface px-3 py-1.5 text-xs text-ink placeholder:text-muted focus:outline-brand focus:border-brand w-64 shadow-2xs"
+                className="h-8.5 w-64 rounded-lg border border-line bg-surface px-3 text-xs text-ink placeholder:text-muted/60 transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs"
               />
 
               {salespersonOptions.length > 0 && (
                 <select
                   value={ownerId}
                   onChange={(e) => setOwnerId(e.target.value)}
-                  className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
+                  className="h-8.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs cursor-pointer"
                 >
                   <option value="ALL">All salespersons</option>
                   {salespersonOptions.map((s) => (
@@ -222,10 +222,10 @@ export default function OrdersPage() {
                     key={c}
                     onClick={() => setStatusChip(c)}
                     className={cn(
-                      "rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap transition-all cursor-pointer",
+                      "rounded-lg border px-2.5 py-1 text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shadow-2xs",
                       statusChip === c
-                        ? "border-brand bg-brand text-white shadow-2xs"
-                        : "border-line bg-surface text-muted hover:border-muted/50 hover:text-ink"
+                        ? "border-brand bg-brand text-white shadow-xs"
+                        : "border-line bg-surface text-muted hover:border-muted/40 hover:text-ink"
                     )}
                   >
                     {c === "ALL" ? "All" : ORDER_STATUS_LABELS[c as OrderStatusValue]}
@@ -244,7 +244,7 @@ export default function OrdersPage() {
                 emptyLabel="No sales orders yet. Click &ldquo;+ Create Sales Order&rdquo; to issue one."
               >
                 <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs">
+                  <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs whitespace-nowrap">
                     <tr>
                       <th className="py-2.5 px-3">SO no.</th>
                       <th className="py-2.5 px-3 min-w-[180px]">Customer</th>
@@ -378,7 +378,7 @@ export default function OrdersPage() {
             {/* Fulfilment SLA Table */}
             <div className="overflow-x-auto border border-line rounded-xl">
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted border-b border-line">
+                <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted border-b border-line whitespace-nowrap">
                   <tr>
                     <th className="py-2.5 px-3">SO no.</th>
                     <th className="py-2.5 px-3">Customer</th>

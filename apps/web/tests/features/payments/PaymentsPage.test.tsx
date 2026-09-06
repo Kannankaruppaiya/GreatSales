@@ -142,7 +142,7 @@ describe("PaymentsPage", () => {
 
     await screen.findByText("INV-1");
     expect(screen.queryByText("Import Tally Excel")).toBeNull();
-    expect(screen.queryByText("+ Add Invoice")).toBeNull();
+    expect(screen.queryByText(/Add Invoice/i)).toBeNull();
     // The 4 reminder chips render for everyone (read-only view), but must be
     // disabled — not just for mgmt, but for sales too.
     for (let i = 1; i <= 4; i++) {

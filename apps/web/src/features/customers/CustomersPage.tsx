@@ -100,27 +100,27 @@ export default function CustomersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search customers…"
-            className="rounded-xl border border-line bg-surface-2 px-3 py-1.5 text-xs text-ink placeholder:text-muted focus:outline-brand focus:border-brand w-64 shadow-2xs"
+            className="h-8.5 w-64 rounded-lg border border-line bg-surface px-3 text-xs text-ink placeholder:text-muted/60 transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs"
           />
 
           <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="h-full rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
-            >
-              <option value="ALL">All categories</option>
-              {CUSTOMER_TIERS.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="h-8.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs cursor-pointer"
+          >
+            <option value="ALL">All categories</option>
+            {CUSTOMER_TIERS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
 
           {salespersonOptions.length > 0 && (
             <select
               value={ownerId}
               onChange={(e) => setOwnerId(e.target.value)}
-              className="h-full rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
+              className="h-8.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs cursor-pointer"
             >
               <option value="ALL">All salespersons</option>
               {salespersonOptions.map((s) => (
@@ -132,25 +132,25 @@ export default function CustomersPage() {
           )}
 
           <select
-              value={area}
-              onChange={(e) => setArea(e.target.value)}
-              aria-label="Filter customers by industrial area"
-              className="h-full rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
-            >
-              <option value="ALL">All Industrial Areas</option>
-              {INDUSTRIAL_AREAS.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
+            value={area}
+            onChange={(e) => setArea(e.target.value)}
+            aria-label="Filter customers by industrial area"
+            className="h-8.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs cursor-pointer"
+          >
+            <option value="ALL">All Industrial Areas</option>
+            {INDUSTRIAL_AREAS.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
 
           {industryOptions.length > 0 && (
             <select
               value={industry}
               onChange={(e) => setIndustry(e.target.value)}
               aria-label="Filter customers by industry sector"
-              className="h-full rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-ink focus:outline-brand focus:border-brand"
+              className="h-8.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs cursor-pointer"
             >
               <option value="ALL">All Industry Sectors</option>
               {industryOptions.map((i) => (
@@ -179,7 +179,7 @@ export default function CustomersPage() {
           {canEdit && (
             <div className="ml-auto">
               <Button size="sm" onClick={() => setShowAddCustomer(true)}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> + Add New Customer
+                <Plus className="h-3.5 w-3.5 mr-1" /> Add Customer
               </Button>
             </div>
           )}
@@ -195,7 +195,7 @@ export default function CustomersPage() {
             emptyLabel="No customer accounts found matching search."
           >
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs">
+              <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs whitespace-nowrap">
                 <tr>
                   <th className="py-2.5 px-3 min-w-[220px]">Customer</th>
                   <th className="py-2.5 px-3">Area / Location</th>
@@ -221,7 +221,7 @@ export default function CustomersPage() {
                       </button>
                     </td>
                     <td className="py-2.5 px-3 text-xs font-medium text-ink">
-                      {c.area || "Other"}
+                      {c.area || "—"}
                     </td>
                     <td className="py-2.5 px-3 text-xs font-medium text-ink">
                       {c.industryName || "General"}

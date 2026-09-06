@@ -135,7 +135,7 @@ export function RolesTab() {
               <caption className="sr-only">
                 Which permissions each role grants
               </caption>
-              <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted border-b border-line">
+              <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted border-b border-line whitespace-nowrap">
                 <tr>
                   <th scope="col" className="py-2.5 px-3 min-w-[160px]">
                     Role

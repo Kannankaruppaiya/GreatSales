@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { KeyRound, Copy, Check } from "lucide-react";
+import { Copy, Check } from "lucide-react";
 import { Button, Dialog } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { useResetPassword } from "@/features/users/queries";
@@ -65,12 +65,7 @@ export function ResetPasswordModal({
     <Dialog
       open={open}
       onClose={handleClose}
-      title={
-        <div className="flex items-center gap-2">
-          <KeyRound className="h-4 w-4 text-brand" />
-          <span>Reset password for {user.name}</span>
-        </div>
-      }
+      title={`Reset password for ${user.name}`}
       maxWidth="max-w-md"
       footer={
         done ? (

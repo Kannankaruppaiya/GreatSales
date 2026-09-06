@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { UserCheck } from "lucide-react";
 import { Button, Dialog, Select } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { useUpdateCustomer } from "@/features/customers/queries";
@@ -75,13 +74,8 @@ export function ReassignCustomersModal({
     <Dialog
       open={open}
       onClose={onClose}
-      title={
-        <div className="flex items-center gap-2">
-          <UserCheck className="h-4 w-4 text-brand" />
-          <span>Bulk Customer Assignment</span>
-        </div>
-      }
-      description={`Select accounts to assign or reassign to ${targetName}`}
+      title="Bulk Customer Assignment"
+      description={`Select accounts to assign or reassign to ${targetName}.`}
       maxWidth="max-w-xl"
       footer={
         <>
@@ -103,13 +97,20 @@ export function ReassignCustomersModal({
       <div className="space-y-4 text-xs">
         {/* Target Salesperson Select */}
         <div>
-          <label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1">
+          <label
+            htmlFor="reassign-salesperson"
+            className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+          >
             Target Salesperson
           </label>
           {salespeople.length === 0 ? (
             <p className="text-[11px] text-muted">No salespersons available yet.</p>
           ) : (
-            <Select value={targetSalespersonId} onChange={(e) => setTargetSalespersonId(e.target.value)}>
+            <Select
+              id="reassign-salesperson"
+              value={targetSalespersonId}
+              onChange={(e) => setTargetSalespersonId(e.target.value)}
+            >
               {salespeople.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name} ({customers.filter((c) => c.salespersonId === s.id).length} accounts)
@@ -121,13 +122,19 @@ export function ReassignCustomersModal({
 
         {/* Customer Search & Quick Actions */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <input
-            type="text"
-            placeholder="Search customers…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="rounded-lg border border-line bg-surface px-3 py-1.5 text-xs text-ink placeholder:text-muted focus:outline-brand focus:border-brand w-60"
-          />
+          <div className="flex items-center gap-2">
+            <label htmlFor="reassign-search" className="sr-only">
+              Search customers
+            </label>
+            <input
+              id="reassign-search"
+              type="text"
+              placeholder="Search customers…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="rounded-lg border border-line bg-surface px-3 py-1.5 text-xs text-ink placeholder:text-muted focus:outline-brand focus:border-brand w-60"
+            />
+          </div>
 
           <div className="flex items-center gap-2">
             <button
@@ -159,10 +166,12 @@ export function ReassignCustomersModal({
               return (
                 <label
                   key={c.id}
+                  htmlFor={`customer-select-${c.id}`}
                   className="flex items-center justify-between p-2.5 hover:bg-surface-2 cursor-pointer transition-colors"
                 >
                   <div className="flex items-center gap-2.5">
                     <input
+                      id={`customer-select-${c.id}`}
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleCustomer(c.id)}
@@ -186,8 +195,9 @@ export function ReassignCustomersModal({
           )}
         </div>
 
-        {error && <p className="text-[11.5px] font-medium text-red">{error}</p>}
+        {error && <p role="alert" className="text-[11.5px] font-medium text-red">{error}</p>}
       </div>
     </Dialog>
   );
 }
+

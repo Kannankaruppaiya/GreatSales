@@ -131,6 +131,13 @@ export class CustomersService {
       ? user.userId
       : body.salespersonId;
 
+    const hasContact =
+      body.contactName !== undefined ||
+      body.phone !== undefined ||
+      body.whatsapp !== undefined ||
+      body.email !== undefined ||
+      body.designation !== undefined;
+
     const created = await db.customer.create({
       data: {
         tenant: { connect: { id: user.tenantId } },
@@ -152,6 +159,26 @@ export class CustomersService {
           : {}),
         ...(body.collectorId
           ? { collector: { connect: { id: body.collectorId } } }
+          : {}),
+        ...(hasContact
+          ? {
+              contacts: {
+                create: {
+                  name: body.contactName?.trim() || body.name,
+                  phone: body.phone?.trim() || null,
+                  mobile: body.phone?.trim() || null,
+                  whatsapp:
+                    body.whatsapp?.trim() ||
+                    (body.sameAsMobile
+                      ? body.phone?.trim() || null
+                      : null),
+                  sameAsMobile: body.sameAsMobile ?? true,
+                  email: body.email?.trim() || null,
+                  designation: body.designation?.trim() || null,
+                  isPrimary: true,
+                },
+              },
+            }
           : {}),
       },
       include: CUSTOMER_INCLUDE,
@@ -190,6 +217,64 @@ export class CustomersService {
       data.collector = patch.collectorId
         ? { connect: { id: patch.collectorId } }
         : { disconnect: true };
+    }
+
+    const hasContactPatch =
+      'contactName' in patch ||
+      'phone' in patch ||
+      'whatsapp' in patch ||
+      'sameAsMobile' in patch ||
+      'email' in patch ||
+      'designation' in patch;
+
+    if (hasContactPatch) {
+      const primaryContact = await db.customerContact.findFirst({
+        where: { customerId: id, isPrimary: true },
+      });
+
+      if (primaryContact) {
+        const contactData: Prisma.CustomerContactUpdateInput = {};
+        if ('contactName' in patch)
+          contactData.name = patch.contactName?.trim() || primaryContact.name;
+        if ('phone' in patch) {
+          contactData.phone = patch.phone?.trim() || null;
+          contactData.mobile = patch.phone?.trim() || null;
+        }
+        if ('whatsapp' in patch)
+          contactData.whatsapp = patch.whatsapp?.trim() || null;
+        if ('sameAsMobile' in patch)
+          contactData.sameAsMobile = patch.sameAsMobile ?? true;
+        if ('email' in patch)
+          contactData.email = patch.email?.trim() || null;
+        if ('designation' in patch)
+          contactData.designation = patch.designation?.trim() || null;
+
+        await db.customerContact.update({
+          where: { id: primaryContact.id },
+          data: contactData,
+        });
+      } else if (
+        patch.contactName ||
+        patch.phone ||
+        patch.whatsapp ||
+        patch.email
+      ) {
+        await db.customerContact.create({
+          data: {
+            customerId: id,
+            name: patch.contactName?.trim() || 'Primary Contact',
+            phone: patch.phone?.trim() || null,
+            mobile: patch.phone?.trim() || null,
+            whatsapp:
+              patch.whatsapp?.trim() ||
+              (patch.sameAsMobile ? patch.phone?.trim() || null : null),
+            sameAsMobile: patch.sameAsMobile ?? true,
+            email: patch.email?.trim() || null,
+            designation: patch.designation?.trim() || null,
+            isPrimary: true,
+          },
+        });
+      }
     }
 
     const updated = await db.customer.update({

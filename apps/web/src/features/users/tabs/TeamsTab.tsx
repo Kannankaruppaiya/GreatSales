@@ -90,7 +90,7 @@ export function TeamsTab() {
               <caption className="sr-only">
                 Teams, their managers, and how many people are on each
               </caption>
-              <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted border-b border-line">
+              <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted border-b border-line whitespace-nowrap">
                 <tr>
                   <th scope="col" className="py-2.5 px-3">
                     Team
