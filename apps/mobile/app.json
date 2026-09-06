@@ -38,13 +38,18 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiBaseUrl": "https://18-130-99-225.sslip.io/api/v1"
+      "apiBaseUrl": "https://18-130-99-225.sslip.io/api/v1",
+      "router": {},
+      "eas": {
+        "projectId": "d58801d6-32a3-4bf5-a4d4-3985f9859016"
+      }
     },
     "primaryColor": "#208AEF",
     "ios": {
       "bundleIdentifier": "com.greatsales.crm",
       "buildNumber": "1",
       "supportsTablet": true
-    }
+    },
+    "owner": "kannankaruppaiya"
   }
 }

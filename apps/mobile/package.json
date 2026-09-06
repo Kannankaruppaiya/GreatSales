@@ -41,7 +41,7 @@
     "web": "expo start --web",
     "check-types": "tsc --noEmit",
     "lint": "expo lint",
-    "apk": "eas build --platform android --profile preview"
+    "apk": "npx eas build --platform android --profile preview"
   },
   "private": true
 }
