@@ -39,6 +39,11 @@ pnpm test:e2e                                          # the whole Playwright su
   `apps/web/src/data/features.ts` — declare a feature there and the sweep covers it next run.
 - **The API e2e suites (`pnpm --filter api test:e2e`) reseed the same Postgres** and destroy the
   Promech data. Re-run `db:seed:promech` afterwards.
+- **Check what the API on :3001 is actually running before you trust a probe.** A server started
+  as `node apps/api/dist/main` serves the last *build*, not the working tree, so a source change
+  you just made is invisible and a green probe proves nothing about it. `netstat -ano | grep :3001`
+  then `Get-CimInstance Win32_Process -Filter "ProcessId = <pid>"` shows the command line; if it
+  names `dist/main`, restart it as `start:dev` (watch mode) or `pnpm build` first.
 - `pnpm wiring` needs no running server: it reads the Nest controllers and greps web + mobile for
   the calls, so it answers "which endpoint has no client?" while `pnpm smoke` answers "does the
   endpoint actually work?". Run both; neither replaces the other.
