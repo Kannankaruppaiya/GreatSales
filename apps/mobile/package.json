@@ -40,7 +40,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "check-types": "tsc --noEmit",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "apk": "eas build --platform android --profile preview"
   },
   "private": true
 }
