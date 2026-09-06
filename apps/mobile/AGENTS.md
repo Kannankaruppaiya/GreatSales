@@ -46,3 +46,34 @@ open and worth knowing before writing any code:
 `pnpm --filter mobile check-types` runs `tsc --noEmit`. It fails on a machine where this
 workspace's dependencies were never installed (no local `typescript` binary) — that is an
 install problem, not a code problem. It passes on a clean install, and CI runs it.
+
+## Building an installable APK
+
+Expo Go only ever proves the app on the phone that scanned the QR code — it does
+not exercise the release bundle, the app icon, the launcher name, or the native
+tab-bar insets. For anything device-shaped, build the APK:
+
+```bash
+pnpm apk        # works from the repo root or from apps/mobile
+```
+
+That is the `preview` profile in `eas.json`: an internal-distribution **APK**
+(not an app bundle), installable on any Android phone without the Play Store.
+EAS returns a download link when the build finishes. The `production` profile
+builds the AAB that a Play Store upload needs.
+
+Two things about this cost a failed run each to discover:
+
+- **Call the CLI through `npx`.** This machine has two global `eas` binaries, and
+  the one under `AppData\Roaming\npm` (16.28.0) comes first on PATH, ahead of the
+  current 21.8.0 under nvm. A bare `eas` fails the `cli.version` constraint in
+  `eas.json`; `npx eas` resolves to the newer one.
+- **Both profiles pin `EXPO_PUBLIC_API_URL`.** A release build has no Metro host
+  to infer the API from. `app.json`'s `extra.apiBaseUrl` is the fallback, but it
+  is the field people edit for local work, so the build profile sets the real
+  origin explicitly and wins.
+
+The Expo project is `@kannankaruppaiya/greatsales`
+(`d58801d6-32a3-4bf5-a4d4-3985f9859016`). The Android keystore lives in EAS and
+is the same one Play Store updates will require — losing it means a new listing,
+not a new upload.
