@@ -78,14 +78,31 @@ export function reseedTestDatabase(): void {
     );
   }
 
-  execSync('pnpm --filter @greatsales/db db:seed', {
-    cwd: process.cwd(),
-    stdio: 'ignore',
-    env: {
-      ...process.env,
-      // The seed must connect as the owner to TRUNCATE.
-      DATABASE_URL: ownerUrl,
-      ALLOW_DESTRUCTIVE_SEED: '1',
-    },
-  });
+  try {
+    execSync('pnpm --filter @greatsales/db db:seed', {
+      cwd: process.cwd(),
+      // Capture rather than discard: a swallowed seed failure reports only
+      // "Command failed", which says nothing about WHY — and the failure is
+      // intermittent, so re-running to see it costs a full suite each time.
+      stdio: 'pipe',
+      env: {
+        ...process.env,
+        // The seed must connect as the owner to TRUNCATE.
+        DATABASE_URL: ownerUrl,
+        ALLOW_DESTRUCTIVE_SEED: '1',
+      },
+    });
+  } catch (err) {
+    const e = err as { stderr?: Buffer; stdout?: Buffer; message?: string };
+    throw new Error(
+      `Reseed failed.
+
+--- seed stderr ---
+${e.stderr?.toString() ?? ''}` +
+        `
+--- seed stdout ---
+${e.stdout?.toString() ?? ''}
+${e.message ?? ''}`,
+    );
+  }
 }
