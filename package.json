@@ -25,7 +25,8 @@
     "db:provision": "pnpm --filter @greatsales/db db:provision",
     "box": "node scripts/box.mjs",
     "icons": "node scripts/make-icons.mjs",
-    "backup:drill": "node scripts/backup-drill.mjs"
+    "backup:drill": "node scripts/backup-drill.mjs",
+    "apk": "pnpm --filter mobile exec eas build --platform android --profile preview"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
