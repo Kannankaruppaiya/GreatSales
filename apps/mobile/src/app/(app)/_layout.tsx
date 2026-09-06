@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { C } from '@/gs/theme';
 import { HomeIcon, ChartIcon, TargetIcon, CheckCircleIcon, GridIcon } from '@/gs/icons';
@@ -10,6 +11,8 @@ export default function AppTabs() {
   // Mounted before the session is known (see the guard in the root layout), so
   // hold here rather than letting every tab query fire without a token.
   const status = useSessionStatus();
+  // Read before the early return: hooks cannot be conditional.
+  const insets = useSafeAreaInsets();
   if (status === 'unknown') return null;
 
   return (
@@ -23,8 +26,15 @@ export default function AppTabs() {
             backgroundColor: C.surface,
             borderTopColor: C.line,
             borderTopWidth: 1,
-            height: 64,
-            paddingBottom: 8,
+            // React Navigation sizes the bar from the bottom safe-area inset
+            // on its own, but ONLY while height is unset — an explicit height
+            // replaces that calculation instead of adding to it. Hardcoding 64
+            // therefore looked right on a phone with three-button navigation
+            // and pushed the labels under the gesture bar on every phone that
+            // has one, which is most of them. The inset is 0 where there is no
+            // gesture bar, so this is the same 64 on those devices.
+            height: 64 + insets.bottom,
+            paddingBottom: 8 + insets.bottom,
             paddingTop: 6,
             elevation: 8,
             shadowColor: '#0f172a',
