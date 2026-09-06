@@ -1,0 +1,127 @@
+# GreatSales — production stack for a single EC2 box.
+#
+# Differences from docker-compose.staging.yml that matter, because each one was
+# a live defect in that file:
+#   * NO seed step. The staging db-migrate ran `prisma seed` after every
+#     migration and set no NODE_ENV, so the guard saw "development", the host
+#     `postgres` looked local, and every deploy TRUNCATED the database.
+#   * NO secrets in this file. Everything sensitive comes from ./.env, which is
+#     generated on the box with mode 600 and never committed.
+#   * NO redis. Nothing in apps/api imports a redis client; the staging file
+#     ran one anyway and gated the API's startup on its health.
+#   * The API connects as greatsales_app (RLS applies); only migrations use the
+#     owner role. The env contract refuses to boot if these are equal.
+name: greatsales
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: greatsales
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: greatsales
+    # Deliberately NOT published to the host: the only clients are on this
+    # compose network. The security group would drop outside traffic anyway,
+    # but an unpublished port cannot be reached even from the box itself.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    command:
+      - postgres
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - effective_cache_size=2GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - track_io_timing=on
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U greatsales -d greatsales"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  db-migrate:
+    image: greatsales/api:${IMAGE_TAG:-latest}
+    restart: "no"
+    environment:
+      # Migrations run as the OWNER, which bypasses RLS. That is correct here
+      # and nowhere else.
+      DATABASE_URL: postgresql://greatsales:${POSTGRES_PASSWORD}@postgres:5432/greatsales?schema=public
+      DIRECT_URL: postgresql://greatsales:${POSTGRES_PASSWORD}@postgres:5432/greatsales?schema=public
+    command: >
+      sh -c "cd /app/packages/db && ./node_modules/.bin/prisma migrate deploy"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    image: greatsales/api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://greatsales_app:${APP_DB_PASSWORD:?set in .env}@postgres:5432/greatsales?schema=public
+      DIRECT_URL: postgresql://greatsales:${POSTGRES_PASSWORD}@postgres:5432/greatsales?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set in .env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set in .env}
+      JWT_ACCESS_TTL: "15m"
+      JWT_REFRESH_TTL: "7d"
+      # Caddy terminates TLS and proxies; without this every client looks like
+      # the proxy, so rate limiting and the login audit trail both lie.
+      TRUST_PROXY: "1"
+      # The console is served from the same origin as the API, so a browser
+      # never sends a cross-origin request. This stays set because the env
+      # contract refuses "*" in production and a wrong value should fail loudly.
+      CORS_ORIGIN: ${CORS_ORIGIN:?set in .env}
+      SWAGGER_ENABLED: "false"
+      # Passed through only when set. An empty value is not "no Sentry", it is
+      # an invalid URL, and the env contract rejects it.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/v1/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  web:
+    image: greatsales/web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      # A bare ":80" serves plain HTTP on the IP. A hostname makes Caddy fetch
+      # and renew a Let's Encrypt certificate on its own.
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

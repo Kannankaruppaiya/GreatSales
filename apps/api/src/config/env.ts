@@ -105,7 +105,14 @@ const baseEnvSchema = z.object({
     .default('info'),
 
   /** Error-tracking DSN. Absent means error tracking is disabled. */
-  SENTRY_DSN: z.string().url().optional(),
+  // `.optional()` alone is not enough: docker compose, systemd and CI all pass
+  // an UNSET variable as an empty string, and "" is not a valid URL — so a
+  // deployment that simply had no Sentry project refused to boot at all.
+  SENTRY_DSN: z
+    .string()
+    .transform((v) => (v.trim() === '' ? undefined : v))
+    .pipe(z.string().url().optional())
+    .optional(),
 
   /**
    * Redis connection.

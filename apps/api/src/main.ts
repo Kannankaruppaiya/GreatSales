@@ -8,8 +8,13 @@ import cookieParser from 'cookie-parser';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
+import { initObservability } from './observability';
 
 async function bootstrap() {
+  // Before the app is created: a crash during module init is exactly the kind
+  // of failure that otherwise leaves no trace anywhere.
+  initObservability();
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
 

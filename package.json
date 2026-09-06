@@ -21,7 +21,11 @@
     "db:backup": "pnpm --filter @greatsales/db db:backup",
     "db:clear-data": "pnpm --filter @greatsales/db db:clear-data",
     "db:restore": "pnpm --filter @greatsales/db db:restore",
-    "db:export-excel": "pnpm --filter @greatsales/db db:export-excel"
+    "db:export-excel": "pnpm --filter @greatsales/db db:export-excel",
+    "db:provision": "pnpm --filter @greatsales/db db:provision",
+    "box": "node scripts/box.mjs",
+    "icons": "node scripts/make-icons.mjs",
+    "backup:drill": "node scripts/backup-drill.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

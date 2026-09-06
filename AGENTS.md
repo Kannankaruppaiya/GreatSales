@@ -48,6 +48,111 @@ pnpm test:e2e                                          # the whole Playwright su
 
 ---
 
+# PRODUCTION: THE AWS BOX
+
+Settled facts. Do not re-derive them and do not go looking in the console.
+
+| | |
+| --- | --- |
+| Instance | `i-0cc1f215b9bb900ad` — c7i-flex.large, 2 vCPU / 4GB, eu-west-2a |
+| Address | https://18-130-99-225.sslip.io — Elastic IP `18.130.99.225` (`eipalloc-03b19235f5f3140d5`) |
+| Access | **SSM Run Command only.** There is no SSH key and port 22 is closed. |
+| App root | `/opt/greatsales` — compose file, Caddyfile, `.env` (mode 600), `backup.sh` |
+| Secrets | generated ON the box at first deploy, never in git, never on a command line |
+| Buckets | `greatsales-deploy-…` (image tarballs), `greatsales-backups-…` (pg_dump) |
+| Backup | nightly 02:15 UTC, systemd timer `greatsales-backup.timer` → S3 |
+| Alerting | SNS `greatsales-alerts` in **both** eu-west-2 and us-east-1 → kannankaruppaiya10@gmail.com |
+
+```bash
+node scripts/deploy-aws.mjs                 # build here, ship through S3, deploy over SSM
+node scripts/deploy-aws.mjs --skip-build    # redeploy the images already in S3
+pnpm box 'docker compose ps'                # run any shell command on the box over SSM
+pnpm backup:drill                           # restore the newest S3 dump and diff it against live
+```
+
+- **Images are built on the developer machine, never on the box.** 4GB is enough to RUN the
+  stack beside Postgres and nowhere near enough to build it.
+- The deploy is ordered `migrate → rotate greatsales_app's password → start the API`. That
+  order is not cosmetic: the RLS migration creates the role with the literal password
+  `greatsales_app`, so starting the API first fails authentication and takes the deploy down
+  before it reaches the line that would have fixed it.
+- `.env` is written once and then left alone. Regenerating it would invalidate every signed-in
+  session (new JWT secrets) and lock the API out of its own database (new DB passwords).
+
+## The hostname and its certificate
+
+`sslip.io` resolves `18-130-99-225.sslip.io` to `18.130.99.225` with no registrar, no DNS
+records to keep and no signup, and it sits on the Public Suffix List so Let's Encrypt treats
+each name under it as its own registrable domain rather than sharing one rate limit with
+every other user. Caddy fetches and renews the certificate on its own.
+
+To move to a real domain later, point an A record at the Elastic IP and change two lines in
+`/opt/greatsales/.env` — `SITE_ADDRESS` (the bare hostname) and `CORS_ORIGIN` (the same host
+as an `https://` URL) — then `docker compose up -d --force-recreate caddy api`. Both have to
+change together: the console is served from the API's origin, and the env contract rejects a
+`CORS_ORIGIN` that does not match.
+
+`apps/mobile/app.json` carries the same URL in `extra.apiBaseUrl`, which is what a release
+build falls back to when there is no Metro host to infer from.
+
+## Alerting, and what it does and does not cover
+
+| Alarm | Region | Fires when |
+| --- | --- | --- |
+| `greatsales-prod-unreachable` | us-east-1 | A Route 53 health check against `https://…/api/v1/health/ready` fails from AWS's external checkers. Covers the app, Caddy, the certificate and the network — not just the box. |
+| `greatsales-box-status-check-failed` | eu-west-2 | EC2 reports the instance itself unhealthy. |
+
+The health check is external on purpose: a heartbeat published *by* the box cannot tell you
+that the box is unreachable *from outside*, which is the failure the customer actually sees.
+Route 53 health-check metrics only exist in us-east-1 and a CloudWatch alarm can only notify a
+topic in its own region, which is why the SNS topic exists twice.
+
+**Neither alarm reports application errors.** `SENTRY_DSN` is still empty — see Still open.
+
+## Onboarding a customer
+
+A production database has no tenant, no roles and no users — the seed scripts cannot be used
+because every one of them truncates first.
+
+```bash
+pnpm db:provision -- --tenant acme --name "Acme Industrial" --admin-email ops@acme.com
+```
+
+It only ever inserts: it refuses a tenant id that already exists, upserts the global permission
+catalogue, and prints the generated admin password once. The admin is created with
+`mustChangePassword`, so that password is a hand-over secret rather than a credential.
+
+## Still open
+
+- **`SENTRY_DSN` is empty**, so application errors are reported nowhere — the two alarms above
+  tell you the app is *down*, not that it is throwing. The wiring is in place
+  (`apps/api/src/observability.ts`); it needs a DSN in `.env` and an API restart. Creating the
+  Sentry project requires a signup, which is why this is still open.
+- **The instance role cannot read its own backups.** `greatsales-deploy-buckets` grants
+  `s3:PutObject` on the backups bucket and nothing else, so a restore cannot be driven from
+  the box — `pnpm backup:drill` works around it by shipping the dump in over SSM, which stops
+  working once a dump exceeds ~90KB base64. Grant `s3:GetObject` and `s3:ListBucket` on
+  `greatsales-backups-…` before the database is big enough to matter.
+- **A failed backup tells nobody.** The unit fails loudly into journald and no further. Giving
+  the instance role `sns:Publish` on `greatsales-alerts` and adding `OnFailure=` to the unit
+  closes it.
+- **The AWS account is used through ROOT access keys.** A leak costs the whole account,
+  including `ralp-app`. Create an IAM user and delete the root keys.
+
+## The backup, and why it is now checked
+
+Until 2026-09-06 the backups bucket had been empty for as long as the timer had existed. The
+`backup.sh` written by `scripts/deploy-aws.mjs` had lost the line-continuations in its
+`pg_dump | gzip | aws s3 cp` pipeline, so bash aborted on a bare leading `|` — but only
+*after* `pg_dump` had already run, which meant every night dumped the entire database into the
+systemd journal and uploaded nothing. The timer reported no error anybody looked at.
+
+The pipeline is one line now and the script fails on a dump under 10KB. Run
+`pnpm backup:drill` after any change to it: it restores the newest object that is genuinely in
+S3 into a throwaway database on the box and fails if any table's row count differs from live.
+
+---
+
 # PRODUCTION-FIRST ENGINEERING DIRECTIVE
 
 This project is a real production application.

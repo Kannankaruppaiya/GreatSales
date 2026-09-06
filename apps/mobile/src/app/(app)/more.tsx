@@ -7,17 +7,14 @@ import { useOrders } from '@/gs/queries/orders';
 import { usePayments } from '@/gs/queries/payments';
 import { useCustomers } from '@/gs/queries/customers';
 import { useLeads } from '@/gs/queries/leads';
+import { currentPeriod } from '@greatsales/shared';
 import { lakhs, pct } from '@/gs/domain';
 import { WalletIcon, TargetIcon, ChartIcon, GridIcon } from '@/gs/icons';
 
-const NOW = new Date();
-
 export default function More() {
   const user = useAuthUser();
-  const year = NOW.getFullYear();
-  const month = NOW.getMonth() + 1;
 
-  const { data: d } = useDashboard(year, month);
+  const { data: d } = useDashboard(currentPeriod());
   // `total` for the hint counts, `items` for the rows the tiles reduce over.
   // The hints used to read `orders.length` off a capped single request, so a
   // rep with 300 orders was told they had 100.
@@ -26,11 +23,11 @@ export default function More() {
   const { items: customers, total: customerTotal } = useCustomers();
   const { items: leads } = useLeads();
 
-  const totalReceivables = d?.totalPendingPayments ?? payments.reduce((s, p) => s + p.pending, 0);
+  const totalReceivables = payments.reduce((s, p) => s + p.pending, 0);
   const openLeads = leads.filter((l) => !['ClosedWon', 'ClosedLost', 'NoRequirementOrCold'].includes(l.stage));
-  const recurringAchieved = d?.recurringAchieved ?? 0;
-  const recurringCommitted = d?.totalCommitted ?? 0;
-  const overdueFollowups = d?.overdueFollowUpsCount ?? 0;
+  const recurringAchieved = d?.kpis.recurringAchieved ?? 0;
+  const recurringCommitted = d?.kpis.recurringCommitted ?? 0;
+  const overdueFollowups = d?.kpis.followUpsOverdue ?? 0;
 
   const pendingPayments = payments.filter((p) => p.pending > 0);
 

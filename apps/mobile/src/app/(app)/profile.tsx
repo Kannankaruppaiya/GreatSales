@@ -3,19 +3,18 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Screen, Card, Avatar } from '@/gs/kit';
 import { useAuthUser, logout } from '@/gs/auth';
+import { currentPeriod } from '@greatsales/shared';
 import { useDashboard } from '@/gs/queries/dashboard';
 import { lakhs, pct } from '@/gs/domain';
-
-const NOW = new Date();
 
 export default function Profile() {
   const user = useAuthUser();
   const [signingOut, setSigningOut] = useState(false);
 
-  const { data: d } = useDashboard(NOW.getFullYear(), NOW.getMonth() + 1);
+  const { data: d } = useDashboard(currentPeriod());
 
-  const totalAchieved = d?.totalAchieved ?? 0;
-  const achievementPct = d?.achievementPct ?? 0;
+  const totalAchieved = d?.kpis.totalAchieved ?? 0;
+  const achievementPct = d?.kpis.totalPct ?? 0;
 
   const rows = [
     ['Full Name', user?.name || 'User'],
@@ -23,7 +22,9 @@ export default function Profile() {
     ['Official Email', user?.email || '—'],
     ['User ID', user?.userId ? `${user.userId.slice(0, 8)}…` : '—'],
     ['Tenant', user?.tenantId || 'GreatSales'],
-    ['Division', 'LUB (Lubricants)'],
+    // No Division row: `User` carries no division in the schema — only Customer,
+    // Lead and Product do. The row printed a hardcoded 'LUB (Lubricants)' for
+    // every user, including anyone selling WES, which is worse than absent.
   ] as const;
 
   const handleSignOut = async () => {

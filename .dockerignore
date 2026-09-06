@@ -25,11 +25,16 @@
 .gitignore
 
 # Environment & local files
-.env
-.env*
-.env.local
-.env.*.local
-*.pem
+#
+# The leading-dot patterns below MUST be **-prefixed. A bare `.env*` matches
+# only the build-context root, so `apps/api/.env` was copied into the API image
+# and its development JWT secrets and database URL shipped to production —
+# visible in the container's own boot log as "injected env (9) from
+# apps/api/.env". Secrets reach a container through the runtime environment,
+# never through a layer.
+**/.env
+**/.env.*
+**/*.pem
 
 # Test & coverage
 **/coverage

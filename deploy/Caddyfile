@@ -1,0 +1,34 @@
+# One origin for both halves of the product.
+#
+# The console is built with VITE_API_URL=/api/v1 — a relative path — so serving
+# it and the API from the same hostname means the browser never makes a
+# cross-origin request: no preflight, no CORS allow-list to keep in sync, and
+# the refresh cookie is first-party. The mobile app talks to the same
+# /api/v1 prefix.
+{$SITE_ADDRESS} {
+	encode gzip zstd
+
+	# Order matters: the API prefix has to win before the SPA fallback.
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		reverse_proxy web:80
+	}
+
+	header {
+		# Caddy serves HTTPS by default once SITE_ADDRESS is a hostname; HSTS
+		# tells the browser never to try the plaintext version again.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

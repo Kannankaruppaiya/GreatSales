@@ -7,6 +7,7 @@ import { useDashboard } from '@/gs/queries/dashboard';
 import { useLeads } from '@/gs/queries/leads';
 import { useProjections } from '@/gs/queries/projections';
 import { useFollowUps } from '@/gs/queries/followups';
+import { usePayments } from '@/gs/queries/payments';
 import { inr, lakhs, pct, shortDate, agingDays, projTone } from '@/gs/domain';
 import { TrendUpIcon } from '@/gs/icons';
 
@@ -20,10 +21,13 @@ export default function Home() {
   const user = useAuthUser();
   const period = `${year}-${String(month).padStart(2, '0')}`;
 
-  const dashboard = useDashboard(year, month);
+  const dashboard = useDashboard(period);
   const leadsQuery = useLeads();
   const projQuery = useProjections({ period });
   const followupsQuery = useFollowUps({ done: false });
+  // Receivables are not part of the dashboard aggregate; they are reduced from
+  // the payments list, the same way the More tab does it.
+  const { items: payments } = usePayments();
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -45,14 +49,18 @@ export default function Home() {
   const followups = followupsQuery.items;
 
   // Derived
-  const totalAchieved = d?.totalAchieved ?? 0;
-  const totalCommitted = d?.totalCommitted ?? 0;
-  const achievementPct = d?.achievementPct ?? 0;
-  const weightedPipeline = d?.weightedPipeline ?? 0;
-  const totalPending = d?.totalPendingPayments ?? 0;
-  const overdueCount = d?.overdueFollowUpsCount ?? 0;
-  const recurringAchieved = d?.recurringAchieved ?? 0;
-  const newAchieved = d?.newAchieved ?? 0;
+  const k = d?.kpis;
+  const totalAchieved = k?.totalAchieved ?? 0;
+  const totalCommitted = k?.totalCommitted ?? 0;
+  const achievementPct = k?.totalPct ?? 0;
+  // Open new-sales value: committed counts every live lead, achieved counts the
+  // ones already won, so the difference is what is still in play. The API has
+  // no `weightedPipeline` field — the old code read one that never existed.
+  const openPipeline = Math.max(0, (k?.newSalesCommitted ?? 0) - (k?.newSalesAchieved ?? 0));
+  const totalPending = payments.reduce((sum, pay) => sum + pay.pending, 0);
+  const overdueCount = k?.followUpsOverdue ?? 0;
+  const recurringAchieved = k?.recurringAchieved ?? 0;
+  const newAchieved = k?.newSalesAchieved ?? 0;
 
   const oral = leads.filter(l => l.stage === 'NegotiationOralConfirmation');
   const topOpen = projLines
@@ -116,7 +124,7 @@ export default function Home() {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#1e293b' }}>
               <Text style={{ fontSize: 11, color: '#94a3b8' }}>Recurring: <Text style={{ color: '#ffffff', fontWeight: '700' }}>{lakhs(recurringAchieved)}</Text></Text>
               <Text style={{ fontSize: 11, color: '#94a3b8' }}>New Sales: <Text style={{ color: '#ffffff', fontWeight: '700' }}>{lakhs(newAchieved)}</Text></Text>
-              <Text style={{ fontSize: 11, color: '#94a3b8' }}>Pipeline: <Text style={{ color: '#10b981', fontWeight: '700' }}>{lakhs(weightedPipeline)}</Text></Text>
+              <Text style={{ fontSize: 11, color: '#94a3b8' }}>Pipeline: <Text style={{ color: '#10b981', fontWeight: '700' }}>{lakhs(openPipeline)}</Text></Text>
             </View>
           </View>
 

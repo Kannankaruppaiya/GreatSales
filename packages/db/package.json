@@ -18,7 +18,8 @@
     "db:backup": "tsx src/backup.ts",
     "db:clear-data": "tsx src/clear-data.ts",
     "db:restore": "tsx src/restore.ts",
-    "db:export-excel": "tsx src/export-excel.ts"
+    "db:export-excel": "tsx src/export-excel.ts",
+    "db:provision": "tsx src/provision-tenant.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",

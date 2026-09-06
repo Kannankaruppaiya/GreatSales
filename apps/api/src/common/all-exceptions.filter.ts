@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import type { ApiErrorBody, ErrorCode } from '@greatsales/shared';
+import { reportError } from '../observability';
 
 /**
  * Normalizes every thrown error into the shared ApiErrorBody envelope so
@@ -50,6 +51,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     } else if (exception instanceof Error) {
       this.logger.error(exception.message, exception.stack);
+      // Only the unknown branch reports: an HttpException is a decision the
+      // code made (a 404, a 403), not a defect, and paging on those would
+      // bury the ones that matter.
+      reportError(exception, {
+        method: req.method,
+        path: req.url,
+        tenantId: (req as { user?: { tenantId?: string } }).user?.tenantId,
+      });
       if (process.env.NODE_ENV !== 'production') message = exception.message;
     }
 

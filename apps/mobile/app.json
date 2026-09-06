@@ -1,20 +1,22 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "GreatSales",
+    "slug": "greatsales",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "greatsales",
     "userInterfaceStyle": "automatic",
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#208AEF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.greatsales.crm",
+      "versionCode": 1
     },
     "web": {
       "output": "static",
@@ -27,15 +29,22 @@
         {
           "backgroundColor": "#208AEF",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 200
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "apiBaseUrl": "http://10.107.93.246:3001/api/v1"
+      "apiBaseUrl": "https://18-130-99-225.sslip.io/api/v1"
+    },
+    "primaryColor": "#208AEF",
+    "ios": {
+      "bundleIdentifier": "com.greatsales.crm",
+      "buildNumber": "1",
+      "supportsTablet": true
     }
   }
 }

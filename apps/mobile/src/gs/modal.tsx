@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { KeyboardAvoidingView, Modal as RNModal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from './theme';
 
 export function Sheet({
@@ -17,10 +18,27 @@ export function Sheet({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <RNModal visible={open} animationType="slide" transparent onRequestClose={onClose}>
+    <RNModal
+      visible={open}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+      // Android runs edge-to-edge from Expo SDK 54 on. Without these the modal
+      // is laid out BELOW the status bar while touches are still resolved
+      // against the full screen, so every control sits ~40px above its own hit
+      // box: taps land on whatever is next to what you aimed at, silently. It
+      // is the reason no option in this sheet could be selected on a phone
+      // while the same code worked on web.
+      statusBarTranslucent
+      navigationBarTranslucent
+    >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        // Android resizes the modal window itself; 'height' fights that and
+        // re-measures in a loop. iOS gets no such help, so it keeps 'padding'.
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         className="flex-1 justify-end"
       >
         <Pressable className="flex-1 bg-black/50" onPress={onClose} />
@@ -45,12 +63,20 @@ export function Sheet({
             </Pressable>
           </View>
 
-          <ScrollView className="px-5 bg-canvas" contentContainerClassName="py-4 gap-3.5" keyboardShouldPersistTaps="handled">
+          <ScrollView
+            className="px-5 bg-canvas"
+            contentContainerClassName="py-4 gap-3.5"
+            contentContainerStyle={footer ? undefined : { paddingBottom: 16 + insets.bottom }}
+            keyboardShouldPersistTaps="handled"
+          >
             {children}
           </ScrollView>
 
           {footer ? (
-            <View className="flex-row gap-2.5 px-5 py-3.5 bg-surface border-t border-line">
+            <View
+              className="flex-row gap-2.5 px-5 py-3.5 bg-surface border-t border-line"
+              style={{ paddingBottom: 14 + insets.bottom }}
+            >
               {footer}
             </View>
           ) : null}
@@ -116,7 +142,12 @@ export function Pills<T extends string>({
           <Pressable
             key={o}
             onPress={() => onChange(o)}
-            className={`px-3 py-2 rounded-xl border ${
+            // 44px is the smaller of the two platform minimums (iOS 44pt,
+            // Android 48dp). Padding alone left these pills at ~32px, which is
+            // a miss even when the touch coordinates are right. Growing the
+            // control rather than adding hitSlop keeps the hit boxes of
+            // adjacent pills from overlapping across the 6px gap.
+            className={`px-3 py-2 min-h-[44px] justify-center rounded-xl border ${
               active ? 'bg-brand border-brand shadow-sm' : 'bg-surface border-line'
             }`}
           >
