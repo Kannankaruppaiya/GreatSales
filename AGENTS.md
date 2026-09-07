@@ -75,6 +75,14 @@ pnpm box 'docker compose ps'                # run any shell command on the box o
 pnpm backup:drill                           # restore the newest S3 dump and diff it against live
 ```
 
+- **`pnpm box` with an absolute path needs `MSYS_NO_PATHCONV=1` from Git Bash.** Git Bash
+  rewrites a leading `/opt/...` into `C:/Program Files/...` before the argument ever reaches
+  the script, and the box then fails with `No such file or directory` naming a Windows path
+  it was never given. Prefix the command, e.g.
+  `MSYS_NO_PATHCONV=1 pnpm box 'bash /opt/greatsales/backup.sh'`.
+- **Take a backup before any deploy that carries a migration**: `pnpm box 'bash
+  /opt/greatsales/backup.sh'` writes a dump to S3 and prints its size. The nightly timer is
+  not close enough when you are about to change the schema.
 - **Images are built on the developer machine, never on the box.** 4GB is enough to RUN the
   stack beside Postgres and nowhere near enough to build it.
 - The deploy is ordered `migrate → rotate greatsales_app's password → start the API`. That
