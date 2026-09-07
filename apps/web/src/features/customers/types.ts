@@ -34,6 +34,14 @@ export interface CustomerRow {
   collectorName: string | null;
   primaryContactName: string | null;
   primaryContactPhone: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  locationAccuracyM: number | null;
+  locationPinnedAt: string | null;
+  locationPinnedById: string | null;
+  locationPinnedByName: string | null;
+  /** Ready-to-send maps link built by the API, or null when unpinned. */
+  locationUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -65,6 +73,10 @@ export interface CustomerCreate {
   sameAsMobile?: boolean;
   email?: string | null;
   designation?: string | null;
+  /** Sent together, or both null to clear the pin. See LocationField. */
+  latitude?: number | null;
+  longitude?: number | null;
+  locationAccuracyM?: number | null;
 }
 
 export type CustomerUpdate = Partial<CustomerCreate>;

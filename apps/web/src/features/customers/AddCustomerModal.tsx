@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { LocationField, type Pin } from "./LocationField";
 import { Building2 } from "lucide-react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
 import { ConfirmActionModal } from "@/components/modals/ConfirmActionModal";
@@ -86,6 +87,7 @@ export function AddCustomerModal({
   const [payZone, setPayZone] = useState<PayZoneValue>("GreenZone");
   const [collectorId, setCollectorId] = useState("");
   const [outstanding, setOutstanding] = useState<string>("");
+  const [pin, setPin] = useState<Pin | null>(null);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const selectedSalespersonId = isSales
@@ -98,6 +100,7 @@ export function AddCustomerModal({
       phone.trim() ||
       whatsapp.trim() ||
       outstanding.trim() ||
+      pin !== null ||
       subIndustry.trim() ||
       (area === "Other" && customArea.trim())
   );
@@ -107,6 +110,7 @@ export function AddCustomerModal({
     setContactName("");
     setPhone("");
     setWhatsapp("");
+    setPin(null);
     setSalespersonId("");
     setCategory(CUSTOMER_TIERS[0]);
     setType(CUSTOMER_TYPES[0]);
@@ -160,6 +164,9 @@ export function AddCustomerModal({
         contactName: contactName.trim() || null,
         phone: phone.trim() || null,
         whatsapp: whatsapp.trim() || (phone.trim() || null),
+        latitude: pin?.latitude ?? null,
+        longitude: pin?.longitude ?? null,
+        locationAccuracyM: pin?.locationAccuracyM ?? null,
       });
 
       resetForm();
@@ -561,6 +568,19 @@ export function AddCustomerModal({
                   className="h-9 pl-7 tabular-nums text-xs"
                 />
               </div>
+            </div>
+            <div className="sm:col-span-2">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="text-xs font-semibold text-ink">Location</span>
+                <span className="text-[11px] text-muted font-normal">(Optional)</span>
+              </div>
+              <LocationField
+                value={pin}
+                accuracyM={pin?.locationAccuracyM}
+                customerName={name.trim()}
+                onChange={setPin}
+                disabled={create.isPending}
+              />
             </div>
           </div>
 

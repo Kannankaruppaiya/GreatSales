@@ -12,6 +12,7 @@ import type {
   CustomerUpdate,
   RequestUser,
 } from '@greatsales/shared';
+import { mapsUrl } from '@greatsales/shared';
 import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
 
 /** Prisma include graph that carries everything a {@link CustomerRow} needs. */
@@ -19,6 +20,7 @@ const CUSTOMER_INCLUDE = {
   industry: true,
   salesperson: true,
   collector: true,
+  locationPinnedBy: true,
   contacts: { where: { isPrimary: true }, take: 1 },
 } satisfies Prisma.CustomerInclude;
 
@@ -32,6 +34,10 @@ function dec(v: Prisma.Decimal | null): number {
 
 function toRow(c: CustomerWithGraph): CustomerRow {
   const contact = c.contacts[0] ?? null;
+  // Decimal → number, and null stays null: an unpinned customer must not
+  // become 0,0.
+  const lat = c.latitude == null ? null : c.latitude.toNumber();
+  const lng = c.longitude == null ? null : c.longitude.toNumber();
   return {
     id: c.id,
     name: c.name,
@@ -52,6 +58,15 @@ function toRow(c: CustomerWithGraph): CustomerRow {
     collectorName: c.collector?.name ?? null,
     primaryContactName: contact?.name ?? null,
     primaryContactPhone: contact?.mobile ?? contact?.phone ?? null,
+    latitude: lat,
+    longitude: lng,
+    locationAccuracyM: c.locationAccuracyM,
+    locationPinnedAt: c.locationPinnedAt?.toISOString() ?? null,
+    locationPinnedById: c.locationPinnedById,
+    locationPinnedByName: c.locationPinnedBy?.name ?? null,
+    // Built here, not in each client: three UIs sharing one link format is
+    // three chances to format it differently.
+    locationUrl: mapsUrl(lat, lng),
     createdAt: c.createdAt.toISOString(),
     updatedAt: c.updatedAt.toISOString(),
   };
@@ -160,6 +175,18 @@ export class CustomersService {
         ...(body.collectorId
           ? { collector: { connect: { id: body.collectorId } } }
           : {}),
+        // The pin is stamped, never trusted from the client: `pinnedAt` is
+        // server time and `pinnedBy` is the caller, so a stale or forged
+        // "who and when" cannot be posted alongside the coordinates.
+        ...(body.latitude != null && body.longitude != null
+          ? {
+              latitude: body.latitude,
+              longitude: body.longitude,
+              locationAccuracyM: body.locationAccuracyM ?? null,
+              locationPinnedAt: new Date(),
+              locationPinnedBy: { connect: { id: user.userId } },
+            }
+          : {}),
         ...(hasContact
           ? {
               contacts: {
@@ -216,6 +243,20 @@ export class CustomersService {
     if ('collectorId' in patch) {
       data.collector = patch.collectorId
         ? { connect: { id: patch.collectorId } }
+        : { disconnect: true };
+    }
+
+    // Re-pinning and clearing are both meaningful edits, and the schema has
+    // already guaranteed the two coordinates arrive together. Clearing drops
+    // the stamp too, so a cleared pin leaves no misleading "pinned by X" behind.
+    if ('latitude' in patch || 'longitude' in patch) {
+      const pinned = patch.latitude != null && patch.longitude != null;
+      data.latitude = pinned ? patch.latitude : null;
+      data.longitude = pinned ? patch.longitude : null;
+      data.locationAccuracyM = pinned ? (patch.locationAccuracyM ?? null) : null;
+      data.locationPinnedAt = pinned ? new Date() : null;
+      data.locationPinnedBy = pinned
+        ? { connect: { id: user.userId } }
         : { disconnect: true };
     }
 

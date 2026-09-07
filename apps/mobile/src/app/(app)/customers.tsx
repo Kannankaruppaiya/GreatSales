@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Linking, Pressable, ScrollView, Share, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Card, Badge, Chip, Avatar, Empty, KpiStrip, ListFooter } from '@/gs/kit';
@@ -9,6 +9,7 @@ import { useAuthUser } from '@/gs/auth';
 import { useDebounced } from '@/gs/useDebounced';
 import { useCustomers, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, type CustomerRow } from '@/gs/queries/customers';
 import { DeleteButton } from '@/gs/DeleteButton';
+import { LocationPin, type Pin } from '@/gs/LocationPin';
 import {
   inr, tierTone, zoneTone, TIERS, AREAS,
 } from '@/gs/domain';
@@ -20,6 +21,7 @@ import {
   type CustomerCategoryValue,
   type PaymentTermsValue,
   type PayZoneValue,
+  mapsUrl,
 } from '@greatsales/shared';
 
 const TERMS_LABELS: Record<string, string> = {
@@ -294,6 +296,55 @@ function CustDetail({ c }: { c: CustomerRow }) {
         <Info label="Salesperson" value={c.salespersonName || '—'} />
         <Info label="Outstanding" value={inr(c.outstanding || 0)} />
       </View>
+
+      {/* Sharing lives here as well as in the edit form: sending a driver an
+          address is a lookup, not an edit, and making someone open the edit
+          sheet to do it invites accidental changes. */}
+      <View className="gap-1.5">
+        <Text className="text-[10px] text-muted font-extrabold uppercase">Location</Text>
+        <CustomerLocationShare c={c} />
+      </View>
+    </View>
+  );
+}
+
+/** Read-only pin with the two things a lookup needs: share it, or open it. */
+function CustomerLocationShare({ c }: { c: CustomerRow }) {
+  const url = c.locationUrl ?? mapsUrl(c.latitude, c.longitude);
+  if (!url) {
+    return (
+      <Text className="text-xs text-muted">
+        No location pinned. Edit this customer while you are at their place to pin it.
+      </Text>
+    );
+  }
+  return (
+    <View className="gap-2">
+      <Text className="text-[12px] text-body">
+        {c.latitude?.toFixed(5)}, {c.longitude?.toFixed(5)}
+        {c.locationAccuracyM != null ? ` · ±${c.locationAccuracyM}m` : ''}
+      </Text>
+      <View className="flex-row gap-2">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Share location"
+          onPress={() =>
+            Share.share({ message: `${c.name} — location
+${url}`, url })
+          }
+          className="bg-brand rounded-lg px-3.5 py-2"
+        >
+          <Text className="text-white text-[13px] font-bold">Share location</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open in maps"
+          onPress={() => Linking.openURL(url)}
+          className="bg-surface3 rounded-lg px-3.5 py-2"
+        >
+          <Text className="text-body text-[13px] font-bold">Open map</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -330,6 +381,15 @@ function AddCustomerForm({ customer, onDone }: { customer?: CustomerRow; onDone:
   const [outstanding, setOutstanding] = useState(
     customer ? String(customer.outstanding ?? 0) : '',
   );
+  const [pin, setPin] = useState<Pin | null>(
+    customer?.latitude != null && customer?.longitude != null
+      ? {
+          latitude: customer.latitude,
+          longitude: customer.longitude,
+          locationAccuracyM: customer.locationAccuracyM,
+        }
+      : null,
+  );
   const [err, setErr] = useState('');
 
   const pending = createCustomer.isPending || updateCustomer.isPending;
@@ -349,6 +409,11 @@ function AddCustomerForm({ customer, onDone }: { customer?: CustomerRow; onDone:
       phone: phone.trim() || null,
       whatsapp: sameAsMobile ? (phone.trim() || null) : (wa.trim() || null),
       sameAsMobile,
+      // Sent as an explicit null when cleared, so the patch removes the pin
+      // rather than leaving the old one in place.
+      latitude: pin?.latitude ?? null,
+      longitude: pin?.longitude ?? null,
+      locationAccuracyM: pin?.locationAccuracyM ?? null,
     };
 
     const handlers = {
@@ -407,6 +472,18 @@ function AddCustomerForm({ customer, onDone }: { customer?: CustomerRow; onDone:
         <Pills options={PAY_ZONE_VALUES as unknown as string[]} value={zone} onChange={(v) => setZone(v as PayZoneValue)} />
       </Field>
       <Field label="Opening Outstanding ₹"><Input value={outstanding} onChangeText={setOutstanding} placeholder="0" keyboardType="numeric" /></Field>
+
+      <Field label="Customer Location">
+        <LocationPin
+          value={pin}
+          accuracyM={pin?.locationAccuracyM}
+          pinnedAt={customer?.locationPinnedAt}
+          pinnedByName={customer?.locationPinnedByName}
+          customerName={name.trim() || customer?.name}
+          onChange={setPin}
+          disabled={pending}
+        />
+      </Field>
 
       {err ? <Text className="text-xs text-danger font-bold">{err}</Text> : null}
       <View className="flex-row gap-2 mt-1">

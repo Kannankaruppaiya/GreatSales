@@ -200,18 +200,18 @@ model Tenant {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  tenantId     String
-  name         String
-  email        String
-  username     String
-  passwordHash String
-  roleId       String
-  managerId    String? // self-relation → reporting manager
-  teamId       String?
-  active       Boolean   @default(true)
-  lastIp       String?
-  lastLoginAt  DateTime?
+  id                  String    @id @default(cuid())
+  tenantId            String
+  name                String
+  email               String
+  username            String
+  passwordHash        String
+  roleId              String
+  managerId           String? // self-relation → reporting manager
+  teamId              String?
+  active              Boolean   @default(true)
+  lastIp              String?
+  lastLoginAt         DateTime?
   // Brute-force containment. Counter is authoritative across API instances
   // (per-IP throttling is per-instance and best-effort); reset on any success.
   failedLoginAttempts Int       @default(0)
@@ -221,9 +221,9 @@ model User {
   /// replace it before doing anything else. Enforced by MustChangePasswordGuard,
   /// not merely surfaced to the UI.
   mustChangePassword  Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  deletedAt    DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
 
   tenant       Tenant @relation(fields: [tenantId], references: [id])
   role         Role   @relation(fields: [roleId], references: [id])
@@ -232,23 +232,24 @@ model User {
   team         Team?  @relation("TeamMembers", fields: [teamId], references: [id])
   managedTeams Team[] @relation("TeamManager")
 
-  customers          Customer[]
-  collectorCustomers Customer[]           @relation("CustomerCollector")
-  mappings           Mapping[]
-  salesTargets       SalesTarget[]
-  leads              Lead[]
-  salesOrders        SalesOrder[]
-  createdOrders      SalesOrder[]         @relation("OrderCreatedBy")
-  paymentsOwned      Payment[]            @relation("PaymentOwner")
-  followUps          FollowUp[]
-  activities         Activity[]
-  remarks            Remark[]
-  periodLocks        PeriodLock[]
-  notifications      Notification[]
-  attachments        Attachment[]
-  auditLogs          AuditLog[]
-  orderStatusChanges OrderStatusHistory[]
-  refreshTokens      RefreshToken[]
+  customers               Customer[]
+  collectorCustomers      Customer[]           @relation("CustomerCollector")
+  pinnedCustomerLocations Customer[]           @relation("CustomerLocationPinnedBy")
+  mappings                Mapping[]
+  salesTargets            SalesTarget[]
+  leads                   Lead[]
+  salesOrders             SalesOrder[]
+  createdOrders           SalesOrder[]         @relation("OrderCreatedBy")
+  paymentsOwned           Payment[]            @relation("PaymentOwner")
+  followUps               FollowUp[]
+  activities              Activity[]
+  remarks                 Remark[]
+  periodLocks             PeriodLock[]
+  notifications           Notification[]
+  attachments             Attachment[]
+  auditLogs               AuditLog[]
+  orderStatusChanges      OrderStatusHistory[]
+  refreshTokens           RefreshToken[]
 
   // Uniqueness is enforced by PARTIAL unique indexes created in the F12
   // migration: only rows with deletedAt IS NULL participate, so soft-deleting a
@@ -269,7 +270,6 @@ model User {
  * One issued refresh token. `id` IS the JWT `jti`, so a presented token is
  * looked up directly — a signature that verifies but has no row (or a revoked
  * row) is rejected.
- *
  * `familyId` groups every token descended from one login. Rotation consumes a
  * token and issues its replacement in the same family; presenting an already
  * consumed token means the token was stolen and replayed, so the WHOLE family
@@ -375,18 +375,30 @@ model Customer {
   active        Boolean           @default(true)
   salespersonId String
   collectorId   String? // payment collector (may differ from salesperson)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  deletedAt     DateTime?
 
-  tenant      Tenant            @relation(fields: [tenantId], references: [id])
-  industry    Industry?         @relation(fields: [industryId], references: [id])
-  salesperson User              @relation(fields: [salespersonId], references: [id])
-  collector   User?             @relation("CustomerCollector", fields: [collectorId], references: [id])
-  contacts    CustomerContact[]
-  mappings    Mapping[]
-  salesOrders SalesOrder[]
-  payments    Payment[]
+  // Where the customer physically is. Pinned on site from the salesperson's
+  // GPS, because an `area` string is not something a driver can navigate to.
+  // Accuracy is kept so a pin taken indoors can be told from one taken at the
+  // gate, and the pinner so a wrong pin has an owner to ask.
+  latitude           Decimal?  @db.Decimal(10, 7)
+  longitude          Decimal?  @db.Decimal(10, 7)
+  locationAccuracyM  Int?
+  locationPinnedAt   DateTime?
+  locationPinnedById String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id])
+  industry         Industry?         @relation(fields: [industryId], references: [id])
+  salesperson      User              @relation(fields: [salespersonId], references: [id])
+  collector        User?             @relation("CustomerCollector", fields: [collectorId], references: [id])
+  locationPinnedBy User?             @relation("CustomerLocationPinnedBy", fields: [locationPinnedById], references: [id])
+  contacts         CustomerContact[]
+  mappings         Mapping[]
+  salesOrders      SalesOrder[]
+  payments         Payment[]
 
   @@index([tenantId])
   @@index([salespersonId])

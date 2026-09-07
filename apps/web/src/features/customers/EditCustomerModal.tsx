@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { LocationField, type Pin } from "./LocationField";
 import { Building2 } from "lucide-react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
 import { ConfirmActionModal } from "@/components/modals/ConfirmActionModal";
@@ -88,6 +89,15 @@ export function EditCustomerModal({
   const [collectorId, setCollectorId] = useState(customer.collectorId || "");
   const [outstanding, setOutstanding] = useState(String(customer.outstanding ?? ""));
   const [active, setActive] = useState(customer.active);
+  const [pin, setPin] = useState<Pin | null>(
+    customer.latitude != null && customer.longitude != null
+      ? {
+          latitude: customer.latitude,
+          longitude: customer.longitude,
+          locationAccuracyM: customer.locationAccuracyM,
+        }
+      : null,
+  );
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const effectiveArea = area === "Other" ? (customArea.trim() || "Other") : area;
@@ -105,9 +115,12 @@ export function EditCustomerModal({
       payZone !== ((customer.payZone as PayZoneValue) || "GreenZone") ||
       collectorId !== (customer.collectorId || "") ||
       outstanding.trim() !== String(customer.outstanding ?? "") ||
+      (pin?.latitude ?? null) !== customer.latitude ||
+      (pin?.longitude ?? null) !== customer.longitude ||
       active !== customer.active
     );
   }, [
+    pin,
     customer,
     name,
     salespersonId,
@@ -156,6 +169,9 @@ export function EditCustomerModal({
           payZone,
           collectorId: collectorId || null,
           outstanding: outstanding.trim() ? Number(outstanding) : undefined,
+          latitude: pin?.latitude ?? null,
+          longitude: pin?.longitude ?? null,
+          locationAccuracyM: pin?.locationAccuracyM ?? null,
           active,
         },
       });
@@ -492,6 +508,21 @@ export function EditCustomerModal({
                   className="h-9 pl-7 tabular-nums text-xs"
                 />
               </div>
+            </div>
+            <div className="sm:col-span-2">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="text-xs font-semibold text-ink">Location</span>
+                <span className="text-[11px] text-muted font-normal">(Optional)</span>
+              </div>
+              <LocationField
+                value={pin}
+                accuracyM={pin?.locationAccuracyM}
+                pinnedAt={customer.locationPinnedAt}
+                pinnedByName={customer.locationPinnedByName}
+                customerName={name.trim() || customer.name}
+                onChange={setPin}
+                disabled={update.isPending}
+              />
             </div>
           </div>
 

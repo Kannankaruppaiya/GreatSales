@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Building2, MessageCircle, Phone, Trash2, X } from "lucide-react";
+import { Building2, Check, MapPin, MessageCircle, Phone, Share2, Trash2, X } from "lucide-react";
+import { mapsUrl, shareLocationUrl } from "./LocationField";
 import { useAuthRole } from "@/store/auth";
 import { ApiError } from "@/lib/api";
 import { inr } from "@/lib/format";
@@ -56,6 +57,7 @@ export function CustomerDrawer({
     { enabled: relatedEnabled },
   );
   const [deleteError, setDeleteError] = useState("");
+  const [locationStatus, setLocationStatus] = useState<"copied" | "failed" | null>(null);
 
   const customer = customerProp ?? (needsFetch ? (q.data ?? null) : null);
   const isLoading = needsFetch && q.isLoading;
@@ -64,6 +66,19 @@ export function CustomerDrawer({
   if (!customerId) return null;
 
   const phoneClean = (customer?.primaryContactPhone || "").replace(/[^0-9]/g, "");
+  const locationUrl =
+    customer?.locationUrl ?? mapsUrl(customer?.latitude, customer?.longitude);
+  const shareLocation = async () => {
+    if (!locationUrl) return;
+    const result = await shareLocationUrl(
+      locationUrl,
+      `${customer?.name ?? "Customer"} — location`,
+    );
+    // "Link copied" would be a lie if the clipboard refused. The Location link
+    // beside this button is the way out either way.
+    setLocationStatus(result === "failed" ? "failed" : "copied");
+    setTimeout(() => setLocationStatus(null), 2000);
+  };
 
   const handleDelete = async () => {
     if (!customer) return;
@@ -186,6 +201,40 @@ export function CustomerDrawer({
                   >
                     <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
                   </a>
+                )}
+                {locationUrl && (
+                  <>
+                    <a
+                      href={locationUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="inline-flex items-center gap-1 text-muted hover:text-brand font-medium transition-colors"
+                    >
+                      <MapPin className="h-3 w-3" /> Location
+                    </a>
+                    {/* The driver's copy. This is why the pin exists, so it
+                        belongs next to the phone number rather than behind an
+                        edit form. */}
+                    <button
+                      type="button"
+                      onClick={shareLocation}
+                      className="inline-flex items-center gap-1 text-muted hover:text-brand font-medium transition-colors cursor-pointer"
+                    >
+                      {locationStatus === "copied" ? (
+                        <>
+                          <Check className="h-3 w-3" /> Link copied
+                        </>
+                      ) : locationStatus === "failed" ? (
+                        <>
+                          <Share2 className="h-3 w-3" /> Copy blocked
+                        </>
+                      ) : (
+                        <>
+                          <Share2 className="h-3 w-3" /> Share
+                        </>
+                      )}
+                    </button>
+                  </>
                 )}
               </div>
 
