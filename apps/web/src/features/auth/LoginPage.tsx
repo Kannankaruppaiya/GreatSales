@@ -89,6 +89,29 @@ const ROLE_CONFIGS: Record<LoginRole, RoleConfig> = {
   },
 };
 
+/**
+ * Which portal the URL actually names, or null at the bare `/login`.
+ *
+ * The distinction matters now that the server enforces the portal. `/login` is
+ * deliberately still a common door — anyone may sign in there — so it must send
+ * NO portal. `/admin/login` names one, and the server refuses any role that
+ * does not match it. Collapsing the two, as `resolveRoleFromPath`'s "admin"
+ * fallback does for theming, would silently lock every salesperson out of
+ * `/login`.
+ */
+export function resolvePortalFromPath(
+  pathname: string,
+  roleParam?: string,
+): LoginRole | null {
+  const named = pathname.split("/").filter(Boolean)[0] || "";
+  const namesAPortal =
+    !!roleParam ||
+    ["super-admin", "superadmin", "sales", "admin", "management", "mgmt"].includes(
+      named,
+    );
+  return namesAPortal ? resolveRoleFromPath(pathname, roleParam) : null;
+}
+
 function resolveRoleFromPath(pathname: string, roleParam?: string): LoginRole {
   if (roleParam === "super-admin" || roleParam === "super_admin" || roleParam === "superadmin") return "super_admin";
   if (roleParam === "sales" || roleParam === "salesperson") return "sales";
@@ -168,6 +191,9 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
   const { roleParam } = useParams<{ roleParam?: string }>();
 
   const activeRole: LoginRole = initialRole || resolveRoleFromPath(location.pathname, roleParam);
+  // What the SERVER is told. Null at `/login`, which stays open to every role.
+  const portal: LoginRole | null =
+    initialRole ?? resolvePortalFromPath(location.pathname, roleParam);
   const config = ROLE_CONFIGS[activeRole] || ROLE_CONFIGS.admin;
   const demoEmail = DEMO_EMAIL_BY_ROLE[activeRole] ?? config.defaultEmail;
   const demoPassword = DEMO_PASSWORD_BY_ROLE[activeRole] ?? env.DEMO_PASSWORD;
@@ -225,7 +251,7 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
     // no window.matchMedia, so a successful sign-in surfaced as bad credentials.
     let signedIn = false;
     try {
-      await login(tenantId.trim(), email.trim(), password, activeRole);
+      await login(tenantId.trim(), email.trim(), password, portal ?? undefined);
       signedIn = true;
     } catch (err) {
       setError(describeLoginFailure(err));

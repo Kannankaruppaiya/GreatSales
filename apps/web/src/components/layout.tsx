@@ -17,6 +17,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { roleLabel } from "@/data/constants";
 import { MonthSelect } from "@/components/MonthSelect";
 import { featureByKey, featureLabel, featuresFor, featurePath } from "@/data/features";
+import { useRolePath } from "@/lib/rolePath";
 import type { GlobalFilter } from "@/data/features";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import { useAuthRole, useAuthUser, useAuth } from "@/store/auth";
@@ -36,6 +37,7 @@ import { usePrincipals } from "@/features/products/queries";
 import { useUsers, flattenUsers } from "@/features/users/queries";
 
 export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => void }) {
+  const rolePath = useRolePath();
   const navigate = useNavigate();
   const { sidebarOpen, setSidebar } = useUi();
   const activeManagementId = useUi((s) => s.activeManagementId) || DEFAULT_MANAGEMENT_ID;
@@ -124,7 +126,7 @@ export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => 
             return (
               <NavLink
                 key={n.key}
-                to={featurePath(n.key, activeManagementId)}
+                to={featurePath(n.key, activeManagementId, rolePath)}
                 onClick={() => window.innerWidth < 1024 && setSidebar(false)}
                 className={({ isActive }) =>
                   cn(
@@ -178,6 +180,7 @@ export function Topbar({
   onOpenCommandPalette: () => void;
   onOpenQuickCreate: (type: "customer" | "lead" | "order" | "invoice") => void;
 }) {
+  const rolePath = useRolePath();
   const {
     month,
     principalId,
@@ -222,7 +225,7 @@ export function Topbar({
 
   const openAlert = (featureKey: string) => {
     setShowNotifMenu(false);
-    navigate(featurePath(featureKey, activeManagementId));
+    navigate(featurePath(featureKey, activeManagementId, rolePath));
   };
 
   const todayStr = new Date().toISOString().slice(0, 10);

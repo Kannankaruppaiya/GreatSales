@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Dialog } from "@/components/ui";
 import { inr } from "@/lib/format";
 import { featuresFor, featurePath } from "@/data/features";
+import { useRolePath } from "@/lib/rolePath";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import { useAuthRole } from "@/store/auth";
 import { useCustomers, flattenCustomers } from "@/features/customers/queries";
@@ -21,6 +22,7 @@ export function CommandPaletteModal({
   onClose: () => void;
   onSelectCustomer?: (customerId: string) => void;
 }) {
+  const rolePath = useRolePath();
   const navigate = useNavigate();
   const role = useAuthRole();
   const managementId = useUi((s) => s.activeManagementId) || DEFAULT_MANAGEMENT_ID;
@@ -32,7 +34,7 @@ export function CommandPaletteModal({
         label: f.paletteLabel,
         desc: f.paletteDesc,
         icon: f.icon,
-        path: featurePath(f.key, managementId),
+        path: featurePath(f.key, managementId, rolePath),
       })),
     [role, managementId],
   );
@@ -105,7 +107,7 @@ export function CommandPaletteModal({
     if (onSelectCustomer) {
       onSelectCustomer(cid);
     } else {
-      navigate(featurePath("customers", managementId));
+      navigate(featurePath("customers", managementId, rolePath));
     }
   };
 
@@ -207,7 +209,7 @@ export function CommandPaletteModal({
                 {results.products.map((pr) => (
                   <button
                     key={pr.id}
-                    onClick={() => handleGoPage(featurePath("products", managementId))}
+                    onClick={() => handleGoPage(featurePath("products", managementId, rolePath))}
                     className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-surface-2 text-left cursor-pointer transition-colors group"
                   >
                     <div className="flex items-center gap-2.5">
@@ -240,7 +242,7 @@ export function CommandPaletteModal({
                 {results.orders.map((o) => (
                   <button
                     key={o.id}
-                    onClick={() => handleGoPage(featurePath("orders", managementId))}
+                    onClick={() => handleGoPage(featurePath("orders", managementId, rolePath))}
                     className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-surface-2 text-left cursor-pointer transition-colors"
                   >
                     <div className="flex items-center gap-2.5">
@@ -271,7 +273,7 @@ export function CommandPaletteModal({
                 {results.payments.map((p) => (
                   <button
                     key={p.id}
-                    onClick={() => handleGoPage(featurePath("payments", managementId))}
+                    onClick={() => handleGoPage(featurePath("payments", managementId, rolePath))}
                     className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-surface-2 text-left cursor-pointer transition-colors"
                   >
                     <div className="flex items-center gap-2.5">

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import {
   useIsAuthed,
@@ -14,6 +14,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { RoleGuard } from "@/features/auth/RoleGuard";
 import { RequireOwner } from "@/features/auth/RequireOwner";
 import type { LoginRole } from "@/features/auth/LoginPage";
+import { roleForPath, rolePathFor } from "@/lib/rolePath";
 
 // Lazy like every page, and for a stronger reason than code size: this is the
 // only static import that reaches `trackerStore`, the client-side mock the
@@ -98,6 +99,43 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+
+/**
+ * The role segment in the URL has to agree with the session.
+ *
+ * Every signed-in page now lives under one — `/admin/managements/:id/dashboard`
+ * — so the address says who is signed in. This checks the claim: a salesperson
+ * who edits `sales` to `admin` in the address bar is sent back to their own
+ * space rather than rendering an admin shell. It is legibility and
+ * defence-in-depth, not the authorization itself: the API still decides every
+ * request against the token, and always did.
+ */
+function RequireRolePath({ children }: { children: React.ReactNode }) {
+  const { rolePath } = useParams<{ rolePath?: string }>();
+  const role = useAuthRole();
+  const location = useLocation();
+
+  const claimed = roleForPath(rolePath);
+  if (claimed !== role) {
+    // Keep everything after the segment, so a deep link survives the correction.
+    const rest = location.pathname.split("/").slice(2).join("/");
+    return <Navigate to={`/${rolePathFor(role)}/${rest}${location.search}`} replace />;
+  }
+  return <>{children}</>;
+}
+
+/** Old un-prefixed workspace URLs, kept working by moving them under the role. */
+function LegacyManagementRedirect() {
+  const role = useAuthRole();
+  const location = useLocation();
+  return (
+    <Navigate
+      to={`/${rolePathFor(role)}${location.pathname}${location.search}`}
+      replace
+    />
+  );
+}
+
 function PublicAuthRoute({ initialRole }: { initialRole?: LoginRole }) {
   const authed = useIsAuthed();
   const isOwner = useIsOwner();
@@ -113,7 +151,12 @@ function PublicAuthRoute({ initialRole }: { initialRole?: LoginRole }) {
     if (isOwner || role === "super_admin") {
       return <Navigate to="/managements" replace />;
     }
-    return <Navigate to={`/managements/${activeManagementId || DEFAULT_MANAGEMENT_ID}/dashboard`} replace />;
+    return (
+      <Navigate
+        to={`/${rolePathFor(role)}/managements/${activeManagementId || DEFAULT_MANAGEMENT_ID}/dashboard`}
+        replace
+      />
+    );
   }
 
   return (
@@ -248,14 +291,26 @@ export default function App() {
           }
         />
         <Route
+          path="/:rolePath/managements/:managementId/*"
+          element={
+            <ProtectedRoute>
+              <RequireRolePath>
+                <Suspense fallback={<PageLoadingSkeleton />}>
+                  <ManagementProvider>
+                    <AppLayout />
+                  </ManagementProvider>
+                </Suspense>
+              </RequireRolePath>
+            </ProtectedRoute>
+          }
+        />
+        {/* Anything still pointing at the un-prefixed URL — a bookmark, an old
+            link in an email — lands in the right place instead of 404ing. */}
+        <Route
           path="/managements/:managementId/*"
           element={
             <ProtectedRoute>
-              <Suspense fallback={<PageLoadingSkeleton />}>
-                <ManagementProvider>
-                  <AppLayout />
-                </ManagementProvider>
-              </Suspense>
+              <LegacyManagementRedirect />
             </ProtectedRoute>
           }
         />

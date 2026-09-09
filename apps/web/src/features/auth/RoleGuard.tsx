@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthRole } from "@/store/auth";
 import { roleLabel } from "@/data/constants";
 import { featureByKey, featurePath } from "@/data/features";
+import { useRolePath } from "@/lib/rolePath";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import { Button, Card, PageHeader } from "@/components/ui";
 
@@ -19,6 +20,7 @@ export function RoleGuard({
   feature: string;
   children: React.ReactNode;
 }) {
+  const rolePath = useRolePath();
   const role = useAuthRole();
   const navigate = useNavigate();
 
@@ -60,7 +62,7 @@ export function RoleGuard({
           </div>
 
           <div className="pt-2 flex items-center justify-center gap-3">
-            <Button variant="primary" size="sm" onClick={() => navigate(featurePath("dashboard", managementId))}>
+            <Button variant="primary" size="sm" onClick={() => navigate(featurePath("dashboard", managementId, rolePath))}>
               <Home className="h-4 w-4 mr-1" /> Return to Dashboard
             </Button>
           </div>

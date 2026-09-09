@@ -37,6 +37,7 @@ describe("feature registry", () => {
   });
 
   it("builds workspace-scoped paths, not bare ones", () => {
-    expect(featurePath("leads", "m1")).toBe("/managements/m1/leads");
+    expect(featurePath("leads", "m1", "admin")).toBe("/admin/managements/m1/leads");
+    expect(featurePath("leads", "m1", "sales")).toBe("/sales/managements/m1/leads");
   });
 });

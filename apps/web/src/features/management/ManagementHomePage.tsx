@@ -17,6 +17,7 @@ import { useManagements } from "@/features/management/queries";
 import { useDashboard } from "@/features/dashboard/queries";
 import { useUsers, flattenUsers } from "@/features/users/queries";
 import { featurePath } from "@/data/features";
+import { useRolePath } from "@/lib/rolePath";
 import { inr, lakhs, pct } from "@/lib/format";
 import { periodLabel } from "@/data/months";
 import { MonthSelect } from "@/components/MonthSelect";
@@ -45,6 +46,7 @@ import { GroupedBars } from "@/components/charts";
  * up disagreeing in front of a customer.
  */
 export default function ManagementHomePage() {
+  const rolePath = useRolePath();
   const navigate = useNavigate();
   const accessToken = useAuth((s) => s.accessToken);
   const activeManagementId = useUi((s) => s.activeManagementId);
@@ -113,7 +115,7 @@ export default function ManagementHomePage() {
             <Button
               size="sm"
               onClick={() =>
-                navigate(featurePath("dashboard", activeManagementId))
+                navigate(featurePath("dashboard", activeManagementId, rolePath))
               }
             >
               Open workspace <ChevronRight className="h-3.5 w-3.5 ml-1" />

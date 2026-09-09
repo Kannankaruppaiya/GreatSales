@@ -186,6 +186,16 @@ export const featuresFor = (role: Role): Feature[] =>
 export const featureLabel = (f: Feature, role: Role): string =>
   f.labelByRole?.[role] ?? f.label;
 
-/** Absolute path to a feature inside a management workspace. */
-export const featurePath = (key: string, managementId: string): string =>
-  `/managements/${managementId}/${key}`;
+/**
+ * Absolute path to a feature inside a management workspace.
+ *
+ * The role segment leads, so a signed-in URL says who is signed in:
+ * `/admin/managements/m1/leads`, `/sales/managements/m1/leads`. See
+ * `lib/rolePath.ts` for why, and `RequireRolePath` for the check that stops the
+ * segment claiming a role the session does not hold.
+ */
+export const featurePath = (
+  key: string,
+  managementId: string,
+  rolePath: string,
+): string => `/${rolePath}/managements/${managementId}/${key}`;
