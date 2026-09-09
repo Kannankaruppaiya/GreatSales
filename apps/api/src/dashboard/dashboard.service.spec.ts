@@ -3,6 +3,7 @@ import { reseedTestDatabase } from '../test-support/reseed';
 import { DashboardQuerySchema, type RequestUser } from '@greatsales/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProjectionsService } from '../projections/projections.service';
+import { TargetsService } from '../targets/targets.service';
 import { LeadsService } from '../leads/leads.service';
 import { DashboardService } from './dashboard.service';
 
@@ -32,6 +33,7 @@ describe('DashboardService', () => {
   let prisma: PrismaService;
   let projections: ProjectionsService;
   let leads: LeadsService;
+  let targets: TargetsService;
   let service: DashboardService;
 
   beforeAll(async () => {
@@ -40,7 +42,8 @@ describe('DashboardService', () => {
     await prisma.onModuleInit();
     projections = new ProjectionsService(prisma);
     leads = new LeadsService(prisma);
-    service = new DashboardService(projections, leads);
+    targets = new TargetsService(prisma);
+    service = new DashboardService(projections, leads, targets);
   }, 120_000);
 
   afterAll(async () => {

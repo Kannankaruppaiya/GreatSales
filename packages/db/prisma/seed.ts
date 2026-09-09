@@ -196,12 +196,19 @@ async function seedTenant(k: string, name: string, region: string, accountManage
   });
 
   // Lead
-  await prisma.lead.create({
+  const lead = await prisma.lead.create({
     data: {
       tenantId: t, customerName: `${name} Prospect`, salespersonId: `user_sales1_${k}`,
       stage: DealStage.NeedsAnalysis, leadStatus: "Silver", industryId: "ind_auto", area: "South",
       products: { create: [{ productName: "New Product X", brand: "BrandX", value: "75000.00" }] },
-      activities: { create: [{ note: "Initial call — interested, sample requested." }] },
+    },
+  });
+  // A lead's timeline is `Remark`, not a table of its own — see migration
+  // 20260910090000. Author is null because nobody typed it; the seed did.
+  await prisma.remark.create({
+    data: {
+      tenantId: t, entityType: "Lead", entityId: lead.id, userId: null,
+      text: "Initial call — interested, sample requested.",
     },
   });
 

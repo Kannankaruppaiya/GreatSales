@@ -21,6 +21,7 @@ import { MappingsModule } from './mappings/mappings.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { RemarksModule } from './remarks/remarks.module';
 import { PeriodLocksModule } from './period-locks/period-locks.module';
+import { TargetsModule } from './targets/targets.module';
 import { ManagementsModule } from './managements/managements.module';
 
 @Module({
@@ -47,6 +48,7 @@ import { ManagementsModule } from './managements/managements.module';
     DashboardModule,
     RemarksModule,
     PeriodLocksModule,
+    TargetsModule,
     ManagementsModule,
   ],
   controllers: [AppController],

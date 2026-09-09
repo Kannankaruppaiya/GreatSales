@@ -3,12 +3,13 @@ import {
   Building2,
   Plus,
   ShoppingCart,
+  Target,
   TrendingUp,
 } from "lucide-react";
 import { projTone } from "@/data/constants";
 import { periodLabel } from "@/data/months";
 import { useUi } from "@/store/ui";
-import { useAuth, useAuthRole } from "@/store/auth";
+import { useAuth, useAuthRole, useHasPermission } from "@/store/auth";
 import { inr, lakhs } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
@@ -30,6 +31,7 @@ import {
 } from "@/features/projections/types";
 import type { LeadRow } from "@/features/leads/types";
 import { useDashboard } from "@/features/dashboard/queries";
+import { SetTargetsModal } from "@/features/dashboard/SetTargetsModal";
 import type { DashboardBreakdown } from "@/features/dashboard/types";
 
 // The stage/status lists that used to live here moved to the server with the
@@ -58,6 +60,9 @@ export default function DashboardPage() {
   const [showAddLead, setShowAddLead] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showCreateOrder, setShowCreateOrder] = useState(false);
+  const [showTargets, setShowTargets] = useState(false);
+  // Presentation only — the API enforces the same key on PUT /targets.
+  const canManageTargets = useHasPermission("target.manage");
 
   const monthLabel = periodLabel(month);
   const isSalesRole = role === "sales";
@@ -75,6 +80,11 @@ export default function DashboardPage() {
   const totalCommitted = kpis?.totalCommitted ?? 0;
   const totalAchieved = kpis?.totalAchieved ?? 0;
   const totalPct = kpis?.totalPct ?? null;
+  // The month's target, as set by management. Null means nobody in scope has
+  // one — which is a different thing from a target of zero, so it is not
+  // defaulted here.
+  const target = kpis?.target ?? null;
+  const targetPct = kpis?.targetPct ?? null;
   // Resolved against the tenant's business day server-side — a browser clock
   // gave two users in different timezones different overdue counts.
   const fuDue = kpis?.followUpsDue ?? 0;
@@ -117,17 +127,29 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {role !== "mgmt" && (
+        {/* Management gets no create buttons — it reads the workspace rather
+            than adding to it — but targets are precisely management's job, so
+            that button sits outside the block that hides the rest. */}
+        {(role !== "mgmt" || canManageTargets) && (
           <div className="flex items-center gap-2 flex-wrap">
-            <Button size="sm" onClick={() => setShowAddLead(true)}>
-              <Plus className="h-3.5 w-3.5 mr-1" /> New Sales Lead
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => setShowAddCustomer(true)}>
-              <Building2 className="h-3.5 w-3.5 mr-1" /> Add Customer
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setShowCreateOrder(true)}>
-              <ShoppingCart className="h-3.5 w-3.5 mr-1" /> Create Order
-            </Button>
+            {role !== "mgmt" && (
+              <>
+                <Button size="sm" onClick={() => setShowAddLead(true)}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> New Sales Lead
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => setShowAddCustomer(true)}>
+                  <Building2 className="h-3.5 w-3.5 mr-1" /> Add Customer
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setShowCreateOrder(true)}>
+                  <ShoppingCart className="h-3.5 w-3.5 mr-1" /> Create Order
+                </Button>
+              </>
+            )}
+            {canManageTargets && (
+              <Button size="sm" variant="outline" onClick={() => setShowTargets(true)}>
+                <Target className="h-3.5 w-3.5 mr-1" /> Targets
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -177,9 +199,28 @@ export default function DashboardPage() {
               <div className="text-xl font-black text-brand-ink mt-1 tabular-nums">
                 {dashQuery.isLoading ? <KpiSkeleton /> : lakhs(totalAchieved)}
               </div>
+              {/* This line used to read "N% target" while showing achieved
+                  over COMMITTED — the pipeline's own number, not a target
+                  anyone had set. There is a real target now, so each figure is
+                  labelled as itself and the target only appears once set. */}
               <div className="text-xs text-brand-ink/80 mt-0.5 font-semibold">
-                {dashQuery.isLoading ? "…" : totalPct != null ? `${totalPct.toFixed(1)}% target` : "—"}
+                {dashQuery.isLoading
+                  ? "…"
+                  : target != null
+                    ? `${targetPct != null ? `${targetPct.toFixed(1)}% of ` : ""}${lakhs(target)} target`
+                    : totalPct != null
+                      ? `${totalPct.toFixed(1)}% of committed`
+                      : "—"}
               </div>
+              {!dashQuery.isLoading && target == null && canManageTargets && (
+                <button
+                  type="button"
+                  onClick={() => setShowTargets(true)}
+                  className="mt-1 text-3xs font-bold uppercase tracking-wider text-brand-ink/70 hover:text-brand-ink cursor-pointer"
+                >
+                  Set a target
+                </button>
+              )}
             </div>
 
             <div className={cn("rounded-xl border p-3.5 shadow-xs transition-colors", fuOverdue > 0 ? "border-red/40 bg-red-soft/70" : "border-line bg-surface")}>
@@ -536,6 +577,14 @@ export default function DashboardPage() {
       />
       <AddCustomerModal open={showAddCustomer} onClose={() => setShowAddCustomer(false)} />
       <CreateSalesOrderModal open={showCreateOrder} onClose={() => setShowCreateOrder(false)} />
+
+      {showTargets && (
+        <SetTargetsModal
+          open
+          onClose={() => setShowTargets(false)}
+          period={month}
+        />
+      )}
     </div>
   );
 }

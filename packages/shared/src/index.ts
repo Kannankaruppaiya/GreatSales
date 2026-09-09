@@ -21,3 +21,4 @@ export * from "./remark";
 export * from "./period";
 export * from "./period-lock";
 export * from "./management";
+export * from "./target";

@@ -9,6 +9,7 @@ import type {
 } from '@greatsales/shared';
 import { ProjectionsService } from '../projections/projections.service';
 import { LeadsService } from '../leads/leads.service';
+import { TargetsService } from '../targets/targets.service';
 
 /**
  * Lead stages that no longer count toward committed new-sales value. Everything
@@ -43,6 +44,7 @@ export class DashboardService {
   constructor(
     private readonly projections: ProjectionsService,
     private readonly leads: LeadsService,
+    private readonly targets: TargetsService,
   ) {}
 
   /**
@@ -55,7 +57,7 @@ export class DashboardService {
     user: RequestUser,
     query: DashboardQuery,
   ): Promise<DashboardResponse> {
-    const [{ lines, summary }, leadRows] = await Promise.all([
+    const [{ lines, summary }, leadRows, targets] = await Promise.all([
       // lineFilter 'all': the dashboard summarises the whole worksheet, not
       // whatever subset the user last filtered the projections page to.
       this.projections.list(user, {
@@ -64,6 +66,9 @@ export class DashboardService {
         lineFilter: 'all',
       }),
       this.leads.allInScope(user, query.ownerId),
+      // Scoped by the same rules as everything else on this page: a sales user
+      // gets their own target regardless of the ownerId they asked for.
+      this.targets.totalFor(user, query.period, query.ownerId),
     ]);
 
     const liveLeads = leadRows.filter((l) => !DEAD_STAGES.has(l.stage));
@@ -92,8 +97,10 @@ export class DashboardService {
         totalPct: pct(totalAchieved, totalCommitted),
         followUpsDue: due,
         followUpsOverdue: overdue,
+        target: targets.total,
+        targetPct: targets.total ? pct(totalAchieved, targets.total) : null,
       },
-      bySalesperson: this.bySalesperson(lines, leadRows),
+      bySalesperson: this.bySalesperson(lines, leadRows, targets.byPerson),
       byPrincipal: this.byPrincipal(lines),
       byCategory: this.byCategory(lines),
       oralConfirmationDeals: leadRows
@@ -145,6 +152,7 @@ export class DashboardService {
   private bySalesperson(
     lines: ProjectionLine[],
     leadRows: LeadRow[],
+    targetByPerson: Map<string, number>,
   ): DashboardBreakdown[] {
     const names = new Map<string, string>();
     for (const p of lines) names.set(p.salespersonId, p.salespersonName);
@@ -157,6 +165,9 @@ export class DashboardService {
         return {
           id,
           name,
+          // Absent, not zero, when this person has no target for the month —
+          // an unset target must not render as a missed one.
+          target: targetByPerson.get(id) ?? null,
           committed:
             sum(theirLines, (p) => p.projValue) +
             sum(
@@ -181,6 +192,9 @@ export class DashboardService {
       const cur = map.get(p.principalId) ?? {
         id: p.principalId,
         name: p.principalName,
+        // Targets are set against people, not brands. Deriving a principal's
+        // share of someone's target would be arithmetic nobody agreed to.
+        target: null,
         committed: 0,
         achieved: 0,
       };

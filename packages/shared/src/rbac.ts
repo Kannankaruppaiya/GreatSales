@@ -19,6 +19,7 @@ export const PERMISSIONS = [
   { key: "user.manage", module: "admin" },
   { key: "role.manage", module: "admin" },
   { key: "period.manage", module: "admin" },
+  { key: "target.manage", module: "report" },
   { key: "report.view", module: "report" },
 ] as const;
 
@@ -45,6 +46,7 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   "user.manage": "Manage users",
   "role.manage": "Manage roles and permissions",
   "period.manage": "Lock and unlock reporting periods",
+  "target.manage": "Set monthly sales targets",
   "report.view": "View reports and dashboards",
 };
 
@@ -73,6 +75,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, PermissionKey[]> = {
   admin: PERMISSION_KEYS,
   mgmt: [
     "period.manage",
+    "target.manage",
     "customer.read",
     "lead.read",
     "projection.read",

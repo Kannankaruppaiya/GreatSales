@@ -3,6 +3,7 @@ import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 import { ProjectionsModule } from '../projections/projections.module';
 import { LeadsModule } from '../leads/leads.module';
+import { TargetsModule } from '../targets/targets.module';
 import { PermissionsGuard } from '../common/permissions.guard';
 
 /**
@@ -10,7 +11,7 @@ import { PermissionsGuard } from '../common/permissions.guard';
  * directly, so the dashboard cannot drift from the pages it summarises.
  */
 @Module({
-  imports: [ProjectionsModule, LeadsModule],
+  imports: [ProjectionsModule, LeadsModule, TargetsModule],
   controllers: [DashboardController],
   providers: [DashboardService, PermissionsGuard],
 })

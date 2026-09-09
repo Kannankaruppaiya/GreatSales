@@ -22,6 +22,14 @@ export interface DashboardKpis {
   totalPct: number | null;
   followUpsDue: number;
   followUpsOverdue: number;
+  /**
+   * The month's target, summed over everyone in scope. Null means nobody in
+   * scope has one set — which reads differently from a target of zero, so the
+   * two are never collapsed.
+   */
+  target: number | null;
+  /** achieved / target, or null when there is no target to divide by. */
+  targetPct: number | null;
 }
 
 export interface DashboardBreakdown {
@@ -29,6 +37,24 @@ export interface DashboardBreakdown {
   name: string;
   committed: number;
   achieved: number;
+  /** This person's target for the month. Always null on `byPrincipal`. */
+  target: number | null;
+}
+
+/** Mirrors `SalesTargetRow` in packages/shared/src/target.ts. */
+export interface SalesTargetRow {
+  id: string;
+  salespersonId: string;
+  salespersonName: string;
+  period: string;
+  targetValue: number;
+}
+
+/** Mirrors `TargetUpsert`. Validated server-side by the same Zod schema. */
+export interface TargetUpsert {
+  salespersonId: string;
+  period: string;
+  targetValue: number;
 }
 
 export interface DashboardCategorySlice {

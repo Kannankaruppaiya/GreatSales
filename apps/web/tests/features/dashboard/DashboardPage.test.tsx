@@ -52,6 +52,8 @@ const EMPTY_KPIS: DashboardResponse["kpis"] = {
   totalPct: null,
   followUpsDue: 0,
   followUpsOverdue: 0,
+  target: null,
+  targetPct: null,
 };
 
 /** A complete aggregate response — the page renders it verbatim. */

@@ -52,6 +52,17 @@ export interface DashboardKpis {
    */
   followUpsDue: number;
   followUpsOverdue: number;
+  /**
+   * The sum of the SalesTarget rows in scope for `period`, or null when nobody
+   * in scope has one set.
+   *
+   * Null and zero are different answers and the dashboard renders them
+   * differently: null is "no target has been set", zero is "the target is
+   * nothing". Coalescing them would make an unset month look like a met one.
+   */
+  target: number | null;
+  /** achieved / target, or null when there is no target to divide by. */
+  targetPct: number | null;
 }
 
 export interface DashboardBreakdown {
@@ -59,6 +70,14 @@ export interface DashboardBreakdown {
   name: string;
   committed: number;
   achieved: number;
+  /**
+   * This person's target for the period, or null if none is set.
+   *
+   * Always null on `byPrincipal`: targets are set against people, not brands,
+   * and inventing a principal-level one by division would be arithmetic the
+   * product never agreed to.
+   */
+  target: number | null;
 }
 
 export interface DashboardCategorySlice {
