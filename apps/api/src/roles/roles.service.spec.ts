@@ -240,7 +240,7 @@ describe('update', () => {
       tenantId: 'tenant_acme',
       email: 'sales1@acme.test',
       password: 'Passw0rd!',
-      tokenDelivery: 'cookie' as const,
+      tokenDelivery: 'cookie' as const, client: 'web' as const
     });
     const live = () =>
       prisma.forTenant('tenant_acme').refreshToken.count({

@@ -16,6 +16,12 @@ import { apiFetch, setTokenGetter, setRefreshHandler } from "@/lib/api";
 import { mapRole } from "@/lib/authRole";
 import type { Role } from "@/data/constants";
 import type { AuthUser, LoginResponse } from "@/features/projections/types";
+/**
+ * Which sign-in door was used. Mirrors `Portal` in `@greatsales/shared`, which
+ * this app does not depend on — the API validates the value against its own
+ * copy, so a drift here is a 400 rather than a silently wrong session.
+ */
+type Portal = "super_admin" | "admin" | "mgmt" | "sales";
 
 /** Access-token lifecycle, so the UI can tell "signed out" from "not yet known". */
 export type SessionStatus = "unknown" | "ready";
@@ -32,7 +38,12 @@ interface AuthState {
    */
   status: SessionStatus;
 
-  login: (tenantId: string, email: string, password: string) => Promise<void>;
+  login: (
+    tenantId: string,
+    email: string,
+    password: string,
+    portal?: Portal,
+  ) => Promise<void>;
   logout: (allSessions?: boolean) => Promise<void>;
   /** Restore a session from the refresh cookie. Safe to call more than once. */
   bootstrap: () => Promise<void>;
@@ -46,9 +57,13 @@ export const useAuth = create<AuthState>()(
       lastTenantId: null,
       status: "unknown",
 
-      login: async (tenantId, email, password) => {
+      login: async (tenantId, email, password, portal) => {
         // tokenDelivery defaults to "cookie" server-side; stated explicitly so
         // the browser's contract is visible at the call site.
+        //
+        // `portal` is which sign-in door was used. The server rejects a role
+        // that does not match it, which is what turns /admin/login and
+        // /sales/login from two skins of one page into two actual doors.
         const res = await apiFetch<LoginResponse>("/auth/login", {
           method: "POST",
           body: JSON.stringify({
@@ -56,6 +71,8 @@ export const useAuth = create<AuthState>()(
             email,
             password,
             tokenDelivery: "cookie",
+            client: "web",
+            ...(portal ? { portal } : {}),
           }),
         });
         set({

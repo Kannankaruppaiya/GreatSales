@@ -96,8 +96,17 @@ interface RefreshResponse {
 }
 
 /**
- * Sign in. Uses tokenDelivery: 'body' so both tokens are returned in JSON
- * (React Native cannot hold httpOnly cookies).
+ * Sign in.
+ *
+ * `tokenDelivery: 'body'` because React Native cannot hold httpOnly cookies, so
+ * both tokens come back in JSON and the refresh token goes to the OS store.
+ *
+ * `client: 'mobile'` is the important one. This app is a field-sales tool — it
+ * has no user administration, no role editor and no tenant settings — so the
+ * server refuses an administrator a session here. Sending the field is not what
+ * enforces that (anyone can post to /auth/login with curl and claim to be
+ * `web`); the server checks the role behind the credential. Sending it honestly
+ * is what makes the refusal land on the right accounts.
  */
 export async function login(
   tenantId: string,
@@ -106,7 +115,13 @@ export async function login(
 ): Promise<AuthUser> {
   const res = await apiFetch<LoginResponse>('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ tenantId, email, password, tokenDelivery: 'body' }),
+    body: JSON.stringify({
+      tenantId,
+      email,
+      password,
+      tokenDelivery: 'body',
+      client: 'mobile',
+    }),
   });
 
   setAccessToken(res.accessToken);

@@ -41,7 +41,7 @@ describe('AuthService', () => {
 
   /** Fresh login helper — most tests need a live session to work from. */
   const signIn = (email = ADMIN_EMAIL, tenantId = ACME, password = PASSWORD) =>
-    auth.login({ tenantId, email, password, tokenDelivery: 'cookie' as const });
+    auth.login({ tenantId, email, password, tokenDelivery: 'cookie' as const, client: 'web' as const });
 
   beforeAll(async () => {
     reseedTestDatabase();
@@ -149,6 +149,7 @@ describe('AuthService', () => {
           email: ADMIN_EMAIL,
           password: PASSWORD,
           tokenDelivery: 'cookie',
+        client: 'web' as const,
         },
         { ip: '203.0.113.9' },
       );
@@ -170,7 +171,7 @@ describe('AuthService', () => {
       password: string;
     }) => {
       await expect(
-        auth.login({ ...input, tokenDelivery: 'cookie' }),
+        auth.login({ ...input, tokenDelivery: 'cookie', client: 'web' as const }),
       ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
     };
 
@@ -282,6 +283,7 @@ describe('AuthService', () => {
             email,
             password: 'definitely-not-the-password',
             tokenDelivery: 'cookie',
+        client: 'web' as const,
           })
           .catch(() => undefined);
         samples.push(Number(process.hrtime.bigint() - t0) / 1e6);
@@ -308,6 +310,7 @@ describe('AuthService', () => {
           email: SALES1_EMAIL,
           password: 'wrong',
           tokenDelivery: 'cookie',
+        client: 'web' as const,
         })
         .catch((e: unknown) => e);
 
@@ -506,6 +509,7 @@ describe('AuthService', () => {
         email: 'admin@globex.test',
         password: PASSWORD,
         tokenDelivery: 'cookie',
+        client: 'web' as const,
       });
 
     it('stops refreshing once the tenant is SUSPENDED', async () => {
@@ -532,6 +536,7 @@ describe('AuthService', () => {
         email: 'sales1@globex.test',
         password: PASSWORD,
         tokenDelivery: 'cookie',
+        client: 'web' as const,
       });
       await prisma.forTenant(GLOBEX).user.update({
         where: { id: 'user_sales1_globex' },
@@ -549,6 +554,7 @@ describe('AuthService', () => {
         email: 'sales1@globex.test',
         password: PASSWORD,
         tokenDelivery: 'cookie',
+        client: 'web' as const,
       });
       await prisma.forTenant(GLOBEX).user.update({
         where: { id: 'user_sales1_globex' },
@@ -846,4 +852,95 @@ describe('AuthService', () => {
       expect(JSON.stringify(me)).not.toMatch(/passwordHash|\$argon2/);
     });
   });
+
+  /**
+   * Which application a credential may open a session from.
+   *
+   * The rule is enforced here, in the service that mints tokens, and not by
+   * hiding a form: a client is only ever a claim in a JSON body until the
+   * server checks the role behind the credential. RFC 6749 §10.3 puts the
+   * decision on the authorization server for exactly this reason.
+   */
+  describe('client restriction', () => {
+    const loginFrom = (
+      client: 'web' | 'mobile',
+      email: string,
+      password = PASSWORD,
+    ) =>
+      auth.login({
+        tenantId: ACME,
+        email,
+        password,
+        tokenDelivery: 'body' as const,
+        client,
+      });
+
+    it('lets a salesperson open a session from the mobile app', async () => {
+      const session = await loginFrom('mobile', SALES1_EMAIL);
+      expect(session.accessToken).toBeTruthy();
+      expect(session.user.role).toBe('sales');
+    });
+
+    it('refuses an administrator from the mobile app', () =>
+      expect(loginFrom('mobile', ADMIN_EMAIL)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      ));
+
+    it('still lets that administrator in on the web', async () => {
+      const session = await loginFrom('web', ADMIN_EMAIL);
+      expect(session.accessToken).toBeTruthy();
+    });
+
+    it('answers a wrong password identically whichever client asks, so the '
+      + 'refusal above cannot be used to find out who the admins are', async () => {
+      await expect(loginFrom('mobile', ADMIN_EMAIL, 'wrong')).rejects.toThrow(
+        new UnauthorizedException('Invalid credentials'),
+      );
+      await expect(loginFrom('web', ADMIN_EMAIL, 'wrong')).rejects.toThrow(
+        new UnauthorizedException('Invalid credentials'),
+      );
+    });
+
+    it('will not let a mobile session be rotated into a wider one', async () => {
+      const session = await loginFrom('mobile', SALES1_EMAIL);
+      const rotated = await auth.refresh(session.refreshTokenValue);
+      const claims = jwt.decode(rotated.refreshTokenValue) as { cli?: string };
+      expect(claims.cli).toBe('mobile');
+    });
+  });
+
+  /**
+   * Per-role sign-in URLs are decoration unless the server checks which door
+   * was used — /admin/login and /sales/login post the same body to the same
+   * endpoint, so without this the address bar says one thing and the session
+   * is another.
+   */
+  describe('web portal', () => {
+    const loginAt = (portal: 'admin' | 'sales' | 'mgmt', email: string) =>
+      auth.login({
+        tenantId: ACME,
+        email,
+        password: PASSWORD,
+        tokenDelivery: 'cookie' as const,
+        client: 'web' as const,
+        portal,
+      });
+
+    it('admits a salesperson at the sales door', async () => {
+      const session = await loginAt('sales', SALES1_EMAIL);
+      expect(session.user.role).toBe('sales');
+    });
+
+    it('refuses an administrator at the sales door', () =>
+      expect(loginAt('sales', ADMIN_EMAIL)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      ));
+
+    it('refuses a salesperson at the admin door', () =>
+      expect(loginAt('admin', SALES1_EMAIL)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      ));
+  });
+
+
 });

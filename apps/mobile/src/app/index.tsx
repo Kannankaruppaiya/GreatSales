@@ -29,11 +29,20 @@ export default function Login() {
     } catch (err) {
       if (err instanceof ApiError) {
         setError(
-          err.status === 401 || err.status === 403
+          // 401 is deliberately indistinguishable — the server will not say
+          // whether the account exists, and neither should this. 403 is
+          // different: the credential was correct and the server is telling
+          // this person something they can act on (locked out, or an account
+          // that belongs on the web console rather than in the field app).
+          // Collapsing the two, as this used to, told an administrator their
+          // own password was wrong.
+          err.status === 401
             ? 'Incorrect email or password.'
-            : err.status === 429
-              ? 'Too many attempts. Please wait a minute.'
-              : err.message,
+            : err.status === 403
+              ? err.message
+              : err.status === 429
+                ? 'Too many attempts. Please wait a minute.'
+                : err.message,
         );
       } else {
         setError('Could not reach the server. Check your connection.');

@@ -114,10 +114,6 @@ interface LoginPageProps {
   initialRole?: LoginRole;
 }
 
-/** Tab order, shared by the links and by the sliding indicator that has to
- *  know which cell of the 2×2 grid to sit over. */
-const TAB_ORDER: LoginRole[] = ["super_admin", "admin", "mgmt", "sales"];
-
 /** Seeded demo logins per web role. These mirror the POC v6 users created by
  *  `packages/db/prisma/seed.ts` (admin / manager / the salespeople). Exported so
  *  a test can check them against the seed instead of a hand-typed expectation. */
@@ -229,7 +225,7 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
     // no window.matchMedia, so a successful sign-in surfaced as bad credentials.
     let signedIn = false;
     try {
-      await login(tenantId.trim(), email.trim(), password);
+      await login(tenantId.trim(), email.trim(), password, activeRole);
       signedIn = true;
     } catch (err) {
       setError(describeLoginFailure(err));
@@ -344,46 +340,14 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
             </div>
           </div>
 
-          {/* ── Role Navigation Tabs (Direct URL routes) ── */}
-          <div>
-            <label className="text-[11px] font-bold uppercase tracking-wider text-muted block mb-2">
-              Select Portal URL
-            </label>
-            <div className="portal-tabs grid grid-cols-2 gap-1.5 p-1 bg-surface-2 rounded-xl border border-line">
-              {/* One thumb that slides between the four cells, rather than
-                  four backgrounds switching on and off. The grid is 2×2, so
-                  column is index % 2 and row is index / 2. */}
-              <span
-                className="portal-tabs__thumb"
-                aria-hidden="true"
-                style={{
-                  transform: `translate(${TAB_ORDER.indexOf(activeRole) % 2 ? "calc(100% + 6px)" : "0px"}, ${
-                    TAB_ORDER.indexOf(activeRole) > 1 ? "calc(100% + 6px)" : "0px"
-                  })`,
-                  height: "calc(50% - 5px)",
-                }}
-              />
-              {TAB_ORDER.map((rKey) => {
-                const rConf = ROLE_CONFIGS[rKey];
-                const isActive = activeRole === rKey;
-                const Icon = rConf.icon;
-
-                return (
-                  <Link
-                    key={rKey}
-                    to={rConf.route}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`relative z-10 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-colors duration-200 ${
-                      isActive ? "text-ink" : "text-muted hover:text-ink"
-                    }`}
-                  >
-                    <Icon className={`h-3.5 w-3.5 transition-colors duration-200 ${isActive ? "text-brand" : "text-muted"}`} />
-                    <span className="truncate">{rConf.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
+          {/*
+            The four-portal tab switcher used to sit here, and it undid the
+            point of having four addresses: every door showed the other three
+            and let you walk through them, so /sales/login was one click from
+            the administrator form and the separation was cosmetic. Each portal
+            is now only reachable at its own URL, which is the address a person
+            is given. Nothing here advertises the others.
+          */}
 
           {/* ── Active Portal Header ── */}
           <div className="flex flex-col items-center gap-3 pt-1 text-center">

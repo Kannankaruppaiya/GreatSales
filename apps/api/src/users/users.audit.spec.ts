@@ -73,7 +73,7 @@ const signIn = (email: string) =>
     tenantId: 'tenant_acme',
     email,
     password: 'Passw0rd!',
-    tokenDelivery: 'cookie' as const,
+    tokenDelivery: 'cookie' as const, client: 'web' as const
   });
 
 describe('audit trail', () => {

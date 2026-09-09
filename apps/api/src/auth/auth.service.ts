@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'node:crypto';
 import type {
+  AuthClient,
   AuthTokens,
   AuthUser,
   ChangePasswordInput,
@@ -16,7 +17,12 @@ import type {
   LoginResponse,
   RequestUser,
 } from '@greatsales/shared';
-import { PASSWORD_FAILURE_MESSAGE, validatePassword } from '@greatsales/shared';
+import {
+  PASSWORD_FAILURE_MESSAGE,
+  roleAllowedOnClient,
+  roleMatchesPortal,
+  validatePassword,
+} from '@greatsales/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { hashPassword, verifyPassword } from './hash';
 import { codedBadRequest } from '../common/error-codes';
@@ -159,6 +165,43 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Credentials are proven. Only now is it safe to say anything specific:
+    // the two checks below tell the caller WHY a valid account was refused,
+    // which would be an enumeration oracle if it happened before the password
+    // was verified, and is merely helpful after it.
+    const roleName = user.role?.name ?? null;
+    const permissionKeys =
+      user.role?.permissions?.map((rp) => rp.permission.key) ?? [];
+
+    if (!roleAllowedOnClient(input.client, roleName, permissionKeys)) {
+      this.event('login.client_not_permitted', ctx, {
+        tenantId: input.tenantId,
+        userId: user.id,
+        client: input.client,
+        role: roleName,
+      });
+      throw new ForbiddenException(
+        input.client === 'mobile'
+          ? 'This account cannot sign in from the mobile app. The app is for field sales; use the web console instead.'
+          : 'This account cannot sign in from this application.',
+      );
+    }
+
+    // Per-role web doors are only real if the server checks which one was used.
+    // Otherwise /sales/login and /admin/login post identical bodies and the URL
+    // is decoration.
+    if (input.portal && !roleMatchesPortal(input.portal, roleName)) {
+      this.event('login.wrong_portal', ctx, {
+        tenantId: input.tenantId,
+        userId: user.id,
+        portal: input.portal,
+        role: roleName,
+      });
+      throw new ForbiddenException(
+        'This sign-in page is not for your account. Use the address your administrator gave you.',
+      );
+    }
+
     await db.user.update({
       where: { id: user.id },
       data: {
@@ -173,6 +216,7 @@ export class AuthService {
       user.tenantId,
       user.id,
       user.roleId,
+      input.client,
       ctx,
     );
     this.event('login.success', ctx, {
@@ -253,8 +297,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
+    // The role travels with the user here because rotation re-checks it: a
+    // session's client permission depends on the role the account holds NOW,
+    // not the one it held when it signed in.
     const user = await db.user.findFirst({
       where: { id: row.userId, deletedAt: null, active: true },
+      include: ROLE_WITH_PERMISSIONS,
     });
     if (!user) {
       await this.revokeFamily(db, row.familyId, 'user_not_active');
@@ -273,12 +321,32 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
+    // The client restriction has to hold for the life of the session, not just
+    // its first request. A role can also be reassigned after sign-in — an
+    // account promoted to admin while its phone still holds a live session must
+    // lose that session, not keep it until the refresh token expires.
+    const sessionClient: AuthClient = claims.cli ?? 'web';
+    const roleName = user.role?.name ?? null;
+    const permissionKeys =
+      user.role?.permissions?.map((rp) => rp.permission.key) ?? [];
+    if (!roleAllowedOnClient(sessionClient, roleName, permissionKeys)) {
+      await this.revokeFamily(db, row.familyId, 'client_not_permitted');
+      this.event('refresh.client_not_permitted', ctx, {
+        tenantId: claims.tid,
+        userId: user.id,
+        client: sessionClient,
+        role: roleName,
+      });
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
     const next = await this.issueInFamily(
       db,
       user.tenantId,
       user.id,
       user.roleId,
       row.familyId,
+      sessionClient,
       ctx,
     );
 
@@ -539,6 +607,7 @@ export class AuthService {
     tenantId: string,
     userId: string,
     roleId: string,
+    client: AuthClient,
     ctx: AuthContext,
   ): Promise<IssuedSession> {
     const db = this.prisma.forTenant(tenantId);
@@ -548,6 +617,7 @@ export class AuthService {
       userId,
       roleId,
       randomUUID(),
+      client,
       ctx,
     );
     return session;
@@ -560,6 +630,7 @@ export class AuthService {
     userId: string,
     roleId: string,
     familyId: string,
+    client: AuthClient,
     ctx: AuthContext,
   ): Promise<{ jti: string; session: IssuedSession }> {
     const jti = randomUUID();
@@ -575,7 +646,7 @@ export class AuthService {
       },
     );
     const refreshToken = await this.jwt.signAsync(
-      { sub: userId, tid: tenantId, typ: 'refresh', jti, fid: familyId },
+      { sub: userId, tid: tenantId, typ: 'refresh', jti, fid: familyId, cli: client },
       {
         secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
         expiresIn: refreshTtl as unknown as number,

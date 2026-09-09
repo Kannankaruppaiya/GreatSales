@@ -303,6 +303,34 @@ strategies.
 
 ### 7. Security
 
+**Who may sign in from where is decided by the API, not by the client.**
+`/auth/login` takes a `client` (`web` | `mobile`) and, on web, the `portal`
+(`super_admin` | `admin` | `mgmt` | `sales`) whose URL was used. After the
+password verifies — never before — the service checks both against
+`CLIENT_ROLE_ALLOWLIST` and `roleMatchesPortal` in `packages/shared/src/auth.ts`
+and refuses with 403. `mobile` currently admits `sales` only: the app has no
+user administration, role editor or tenant settings, so an admin session there
+buys nothing and only widens where an admin credential can be left signed in on
+a personal phone. A permission backstop (`user.manage`, `role.manage`,
+`period.manage`) refuses admin-like custom roles whatever a tenant named them.
+
+Three things about this are easy to undo by accident:
+
+- **The order matters.** A specific refusal before the password is checked is an
+  account-enumeration oracle — it would tell an attacker which addresses are
+  administrators. A wrong password answers `401 Invalid credentials` from every
+  client; only a *correct* credential gets the specific 403.
+- **The refresh token carries the client** (`cli` claim) and rotation re-checks
+  it, so a session cannot widen by being refreshed from somewhere else, and an
+  account promoted to admin loses its live phone session at the next rotation
+  rather than at token expiry.
+- **The per-role web URLs are decoration without the `portal` check.**
+  `/admin/login` and `/sales/login` post identical bodies to the same endpoint.
+
+Tests: `apps/api/src/auth/auth.service.spec.ts` → "client restriction" and
+"web portal".
+
+
 Assume that users may be malicious and that every externally accessible interface may be attacked.
 
 Consider:

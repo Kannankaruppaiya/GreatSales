@@ -60,6 +60,7 @@ describe("useAuth — login", () => {
         email: "admin@acme.test",
         password: "Passw0rd!",
         tokenDelivery: "cookie",
+        client: "web",
       }),
     });
   });
