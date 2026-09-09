@@ -37,7 +37,6 @@ const INSERT_ORDER = [
   "projection",
   "lead",
   "leadProduct",
-  "leadActivity",
   "payment",
   "paymentFollowup",
   "followUp",
@@ -87,7 +86,7 @@ export async function restoreDatabase(backupFilePath?: string) {
     TRUNCATE TABLE
       "TenantFeatureFlag","FeatureFlag","PlatformAuditLog","PlatformUser",
       "OrderStatusHistory","SalesOrderItem","SalesOrder","PaymentFollowup","Payment",
-      "LeadActivity","LeadProduct","Lead","Projection","SalesTarget","Mapping",
+      "LeadProduct","Lead","Projection","SalesTarget","Mapping",
       "Product","Principal","CustomerContact","Customer","FollowUp","Activity",
       "Notification","Attachment","AuditLog","ImportJob","RolePermission","Role",
       "Permission","Industry","RefreshToken","User","Team","Tenant"

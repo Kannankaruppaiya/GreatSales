@@ -571,7 +571,6 @@ model Lead {
   tenant      Tenant         @relation(fields: [tenantId], references: [id])
   salesperson User           @relation(fields: [salespersonId], references: [id])
   products    LeadProduct[]
-  activities  LeadActivity[]
 
   @@index([tenantId])
   @@index([salespersonId])
@@ -599,16 +598,9 @@ model LeadProduct {
   @@index([productId])
 }
 
-model LeadActivity {
-  id     String   @id @default(cuid())
-  leadId String
-  date   DateTime @default(now())
-  note   String
-
-  lead Lead @relation(fields: [leadId], references: [id])
-
-  @@index([leadId])
-}
+// A lead's dated notes live in `Remark` (entityType = Lead), not in a table of
+// their own — see migration 20260910090000. `LeadActivity` was the same concept
+// with no reader, so its rows were folded across and the table dropped.
 
 // ============================================================
 // 6. ORDERS & PAYMENTS

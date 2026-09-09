@@ -65,13 +65,22 @@ const asJson = args.has('--json');
 const strict = args.has('--strict');
 
 /**
- * Models that exist for the database's own sake and are not expected to be
- * queried by name from application code. Listing them here is a claim that
- * their absence is deliberate; anything not listed and untouched is a finding.
+ * Models this application is not expected to query by name, and why.
+ *
+ * Listing one here is a claim that its absence is deliberate and a promise to
+ * say what makes it so; anything not listed and untouched is a finding. The
+ * reason is printed with the model, so a future reader can disagree with the
+ * judgement instead of just inheriting it.
  */
-const INFRASTRUCTURE_MODELS = new Set([
-  // Written through Prisma's own migration engine, never by us.
-  'PrismaMigration',
+const INFRASTRUCTURE_MODELS = new Map([
+  ['PrismaMigration', "written by Prisma's own migration engine, never by us"],
+  // The platform layer is the operator console's data, deliberately outside the
+  // tenant `User` table so tenant RLS never touches it — and the tenant app's
+  // database role has SELECT revoked on both (see the RLS migration). Code in
+  // apps/api reaching either one would be the defect, not the fix. They are
+  // reachable only from the operator surface, which is not in this repository.
+  ['PlatformUser', 'platform layer — the tenant app role is REVOKED on this table'],
+  ['PlatformAuditLog', 'platform layer — the tenant app role is REVOKED on this table'],
 ]);
 
 function walk(dir, test, out = []) {
@@ -235,6 +244,7 @@ const report = models.map((model) => {
   return {
     model: model.name,
     infrastructure: INFRASTRUCTURE_MODELS.has(model.name),
+    infrastructureReason: INFRASTRUCTURE_MODELS.get(model.name) ?? null,
     columns: columns.length,
     relations: model.fields.length - columns.length,
     // Distinct operations tell you more than a raw count: a model with only
@@ -299,7 +309,7 @@ if (asJson) {
             ? '[~]'
             : '[ ]';
       const status = r.infrastructure
-        ? 'n/a     (infrastructure)'
+        ? `n/a     ${r.infrastructureReason}`
         : r.useCount
           ? `${String(r.useCount).padStart(3)} use(s)  ${r.operations.join(', ')}`
           : r.relationUseCount

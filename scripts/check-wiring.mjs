@@ -149,7 +149,14 @@ function methodFrom(args) {
  * product surface. Listed so the report stays honest instead of silently
  * counting them as gaps forever.
  */
-const NON_CLIENT_ENDPOINTS = new Set(['GET /api/v1/health']);
+/**
+ * Endpoints no client is supposed to call. These are read by the load balancer
+ * and the orchestrator, not by a screen, so "nothing calls it" is the design.
+ */
+const NON_CLIENT_ENDPOINTS = new Set([
+  'GET /api/v1/health', // liveness — is the process up
+  'GET /api/v1/health/ready', // readiness — can it serve (DB reachable). ALB/k8s probe.
+]);
 
 function collectClientCalls() {
   const calls = [];

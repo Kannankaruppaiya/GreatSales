@@ -35,7 +35,6 @@ const TABLE_MODELS = [
   "projection",
   "lead",
   "leadProduct",
-  "leadActivity",
   "salesOrder",
   "salesOrderItem",
   "orderStatusHistory",

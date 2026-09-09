@@ -38,7 +38,7 @@ async function reset() {
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE
     "TenantFeatureFlag","FeatureFlag","PlatformAuditLog","PlatformUser",
     "OrderStatusHistory","SalesOrderItem","SalesOrder","PaymentFollowup","Payment",
-    "LeadActivity","LeadProduct","Lead","Projection","SalesTarget","Mapping",
+    "LeadProduct","Lead","Projection","SalesTarget","Mapping",
     "Product","Principal","CustomerContact","Customer","FollowUp","Activity",
     "Notification","Attachment","AuditLog","ImportJob","RolePermission","Role",
     "Permission","Industry","User","Team","Tenant"

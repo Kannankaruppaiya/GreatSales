@@ -48,6 +48,7 @@ export interface UserParams {
 export const userKeys = {
   all: ["users"] as const,
   list: (p: UserParams) => ["users", p] as const,
+  detail: (id: string) => ["users", "detail", id] as const,
 };
 export const roleKeys = {
   all: ["roles"] as const,
@@ -122,6 +123,34 @@ export function flattenUsers(data?: { pages: UserListResponse[] }): UserRow[] {
  */
 export function userTotal(data?: { pages: UserListResponse[] }): number {
   return data?.pages[0]?.total ?? 0;
+}
+
+/**
+ * One user, read straight from the server.
+ *
+ * The rows in the table came from a cursor page that may be minutes old, and
+ * two admins editing the same workspace is the ordinary case, not the strange
+ * one. Seeding the edit form from a stale row means a save writes back the
+ * fields as they were when the page loaded and silently reverts whatever
+ * changed in between. The form waits for this instead.
+ *
+ * `includeDeleted` exists because a deleted user is still editable from the
+ * "Deleted" filter — without it the fetch 404s on exactly the rows that view
+ * is showing.
+ */
+export function useUser(id: string | undefined, includeDeleted = false) {
+  return useQuery({
+    queryKey: userKeys.detail(id ?? ""),
+    enabled: !!id,
+    queryFn: () =>
+      apiFetch<UserRow>(
+        `/users/${id}${includeDeleted ? "?includeDeleted=true" : ""}`,
+      ),
+    // The form reads this once on open; refetching under an open form would
+    // fight whatever is being typed.
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  });
 }
 
 export function useCreateUser() {

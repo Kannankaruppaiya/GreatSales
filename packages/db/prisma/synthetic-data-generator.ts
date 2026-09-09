@@ -153,7 +153,6 @@ async function main() {
   await prisma.orderStatusHistory.deleteMany({});
   await prisma.salesOrderItem.deleteMany({});
   await prisma.salesOrder.deleteMany({ where: { tenantId: TENANT_ID } });
-  await prisma.leadActivity.deleteMany({});
   await prisma.leadProduct.deleteMany({});
   await prisma.lead.deleteMany({ where: { tenantId: TENANT_ID } });
   await prisma.projection.deleteMany({ where: { tenantId: TENANT_ID } });

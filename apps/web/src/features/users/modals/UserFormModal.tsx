@@ -7,6 +7,7 @@ import {
   useRoles,
   useTeams,
   useUpdateUser,
+  useUser,
   useUsers,
   flattenUsers,
 } from "@/features/users/queries";
@@ -16,6 +17,84 @@ import type { UserRow } from "@/features/users/types";
 /**
  * Create or edit one user.
  *
+ * In edit mode this re-reads the user by id before showing the form. The row
+ * the table hands over came from a cursor page that may be minutes old, and the
+ * form submits every field it holds — so seeding it from a stale row turns
+ * "change this person's team" into "also put their name, email and role back to
+ * what they were when the page loaded". Waiting costs one request; not waiting
+ * costs another admin's edit.
+ *
+ * The wait is why the form is a separate component: its `useState` initialisers
+ * run once at mount, so the only way to seed them from fetched data is to not
+ * mount until the data is there.
+ */
+export function UserFormModal({
+  open,
+  onClose,
+  user,
+}: {
+  open: boolean;
+  onClose: () => void;
+  user: UserRow | null;
+}) {
+  // A deleted user is editable from the "Deleted" filter, so ask for one.
+  const fresh = useUser(user?.id, true);
+
+  if (!user) return <UserForm open={open} onClose={onClose} user={null} />;
+
+  if (fresh.isError) {
+    return (
+      <Dialog
+        open={open}
+        onClose={onClose}
+        title="Could not open this user"
+        description={
+          fresh.error instanceof ApiError
+            ? fresh.error.message
+            : "The user could not be loaded. They may have been removed."
+        }
+        maxWidth="max-w-lg"
+        footer={
+          <Button variant="outline" size="sm" onClick={onClose} type="button">
+            Close
+          </Button>
+        }
+      >
+        <div />
+      </Dialog>
+    );
+  }
+
+  if (!fresh.data) {
+    return (
+      <Dialog
+        open={open}
+        onClose={onClose}
+        title={`Edit User: ${user.name}`}
+        description="Loading the current details…"
+        maxWidth="max-w-lg"
+        footer={
+          <Button variant="outline" size="sm" onClick={onClose} type="button">
+            Cancel
+          </Button>
+        }
+      >
+        <div className="space-y-3.5" aria-busy="true">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="space-y-1.5">
+              <div className="h-3 w-24 rounded bg-surface-2" />
+              <div className="h-9 w-full rounded-lg bg-surface-2" />
+            </div>
+          ))}
+        </div>
+      </Dialog>
+    );
+  }
+
+  return <UserForm open={open} onClose={onClose} user={fresh.data} />;
+}
+
+/**
  * Role, manager, and team options come from `/roles`, `/users`, and `/teams` —
  * NOT from the rows currently loaded in the table. Deriving them from loaded
  * rows meant a role with no members could never receive its first one, which
@@ -25,7 +104,7 @@ import type { UserRow } from "@/features/users/types";
  * switching straight from editing one person to another remounts with fresh
  * state instead of showing the previous person's values.
  */
-export function UserFormModal({
+function UserForm({
   open,
   onClose,
   user,

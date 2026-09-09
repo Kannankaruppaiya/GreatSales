@@ -210,7 +210,7 @@ async function reset() {
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE
     "TenantFeatureFlag","FeatureFlag","PlatformAuditLog","PlatformUser",
     "OrderStatusHistory","SalesOrderItem","SalesOrder","PaymentFollowup","Payment",
-    "LeadActivity","LeadProduct","Lead","Projection","SalesTarget","Mapping",
+    "LeadProduct","Lead","Projection","SalesTarget","Mapping",
     "Product","Principal","CustomerContact","Customer","FollowUp","Activity",
     "Notification","Attachment","AuditLog","ImportJob","RolePermission","Role",
     "Permission","Industry","User","Team","Tenant"
@@ -559,19 +559,27 @@ async function main() {
       });
     }
 
-    // Both the POC's remarks and its stage history are per-lead notes; they
-    // land in the one activity log this schema provides, kept distinguishable
-    // by the stage-change prefix.
+    // Both the POC's remarks and its stage history are per-lead notes, and
+    // `Remark` is the timeline the application actually serves — these used to
+    // go to a LeadActivity table nothing read, so the seeded history never
+    // appeared on a lead. Author is null: nobody typed these, the import made
+    // them. The stage-change prefix keeps the two kinds distinguishable.
     const activities = [
-      ...(l.remarks ?? []).map((r) => ({ date: day(r.dt), note: r.text })),
+      ...(l.remarks ?? []).map((r) => ({ at: day(r.dt), text: r.text })),
       ...(l.history ?? []).map((h) => ({
-        date: new Date(h.timestamp),
-        note: `Stage: ${h.fromStage} → ${h.toStage}${h.note ? ` — ${h.note}` : ""}`,
+        at: new Date(h.timestamp),
+        text: `Stage: ${h.fromStage} → ${h.toStage}${h.note ? ` — ${h.note}` : ""}`,
       })),
     ];
     if (activities.length) {
-      await prisma.leadActivity.createMany({
-        data: activities.map((a) => ({ leadId: "lead_" + slug(l.id), ...a })),
+      await prisma.remark.createMany({
+        data: activities.map((a) => ({
+          tenantId: TENANT_ID,
+          entityType: "Lead" as const,
+          entityId: "lead_" + slug(l.id),
+          userId: null,
+          ...a,
+        })),
       });
     }
   }
@@ -638,7 +646,7 @@ async function main() {
     paymentsLinkedToCustomer: await prisma.payment.count({ where: { customerId: { not: null } } }),
     leads: await prisma.lead.count(),
     leadProducts: await prisma.leadProduct.count(),
-    leadActivities: await prisma.leadActivity.count(),
+    leadRemarks: await prisma.remark.count({ where: { entityType: "Lead" } }),
     salesOrders: await prisma.salesOrder.count(),
     salesOrderItems: await prisma.salesOrderItem.count(),
     platformUsers: await prisma.platformUser.count(),

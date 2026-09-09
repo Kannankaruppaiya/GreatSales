@@ -51,7 +51,6 @@ export async function clearAllDataExceptAdmin(options?: { skipBackup?: boolean }
       "SalesOrder",
       "PaymentFollowup",
       "Payment",
-      "LeadActivity",
       "LeadProduct",
       "Lead",
       "Projection",
