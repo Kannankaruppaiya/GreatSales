@@ -327,6 +327,16 @@ Three things about this are easy to undo by accident:
 - **The per-role web URLs are decoration without the `portal` check.**
   `/admin/login` and `/sales/login` post identical bodies to the same endpoint.
 
+There is no shared `/login`. Each role signs in at its own address —
+`/super-admin/login`, `/admin/login`, `/management/login`, `/sales/login` — and
+`/login` renders a page telling the visitor to use theirs. Signed-in URLs lead
+with the role (`/admin/managements/:id/dashboard`), so an expired session is
+returned to the right door and nowhere wider, and sign-out goes to the door the
+person came through. `RequireRolePath` rejects a segment the session does not
+hold. Do not reintroduce a portal switcher on the login page: it put every door
+one click from the administrator form, which is the thing these addresses exist
+to prevent.
+
 Tests: `apps/api/src/auth/auth.service.spec.ts` → "client restriction" and
 "web portal".
 

@@ -14,7 +14,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { RoleGuard } from "@/features/auth/RoleGuard";
 import { RequireOwner } from "@/features/auth/RequireOwner";
 import type { LoginRole } from "@/features/auth/LoginPage";
-import { roleForPath, rolePathFor } from "@/lib/rolePath";
+import { loginPathForPath, roleForPath, rolePathFor } from "@/lib/rolePath";
 
 // Lazy like every page, and for a stronger reason than code size: this is the
 // only static import that reaches `trackerStore`, the client-side mock the
@@ -86,7 +86,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!authed) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    // The role leads every signed-in URL, so an expired session on
+    // /sales/managements/... goes back to /sales/login and nowhere wider.
+    const door = loginPathForPath(location.pathname);
+    if (!door) return <NoSharedLogin />;
+    return <Navigate to={door} state={{ from: location }} replace />;
   }
 
   // An admin-set password is a shared secret until its owner replaces it. The
@@ -136,6 +140,29 @@ function LegacyManagementRedirect() {
   );
 }
 
+/**
+ * What sits where the shared sign-in page used to.
+ *
+ * Not a form and not a list of the four doors: advertising them would put every
+ * portal one click from the administrator one again, which is what the tab
+ * switcher on the login page did. Staff are given their own address.
+ */
+function NoSharedLogin() {
+  return (
+    <div className="grid min-h-screen place-items-center px-6">
+      <div className="max-w-md space-y-3 text-center">
+        <h1 className="text-base font-extrabold text-ink">
+          This is not a sign-in address
+        </h1>
+        <p className="text-sm leading-relaxed text-muted">
+          GreatSales gives each role its own sign-in page. Use the address your
+          administrator gave you, or ask them for it.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function PublicAuthRoute({ initialRole }: { initialRole?: LoginRole }) {
   const authed = useIsAuthed();
   const isOwner = useIsOwner();
@@ -145,7 +172,7 @@ function PublicAuthRoute({ initialRole }: { initialRole?: LoginRole }) {
   const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
 
   if (authed) {
-    if (from && from !== "/login") {
+    if (from && !from.endsWith("/login")) {
       return <Navigate to={from} replace />;
     }
     if (isOwner || role === "super_admin") {
@@ -260,8 +287,12 @@ export default function App() {
     <ErrorBoundary>
       <Routes>
         {/* Dedicated Role Login Routes */}
-        <Route path="/login" element={<PublicAuthRoute />} />
-        <Route path="/login/:roleParam" element={<PublicAuthRoute />} />
+        {/* There is no shared /login. It used to be a fifth door that served
+            everybody and defaulted to the administrator form, which is the
+            thing the four per-role addresses exist to prevent. Someone who
+            reaches it is told to use their own address. */}
+        <Route path="/login" element={<NoSharedLogin />} />
+        <Route path="/login/:roleParam" element={<NoSharedLogin />} />
         <Route path="/super-admin/login" element={<PublicAuthRoute initialRole="super_admin" />} />
         <Route path="/superadmin/login" element={<Navigate to="/super-admin/login" replace />} />
         <Route path="/admin/login" element={<PublicAuthRoute initialRole="admin" />} />

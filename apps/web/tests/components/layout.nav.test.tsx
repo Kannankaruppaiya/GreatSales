@@ -31,7 +31,7 @@ describe("Sidebar links", () => {
     });
   });
 
-  it("prefixes nav links with the active management id", () => {
+  it("leads every nav link with the role, then the active management id", () => {
     const qc = makeQueryClient();
     render(
       <QueryClientProvider client={qc}>
@@ -40,7 +40,12 @@ describe("Sidebar links", () => {
         </MemoryRouter>
       </QueryClientProvider>,
     );
+    // The role segment is what makes a signed-in URL say who is signed in, and
+    // what RequireRolePath checks. A link that omits it would bounce the user
+    // through a redirect on every click.
     const link = screen.getByRole("link", { name: /dashboard/i });
-    expect(link.getAttribute("href")).toBe(`/managements/${DEFAULT_MANAGEMENT_ID}/dashboard`);
+    expect(link.getAttribute("href")).toBe(
+      `/admin/managements/${DEFAULT_MANAGEMENT_ID}/dashboard`,
+    );
   });
 });

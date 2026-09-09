@@ -17,7 +17,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { roleLabel } from "@/data/constants";
 import { MonthSelect } from "@/components/MonthSelect";
 import { featureByKey, featureLabel, featuresFor, featurePath } from "@/data/features";
-import { useRolePath } from "@/lib/rolePath";
+import { loginPathFor, useRolePath } from "@/lib/rolePath";
 import type { GlobalFilter } from "@/data/features";
 import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import { useAuthRole, useAuthUser, useAuth } from "@/store/auth";
@@ -50,10 +50,13 @@ export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => 
   const pendingFollowUps = flattenFollowUps(followUpsQ.data);
 
   const handleLogout = async () => {
+    // Read the door BEFORE logging out — `role` is gone once the session is,
+    // and there is no shared /login to fall back to any more.
+    const door = loginPathFor(role);
     // Await it: logout revokes the session server-side, and navigating first
     // would leave that revocation racing an unmount.
     await logout();
-    navigate("/login");
+    navigate(door);
   };
   const nav = featuresFor(role);
 

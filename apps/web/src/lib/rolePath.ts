@@ -51,3 +51,24 @@ export function roleForPath(segment: string | undefined): Role | null {
 export function useRolePath(): RolePath {
   return rolePathFor(useAuthRole());
 }
+
+/** Where a role signs in. One door each; there is no shared one. */
+export function loginPathFor(role: Role): string {
+  return `/${ROLE_PATHS[role]}/login`;
+}
+
+/**
+ * The sign-in door implied by a URL someone tried to open while signed out.
+ *
+ * Every signed-in URL leads with the role segment, so an expired session on
+ * `/management/managements/m1/leads` can be sent back to `/management/login`
+ * and no further. When the path carries no role — an old bookmark of
+ * `/managements/...`, or a bare `/` — there is nothing to infer from and
+ * nowhere safe to guess, so the caller gets null and shows the
+ * "use your own address" page instead of a door that serves everybody.
+ */
+export function loginPathForPath(pathname: string): string | null {
+  const first = pathname.split("/").filter(Boolean)[0];
+  const role = roleForPath(first);
+  return role ? loginPathFor(role) : null;
+}

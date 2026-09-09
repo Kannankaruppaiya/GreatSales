@@ -94,10 +94,13 @@ describe("LoginPage — success", () => {
     await user.click(submit());
 
     await waitFor(() =>
+      // The fourth argument is the door. Rendered at /admin/login, so the
+      // server is told "admin" and will refuse any other role here.
       expect(login).toHaveBeenCalledWith(
         "tenant_acme",
         "admin@acme.test",
         "Passw0rd!",
+        "admin",
       ),
     );
     await waitFor(() => expect(navigate).toHaveBeenCalled());
@@ -118,10 +121,13 @@ describe("LoginPage — success", () => {
     await user.click(submit());
 
     await waitFor(() =>
+      // The fourth argument is the door. Rendered at /admin/login, so the
+      // server is told "admin" and will refuse any other role here.
       expect(login).toHaveBeenCalledWith(
         "tenant_acme",
         "admin@acme.test",
         "Passw0rd!",
+        "admin",
       ),
     );
   });
