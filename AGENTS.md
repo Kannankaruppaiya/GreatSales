@@ -303,6 +303,23 @@ strategies.
 
 ### 7. Security
 
+**Ask `pnpm wired` before reading the repository to find out what is wired.**
+It runs the layer checks — frontend↔API (`check-wiring.mjs`), API↔tables
+(`check-db-wiring.mjs`), live response↔declared type (`check-contract.mjs`) —
+and prints only the exceptions. Reading the source to answer the same question
+costs about 468,000 tokens; `pnpm wired --json` costs about 400, because
+everything that is fine is left out. The scripts decide what is true; whether a
+finding is a defect or a deliberate gap is the reader's judgement.
+
+Two things about `check-db-wiring.mjs` are worth knowing before trusting or
+extending it. Prisma nested writes address a table by its RELATION field, not
+its model name — `salesOrder.create({ data: { items: { create: [...] } } })`
+never says `salesOrderItem` — so a name-only scan reports four written tables as
+untouched. And the seeds are counted separately from the application: a table
+only a fixture writes is not a wired feature, and folding them into one corpus
+turned four genuinely unwired tables green.
+
+
 **Who may sign in from where is decided by the API, not by the client.**
 `/auth/login` takes a `client` (`web` | `mobile`) and, on web, the `portal`
 (`super_admin` | `admin` | `mgmt` | `sales`) whose URL was used. After the

@@ -23,6 +23,23 @@ and verify commands. `pnpm facts --json` for a machine-readable form.
 That covers: how many pages/features/screens/endpoints, which roles reach a
 surface, which features have no tests, which endpoints no client calls.
 
+For "is the whole thing wired — frontend, backend and database?", one command
+answers it and is sized for an agent to read rather than a person to scan:
+
+```bash
+pnpm wired            # findings only, for a person
+pnpm wired --json     # the same, ~400 tokens, for an agent
+```
+
+It runs the layer checks and keeps only the exceptions: endpoints nothing calls,
+tables no code touches, tables only fixtures write, responses missing fields
+their type declares. Wired things do not appear. The runtime layers are skipped
+with a stated reason when the API is down, so it still answers offline.
+
+Behind it, when you want the full inventory of one layer:
+`pnpm wiring` (frontend↔API), `pnpm db-wiring` (API↔tables),
+`pnpm contract` (live response vs the types in `packages/shared`).
+
 For "what is missing on mobile?" / "web la irukka feature mobile la illa":
 
 ```bash
