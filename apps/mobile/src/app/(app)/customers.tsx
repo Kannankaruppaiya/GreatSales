@@ -4,16 +4,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Card, Badge, Chip, Avatar, Empty, KpiStrip, ListFooter } from '@/gs/kit';
 import { Sheet, Field, Input, Pills, ModalBtn } from '@/gs/modal';
-import { C } from '@/gs/theme';
+import { C, NUM, useC } from '@/gs/theme';
+import { Row, RowAvatar, RowSkeleton, RowEmpty, type RowTone } from '@/gs/Row';
+import { RemarksPanel } from '@/gs/RemarksPanel';
 import { useAuthUser } from '@/gs/auth';
 import { useDebounced } from '@/gs/useDebounced';
-import { useCustomers, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, type CustomerRow } from '@/gs/queries/customers';
+import { useCustomers, useCustomer, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, type CustomerRow } from '@/gs/queries/customers';
 import { DeleteButton } from '@/gs/DeleteButton';
 import { LocationPin, type Pin } from '@/gs/LocationPin';
 import {
   inr, tierTone, zoneTone, TIERS, AREAS,
 } from '@/gs/domain';
-import { SearchIcon, PhoneIcon, WhatsAppIcon } from '@/gs/icons';
+import { SearchIcon, PhoneIcon, WhatsAppIcon, CloseIcon } from '@/gs/icons';
 import {
   CUSTOMER_CATEGORY_VALUES,
   PAYMENT_TERMS_VALUES,
@@ -42,6 +44,7 @@ const ZONE_LABELS: Record<string, string> = {
 };
 
 export default function Customers() {
+  const p = useC();
   const user = useAuthUser();
   const [q, setQ] = useState('');
   const [tier, setTier] = useState<string>('ALL');
@@ -67,15 +70,18 @@ export default function Customers() {
     category: tier === 'ALL' ? undefined : tier,
   });
 
-  // Derived from the rows LOADED so far, and labelled as such below: a true
-  // per-tier count needs one query per tier, which is not worth six requests
-  // for a header strip. `total` is the honest number and comes from the server.
-  const platCount = customers.filter((c) => c.category === 'Platinum').length;
-  const goldCount = customers.filter((c) => c.category === 'Gold').length;
+  // Only the outstanding figure survives from the old four-tile KPI strip. The
+  // other three were `Total`, which the header already says, and Platinum/Gold
+  // counts derived from the rows loaded so far — which read `0` on a 417-account
+  // tenant and spent half the strip saying nothing.
   const totalOutstanding = customers.reduce((s, c) => s + (c.outstanding || 0), 0);
 
   const rows = customers;
-  const selectedCust = customers.find((c) => c.id === selectedCustId) || null;
+  // The list row is the fallback while the fresh record is in flight, so the
+  // sheet opens instantly and then corrects itself rather than flashing empty.
+  const selectedRow = customers.find((c) => c.id === selectedCustId) || null;
+  const { data: freshCust } = useCustomer(selectedCustId, { enabled: selectedCustId != null });
+  const selectedCust = freshCust ?? selectedRow;
 
   return (
     <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
@@ -84,38 +90,32 @@ export default function Customers() {
         {/* Zone 1 */}
         <View className="flex-row items-center justify-between py-1">
           <View className="flex-1">
-            <Pressable onPress={() => router.back()} hitSlop={12} className="flex-row items-center gap-0.5 mb-0.5">
-              <Text className="text-brand font-black text-xs">‹ Dashboard</Text>
-            </Pressable>
-            <Text className="text-[20px] font-black text-ink tracking-tight">My Customers</Text>
+            <Text className="text-[20px] font-black text-ink tracking-tight">Accounts</Text>
+            <Text className="text-[12px] font-medium text-muted" style={NUM}>
+              {total} accounts
+              {totalOutstanding > 0 ? ` · ${inr(totalOutstanding)} outstanding` : ''}
+            </Text>
           </View>
           <Pressable onPress={() => setShowAdd(true)} className="bg-brand px-3.5 py-2 rounded-xl shadow-sm">
             <Text className="text-white font-black text-xs">+ Customer</Text>
           </Pressable>
         </View>
-        {/* Zone 2 — KPI Strip */}
-        <View className="mb-1.5">
-          <KpiStrip items={[
-            { label: 'Total', value: String(total) },
-            { label: 'Platinum', value: String(platCount), accent: platCount > 0 },
-            { label: 'Gold', value: String(goldCount) },
-            { label: 'Receivables', value: inr(totalOutstanding), alert: totalOutstanding > 300000 },
-          ]} />
-        </View>
-        {/* Zone 3 — Search + Tier Filter */}
+        {/* Search first. With 417 accounts, scrolling is not a way to find one. */}
         <View className="gap-2 pb-2">
           <View className="flex-row items-center bg-surface border border-line rounded-xl px-3 py-2.5">
-            <SearchIcon size={16} color="#64748b" />
+            <SearchIcon size={16} color={p.muted} />
             <TextInput
               value={q}
               onChangeText={setQ}
               placeholder="Search name, area, or contact…"
-              placeholderTextColor={C.faint}
+              placeholderTextColor={p.faint}
               className="flex-1 ml-2 text-[13px] text-ink font-medium"
               autoCapitalize="none"
             />
             {q ? (
-              <Pressable onPress={() => setQ('')} hitSlop={8}><Text className="text-muted font-bold text-sm">✕</Text></Pressable>
+              <Pressable onPress={() => setQ('')} hitSlop={8}>
+                <CloseIcon size={14} color={p.muted} />
+              </Pressable>
             ) : null}
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: 8 }}>
@@ -129,23 +129,32 @@ export default function Customers() {
         </View>
       </View>
 
-      {/* Zone 4 — List */}
+      {/* The list. A skeleton rather than a spinner while the first page lands —
+          it holds the shape the rows are about to take. */}
       {isLoading ? (
-        <View className="flex-1 items-center justify-center py-20">
-          <ActivityIndicator size="large" color={C.brand} />
-          <Text className="text-xs text-muted font-medium mt-3">Loading customers…</Text>
-        </View>
+        <RowSkeleton />
       ) : (
         <FlatList
           data={rows}
           keyExtractor={(c) => c.id}
-          contentContainerClassName="p-4 pb-28 gap-2.5"
+          contentContainerStyle={{ paddingBottom: 96 }}
           showsVerticalScrollIndicator={false}
           onRefresh={refetch}
           refreshing={isLoading}
-          renderItem={({ item }) => <CustCard c={item} onPress={() => setSelectedCustId(item.id)} />}
-          ItemSeparatorComponent={() => <View className="h-2" />}
-          ListEmptyComponent={<Empty text="No customer accounts match the filter." />}
+          renderItem={({ item }) => (
+            <AccountRow c={item} onPress={() => setSelectedCustId(item.id)} />
+          )}
+          ListEmptyComponent={
+            <RowEmpty
+              title={q ? `Nothing matches “${q}”` : 'No accounts yet'}
+              hint={
+                q
+                  ? 'Search covers name, area and contact.'
+                  : 'Add the first account to start tracking orders and collections against it.'
+              }
+              action={q ? undefined : { label: '+ Add customer', onPress: () => setShowAdd(true) }}
+            />
+          }
           // Follows the cursor instead of stopping at the first page.
           onEndReachedThreshold={0.4}
           onEndReached={() => {
@@ -185,7 +194,12 @@ export default function Customers() {
           </>
         }
       >
-        {selectedCust ? <CustDetail c={selectedCust} /> : null}
+        {selectedCust ? (
+          <View className="gap-5">
+            <CustDetail c={selectedCust} />
+            <RemarksPanel entityType="Customer" entityId={selectedCust.id} />
+          </View>
+        ) : null}
       </Sheet>
 
       {/* Add Customer Sheet */}
@@ -214,71 +228,61 @@ export default function Customers() {
   );
 }
 
-function CustCard({ c, onPress }: { c: CustomerRow; onPress: () => void }) {
+/**
+ * One account, in four slots.
+ *
+ * The card this replaces printed nine fields over ~180px, so three accounts
+ * fitted on a screen out of four hundred and seventeen. Six of those nine
+ * ("Others · General Engineering", "Silver", "Green Zone", "No dues",
+ * "No contact", "30 Days Credit") were identical on every row in the tenant —
+ * they told you nothing about which account you were looking at, and they cost
+ * you the next five rows. They live on the detail sheet now.
+ *
+ * What is left is what actually differs: who it is, what they owe, where they
+ * are, and how overdue they are. Zone becomes the edge bar; calling and
+ * WhatsApp become a swipe rather than two buttons competing with the row's own
+ * tap target.
+ */
+function AccountRow({ c, onPress }: { c: CustomerRow; onPress: () => void }) {
   const phone = c.primaryContactPhone || '';
-  const call = (e: any) => {
-    e.stopPropagation();
+
+  const call = () => {
     if (phone) Linking.openURL(`tel:${phone}`).catch(() => {});
   };
-  const wa = (e: any) => {
-    e.stopPropagation();
-    if (phone) {
-      Linking.openURL(`whatsapp://send?phone=91${phone}`).catch(() =>
-        Linking.openURL(`https://wa.me/91${phone}`).catch(() => {})
-      );
-    }
+  const wa = () => {
+    if (!phone) return;
+    Linking.openURL(`whatsapp://send?phone=91${phone}`).catch(() =>
+      Linking.openURL(`https://wa.me/91${phone}`).catch(() => {}),
+    );
   };
 
-  const cat = c.category || 'Silver';
   const zone = c.payZone || 'GreenZone';
+  const tone: RowTone =
+    zone === 'RedZone' || zone === 'Blacklist' ? 'danger' : zone === 'YellowZone' ? 'amber' : 'none';
+
+  // Category earns its place only when it is not the default every row carries.
+  const place = [c.area, c.industryName].filter(Boolean).join(' · ');
+  const cat = c.category && c.category !== 'Silver' ? c.category : null;
 
   return (
-    <Card onPress={onPress}>
-      <View className="flex-row items-center gap-3">
-        <Avatar name={c.name} size={44} color={c.outstanding > 0 ? C.amber : C.brand} />
-        <View className="flex-1">
-          <Text className="text-[14px] font-black text-ink">{c.name}</Text>
-          <Text className="text-[11px] text-muted font-medium mt-0.5">
-            {c.area || 'Area not set'} {c.industryName ? `· ${c.industryName}` : ''}
-          </Text>
-        </View>
-        <Badge label={cat} tone={tierTone(cat)} small />
-      </View>
-
-      {/* Dues & Quick Contact Triggers */}
-      <View className="flex-row items-center justify-between mt-3 pt-2.5 border-t border-line/80 gap-2">
-        <View className="flex-row items-center gap-2 flex-1">
-          <Badge label={ZONE_LABELS[zone] || zone} tone={zoneTone(zone)} small showDot />
-          {c.outstanding > 0 ? (
-            <Text className="text-[11px] text-amber font-extrabold">Outstanding {inr(c.outstanding)}</Text>
-          ) : (
-            <Text className="text-[11px] text-brand font-extrabold">No dues</Text>
-          )}
-        </View>
-        {phone ? (
-          <View className="flex-row gap-1.5">
-            <Pressable onPress={call} className="flex-row items-center gap-1 px-3 py-1.5 rounded-lg border border-line bg-surface3">
-              <PhoneIcon size={12} color="#334155" />
-              <Text className="text-[11px] font-bold text-ink2">Call</Text>
-            </Pressable>
-            <Pressable onPress={wa} className="flex-row items-center gap-1 px-3 py-1.5 rounded-lg bg-brand-soft">
-              <WhatsAppIcon size={12} color="#059669" />
-              <Text className="text-[11px] font-bold text-brand-dark">WhatsApp</Text>
-            </Pressable>
-          </View>
-        ) : null}
-      </View>
-
-      {/* Contact & Terms footer */}
-      <View className="flex-row items-center justify-between mt-2 pt-2 border-t border-line/60">
-        <Text className="text-[11px] text-muted font-medium">
-          {c.primaryContactName || 'No contact'} {phone ? `· ${phone}` : ''}
-        </Text>
-        <View className="bg-surface3 px-2 py-0.5 rounded-md">
-          <Text className="text-[10px] text-ink2 font-bold">{TERMS_LABELS[c.paymentTerms || ''] || c.paymentTerms || '30 Days Credit'}</Text>
-        </View>
-      </View>
-    </Card>
+    <Row
+      leading={<RowAvatar text={c.name} tone={tone} />}
+      title={c.name}
+      value={c.outstanding > 0 ? inr(c.outstanding) : undefined}
+      valueAlert={tone === 'danger'}
+      subtitle={place || 'Area not set'}
+      meta={cat ?? (zone !== 'GreenZone' ? ZONE_LABELS[zone] : undefined)}
+      tone={tone}
+      onPress={onPress}
+      actions={
+        phone
+          ? [
+              { label: 'Call', tone: 'info', onPress: call, icon: (col, sz) => <PhoneIcon size={sz} color={col} /> },
+              { label: 'WhatsApp', tone: 'brand', onPress: wa, icon: (col, sz) => <WhatsAppIcon size={sz} color={col} /> },
+            ]
+          : undefined
+      }
+    />
   );
 }
 

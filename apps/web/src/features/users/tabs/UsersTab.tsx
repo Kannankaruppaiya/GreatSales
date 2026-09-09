@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, Loader2, Plus, RefreshCw } from "lucide-react";
 import { useCurrentUserId, useHasPermission } from "@/store/auth";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api";
-import { Button, Card, Select } from "@/components/ui";
+import { Button, Card } from "@/components/ui";
 import { QueryBoundary } from "@/components/common/QueryBoundary";
 import { UserFormModal } from "@/features/users/modals/UserFormModal";
 import { ResetPasswordModal } from "@/features/users/modals/ResetPasswordModal";
@@ -168,11 +168,11 @@ export function UsersTab() {
               className="h-8.5 w-48 rounded-lg border border-line bg-surface px-3 text-xs text-ink placeholder:text-muted/60 transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs"
             />
 
-            <Select
+            <select
               aria-label="Filter by role"
               value={roleId}
               onChange={(e) => setRoleId(e.target.value)}
-              className="text-xs"
+              className="h-8.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs cursor-pointer"
             >
               <option value="ALL">All roles</option>
               {(roles.data ?? []).map((r) => (
@@ -180,13 +180,13 @@ export function UsersTab() {
                   {r.name}
                 </option>
               ))}
-            </Select>
+            </select>
 
-            <Select
+            <select
               aria-label="Filter by team"
               value={teamId}
               onChange={(e) => setTeamId(e.target.value)}
-              className="text-xs"
+              className="h-8.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs cursor-pointer"
             >
               <option value="ALL">All teams</option>
               {(teams.data ?? []).map((t) => (
@@ -194,18 +194,18 @@ export function UsersTab() {
                   {t.name}
                 </option>
               ))}
-            </Select>
+            </select>
 
-            <Select
+            <select
               aria-label="Filter by status"
               value={status}
               onChange={(e) => setStatus(e.target.value as UserStatusFilter)}
-              className="text-xs"
+              className="h-8.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-medium text-ink transition-all hover:border-muted/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 shadow-2xs cursor-pointer"
             >
               <option value="all">All statuses</option>
               <option value="active">Active only</option>
               <option value="inactive">Inactive only</option>
-            </Select>
+            </select>
 
             <label className="flex items-center gap-1.5 text-[11px] font-semibold text-muted cursor-pointer">
               <input

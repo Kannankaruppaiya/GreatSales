@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Badge, Chip, Empty, KpiStrip } from '@/gs/kit';
 import { Sheet, Field, Input, Pills, ModalBtn } from '@/gs/modal';
 import { C } from '@/gs/theme';
+import { RemarksPanel } from '@/gs/RemarksPanel';
 import { useDebounced } from '@/gs/useDebounced';
 import { useIndustries } from '@/gs/queries/catalog';
 import { useAuthUser } from '@/gs/auth';
@@ -154,12 +155,15 @@ export default function Leads() {
         }
       >
         {detail ? (
-          <LeadDetail
-            l={detail}
-            onUpdate={(patch) => {
-              updateLead.mutate({ id: detail.id, patch });
-            }}
-          />
+          <View className="gap-5">
+            <LeadDetail
+              l={detail}
+              onUpdate={(patch) => {
+                updateLead.mutate({ id: detail.id, patch });
+              }}
+            />
+            <RemarksPanel entityType="Lead" entityId={detail.id} />
+          </View>
         ) : null}
       </Sheet>
     </SafeAreaView>

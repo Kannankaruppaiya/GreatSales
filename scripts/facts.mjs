@@ -11,6 +11,7 @@
  *   node scripts/facts.mjs          # feature matrix + environment
  *   node scripts/facts.mjs --json   # machine-readable
  *   node scripts/facts.mjs --short  # one screen
+ *   node scripts/facts.mjs --parity # per feature, what web can do that mobile cannot
  *   node scripts/facts.mjs --hook   # same, as SessionStart hook JSON
  */
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
@@ -24,6 +25,8 @@ const asJson = args.has('--json');
 const short = args.has('--short');
 /** SessionStart hook form: the same one-screen summary, wrapped so the harness injects it as context. */
 const asHook = args.has('--hook');
+/** Per-feature web/mobile capability diff — what a phone still cannot do. */
+const parity = args.has('--parity');
 
 const read = (p) => (existsSync(join(ROOT, p)) ? readFileSync(join(ROOT, p), 'utf8') : '');
 const walk = (dir, test, out = []) => {
@@ -79,7 +82,9 @@ const EXTRA_PATHS = {
   products: ['principals'],
   users: ['roles', 'permissions', 'teams'],
   dashboard: [],
-  data: [], // import/period admin is UI over the other resources; it owns no route of its own
+  // The Data page owns period locking (features/data/periodQueries.ts); the
+  // rest of it is UI over the other resources and owns no route of its own.
+  data: ['period-locks'],
 };
 const pathsFor = (key) => [key, ...(EXTRA_PATHS[key] ?? [])];
 const endpointsFor = (key) =>
@@ -94,6 +99,50 @@ const testFiles = [
 const testsFor = (key) =>
   testFiles.filter((f) => f.toLowerCase().includes(key) || read(f).includes(`/${key}`)).length;
 
+/**
+ * The endpoints a feature exposes on web but not on mobile.
+ *
+ * This is the honest form of "what is missing on the phone": not a hand-written
+ * checklist that rots, but the set of calls the web client makes and the mobile
+ * client does not, recomputed from the source on every run. A feature with no
+ * mobile screen at all reports its whole surface here.
+ */
+const mobileGapFor = (key) =>
+  endpointsFor(key)
+    .filter((e) => e.wiredBy.includes('web') && !e.wiredBy.includes('mobile'))
+    .map((e) => `${e.method} ${e.path}`);
+
+/**
+ * Mobile hooks that exist but that no screen ever calls.
+ *
+ * The wiring report counts an endpoint as reachable on mobile as soon as some
+ * file under apps/mobile/src calls it — and a query module counts. That is how
+ * a query module counts as a caller. A hook that nothing outside the query
+ * layer imports is therefore a hole in the app that the endpoint table reports
+ * as a working feature, so it gets named here instead. Everything outside
+ * gs/queries counts as a caller, not just screens — shared components such as
+ * RemarksPanel are how several hooks legitimately reach the UI.
+ */
+// Every identifier that appears anywhere in a screen. Comparing against a set
+// of words avoids a word-boundary regex, which is easy to get subtly wrong and
+// silently reports every hook as dead.
+const screenIdentifiers = new Set(
+  walk('apps/mobile/src', (f) => /\.tsx?$/.test(f) && !f.includes('/gs/queries/')).flatMap(
+    (f) => read(f).match(/[A-Za-z_$][\w$]*/g) ?? [],
+  ),
+);
+/** Query-layer plumbing other query modules build on, not a product surface. */
+const QUERY_HELPER_MODULES = new Set(['cursorList']);
+
+const deadMobileHooks = walk('apps/mobile/src/gs/queries', (f) => f.endsWith('.ts'))
+  .flatMap((f) =>
+    [...read(f).matchAll(/export function (use[A-Z]\w*)/g)].map((m) => ({
+      hook: m[1],
+      module: f.split('/').pop().replace('.ts', ''),
+    })),
+  )
+  .filter(({ hook, module }) => !QUERY_HELPER_MODULES.has(module) && !screenIdentifiers.has(hook));
+
 const matrix = features.map((f) => {
   const eps = endpointsFor(f.key);
   return {
@@ -105,6 +154,7 @@ const matrix = features.map((f) => {
     endpoints: eps.length,
     wired: eps.filter((e) => e.wiredBy.length > 0).length,
     tests: testsFor(f.key),
+    mobileGap: mobileGapFor(f.key),
   };
 });
 
@@ -145,7 +195,28 @@ const shortText =
       `  seed: ${env.seed}\n  verify: ${env.verify}\n` +
   `  unwired: ${matrix.filter((f) => f.endpoints && f.wired < f.endpoints).map((f) => f.key).join(', ') || 'none'}`;
 
-if (asJson) {
+if (parity) {
+  console.log('\nGreatSales — what web can do that mobile cannot, derived from the code\n');
+  const behind = matrix.filter((f) => !f.mobile || f.mobileGap.length > 0);
+  if (behind.length === 0) {
+    console.log('  Nothing. Every endpoint a web page calls, a mobile screen calls too.\n');
+  }
+  for (const f of behind) {
+    const head = f.mobile ? `${f.key}` : `${f.key}  (no mobile screen at all)`;
+    console.log(`  ${head}`);
+    for (const call of f.mobileGap) console.log(`      - ${call}`);
+    if (f.mobileGap.length === 0) console.log('      - read-only parity; the screen itself is missing');
+    console.log('');
+  }
+  if (deadMobileHooks.length > 0) {
+    console.log('  Wired in the mobile data layer, but no mobile screen calls it:');
+    for (const { hook, module } of deadMobileHooks) console.log(`      - ${hook}  (queries/${module}.ts)`);
+    console.log('');
+  }
+
+  const total = matrix.reduce((n, f) => n + f.mobileGap.length, 0);
+  console.log(`  ${total} endpoint${total === 1 ? '' : 's'} reachable on web but not on mobile, across ${behind.length} features\n`);
+} else if (asJson) {
   console.log(JSON.stringify({ totals, features: matrix, env }, null, 2));
 } else if (asHook) {
   console.log(

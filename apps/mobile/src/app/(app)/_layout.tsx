@@ -1,5 +1,4 @@
 import { Tabs } from 'expo-router';
-import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { C } from '@/gs/theme';
@@ -54,10 +53,7 @@ export default function AppTabs() {
           options={{
             title: 'Home',
             tabBarIcon: ({ color, focused }) => (
-              <View className="items-center">
-                <HomeIcon size={20} color={color} />
-                {focused ? <View className="w-1 h-1 rounded-full bg-brand mt-1" /> : null}
-              </View>
+              <HomeIcon size={22} color={color} weight={focused ? 'fill' : 'regular'} />
             ),
           }}
         />
@@ -66,10 +62,7 @@ export default function AppTabs() {
           options={{
             title: 'Projections',
             tabBarIcon: ({ color, focused }) => (
-              <View className="items-center">
-                <ChartIcon size={20} color={color} />
-                {focused ? <View className="w-1 h-1 rounded-full bg-brand mt-1" /> : null}
-              </View>
+              <ChartIcon size={22} color={color} weight={focused ? 'fill' : 'regular'} />
             ),
           }}
         />
@@ -78,10 +71,7 @@ export default function AppTabs() {
           options={{
             title: 'New Sales',
             tabBarIcon: ({ color, focused }) => (
-              <View className="items-center">
-                <TargetIcon size={20} color={color} />
-                {focused ? <View className="w-1 h-1 rounded-full bg-brand mt-1" /> : null}
-              </View>
+              <TargetIcon size={22} color={color} weight={focused ? 'fill' : 'regular'} />
             ),
           }}
         />
@@ -90,10 +80,7 @@ export default function AppTabs() {
           options={{
             title: 'Follow-ups',
             tabBarIcon: ({ color, focused }) => (
-              <View className="items-center">
-                <CheckCircleIcon size={20} color={color} />
-                {focused ? <View className="w-1 h-1 rounded-full bg-brand mt-1" /> : null}
-              </View>
+              <CheckCircleIcon size={22} color={color} weight={focused ? 'fill' : 'regular'} />
             ),
           }}
         />
@@ -102,16 +89,14 @@ export default function AppTabs() {
           options={{
             title: 'More',
             tabBarIcon: ({ color, focused }) => (
-              <View className="items-center">
-                <GridIcon size={20} color={color} />
-                {focused ? <View className="w-1 h-1 rounded-full bg-brand mt-1" /> : null}
-              </View>
+              <GridIcon size={22} color={color} weight={focused ? 'fill' : 'regular'} />
             ),
           }}
         />
         <Tabs.Screen name="orders" options={{ href: null }} />
         <Tabs.Screen name="payments" options={{ href: null }} />
         <Tabs.Screen name="customers" options={{ href: null }} />
+        <Tabs.Screen name="mappings" options={{ href: null }} />
         <Tabs.Screen name="profile" options={{ href: null }} />
       </Tabs>
     </QueryClientProvider>

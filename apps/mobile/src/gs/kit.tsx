@@ -8,7 +8,8 @@ import {
   periodLabel,
   toPeriod,
 } from '@greatsales/shared';
-import { C, Tone, shadow } from './theme';
+import { Tone, useC, useShadow } from './theme';
+import { Arrive, CountUp } from './motion';
 import { initials } from './domain';
 
 /** Month navigation bar — shared period context */
@@ -93,6 +94,155 @@ export function QuickActionRow({ actions }: { actions: { label: string; onPress:
 }
 
 /**
+ * One tile of the dashboard's bento grid.
+ *
+ * The rule the old KPI strip broke: a tile shows ONE number, and that number
+ * gets the room. Four equal-weight figures crammed into a 40px-tall strip is
+ * not a summary — nothing stands out, so nothing is read. Here the value is
+ * 28px against a 10px label, and a tile that matters (money owed, work
+ * overdue) takes a filled colour rather than a coloured border, so it is
+ * legible at a glance in a van in daylight.
+ */
+export function BentoTile({
+  label,
+  value,
+  hint,
+  tone = 'neutral',
+  wide = false,
+  index = 0,
+  animate = false,
+  onPress,
+}: {
+  label: string;
+  value: string | number;
+  /** Small line under the value: a denominator, a delta, a count. */
+  hint?: string;
+  tone?: 'neutral' | 'brand' | 'amber' | 'danger';
+  wide?: boolean;
+  index?: number;
+  /** Count the value up on mount. Only for numbers, and only worth it on money. */
+  animate?: boolean;
+  onPress?: () => void;
+}) {
+  const sh = useShadow();
+  const p = useC();
+  const fills = {
+    neutral: { bg: p.surface, border: p.line, label: p.muted, value: p.ink, hint: p.faint },
+    brand: { bg: p.brand, border: p.brand, label: 'rgba(255,255,255,0.75)', value: '#ffffff', hint: 'rgba(255,255,255,0.7)' },
+    amber: { bg: p.amberSoft, border: p.amberBorder, label: p.amberDark, value: p.amberDark, hint: p.amberDark },
+    danger: { bg: p.red, border: p.red, label: 'rgba(255,255,255,0.75)', value: '#ffffff', hint: 'rgba(255,255,255,0.7)' },
+  }[tone];
+
+  const body = (
+    <View
+      style={[
+        {
+          flex: 1,
+          minHeight: 84,
+          backgroundColor: fills.bg,
+          borderColor: fills.border,
+          borderWidth: 1,
+          borderRadius: 18,
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+          justifyContent: 'space-between',
+        },
+        sh.card,
+      ]}
+    >
+      <Text
+        style={{ fontSize: 10, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: fills.label }}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+      {animate && typeof value === 'number' ? (
+        <CountUp
+          value={value}
+          format={(n) => String(Math.round(n))}
+          style={{ fontSize: 28, fontWeight: '900', letterSpacing: -1, color: fills.value }}
+        />
+      ) : (
+        <Text style={{ fontSize: 28, fontWeight: '900', letterSpacing: -1, color: fills.value }} numberOfLines={1}>
+          {value}
+        </Text>
+      )}
+      {hint ? (
+        <Text style={{ fontSize: 10, fontWeight: '700', color: fills.hint }} numberOfLines={1}>
+          {hint}
+        </Text>
+      ) : null}
+    </View>
+  );
+
+  return (
+    <Arrive index={index} style={{ flex: wide ? 1 : undefined, width: wide ? undefined : '48%' }}>
+      {onPress ? (
+        // 84px of tile is well past the 44pt minimum, so the whole card is the target.
+        <Pressable onPress={onPress} style={{ flex: 1 }} accessibilityRole="button" accessibilityLabel={`${label}: ${value}`}>
+          {body}
+        </Pressable>
+      ) : (
+        body
+      )}
+    </Arrive>
+  );
+}
+
+/**
+ * Committed vs achieved, one row per name.
+ *
+ * The dashboard aggregate already returns three of these breakdowns —
+ * bySalesperson, byPrincipal and byCategory — and mobile was rendering none of
+ * them. They are the same shape, so they get one component rather than three
+ * near-identical blocks.
+ *
+ * Bars are scaled against the largest COMMITTED value in the set, not each
+ * row's own committed, so the rows stay comparable to each other; scaling per
+ * row would make a tiny target that was fully met look bigger than a large one
+ * that was mostly met.
+ */
+export function BreakdownBars({
+  rows,
+  format,
+  max = 5,
+}: {
+  rows: { id?: string; name: string; committed: number; achieved: number }[];
+  format: (n: number) => string;
+  max?: number;
+}) {
+  const shown = rows.slice(0, max);
+  const ceiling = Math.max(1, ...shown.map((r) => r.committed));
+
+  return (
+    <View className="gap-3 mt-1">
+      {shown.map((r) => {
+        const pctOfCeiling = (r.committed / ceiling) * 100;
+        const hit = r.committed > 0 ? (r.achieved / r.committed) * 100 : 0;
+        return (
+          <View key={r.id ?? r.name} className="gap-1.5">
+            <View className="flex-row items-baseline justify-between">
+              <Text className="text-[12px] font-extrabold text-ink flex-1 pr-2" numberOfLines={1}>
+                {r.name}
+              </Text>
+              <Text className="text-[12px] font-black text-ink2">{format(r.achieved)}</Text>
+              <Text className="text-[10px] font-semibold text-muted"> / {format(r.committed)}</Text>
+            </View>
+            {/* Track is the committed bar; the fill inside it is what was achieved. */}
+            <View style={{ width: `${pctOfCeiling}%` }} className="h-2 rounded-full bg-surface3 overflow-hidden">
+              <View
+                style={{ width: `${Math.min(100, hit)}%` }}
+                className={`h-full rounded-full ${hit >= 100 ? 'bg-brand' : hit >= 60 ? 'bg-brand-light' : 'bg-amber'}`}
+              />
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+/**
  * 4-Zone sticky page layout:
  * Zone 1 — Sticky header (title + right action)
  * Zone 2 — Context bar (KpiStrip / MonthBar)
@@ -114,6 +264,7 @@ export function PageLayout({
   refreshing?: boolean;
   onRefresh?: () => void;
 }) {
+  const p = useC();
   return (
     <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
       <View className="bg-canvas border-b border-line/50 px-4 pt-2 pb-0 gap-1">
@@ -127,7 +278,7 @@ export function PageLayout({
         keyboardShouldPersistTaps="handled"
         refreshControl={
           onRefresh ? (
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.brand} colors={[C.brand]} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={p.brand} colors={[p.brand]} />
           ) : undefined
         }
       >
@@ -164,6 +315,7 @@ export function Screen({
   refreshing?: boolean;
   onRefresh?: () => void;
 }) {
+  const p = useC();
   return (
     <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
       {scroll ? (
@@ -172,7 +324,7 @@ export function Screen({
           showsVerticalScrollIndicator={false}
           refreshControl={
             onRefresh ? (
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.brand} colors={[C.brand]} />
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={p.brand} colors={[p.brand]} />
             ) : undefined
           }
         >
@@ -216,9 +368,10 @@ export function Card({
   className?: string;
   onPress?: () => void;
 }) {
+  const sh = useShadow();
   const inner = (
     <View
-      style={[shadow.card, style]}
+      style={[sh.card, style]}
       className={`bg-surface rounded-2xl border border-line/80 p-3.5 ${className}`}
     >
       {children}
@@ -302,19 +455,21 @@ export function Progress({
 export function Avatar({
   name,
   size = 40,
-  color = C.brand,
+  color,
 }: {
   name: string;
   size?: number;
   color?: string;
 }) {
+  const p = useC();
+  const tint = color ?? p.brand;
   return (
     <View
       style={{
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: color,
+        backgroundColor: tint,
       }}
       className="items-center justify-center border-2 border-surface shadow-sm"
     >
@@ -340,9 +495,10 @@ export function Kpi({
   alert?: boolean;
   icon?: ReactNode;
 }) {
+  const sh = useShadow();
   return (
     <View
-      style={shadow.sm}
+      style={sh.sm}
       className={`flex-1 min-w-[155px] p-3.5 rounded-xl border bg-surface ${
         alert ? 'border-danger-border/80 bg-danger-soft/30' : accent ? 'border-brand-border/80 bg-brand-soft/30' : 'border-line'
       }`}
@@ -379,6 +535,7 @@ export function Chip({
   onPress?: () => void;
   count?: number;
 }) {
+  const p = useC();
   return (
     <Pressable
       onPress={onPress}
@@ -390,15 +547,15 @@ export function Chip({
         paddingVertical: 8,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: active ? C.brand : C.line,
-        backgroundColor: active ? C.brand : C.surface,
+        borderColor: active ? p.brand : p.line,
+        backgroundColor: active ? p.brand : p.surface,
       }}
     >
       <Text
         style={{
           fontSize: 12,
           fontWeight: '800',
-          color: active ? '#ffffff' : C.ink2,
+          color: active ? '#ffffff' : p.ink2,
         }}
       >
         {label}
@@ -409,14 +566,14 @@ export function Chip({
             paddingHorizontal: 6,
             paddingVertical: 2,
             borderRadius: 999,
-            backgroundColor: active ? 'rgba(255,255,255,0.25)' : C.surface3,
+            backgroundColor: active ? 'rgba(255,255,255,0.25)' : p.surface3,
           }}
         >
           <Text
             style={{
               fontSize: 10,
               fontWeight: '700',
-              color: active ? '#ffffff' : C.muted,
+              color: active ? '#ffffff' : p.muted,
             }}
           >
             {count}
@@ -513,10 +670,11 @@ export function ListFooter({
   total: number;
   loading: boolean;
 }) {
+  const p = useC();
   if (loading) {
     return (
       <View className="py-4 items-center">
-        <ActivityIndicator size="small" color={C.brand} />
+        <ActivityIndicator size="small" color={p.brand} />
       </View>
     );
   }

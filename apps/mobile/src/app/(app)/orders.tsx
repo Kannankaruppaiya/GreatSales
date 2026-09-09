@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Card, Badge, Chip, Empty, Kpi, KpiStrip } from '@/gs/kit';
 import { Sheet, Field, Input, ModalBtn } from '@/gs/modal';
 import { C } from '@/gs/theme';
+import { RemarksPanel } from '@/gs/RemarksPanel';
 import { useDebounced } from '@/gs/useDebounced';
 import { useOrders, useUpdateOrder, useDeleteOrder, type OrderRow } from '@/gs/queries/orders';
 import { DeleteButton } from '@/gs/DeleteButton';
@@ -150,7 +151,12 @@ export default function Orders() {
           </>
         }
       >
-        {open ? <OrderDetail o={open} onClose={() => setOpenId(null)} /> : null}
+        {open ? (
+          <View className="gap-5">
+            <OrderDetail o={open} onClose={() => setOpenId(null)} />
+            <RemarksPanel entityType="Order" entityId={open.id} />
+          </View>
+        ) : null}
       </Sheet>
     </SafeAreaView>
   );

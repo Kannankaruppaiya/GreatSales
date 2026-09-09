@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#208AEF",
+        "backgroundColor": "#059669",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -27,7 +27,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#059669",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200
         }
@@ -54,7 +54,7 @@
         "projectId": "d58801d6-32a3-4bf5-a4d4-3985f9859016"
       }
     },
-    "primaryColor": "#208AEF",
+    "primaryColor": "#059669",
     "ios": {
       "bundleIdentifier": "com.greatsales.crm",
       "buildNumber": "1",

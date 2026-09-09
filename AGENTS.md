@@ -13,18 +13,25 @@ correct response to "is everything still wired?" is to run the commands below.
 
 ```bash
 pnpm facts                                             # what exists: features, pages, wiring, env — answer questions from this
+pnpm parity                                            # what web can do that mobile cannot, per feature
 docker compose up -d                                   # Postgres :5433, Redis :6380
 pnpm --filter @greatsales/db db:seed:promech           # the authoritative dataset, tenant_promech
 pnpm --filter api start:dev                            # API on :3001, prefix /api/v1
 pnpm --filter web dev                                  # web on :5174, proxies /api/v1
 pnpm wiring                                            # static: which endpoints no client calls
 pnpm smoke -- --period 2026-06                         # runtime: every feature's read endpoint, ~3s
-pnpm verify                                            # wiring + smoke + API unit + web unit suites
+pnpm design                                            # static: design-token drift in apps/web, ratcheted
+pnpm verify                                            # wiring + design + smoke + API unit + web unit suites
 pnpm test:e2e:qa                                       # browser QA sweep: pages, RBAC, CRUD, API contract
 pnpm test:e2e                                          # the whole Playwright suite (adds the older page specs)
 ```
 
 - **A question about the application is answered by `pnpm facts`, not by reading the repository.**
+- **"What is missing on mobile?" is answered by `pnpm parity`.** It lists, per feature,
+  the endpoints the web client calls and the mobile client does not, plus any mobile
+  query hook that nothing outside `gs/queries` imports — the case where `pnpm wiring`
+  counts an endpoint as reachable on mobile because a hook exists, while no screen ever
+  calls it. Both halves are recomputed from the source, so neither can drift.
   It derives the feature matrix from `features.ts`, the router, the controllers and the tests on
   every run, so it cannot go stale the way a checklist does. A SessionStart hook
   (`.claude/settings.json`) already injects its one-line form at the start of every session.
@@ -69,8 +76,8 @@ Settled facts. Do not re-derive them and do not go looking in the console.
 | Alerting | SNS `greatsales-alerts` in **both** eu-west-2 and us-east-1 → kannankaruppaiya10@gmail.com |
 
 ```bash
-node scripts/deploy-aws.mjs                 # build here, ship through S3, deploy over SSM
-node scripts/deploy-aws.mjs --skip-build    # redeploy the images already in S3
+pnpm deploy:aws                             # build here, ship through S3, deploy over SSM
+pnpm deploy:aws --skip-build                # redeploy the images already in S3
 pnpm box 'docker compose ps'                # run any shell command on the box over SSM
 pnpm backup:drill                           # restore the newest S3 dump and diff it against live
 ```

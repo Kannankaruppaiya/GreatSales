@@ -23,6 +23,16 @@ and verify commands. `pnpm facts --json` for a machine-readable form.
 That covers: how many pages/features/screens/endpoints, which roles reach a
 surface, which features have no tests, which endpoints no client calls.
 
+For "what is missing on mobile?" / "web la irukka feature mobile la illa":
+
+```bash
+pnpm parity
+```
+
+Per feature, the endpoints web calls that mobile does not, plus any mobile query
+hook nothing outside `gs/queries` imports — the case `pnpm wiring` scores as
+wired because the hook exists while no screen calls it.
+
 ## Verifying the app actually runs
 
 Only when asked to check, verify, or prove something works — in this order:

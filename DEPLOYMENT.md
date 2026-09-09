@@ -1,11 +1,14 @@
 # Deployment
 
-How GreatSales CRM environments are structured and released. Infrastructure is
-provisioned with **AWS CDK (TypeScript)**. Billing (Stripe) is deferred; early
-tenants are onboarded manually.
+How GreatSales CRM environments are structured and released. Billing (Stripe)
+is deferred; early tenants are onboarded manually.
 
-> Status: the CDK infra app is planned/in-progress. This document is the target
-> topology and process — treat unimplemented pieces as the intended design.
+> Production today is **one EC2 box running `deploy/docker-compose.prod.yml`**,
+> deployed by `scripts/deploy-aws.mjs` over SSM. The settled facts about that
+> box — instance id, address, access, backups, alerting — and the day-to-day
+> runbook live in [AGENTS.md](AGENTS.md); this document does not repeat them.
+> There is no CDK app in this repository, and the managed-AWS topology below is
+> a target, not the current deployment.
 
 ## Environments
 
@@ -13,11 +16,11 @@ tenants are onboarded manually.
 |---|---|---|
 | **local** | Developer machine | Docker Postgres :5433 + Redis :6380, seeded |
 | **staging (docker)** | Pre-prod local parity verification | Full containerized stack via `docker-compose.staging.yml` |
-| **staging** | Pre-prod verification | Isolated AWS stack, synthetic tenants |
-| **production** | Live tenants | AWS, real tenant data |
+| **staging** *(planned)* | Pre-prod verification | Isolated AWS stack, synthetic tenants |
+| **production** | Live tenants | Single EC2 box, docker compose, real tenant data |
 
-Each environment is a separate CDK stack with its own secrets and database. No
-environment shares credentials with another.
+No environment shares credentials with another. Production secrets are generated
+on the box at first deploy and never leave it.
 
 ## Docker Compose Staging Testing
 
@@ -41,7 +44,32 @@ pnpm staging:test
 pnpm staging:down
 ```
 
-## Target AWS topology
+## Production topology (current)
+
+| Concern | What runs it |
+|---|---|
+| Host | One EC2 instance, eu-west-2, reached over **SSM Run Command** (no SSH, port 22 closed) |
+| Orchestration | `docker compose` with `deploy/docker-compose.prod.yml` — 5 services |
+| API compute | `api` container from `greatsales/api:${IMAGE_TAG}` |
+| Database | `postgres:16-alpine` container on the same box, `pgdata` volume |
+| Migrations | `db-migrate` one-shot container, run before the API starts |
+| Web console | `web` container — nginx serving the built SPA |
+| Edge / TLS | `caddy:2-alpine` — automatic Let's Encrypt on an `sslip.io` hostname |
+| Images | built on the developer machine, shipped as a tarball through S3 (the box has 4GB and must not build) |
+| Backups | nightly `pg_dump` to S3 via systemd timer; verify with `pnpm backup:drill` |
+| Mobile | Expo EAS build + OTA channels |
+| Observability | Sentry |
+
+```bash
+pnpm deploy:aws                 # build here, ship through S3, deploy over SSM
+pnpm deploy:aws --skip-build    # redeploy the images already in S3
+pnpm box 'docker compose ps'
+```
+
+## Target AWS topology (not built)
+
+Nothing in this table is deployed today. It is where the stack goes when one box
+stops being enough.
 
 | Concern | Service |
 |---|---|
@@ -55,12 +83,26 @@ pnpm staging:down
 | Mobile | Expo EAS build + OTA channels (dev/staging/prod) |
 | Observability | Sentry (errors) + PostHog (product analytics) |
 
+### When to leave the single box
+
+Move only when one of these is true — every row of the target table costs money
+and operational surface from the day it exists:
+
+- One box can no longer absorb the load, or downtime during a deploy stops being
+  acceptable (needs more than one node).
+- Postgres outgrows the box, or point-in-time recovery is required (RDS).
+- Background queues must survive a box restart (ElastiCache).
+
+ECS Fargate is the next step from here, not EKS: the stack is five containers,
+and Kubernetes would add a control plane, manifests, an ingress controller and a
+volume story for Postgres in exchange for scheduling this project does not need.
+
 ## Build outputs
 
 | Workspace | Build | Artifact |
 |---|---|---|
 | `apps/api` | `pnpm --filter api build` | `apps/api/dist` (run `node dist/main.js`) |
-| `apps/web` | `pnpm --filter web build` | static bundle → S3/CloudFront |
+| `apps/web` | `pnpm --filter web build` | static bundle, served by nginx in the `web` image |
 | `packages/shared` | `pnpm --filter @greatsales/shared build` | `dist` (CJS + d.ts) — build **before** API |
 | `packages/db` | `db:generate` | Prisma client |
 | `apps/mobile` | EAS build | native binaries / OTA |
@@ -141,15 +183,19 @@ the address is a business decision, not a schema one.
 3. Tag the release.
 4. Deploy to **staging**; run migrations; smoke-test auth + tenant isolation
    (cross-tenant read returns zero rows) + a core flow.
-5. Promote to **production**: run migrations, then roll the API, then invalidate
-   the CloudFront cache for the web bundle.
+5. Promote to **production**: take a backup first if the release carries a
+   migration (`pnpm box 'bash /opt/greatsales/backup.sh'`), then run
+   `pnpm deploy:aws`. The script orders `migrate → rotate the app role's password →
+   start the API`; that order is load-bearing (see AGENTS.md).
 6. Mobile: publish an EAS OTA update or submit a store build; use force-update
    gating for breaking changes.
 
 ## Configuration & secrets
 
-- All runtime config comes from environment variables / the AWS secret store —
-  never from committed files.
+- All runtime config comes from environment variables — never from committed
+  files. In production they live in `/opt/greatsales/.env` (mode 600) on the
+  box, generated there at first deploy and then left alone: regenerating them
+  would invalidate every signed-in session and lock the API out of its database.
 - Required API vars: `DATABASE_URL` (`greatsales_app`), `DIRECT_URL`
   (`greatsales`, migrations only), `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`,
   Redis URL, plus S3/SES/observability keys.
@@ -157,11 +203,12 @@ the address is a business decision, not a schema one.
 
 ## Rollback
 
-- **API:** redeploy the previous image/tag.
-- **Web:** repoint CloudFront to the previous S3 build and invalidate.
-- **Database:** prefer forward-fixing migrations. Use RDS point-in-time restore
-  only as a last resort, and never a restore that would drop RLS policies or
-  roles.
+- **API and web:** redeploy the previous `IMAGE_TAG`. `pnpm deploy:aws --skip-build`
+  reuses images already in S3, so a rollback does not wait for a build.
+- **Database:** prefer forward-fixing migrations. The only restore point is the
+  nightly `pg_dump` in the backups bucket (`pnpm backup:drill` proves it is
+  restorable); there is no point-in-time recovery. Never restore in a way that
+  drops RLS policies or roles.
 
 ## Post-deploy checks
 

@@ -11,9 +11,9 @@ https://docs.expo.dev/versions/v54.0.0/
 
 Keep this link in step with `package.json` whenever the SDK moves.
 
-## Status: wired to the API, with two gaps named below
+## Status: wired to the API, with the gaps named below
 
-All ten Expo Router screens read the GreatSales API through `src/gs/api.ts` and the
+All eleven Expo Router screens read the GreatSales API through `src/gs/api.ts` and the
 hooks in `src/gs/queries/`. The `src/gs/mock.ts` in-memory store this file used to
 describe is gone.
 
@@ -28,9 +28,11 @@ Things worth knowing before writing code here:
   `/principals`, industries are `/industries`. `AREAS` is still a local constant —
   see the gap below.
 
-Two gaps remain, and they are missing FEATURES rather than broken wiring:
+Three gaps remain, and they are missing FEATURES rather than broken wiring:
 
 - No order-create screen. Orders are created from the projections convert flow only.
+- `GET /customers/:id` is still unwired here, so the customer detail sheet renders from the
+  list row rather than the fuller record web's drawer fetches. `POST /remarks` is web-only.
 - `AREAS` in `gs/domain.ts` is still a hardcoded list of Chennai localities, matching
   the web console's `INDUSTRIAL_AREAS`. There is no areas endpoint on either client.
 

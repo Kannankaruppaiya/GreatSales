@@ -37,6 +37,17 @@
   --font-sans: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
+  /* Type scale. This is a dense CRM: the ladder runs below Tailwind's default
+   * text-xs (12px), it does not replace it. Nine ad-hoc sizes (10.5px, 11.5px, 12.5px...) are
+   * what made the UI read as unfinished, so new code picks a rung instead of a pixel.
+   *   text-3xs 10px  badges, table meta, column labels
+   *   text-2xs 11px  dense table cells (the workhorse)
+   *   text-xs  12px  body text in tables and forms   (Tailwind default, untouched)
+   *   text-sm  14px  section labels                  (Tailwind default, untouched)
+   *   text-base 16px headings                        (Tailwind default, untouched) */
+  --text-3xs: 10px;
+  --text-2xs: 11px;
+
   --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -115,5 +126,251 @@ input, textarea, select {
   }
   aside, header, button, .no-print {
     display: none !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Portal crest — the sign-in page's one signature interaction.
+ *
+ * The login form used to be four flat boxes that never reacted to anything.
+ * This is a padlock that follows what the person is actually doing: it hangs
+ * open until they touch the password field, seats shut while they type,
+ * spins its dial while the server is deciding, and springs open on the way
+ * to the dashboard. The role icon (crown / shield / users / person) lives
+ * inside the lock body, so the crest also says *which* portal you are at.
+ *
+ * All of it is CSS driven off one `data-state` attribute — no animation
+ * library, and nothing here runs when the user has asked for reduced motion.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+.crest {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.crest svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* The dial. Idle it is a quiet hairline; it thickens and colours as the lock
+ * takes an interest in you. */
+.crest__ring {
+  fill: none;
+  /* --color-line is the same value as the canvas it sits on, so the ring was
+     invisible until this was looked at in a browser. --color-faint reads as a
+     hairline without competing with the lock. */
+  stroke: var(--color-faint);
+  stroke-width: 1.5;
+  opacity: 0.45;
+  transform-origin: 48px 48px;
+  transition: stroke 300ms ease, stroke-width 300ms ease, transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The progress arc, hidden until there is something to wait for. `160` is the
+ * full circumference at r=42 rounded down, so the dash never quite closes and
+ * the spin always reads as motion rather than a static ring. */
+.crest__arc {
+  fill: none;
+  stroke: var(--color-brand);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 40 224;
+  transform-origin: 48px 48px;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.crest__ticks {
+  transform-origin: 48px 48px;
+}
+.crest__ticks line {
+  stroke: var(--color-faint);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0.45;
+  transition: stroke 300ms ease, opacity 300ms ease;
+}
+
+/* The shackle swings about the bottom of its left leg, the way a real one
+ * does — not up and down in a straight line, which is what makes cheap lock
+ * animations read as fake. */
+.crest__shackle {
+  fill: none;
+  stroke: var(--color-ink-2);
+  stroke-width: 6;
+  stroke-linecap: round;
+  transform-origin: 34px 50px;
+  transform: rotate(-24deg) translateY(-3px);
+  transition: transform 520ms cubic-bezier(0.34, 1.56, 0.64, 1), stroke 300ms ease;
+}
+
+.crest__body {
+  fill: var(--color-surface);
+  stroke: var(--color-ink-2);
+  stroke-width: 5;
+  transform-origin: 48px 63px;
+  transition: stroke 300ms ease, fill 300ms ease, transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* The role icon, sitting in the lock body. 65% is the body's centre in the
+ * 96-unit viewBox, not a number picked by eye. */
+.crest__badge {
+  position: absolute;
+  left: 50%;
+  top: 65%;
+  transform: translate(-50%, -50%);
+  color: var(--color-brand);
+  display: grid;
+  place-items: center;
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1), color 300ms ease, opacity 300ms ease;
+}
+
+/* ── locked: they are typing a password ── */
+.crest[data-state="locked"] .crest__shackle,
+.crest[data-state="busy"] .crest__shackle,
+.crest[data-state="denied"] .crest__shackle {
+  transform: rotate(0deg) translateY(0);
+}
+.crest[data-state="locked"] .crest__ring,
+.crest[data-state="busy"] .crest__ring {
+  stroke: var(--color-brand);
+  stroke-width: 2;
+  opacity: 1;
+  transform: scale(0.94);
+}
+.crest[data-state="locked"] .crest__body,
+.crest[data-state="busy"] .crest__body {
+  stroke: var(--color-brand-ink);
+}
+.crest[data-state="locked"] .crest__badge {
+  transform: translate(-50%, -50%) scale(0.86);
+}
+.crest[data-state="locked"] .crest__ticks line,
+.crest[data-state="busy"] .crest__ticks line {
+  stroke: var(--color-brand);
+  opacity: 0.8;
+}
+
+/* The seat. Replayed per keystroke by remounting the node with a new key, so
+ * the tumbler answers every character instead of animating once and dying. */
+.crest__tick-pulse {
+  animation: crest-tick 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: 48px 48px;
+}
+@keyframes crest-tick {
+  0% { transform: rotate(0deg); }
+  55% { transform: rotate(9deg); }
+  100% { transform: rotate(0deg); }
+}
+
+/* ── busy: the server is deciding ── */
+.crest[data-state="busy"] .crest__arc {
+  opacity: 1;
+  animation: crest-spin 900ms linear infinite;
+}
+@keyframes crest-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── open: credentials accepted, the page is about to leave ── */
+.crest[data-state="open"] {
+  transform: translateY(-6px);
+}
+.crest[data-state="open"] .crest__shackle {
+  transform: rotate(-38deg) translateY(-5px);
+  stroke: var(--color-brand);
+}
+.crest[data-state="open"] .crest__ring {
+  stroke: var(--color-brand-accent);
+  stroke-width: 3;
+  animation: crest-burst 620ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.crest[data-state="open"] .crest__body {
+  stroke: var(--color-brand);
+}
+.crest[data-state="open"] .crest__badge {
+  transform: translate(-50%, -50%) scale(1.12);
+}
+@keyframes crest-burst {
+  0% { transform: scale(0.94); opacity: 1; }
+  60% { transform: scale(1.14); opacity: 0.35; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ── denied: wrong password. It rattles, it does not fall apart ── */
+.crest[data-state="denied"] {
+  animation: crest-rattle 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+.crest[data-state="denied"] .crest__ring,
+.crest[data-state="denied"] .crest__body,
+.crest[data-state="denied"] .crest__shackle {
+  stroke: var(--color-red);
+}
+@keyframes crest-rattle {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(3px); }
+  30%, 50%, 70% { transform: translateX(-5px); }
+  40%, 60% { transform: translateX(5px); }
+}
+
+/* ─── Sign-in form supporting motion ─── */
+
+/* The role tab indicator slides between portals instead of teleporting. */
+.portal-tabs {
+  position: relative;
+}
+.portal-tabs__thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: calc(50% - 6px);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-card);
+  transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+/* Field icons wake up when the field they belong to has focus. */
+.field:focus-within .field__icon {
+  color: var(--color-brand);
+  transform: scale(1.08);
+}
+.field__icon {
+  transition: color 200ms ease, transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* The arrow leaves before the page does. */
+.signin-btn:hover:not(:disabled) .signin-btn__arrow {
+  transform: translateX(3px);
+}
+.signin-btn__arrow {
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The error message arrives rather than appearing. */
+.field-error {
+  animation: field-error-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes field-error-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* None of the above is information — it is emphasis. Anyone who has asked for
+ * less motion gets the same page with the states still legible by colour. */
+@media (prefers-reduced-motion: reduce) {
+  .crest,
+  .crest *,
+  .portal-tabs__thumb,
+  .field__icon,
+  .signin-btn__arrow,
+  .field-error {
+    transition-duration: 1ms !important;
+    animation: none !important;
   }
 }

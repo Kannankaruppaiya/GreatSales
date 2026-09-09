@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Card, Badge, Chip, Progress, Empty, KpiStrip, MonthBar } from '@/gs/kit';
 import { Sheet, Field, Input, Pills, ModalBtn } from '@/gs/modal';
 import { C } from '@/gs/theme';
+import { RemarksPanel } from '@/gs/RemarksPanel';
 import { useAuthUser } from '@/gs/auth';
 import { useProjections, useUpdateProjection, type ProjectionLine } from '@/gs/queries/projections';
 import { useCustomers } from '@/gs/queries/customers';
@@ -162,7 +163,12 @@ export default function Projections() {
         subtitle={open ? `${open.principalName} · ${open.productName}` : ''}
         footer={<ModalBtn label="Close" variant="ghost" onPress={() => setOpenId(null)} />}
       >
-        {open ? <LineDetail p={open} onClose={() => setOpenId(null)} /> : null}
+        {open ? (
+          <View className="gap-5">
+            <LineDetail p={open} onClose={() => setOpenId(null)} />
+            <RemarksPanel entityType="Projection" entityId={open.id} />
+          </View>
+        ) : null}
       </Sheet>
 
       {/* Map Product Modal */}

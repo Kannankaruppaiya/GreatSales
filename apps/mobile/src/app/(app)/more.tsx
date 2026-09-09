@@ -7,9 +7,10 @@ import { useOrders } from '@/gs/queries/orders';
 import { usePayments } from '@/gs/queries/payments';
 import { useCustomers } from '@/gs/queries/customers';
 import { useLeads } from '@/gs/queries/leads';
+import { useMappings } from '@/gs/queries/catalog';
 import { currentPeriod } from '@greatsales/shared';
 import { lakhs, pct } from '@/gs/domain';
-import { WalletIcon, TargetIcon, ChartIcon, GridIcon } from '@/gs/icons';
+import { WalletIcon, TargetIcon, ChartIcon, GridIcon, SparklesIcon } from '@/gs/icons';
 
 export default function More() {
   const user = useAuthUser();
@@ -22,6 +23,8 @@ export default function More() {
   const { items: payments } = usePayments();
   const { items: customers, total: customerTotal } = useCustomers();
   const { items: leads } = useLeads();
+  // Count only — the hint says how many rows the mapping screen holds.
+  const { total: mappingTotal } = useMappings();
 
   const totalReceivables = payments.reduce((s, p) => s + p.pending, 0);
   const openLeads = leads.filter((l) => !['ClosedWon', 'ClosedLost', 'NoRequirementOrCold'].includes(l.stage));
@@ -35,6 +38,7 @@ export default function More() {
     { label: 'Sales Orders', to: '/(app)/orders', hint: `${orderTotal} orders tracked`, icon: <ChartIcon size={20} color="#059669" /> },
     { label: 'Payments Follow-up', to: '/(app)/payments', hint: `${pendingPayments.length} pending · ${lakhs(totalReceivables)} outstanding`, icon: <WalletIcon size={20} color="#d97706" /> },
     { label: 'My Customers', to: '/(app)/customers', hint: `${customerTotal} mapped accounts`, icon: <TargetIcon size={20} color="#2563eb" /> },
+    { label: 'My Customer Mapping', to: '/(app)/mappings', hint: `${mappingTotal} customer x product rows`, icon: <SparklesIcon size={20} color="#7c3aed" /> },
     { label: 'Profile & Settings', to: '/(app)/profile', hint: 'Account security & session', icon: <GridIcon size={20} color="#64748b" /> },
   ] as const;
 

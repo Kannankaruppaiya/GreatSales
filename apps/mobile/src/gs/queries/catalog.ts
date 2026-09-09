@@ -3,6 +3,7 @@ import type {
   IndustryRow,
   MappingCreate,
   MappingRow,
+  MappingUpdate,
   PrincipalListResponse,
   PrincipalRow,
   ProductRow,
@@ -10,7 +11,7 @@ import type {
 import { apiFetch } from '../api';
 import { listParams, useCursorList } from './cursorList';
 
-export type { PrincipalRow, ProductRow, MappingRow, MappingCreate, IndustryRow };
+export type { PrincipalRow, ProductRow, MappingRow, MappingCreate, MappingUpdate, IndustryRow };
 
 export const catalogKeys = {
   principals: ['principals'] as const,
@@ -99,6 +100,49 @@ export function useCreateMapping() {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['mappings'] });
+      void qc.invalidateQueries({ queryKey: ['projections'] });
+    },
+  });
+}
+
+/**
+ * Change an existing mapping.
+ *
+ * The customer x product pair itself is immutable server-side, so the only
+ * thing there is to edit is the agreed price — and for a sales user that is
+ * genuinely the only field, because `salespersonId` is forced to their own id
+ * whatever the request says.
+ */
+export function useUpdateMapping() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: MappingUpdate }) =>
+      apiFetch<MappingRow>(`/mappings/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['mappings'] });
+      void qc.invalidateQueries({ queryKey: ['projections'] });
+    },
+  });
+}
+
+/**
+ * Unmap a product from a customer.
+ *
+ * The server refuses with MAPPING_IN_USE while projection lines still resolve
+ * through this mapping, and says how many in the message — so callers should
+ * surface `ApiError.message` rather than a generic failure. `DeleteButton`
+ * already does.
+ */
+export function useDeleteMapping() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`/mappings/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['mappings'] });
       void qc.invalidateQueries({ queryKey: ['projections'] });

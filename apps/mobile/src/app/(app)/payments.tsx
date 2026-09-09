@@ -4,12 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Card, Badge, Chip, Empty, Kpi, Progress, KpiStrip } from '@/gs/kit';
 import { Sheet, Field, Input, Pills, ModalBtn } from '@/gs/modal';
-import { C } from '@/gs/theme';
+import { C, NUM, useC } from '@/gs/theme';
+import { Row, RowSkeleton, RowEmpty, type RowTone } from '@/gs/Row';
+import { RemarksPanel } from '@/gs/RemarksPanel';
 import { useDebounced } from '@/gs/useDebounced';
 import { usePayments, useCreatePayment, useUpdatePayment, useDeletePayment, type PaymentRow } from '@/gs/queries/payments';
 import { DeleteButton } from '@/gs/DeleteButton';
 import { inr, lakhs, shortDate, agingDays, agingBucket, zoneTone } from '@/gs/domain';
-import { SearchIcon, WalletIcon } from '@/gs/icons';
+import { SearchIcon, WalletIcon, CloseIcon, PaperPlaneIcon } from '@/gs/icons';
 import { PAY_ZONE_VALUES, type PayZoneValue } from '@greatsales/shared';
 
 const ZONE_OPTIONS = ['ALL', ...PAY_ZONE_VALUES, 'Unassigned'] as const;
@@ -24,6 +26,7 @@ const ZONE_LABELS: Record<string, string> = {
 };
 
 export default function Payments() {
+  const pal = useC();
   const [searchText, setSearchText] = useState('');
   const debouncedSearch = useDebounced(searchText, 300);
   // Receivables KPIs and the report tab are sums over the whole ledger; a
@@ -73,23 +76,18 @@ export default function Payments() {
         {/* Zone 1 */}
         <View className="flex-row items-center justify-between py-1">
           <View className="flex-1">
-            <Pressable onPress={() => router.back()} hitSlop={12} className="flex-row items-center gap-0.5 mb-0.5">
-              <Text className="text-brand font-black text-xs">‹ Dashboard</Text>
-            </Pressable>
-            <Text className="text-[20px] font-black text-ink tracking-tight">Payments Follow-up</Text>
+            <Text className="text-[20px] font-black text-ink tracking-tight">Money</Text>
+            {/* One line instead of four tiles. The old strip printed Outstanding
+                and Over-90d, which on this tenant were the same figure twice, and
+                a Red Zone total the chips below already break down. */}
+            <Text className="text-[12px] font-medium text-muted" style={NUM}>
+              {lakhs(totalPending)} outstanding · {payments.length} invoices
+              {fuDueCount > 0 ? ` · ${fuDueCount} due` : ''}
+            </Text>
           </View>
           <Pressable onPress={() => setShowAdd(true)} className="bg-brand px-3.5 py-2 rounded-xl shadow-sm">
             <Text className="text-white font-black text-xs">+ Invoice</Text>
           </Pressable>
-        </View>
-        {/* Zone 2 — KPI Strip */}
-        <View className="mb-1.5">
-          <KpiStrip items={[
-            { label: 'Outstanding', value: lakhs(totalPending), alert: totalPending > 500000 },
-            { label: 'Red Zone', value: lakhs(redZoneVal), alert: redZoneVal > 0 },
-            { label: 'Over 90d', value: lakhs(over90Val), alert: over90Val > 0 },
-            { label: 'FU Due', value: String(fuDueCount), accent: fuDueCount > 0 },
-          ]} />
         </View>
         {/* Zone 3 — Tab + Zone Filter */}
         <View className="gap-2 pb-2">
@@ -123,10 +121,7 @@ export default function Payments() {
       </View>
 
       {isLoading ? (
-        <View className="flex-1 items-center justify-center py-20">
-          <ActivityIndicator size="large" color={C.brand} />
-          <Text className="text-xs text-muted font-medium mt-3">Loading invoices…</Text>
-        </View>
+        <RowSkeleton />
       ) : tab === 'report' ? (
         <ScrollView className="flex-1 px-4 pb-28" contentContainerClassName="gap-3 py-3">
           <AgingReports payments={payments} />
@@ -135,7 +130,7 @@ export default function Payments() {
         <FlatList
           data={filtered}
           keyExtractor={(p) => p.id}
-          contentContainerClassName="p-4 pb-28 gap-2.5"
+          contentContainerStyle={{ paddingBottom: 96 }}
           showsVerticalScrollIndicator={false}
           onRefresh={refetch}
           refreshing={isLoading}
@@ -143,26 +138,30 @@ export default function Payments() {
             <View className="gap-3 mb-1">
               {/* Search Bar */}
               <View className="flex-row items-center bg-surface border border-line rounded-xl px-3 py-2.5 shadow-sm">
-                <SearchIcon size={16} color="#64748b" />
+                <SearchIcon size={16} color={pal.muted} />
                 <TextInput
                   value={searchText}
                   onChangeText={setSearchText}
                   placeholder="Search party, invoice or ref no…"
-                  placeholderTextColor={C.faint}
+                  placeholderTextColor={pal.faint}
                   className="flex-1 ml-2 text-[13px] text-ink font-medium"
                   autoCapitalize="none"
                 />
                 {searchText ? (
                   <Pressable onPress={() => setSearchText('')} hitSlop={8}>
-                    <Text className="text-muted font-bold text-xs">✕</Text>
+                    <CloseIcon size={14} color={pal.muted} />
                   </Pressable>
                 ) : null}
               </View>
             </View>
           }
-          renderItem={({ item }) => <PayCard p={item} onPress={() => setOpenId(item.id)} />}
-          ItemSeparatorComponent={() => <View className="h-2" />}
-          ListEmptyComponent={<Empty text="No invoices match the selected filter." />}
+          renderItem={({ item }) => <InvoiceRow p={item} onPress={() => setOpenId(item.id)} />}
+          ListEmptyComponent={
+            <RowEmpty
+              title="Nothing outstanding here"
+              hint="No invoice matches this zone and search. Collections that are settled drop out of the list."
+            />
+          }
         />
       )}
 
@@ -187,7 +186,12 @@ export default function Payments() {
           </>
         }
       >
-        {open ? <PayDetail p={open} /> : null}
+        {open ? (
+          <View className="gap-5">
+            <PayDetail p={open} />
+            <RemarksPanel entityType="Payment" entityId={open.id} />
+          </View>
+        ) : null}
       </Sheet>
 
       {/* Add Invoice Sheet */}
@@ -203,81 +207,58 @@ export default function Payments() {
   );
 }
 
-function PayCard({ p, onPress }: { p: PaymentRow; onPress: () => void }) {
+/**
+ * One invoice, in four slots.
+ *
+ * The card this replaces stood 184px tall, so two and a half of a hundred and
+ * forty-one invoices fitted on a screen. It printed the aging bucket ("150d+")
+ * on every row, and Total beside Pending — which are the same number on every
+ * unpaid invoice, so one of the two columns was always redundant.
+ *
+ * The M1–M4 matrix is gone from the row. Four 40pt targets 4pt apart is a
+ * mis-tap waiting to happen, and while your thumb is on M2 it covers M1 and M3,
+ * so you cannot see which one turned green. Sending the next reminder is now
+ * one swipe, and the row says in words how far the chase has got.
+ */
+function InvoiceRow({ p, onPress }: { p: PaymentRow; onPress: () => void }) {
   const updatePayment = useUpdatePayment();
   const d = agingDays(p.dueDate || p.invoiceDate) ?? 0;
-  const bucket = agingBucket(d);
+
+  const zone = p.payZone;
+  const tone: RowTone =
+    zone === 'RedZone' || zone === 'Blacklist' ? 'danger' : zone === 'YellowZone' ? 'amber' : 'none';
+
+  // How far the reminder chase has got, as a phrase rather than four buttons.
+  const stages = [p.mail1, p.mail2, p.mail3, p.mail4];
+  const sent = stages.filter(Boolean).length;
+  const nextStage = (['mail1', 'mail2', 'mail3', 'mail4'] as const)[sent];
+
+  const ref = p.refNo || p.invoiceNo;
 
   return (
-    <Card onPress={onPress}>
-      <View className="flex-row items-start justify-between gap-2">
-        <View className="flex-1">
-          <Text className="text-[14px] font-black text-ink">{p.customerName || 'Unknown Customer'}</Text>
-          <Text className="text-[11px] text-muted font-medium mt-0.5">
-            Ref: {p.refNo || p.invoiceNo || '—'} · Date: {shortDate(p.invoiceDate || p.dueDate || '')}
-          </Text>
-        </View>
-        <Badge label={ZONE_LABELS[p.payZone || ''] || 'Unassigned'} tone={zoneTone(p.payZone)} small showDot />
-      </View>
-
-      {/* Metric Row */}
-      <View className="flex-row items-center bg-surface3/60 rounded-xl p-2.5 my-2.5">
-        <View className="flex-1">
-          <Text className="text-[10px] text-muted font-extrabold uppercase">Aging</Text>
-          <Text className="text-[12px] text-amber font-black mt-0.5">
-            {d}d · <Text className="text-[11px] text-muted">{bucket}</Text>
-          </Text>
-        </View>
-        <View className="flex-1">
-          <Text className="text-[10px] text-muted font-extrabold uppercase">Total</Text>
-          <Text className="text-[12px] text-ink font-bold mt-0.5">{inr(p.amount)}</Text>
-        </View>
-        <View className="flex-1">
-          <Text className="text-[10px] text-muted font-extrabold uppercase">Pending</Text>
-          <Text className="text-[14px] text-danger font-black mt-0.5">{inr(p.pending)}</Text>
-        </View>
-      </View>
-
-      {p.delayReason ? (
-        <View className="bg-amber-soft/60 border border-amber-border/40 rounded-lg px-2.5 py-1.5 mb-2">
-          <Text className="text-[11px] text-amber-dark font-semibold" numberOfLines={1}>
-            Reason: <Text className="font-bold">{p.delayReason}</Text>
-          </Text>
-        </View>
-      ) : null}
-
-      {/* Reminder Mail Chips & Follow-up */}
-      <View className="flex-row justify-between items-center pt-2 border-t border-line/80">
-        <View className="flex-row items-center gap-2">
-          <Text className="text-[10px] text-muted font-extrabold uppercase">Mail:</Text>
-          {(['mail1', 'mail2', 'mail3', 'mail4'] as const).map((k, i) => {
-            const on = !!p[k];
-            return (
-              <Pressable
-                key={k}
-                onPress={() => updatePayment.mutate({ id: p.id, patch: { [k]: !on } })}
-                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-                className={`w-10 h-10 rounded-xl items-center justify-center border ${
-                  on ? 'bg-brand border-brand' : 'bg-surface border-line'
-                }`}
-              >
-                <Text className={`text-[11px] font-black ${on ? 'text-white' : 'text-muted'}`}>
-                  M{i + 1}
-                </Text>
-                {on ? (
-                  <Text className="text-[8px] text-white font-bold">Sent</Text>
-                ) : (
-                  <Text className="text-[8px] text-faint font-bold">Tap</Text>
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
-        <Text className="text-[11px] text-muted font-bold">
-          Next: <Text className="text-ink">{shortDate(p.nextFollowUp)}</Text>
-        </Text>
-      </View>
-    </Card>
+    <Row
+      title={p.customerName || 'Unknown customer'}
+      value={inr(p.pending)}
+      valueAlert={tone === 'danger'}
+      subtitle={[ref ? `Ref ${ref}` : null, d > 0 ? `${d}d overdue` : null]
+        .filter(Boolean)
+        .join(' · ')}
+      meta={sent > 0 ? `M${sent} sent` : 'No reminder'}
+      tone={tone}
+      onPress={onPress}
+      actions={
+        nextStage
+          ? [
+              {
+                label: `Send M${sent + 1}`,
+                tone: 'brand',
+                onPress: () => updatePayment.mutate({ id: p.id, patch: { [nextStage]: true } }),
+                icon: (col, sz) => <PaperPlaneIcon size={sz} color={col} />,
+              },
+            ]
+          : undefined
+      }
+    />
   );
 }
 

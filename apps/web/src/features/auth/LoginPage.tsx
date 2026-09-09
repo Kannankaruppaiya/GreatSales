@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BarChart3,
   Building2,
+  Check,
   Crown,
   Loader2,
   Lock,
@@ -19,6 +20,7 @@ import { useAuth, useLastTenantId } from "@/store/auth";
 import { ApiError } from "@/lib/api";
 import { env } from "@/lib/config";
 import { Button, Input } from "@/components/ui";
+import { PortalCrest, type CrestState } from "./PortalCrest";
 
 export type LoginRole = "super_admin" | "admin" | "mgmt" | "sales";
 
@@ -112,6 +114,10 @@ interface LoginPageProps {
   initialRole?: LoginRole;
 }
 
+/** Tab order, shared by the links and by the sliding indicator that has to
+ *  know which cell of the 2×2 grid to sit over. */
+const TAB_ORDER: LoginRole[] = ["super_admin", "admin", "mgmt", "sales"];
+
 /** Seeded demo logins per web role. These mirror the POC v6 users created by
  *  `packages/db/prisma/seed.ts` (admin / manager / the salespeople). Exported so
  *  a test can check them against the seed instead of a hand-typed expectation. */
@@ -182,6 +188,24 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // What the crest is reporting. `granted` is its own flag rather than a
+  // derived value because it has to survive the gap between the token
+  // arriving and the route actually changing — that gap is the only moment
+  // the lock is seen springing open.
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [granted, setGranted] = useState(false);
+  const [tick, setTick] = useState(0);
+
+  const crestState: CrestState = granted
+    ? "open"
+    : busy
+      ? "busy"
+      : error
+        ? "denied"
+        : passwordFocused
+          ? "locked"
+          : "idle";
+
   // Update the prefilled credentials when the active role changes
   useEffect(() => {
     setEmail(demoEmail);
@@ -197,14 +221,36 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
 
     setBusy(true);
     setError(null);
+
+    // Only the call to `login` belongs inside the catch. Anything after it has
+    // already succeeded, and reporting a failure there would tell someone their
+    // password was wrong when it was not — which is exactly what happened when
+    // the celebration pause below was first written inside the try: jsdom has
+    // no window.matchMedia, so a successful sign-in surfaced as bad credentials.
+    let signedIn = false;
     try {
       await login(tenantId.trim(), email.trim(), password);
-      navigate(config.destination, { replace: true });
+      signedIn = true;
     } catch (err) {
       setError(describeLoginFailure(err));
     } finally {
       setBusy(false);
     }
+    if (!signedIn) return;
+
+    // Hold the route for as long as the shackle takes to spring open (520ms in
+    // index.css), so the one moment the lock is doing its job is not cut off by
+    // the dashboard mounting over it. Anyone who asked for reduced motion has
+    // no animation to wait for, and environments without matchMedia at all
+    // (jsdom) simply do not wait.
+    setGranted(true);
+    const reducedMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!reducedMotion && typeof window.matchMedia === "function") {
+      await new Promise((resolve) => setTimeout(resolve, 520));
+    }
+    navigate(config.destination, { replace: true });
   };
 
   return (
@@ -303,8 +349,21 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
             <label className="text-[11px] font-bold uppercase tracking-wider text-muted block mb-2">
               Select Portal URL
             </label>
-            <div className="grid grid-cols-2 gap-1.5 p-1 bg-surface-2 rounded-xl border border-line">
-              {(["super_admin", "admin", "mgmt", "sales"] as LoginRole[]).map((rKey) => {
+            <div className="portal-tabs grid grid-cols-2 gap-1.5 p-1 bg-surface-2 rounded-xl border border-line">
+              {/* One thumb that slides between the four cells, rather than
+                  four backgrounds switching on and off. The grid is 2×2, so
+                  column is index % 2 and row is index / 2. */}
+              <span
+                className="portal-tabs__thumb"
+                aria-hidden="true"
+                style={{
+                  transform: `translate(${TAB_ORDER.indexOf(activeRole) % 2 ? "calc(100% + 6px)" : "0px"}, ${
+                    TAB_ORDER.indexOf(activeRole) > 1 ? "calc(100% + 6px)" : "0px"
+                  })`,
+                  height: "calc(50% - 5px)",
+                }}
+              />
+              {TAB_ORDER.map((rKey) => {
                 const rConf = ROLE_CONFIGS[rKey];
                 const isActive = activeRole === rKey;
                 const Icon = rConf.icon;
@@ -313,13 +372,12 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
                   <Link
                     key={rKey}
                     to={rConf.route}
-                    className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-all ${
-                      isActive
-                        ? "bg-surface text-ink shadow-xs border border-line"
-                        : "text-muted hover:text-ink"
+                    aria-current={isActive ? "page" : undefined}
+                    className={`relative z-10 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-colors duration-200 ${
+                      isActive ? "text-ink" : "text-muted hover:text-ink"
                     }`}
                   >
-                    <Icon className={`h-3.5 w-3.5 ${isActive ? "text-brand" : "text-muted"}`} />
+                    <Icon className={`h-3.5 w-3.5 transition-colors duration-200 ${isActive ? "text-brand" : "text-muted"}`} />
                     <span className="truncate">{rConf.label}</span>
                   </Link>
                 );
@@ -328,23 +386,17 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
           </div>
 
           {/* ── Active Portal Header ── */}
-          <div className="p-4 rounded-xl border border-line bg-surface space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="grid h-8 w-8 place-items-center rounded-lg bg-surface-2 border border-line">
-                  <config.icon className="h-4 w-4 text-brand" />
-                </div>
-                <div>
-                  <h2 className="text-base font-extrabold text-ink font-sans">
-                    {config.title}
-                  </h2>
-                  <span className={`inline-block rounded border px-1.5 py-0.2 text-[9px] font-extrabold tracking-wider uppercase ${config.badgeColor}`}>
-                    {config.badge}
-                  </span>
-                </div>
-              </div>
+          <div className="flex flex-col items-center gap-3 pt-1 text-center">
+            <PortalCrest state={crestState} icon={config.icon} tick={tick} />
+            <div className="space-y-1.5">
+              <h2 className="text-base font-extrabold text-ink font-sans">
+                {config.title}
+              </h2>
+              <span className={`inline-block rounded border px-1.5 py-0.5 text-3xs font-extrabold tracking-wider uppercase ${config.badgeColor}`}>
+                {config.badge}
+              </span>
             </div>
-            <p className="text-xs text-muted leading-relaxed">
+            <p className="max-w-sm text-xs text-muted leading-relaxed">
               {config.description}
             </p>
           </div>
@@ -377,8 +429,8 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
                 >
                   Tenant ID
                 </label>
-                <div className="flex items-stretch overflow-hidden rounded-lg border border-line focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 bg-surface shadow-xs">
-                  <span className="grid place-items-center px-3 text-muted">
+                <div className="field flex items-stretch overflow-hidden rounded-lg border border-line transition-colors focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 bg-surface shadow-xs">
+                  <span className="field__icon grid place-items-center px-3 text-muted">
                     <Building2 className="h-4 w-4" aria-hidden="true" />
                   </span>
                   <input
@@ -386,7 +438,7 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
                     name="tenantId"
                     value={tenantId}
                     onChange={(e) => setTenantId(e.target.value)}
-                    className="h-9 flex-1 bg-surface pr-2 text-xs font-semibold text-ink focus:outline-none"
+                    className="h-11 flex-1 bg-surface pr-2 text-xs font-semibold text-ink focus:outline-none"
                     placeholder="tenant_acme"
                     autoComplete="organization"
                     autoCapitalize="none"
@@ -406,7 +458,7 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
                 >
                   Email Address
                 </label>
-                <div className="relative">
+                <div className="relative field">
                   <Input
                     id="login-email"
                     name="email"
@@ -414,7 +466,7 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@company.com"
-                    className="pl-9 text-xs font-semibold"
+                    className="h-11 pl-9 text-sm font-semibold"
                     autoComplete="username"
                     autoCapitalize="none"
                     spellCheck={false}
@@ -424,7 +476,7 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
                     required
                   />
                   <Mail
-                    className="absolute left-3 top-2.5 h-4 w-4 text-muted pointer-events-none"
+                    className="field__icon absolute left-3 top-3.5 h-4 w-4 text-muted pointer-events-none"
                     aria-hidden="true"
                   />
                 </div>
@@ -437,15 +489,21 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
                 >
                   Password
                 </label>
-                <div className="relative">
+                <div className="relative field">
                   <Input
                     id="login-password"
                     name="password"
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setTick((t) => t + 1);
+                      if (error) setError(null);
+                    }}
+                    onFocus={() => setPasswordFocused(true)}
+                    onBlur={() => setPasswordFocused(false)}
                     placeholder="••••••••"
-                    className="pl-9 text-xs font-semibold"
+                    className="h-11 pl-9 text-sm font-semibold"
                     autoComplete="current-password"
                     aria-invalid={!!error}
                     aria-describedby={error ? "login-error" : undefined}
@@ -453,7 +511,7 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
                     required
                   />
                   <Lock
-                    className="absolute left-3 top-2.5 h-4 w-4 text-muted pointer-events-none"
+                    className="field__icon absolute left-3 top-3.5 h-4 w-4 text-muted pointer-events-none"
                     aria-hidden="true"
                   />
                 </div>
@@ -464,7 +522,7 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
                   id="login-error"
                   role="alert"
                   aria-live="assertive"
-                  className="rounded-lg border border-red/40 bg-red-soft px-3 py-2 text-xs text-red"
+                  className="field-error rounded-lg border border-red/40 bg-red-soft px-3 py-2 text-xs text-red"
                 >
                   {error}
                 </div>
@@ -472,17 +530,22 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
 
               <Button
                 type="submit"
-                className="w-full h-10 font-bold"
-                disabled={busy}
+                className="signin-btn w-full h-11 font-bold"
+                disabled={busy || granted}
                 aria-busy={busy}
               >
-                {busy ? (
+                {granted ? (
+                  <>
+                    <Check className="h-4 w-4 mr-2" /> Welcome back
+                  </>
+                ) : busy ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Authenticating {config.label}…
                   </>
                 ) : (
                   <>
-                    Sign In to {config.label} <ArrowRight className="h-4 w-4 ml-1.5" />
+                    Sign In to {config.label}{" "}
+                    <ArrowRight className="signin-btn__arrow h-4 w-4 ml-1.5" />
                   </>
                 )}
               </Button>
