@@ -181,8 +181,15 @@ const totals = {
   webRoutes: routePaths.length,
   redirectRoutes: redirects,
   mobileScreens: mobileScreens.length,
-  endpoints: wiring.endpoints.length,
-  endpointsWired: wiring.endpoints.filter((e) => e.wiredBy.length > 0).length,
+  // CLIENT-FACING only, the same population check-wiring.mjs reports on. It
+  // already marks the load balancer's probes `nonClient`; counting them here
+  // made this line say 82/83 while `pnpm wiring` said 81/81 about the same
+  // repository, and two scripts disagreeing about one fact is how a reader
+  // stops believing either.
+  endpoints: wiring.endpoints.filter((e) => !e.nonClient).length,
+  endpointsWired: wiring.endpoints.filter(
+    (e) => !e.nonClient && e.wiredBy.length > 0,
+  ).length,
   testFiles: testFiles.length,
   docs: walk('.', (f) => f.endsWith('.md') && !f.includes('node_modules')).length,
 };

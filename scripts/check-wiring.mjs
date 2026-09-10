@@ -145,11 +145,6 @@ function methodFrom(args) {
 }
 
 /**
- * Endpoints no client is expected to call — infrastructure probes rather than
- * product surface. Listed so the report stays honest instead of silently
- * counting them as gaps forever.
- */
-/**
  * Endpoints no client is supposed to call. These are read by the load balancer
  * and the orchestrator, not by a screen, so "nothing calls it" is the design.
  */
@@ -178,6 +173,16 @@ function collectClientCalls() {
         /\b(api|apiFetchBlob|apiFetch|fetch|request)\s*(?:<[^()\n]*>)?\s*(\(\s*['"`]([^'"`]+)['"`])/g;
 
       for (const m of src.matchAll(callRe)) {
+        // A path that is ENTIRELY interpolation names no route. The transport
+        // wrappers themselves are written that way — `fetch(`${BASE}${path}`)`
+        // in web's lib/api.ts and mobile's gs/api.ts — and each one was being
+        // counted as a call to every three-segment endpoint in the API, since
+        // the resulting `/api/v1/*` matches any path of that length. Every
+        // `GET /api/v1/<resource>` therefore read as wired by both apps
+        // whether or not a single screen touched it, which is the one thing
+        // this check exists not to do.
+        if (/^\$\{/.test(m[3])) continue;
+
         const openIndex = m.index + m[0].length - m[2].length;
         calls.push({
           app: name,

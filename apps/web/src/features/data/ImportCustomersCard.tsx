@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Upload } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Button, Card, CardHeader } from "@/components/ui";
@@ -22,6 +23,7 @@ interface ImportJobRow {
   updated: number;
   skipped: number;
   errors: ImportRowError[];
+  createdAt: string;
 }
 
 /**
@@ -74,6 +76,20 @@ export function ImportCustomersCard() {
   const [result, setResult] = useState<ImportJobRow | null>(null);
   const [onDuplicate, setOnDuplicate] = useState<"skip" | "update">("skip");
 
+  /**
+   * What the last few imports did.
+   *
+   * The server keeps every run precisely so the answer survives the tab being
+   * closed — a person who imported four hundred rows yesterday and wants to
+   * know which ones failed should not have to import them again to find out.
+   * Keeping that only in React state would have made the stored row pointless.
+   */
+  const history = useQuery({
+    queryKey: ["imports"],
+    enabled,
+    queryFn: () => apiFetch<ImportJobRow[]>("/imports?limit=5"),
+  });
+
   if (!enabled) return null;
 
   const handleFile = async (file: File) => {
@@ -121,8 +137,10 @@ export function ImportCustomersCard() {
           body: JSON.stringify({ rows: named, onDuplicate }),
         }),
       );
-      // The customers page is now wrong by however many rows just landed.
+      // The customers page is now wrong by however many rows just landed, and
+      // the history below is one run short.
       void qc.invalidateQueries({ queryKey: ["customers"] });
+      void qc.invalidateQueries({ queryKey: ["imports"] });
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -184,6 +202,33 @@ export function ImportCustomersCard() {
           >
             {error}
           </div>
+        )}
+
+        {/* Earlier runs. Shown only when there is no fresh result above, so the
+            thing the user just did is not competing with a list of what they
+            did last week. */}
+        {!result && !error && (history.data?.length ?? 0) > 0 && (
+          <ul className="space-y-1">
+            {history.data!.map((job) => (
+              <li
+                key={job.id}
+                className="flex items-center justify-between rounded-lg border border-line px-2.5 py-1.5 text-2xs text-muted"
+              >
+                <span>
+                  {new Date(job.createdAt).toLocaleDateString()} ·{" "}
+                  {job.total} row{job.total === 1 ? "" : "s"}
+                </span>
+                <span>
+                  <span className="font-semibold text-ink">{job.created} created</span>
+                  {job.updated > 0 && <> · {job.updated} updated</>}
+                  {job.skipped > 0 && <> · {job.skipped} skipped</>}
+                  {job.errors.length > 0 && (
+                    <> · <span className="font-semibold text-red">{job.errors.length} failed</span></>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
 
         {result && (
