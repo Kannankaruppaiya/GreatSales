@@ -19,6 +19,7 @@ import { useAuthRole, useAuthUser } from "@/store/auth";
 import { roleLabel } from "@/data/constants";
 import { currentPeriod } from "@/data/months";
 import { MonthSelect } from "@/components/MonthSelect";
+import { ImportCustomersCard } from "@/features/data/ImportCustomersCard";
 import { useCustomers } from "@/features/customers/queries";
 import { useProducts, usePrincipals } from "@/features/products/queries";
 import { useOrders } from "@/features/orders/queries";
@@ -220,6 +221,8 @@ export default function DataPage() {
           </Button>
         </div>
       </div>
+
+      <ImportCustomersCard />
 
       {/* Status banner */}
       {statusMessage && (

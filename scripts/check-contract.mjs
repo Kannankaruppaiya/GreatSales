@@ -79,6 +79,7 @@ const CONTRACTS = [
   { path: 'managements', type: 'ManagementRow' },
   { path: 'targets?period=2026-06', type: 'SalesTargetRow' },
   { path: 'notifications?limit=1', type: 'NotificationRow' },
+  { path: 'imports?limit=1', type: 'ImportJobRow' },
 ];
 
 // ---------------------------------------------------------------------------

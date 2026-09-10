@@ -24,6 +24,7 @@ import { PeriodLocksModule } from './period-locks/period-locks.module';
 import { TargetsModule } from './targets/targets.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
+import { ImportsModule } from './imports/imports.module';
 import { ManagementsModule } from './managements/managements.module';
 
 @Module({
@@ -53,6 +54,7 @@ import { ManagementsModule } from './managements/managements.module';
     TargetsModule,
     NotificationsModule,
     FeatureFlagsModule,
+    ImportsModule,
     ManagementsModule,
   ],
   controllers: [AppController],

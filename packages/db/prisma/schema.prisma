@@ -250,6 +250,7 @@ model User {
   auditLogs               AuditLog[]
   orderStatusChanges      OrderStatusHistory[]
   refreshTokens           RefreshToken[]
+  importJobs              ImportJob[]
 
   // Uniqueness is enforced by PARTIAL unique indexes created in the F12
   // migration: only rows with deletedAt IS NULL participate, so soft-deleting a
@@ -867,18 +868,27 @@ model AuditLog {
 }
 
 model ImportJob {
-  id        String   @id @default(cuid())
-  tenantId  String
-  type      String
-  status    String   @default("pending")
-  total     Int      @default(0)
-  errors    Json     @default("[]")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id       String @id @default(cuid())
+  tenantId String
+  type     String
+  status   String @default("pending")
+  total    Int    @default(0)
+  // What the run actually did. Not derivable from `total` and `errors`: those
+  // two together say how many rows succeeded and nothing about which of them
+  // were new, and "414 created" and "414 overwritten" are different afternoons.
+  created     Int      @default(0)
+  updated     Int      @default(0)
+  skipped     Int      @default(0)
+  errors      Json     @default("[]")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  createdBy User?  @relation(fields: [createdById], references: [id])
 
   @@index([tenantId])
+  @@index([tenantId, createdAt])
 }
 
 // ============================================================
