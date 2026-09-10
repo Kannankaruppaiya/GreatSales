@@ -169,10 +169,13 @@ function collectClientCalls() {
 
       // Request helpers this codebase uses. Add a name here rather than
       // widening the pattern, so an unrelated `x.fetch()` is not counted.
+      // Longest first: `apiFetch` would otherwise match the start of
+      // `apiFetchBlob` and then fail on the `B` where it wanted a `(`, so the
+      // file-download route read as called by nobody.
       // The generic is matched as "anything but parens or a newline" so nested
       // type arguments (api<CursorPage<Customer>>) do not cut the match short.
       const callRe =
-        /\b(api|apiFetch|fetch|request)\s*(?:<[^()\n]*>)?\s*(\(\s*['"`]([^'"`]+)['"`])/g;
+        /\b(api|apiFetchBlob|apiFetch|fetch|request)\s*(?:<[^()\n]*>)?\s*(\(\s*['"`]([^'"`]+)['"`])/g;
 
       for (const m of src.matchAll(callRe)) {
         const openIndex = m.index + m[0].length - m[2].length;

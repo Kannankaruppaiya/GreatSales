@@ -78,8 +78,12 @@ const CONTRACTS = [
   { path: 'period-locks', type: 'PeriodLockRow' },
   { path: 'managements', type: 'ManagementRow' },
   { path: 'targets?period=2026-06', type: 'SalesTargetRow' },
-  { path: 'notifications?limit=1', type: 'NotificationRow' },
   { path: 'imports?limit=1', type: 'ImportJobRow' },
+  // NOT /notifications. That inbox belongs to the signed-in user, and this
+  // check signs in as the admin — who, by the rule the feature is built on,
+  // never receives a notification for anything they did themselves. It would
+  // report "no rows" on every run and teach the reader to ignore that line.
+  // NotificationRow is covered by notifications.service.spec instead.
 ];
 
 // ---------------------------------------------------------------------------

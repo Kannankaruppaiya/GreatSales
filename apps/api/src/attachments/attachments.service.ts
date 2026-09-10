@@ -242,6 +242,5 @@ function toRow(a: {
     uploadedById: a.uploadedById,
     uploadedByName: a.uploadedBy.name,
     createdAt: a.createdAt.toISOString(),
-    downloadUrl: `/attachments/${a.id}/download`,
   };
 }

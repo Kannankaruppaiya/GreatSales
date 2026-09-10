@@ -319,6 +319,25 @@ untouched. And the seeds are counted separately from the application: a table
 only a fixture writes is not a wired feature, and folding them into one corpus
 turned four genuinely unwired tables green.
 
+`check-wiring.mjs` finds a call by the LITERAL path it is written with, so two
+things make a live route read as dead. A helper whose name is not in its list
+(`apiFetchBlob` was missing, and `apiFetch` matched the start of it and then
+failed) — add the name there rather than widening the pattern, longest first.
+And a path built by a function instead of written out: prefer the literal at
+the call site. A route nothing appears to call is a route somebody deletes.
+
+`INFRASTRUCTURE_MODELS` is a map of model to REASON, and the reason is printed.
+`PlatformUser` and `PlatformAuditLog` are listed there because the tenant app's
+database role has SELECT revoked on both — code in `apps/api` touching either
+would be the defect, not the fix. Adding a name without a reason that survives
+review is how a checker stops meaning anything.
+
+**Migrations must reach the TEST database too.** There are two — `greatsales`
+and `greatsales_test` — and `db:deploy` only touches the first, so a migration
+verified by hand against dev failed the suite with "the column does not exist",
+which reads as a code fault and is not one. `pnpm --filter api test` now runs
+`scripts/migrate-test-db.mjs` first; `pnpm db:deploy:test` runs it alone.
+
 
 **Who may sign in from where is decided by the API, not by the client.**
 `/auth/login` takes a `client` (`web` | `mobile`) and, on web, the `portal`

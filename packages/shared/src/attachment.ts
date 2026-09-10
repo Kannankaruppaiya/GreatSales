@@ -67,13 +67,22 @@ export interface AttachmentRow {
   uploadedById: string;
   uploadedByName: string;
   createdAt: string;
-  /**
-   * Where to fetch the bytes — always through the API, never a bucket URL.
-   *
-   * A pre-signed link would be shorter, and it would also be a URL that grants
-   * whoever holds it access to a business document with no reference to who is
-   * asking. The download route re-checks the caller against the parent record
-   * on every request, which is the same rule the list obeys.
-   */
-  downloadUrl: string;
+}
+
+/**
+ * Where the bytes are: `GET /attachments/:id/download`, through the API and
+ * never a bucket URL.
+ *
+ * A pre-signed link would be shorter, and it would also be a URL that grants a
+ * business document to whoever holds it with no reference to who is asking.
+ * The download route re-checks the caller against the parent record on every
+ * request, which is the same rule the list obeys.
+ *
+ * Built by the client from the id rather than sent as a field on the row. A
+ * client that fetches whatever URL a response hands it is a habit worth not
+ * having, and a path that exists only as a string the server built is a path
+ * no static check can see anyone calling.
+ */
+export function attachmentDownloadPath(id: string): string {
+  return `/attachments/${id}/download`;
 }

@@ -5,7 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { RequestUser } from '@greatsales/shared';
+import { attachmentDownloadPath, type RequestUser } from '@greatsales/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AttachmentsService, type UploadedFile } from './attachments.service';
 import { StorageService } from './storage.service';
@@ -96,7 +96,9 @@ describe('AttachmentsService (integration)', () => {
     });
     // Through the API, never a bucket URL: a signed link grants a business
     // document to whoever holds it, with no reference to who is asking.
-    expect(saved.downloadUrl).toBe(`/attachments/${saved.id}/download`);
+    expect(attachmentDownloadPath(saved.id)).toBe(
+      `/attachments/${saved.id}/download`,
+    );
 
     const listed = await attachments.list(admin, {
       entityType: 'Customer',

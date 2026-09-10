@@ -22,8 +22,9 @@ export interface AttachmentRow {
   uploadedById: string;
   uploadedByName: string;
   createdAt: string;
-  downloadUrl: string;
 }
+
+
 
 /** Mirrors MAX_ATTACHMENT_BYTES. Enforced on the server as well. */
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
@@ -88,7 +89,11 @@ export function useUploadAttachment() {
  * on every request — would answer 401 in a new tab with nothing to show for it.
  */
 export async function downloadAttachment(row: AttachmentRow): Promise<void> {
-  const blob = await apiFetchBlob(row.downloadUrl);
+  // The path is written out here rather than built by a helper so that
+  // `pnpm wiring` — which reads the literal a request is made with — can see
+  // that something calls this route. A route nothing appears to call is a
+  // route somebody eventually deletes.
+  const blob = await apiFetchBlob(`/attachments/${row.id}/download`);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

@@ -42,6 +42,13 @@ const CHECKS = [
   ['data', 'period-locks'],
   ['customers', 'industries'],
   ['management', 'managements'],
+  ['targets', 'targets?period=2026-06'],
+  // The signed-in user's own inbox. Empty for the admin this signs in as, by
+  // design — nobody is notified of what they did themselves — so this proves
+  // the route answers, not that anything is in it.
+  ['notifications', 'notifications?limit=1'],
+  ['feature-flags', 'feature-flags'],
+  ['imports', 'imports?limit=1'],
   // Remarks are addressed by (entityType, entityId), so there is no "list all"
   // to probe. The customer id is read from the customers check above at run
   // time — a hardcoded id would rot the moment the seed changed.
