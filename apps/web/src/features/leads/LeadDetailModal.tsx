@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Button, Dialog, Input, Select } from "@/components/ui";
+import { Button, Dialog, Select } from "@/components/ui";
+import { DateField } from "@/components/DateField";
 import { ApiError } from "@/lib/api";
 import { inr } from "@/lib/format";
 import { useAuthRole } from "@/store/auth";
@@ -123,34 +124,34 @@ export function LeadDetailModal({
               {lead.salespersonName || "—"}
             </div>
           </div>
-          <div>
+          <div className="sm:col-span-2">
             <label
               htmlFor="lead-next-followup"
               className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
             >
               Next Follow-Up
             </label>
-            <Input
+            <DateField
               id="lead-next-followup"
-              type="date"
+              label="Next follow-up"
               disabled={!canEdit}
               value={nextFollowUp}
-              onChange={(e) => setNextFollowUp(e.target.value)}
+              onChange={setNextFollowUp}
             />
           </div>
-          <div>
+          <div className="sm:col-span-2">
             <label
               htmlFor="lead-exp-close"
               className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
             >
               Expected Closure
             </label>
-            <Input
+            <DateField
               id="lead-exp-close"
-              type="date"
+              label="Expected closure"
               disabled={!canEdit}
               value={expClose}
-              onChange={(e) => setExpClose(e.target.value)}
+              onChange={setExpClose}
             />
           </div>
         </div>

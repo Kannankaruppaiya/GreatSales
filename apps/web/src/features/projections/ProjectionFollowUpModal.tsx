@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { Button, Dialog, Input, Select, Textarea } from "@/components/ui";
+import { DateField } from "@/components/DateField";
 import { PROJ_STATUSES } from "@/data/constants";
 import { ApiError } from "@/lib/api";
 import { useCreateRemark } from "@/features/remarks/queries";
@@ -130,18 +131,18 @@ export function ProjectionFollowUpModal({
 
         {/* Date & Win Probability */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
+          <div className="sm:col-span-2">
             <label
               htmlFor="pf-date"
               className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
             >
               Next Follow-Up Date
             </label>
-            <Input
+            <DateField
               id="pf-date"
-              type="date"
+              label="Follow-up date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={setDate}
             />
           </div>
           <div>

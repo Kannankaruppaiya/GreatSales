@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
+import { DateField } from "@/components/DateField";
 import { ApiError } from "@/lib/api";
 import { ConfirmActionModal } from "@/components/modals/ConfirmActionModal";
 import {
@@ -148,18 +149,18 @@ export function AddPaymentModal({
       >
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+            <div className="sm:col-span-2">
               <label
                 htmlFor="payment-invoice-date"
                 className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
               >
                 Invoice Date
               </label>
-              <Input
+              <DateField
                 id="payment-invoice-date"
-                type="date"
+                label="Invoice date"
                 value={invoiceDate}
-                onChange={(e) => setInvoiceDate(e.target.value)}
+                onChange={setInvoiceDate}
               />
             </div>
             <div>
@@ -242,18 +243,18 @@ export function AddPaymentModal({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+            <div className="sm:col-span-2">
               <label
                 htmlFor="payment-due-date"
                 className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
               >
                 Due Date
               </label>
-              <Input
+              <DateField
                 id="payment-due-date"
-                type="date"
+                label="Due date"
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                onChange={setDueDate}
               />
             </div>
             <div>

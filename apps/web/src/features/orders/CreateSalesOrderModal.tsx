@@ -11,6 +11,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Button, Dialog, Input, Select, Textarea } from "@/components/ui";
+import { DateTimeField } from "@/components/DateField";
 import { ApiError } from "@/lib/api";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -549,13 +550,12 @@ export function CreateSalesOrderModal({
                   <label htmlFor="so-urgent-datetime" className="text-xs font-semibold text-ink block mb-1">
                     Expected Delivery Date & Time <span className="text-red">*</span>
                   </label>
-                  <Input
+                  <DateTimeField
                     id="so-urgent-datetime"
-                    type="datetime-local"
+                    label="Expected delivery"
                     value={urgentDateTime}
-                    onChange={(e) => setUrgentDateTime(e.target.value)}
+                    onChange={setUrgentDateTime}
                     required={isUrgent}
-                    className="bg-surface h-9 font-medium"
                   />
                 </div>
               </div>

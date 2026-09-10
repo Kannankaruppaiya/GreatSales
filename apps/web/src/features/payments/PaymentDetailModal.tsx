@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
+import { DateField } from "@/components/DateField";
 import { ApiError } from "@/lib/api";
 import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -194,19 +195,19 @@ export function PaymentDetailModal({
               onChange={(e) => setDelayReason(e.target.value)}
             />
           </div>
-          <div>
+          <div className="sm:col-span-2">
             <label
               htmlFor="pd-next-followup"
               className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
             >
               Next Follow-Up Date
             </label>
-            <Input
+            <DateField
               id="pd-next-followup"
+              label="Next follow-up"
               disabled={!canEdit}
-              type="date"
               value={nextFollowUp}
-              onChange={(e) => setNextFollowUp(e.target.value)}
+              onChange={setNextFollowUp}
             />
           </div>
         </div>

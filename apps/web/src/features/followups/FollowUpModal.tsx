@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { Button, Dialog, Input, Select, Textarea } from "@/components/ui";
+import { DateField } from "@/components/DateField";
 import { ApiError } from "@/lib/api";
 import { useCreateFollowUp, useUpdateFollowUp } from "@/features/followups/queries";
 import { ENTITY_TYPE_VALUES, type EntityTypeValue, type FollowUpRow } from "@/features/followups/types";
@@ -131,19 +132,19 @@ export function FollowUpModal({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
+          <div className="sm:col-span-2">
             <label
               htmlFor="fu-due-date"
               className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
             >
               Due Date <span className="text-red">*</span>
             </label>
-            <Input
+            <DateField
               id="fu-due-date"
-              type="date"
+              label="Due date"
               required
               value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
+              onChange={setDueDate}
             />
           </div>
           <div>

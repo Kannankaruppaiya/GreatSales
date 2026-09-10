@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Plus, Target, Trash2 } from "lucide-react";
 import { Button, Dialog, Input, Select, Textarea } from "@/components/ui";
+import { DateField } from "@/components/DateField";
 import { ConfirmActionModal } from "@/components/modals/ConfirmActionModal";
 import { ApiError } from "@/lib/api";
 import { INDUSTRIAL_AREAS } from "@/data/constants";
@@ -604,20 +605,19 @@ export function AddLeadModal({
                 ))}
               </Select>
             </div>
-            <div>
+            <div className="sm:col-span-2">
               <label
                 htmlFor="lead-exp-close"
                 className="text-xs font-semibold text-ink block mb-1.5"
               >
                 Expected Closure Date
               </label>
-              <Input
+              <DateField
                 id="lead-exp-close"
-                type="date"
+                label="Expected closure date"
                 value={expClose}
-                onChange={(e) => setExpClose(e.target.value)}
+                onChange={setExpClose}
                 disabled={create.isPending}
-                className="h-9"
               />
             </div>
           </div>
