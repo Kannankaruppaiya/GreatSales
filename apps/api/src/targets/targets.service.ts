@@ -83,14 +83,35 @@ export class TargetsService {
    */
   async totalFor(
     user: RequestUser,
-    period: string,
+    periods: string[],
     ownerId?: string,
   ): Promise<{ total: number | null; byPerson: Map<string, number> }> {
-    const rows = await this.list(user, { period, salespersonId: ownerId });
-    const byPerson = new Map(rows.map((r) => [r.salespersonId, r.targetValue]));
+    const db = this.prisma.forTenant(user.tenantId);
+    const salespersonId = await this.resolveOwnerScope(db, user, ownerId);
+
+    const rows = periods.length
+      ? await db.salesTarget.findMany({
+          where: {
+            period: { in: periods },
+            ...(salespersonId ? { salespersonId } : {}),
+          },
+          include: TARGET_INCLUDE,
+        })
+      : [];
+
+    // Summed across the window's months, because a target is a month and a
+    // year-long window covers twelve of them. A person with a target in only
+    // some of those months contributes only those.
+    const byPerson = new Map<string, number>();
+    for (const row of rows) {
+      byPerson.set(
+        row.salespersonId,
+        (byPerson.get(row.salespersonId) ?? 0) + Number(row.targetValue),
+      );
+    }
     return {
       total: rows.length
-        ? rows.reduce((n, r) => n + r.targetValue, 0)
+        ? [...byPerson.values()].reduce((n, v) => n + v, 0)
         : null,
       byPerson,
     };

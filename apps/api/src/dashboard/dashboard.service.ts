@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import type {
-  DashboardBreakdown,
-  DashboardQuery,
-  DashboardResponse,
-  LeadRow,
-  ProjectionLine,
-  RequestUser,
+import {
+  monthsInRange,
+  type DashboardBreakdown,
+  type DashboardQuery,
+  type DashboardResponse,
+  type LeadRow,
+  type ProjectionLine,
+  type RequestUser,
 } from '@greatsales/shared';
 import { ProjectionsService } from '../projections/projections.service';
 import { LeadsService } from '../leads/leads.service';
@@ -57,24 +58,53 @@ export class DashboardService {
     user: RequestUser,
     query: DashboardQuery,
   ): Promise<DashboardResponse> {
+    // The monthly tables are keyed by period, so a window becomes the months it
+    // touches — a week resolves to the one month containing it, because a
+    // recurring commitment IS a month and there is no Tuesday's worth of one.
+    const months = monthsInRange(query.from, query.to);
+
     const [{ lines, summary }, leadRows, targets] = await Promise.all([
       // lineFilter 'all': the dashboard summarises the whole worksheet, not
       // whatever subset the user last filtered the projections page to.
-      this.projections.list(user, {
-        period: query.period,
+      this.projections.forPeriods(user, months, {
         ownerId: query.ownerId,
         lineFilter: 'all',
       }),
       this.leads.allInScope(user, query.ownerId),
       // Scoped by the same rules as everything else on this page: a sales user
       // gets their own target regardless of the ownerId they asked for.
-      this.targets.totalFor(user, query.period, query.ownerId),
+      this.targets.totalFor(user, months, query.ownerId),
     ]);
 
-    const liveLeads = leadRows.filter((l) => !DEAD_STAGES.has(l.stage));
-    const wonLeads = leadRows.filter((l) => l.stage === 'ClosedWon');
+    /**
+     * New sales, scoped to the WINDOW.
+     *
+     * This half used not to be scoped at all: every non-dead lead counted,
+     * whatever month was selected, so the same pipeline total appeared under
+     * every entry in the month dropdown and the picker looked broken because it
+     * was doing nothing. With a window that can be a day, the question has to
+     * have a date in it.
+     *
+     * Committed is what was RAISED in the window — new business brought in —
+     * and achieved is what was WON in it. Two different dates, deliberately: a
+     * deal raised in June and won in September belongs to June's intake and
+     * September's result, and counting it in one month for both would make the
+     * two columns describe different populations.
+     */
+    const inWindow = (iso: string | null | undefined) => {
+      if (!iso) return false;
+      const day = iso.slice(0, 10);
+      return day >= query.from && day <= query.to;
+    };
 
-    const newSalesCommitted = sum(liveLeads, (l) => l.totalValue);
+    const raisedLeads = leadRows.filter(
+      (l) => !DEAD_STAGES.has(l.stage) && inWindow(l.createdAt),
+    );
+    const wonLeads = leadRows.filter(
+      (l) => l.stage === 'ClosedWon' && inWindow(l.stageUpdatedAt ?? l.updatedAt),
+    );
+
+    const newSalesCommitted = sum(raisedLeads, (l) => l.totalValue);
     const newSalesAchieved = sum(wonLeads, (l) => l.totalValue);
 
     const recurringCommitted = summary.totCommitted;
@@ -85,7 +115,9 @@ export class DashboardService {
     const { due, overdue } = this.countFollowUps(lines, leadRows);
 
     return {
-      period: query.period,
+      from: query.from,
+      to: query.to,
+      months,
       kpis: {
         recurringCommitted,
         recurringAchieved,
@@ -100,9 +132,17 @@ export class DashboardService {
         target: targets.total,
         targetPct: targets.total ? pct(totalAchieved, targets.total) : null,
       },
-      bySalesperson: this.bySalesperson(lines, leadRows, targets.byPerson),
+      bySalesperson: this.bySalesperson(
+        lines,
+        raisedLeads,
+        wonLeads,
+        targets.byPerson,
+      ),
       byPrincipal: this.byPrincipal(lines),
       byCategory: this.byCategory(lines),
+      // A SNAPSHOT, not a window figure: "which deals are at oral confirmation"
+      // is a question about where the pipeline stands now, and scoping it to a
+      // week would empty a list whose whole job is to be actionable today.
       oralConfirmationDeals: leadRows
         .filter((l) => l.stage === ORAL_STAGE)
         .slice(0, ORAL_CAP),
@@ -148,40 +188,57 @@ export class DashboardService {
     return { due, overdue };
   }
 
-  /** Recurring + new sales per salesperson, over everyone who appears in either. */
+  /**
+   * Recurring + new sales per salesperson, over everyone who appears in any of
+   * the three.
+   *
+   * `raised` and `won` arrive already scoped to the window and already split by
+   * WHICH date put them there — the split is made once in `overview` so this
+   * chart and the KPI cards above it cannot come to different answers about the
+   * same window.
+   */
   private bySalesperson(
     lines: ProjectionLine[],
-    leadRows: LeadRow[],
+    raised: LeadRow[],
+    won: LeadRow[],
     targetByPerson: Map<string, number>,
   ): DashboardBreakdown[] {
     const names = new Map<string, string>();
     for (const p of lines) names.set(p.salespersonId, p.salespersonName);
-    for (const l of leadRows) names.set(l.salespersonId, l.salespersonName);
+    for (const l of raised) names.set(l.salespersonId, l.salespersonName);
+    for (const l of won) names.set(l.salespersonId, l.salespersonName);
+    // Somebody with a target and nothing else still belongs on the chart: "no
+    // activity against a target" is the row a manager most needs to see.
+    for (const id of targetByPerson.keys()) {
+      if (!names.has(id)) names.set(id, '—');
+    }
 
     return [...names.entries()]
-      .map(([id, name]) => {
-        const theirLines = lines.filter((p) => p.salespersonId === id);
-        const theirLeads = leadRows.filter((l) => l.salespersonId === id);
-        return {
-          id,
-          name,
-          // Absent, not zero, when this person has no target for the month —
-          // an unset target must not render as a missed one.
-          target: targetByPerson.get(id) ?? null,
-          committed:
-            sum(theirLines, (p) => p.projValue) +
-            sum(
-              theirLeads.filter((l) => !DEAD_STAGES.has(l.stage)),
-              (l) => l.totalValue,
-            ),
-          achieved:
-            sum(theirLines, (p) => p.achValue) +
-            sum(
-              theirLeads.filter((l) => l.stage === 'ClosedWon'),
-              (l) => l.totalValue,
-            ),
-        };
-      })
+      .map(([id, name]) => ({
+        id,
+        name,
+        // Absent, not zero, when this person has no target for the window — an
+        // unset target must not render as a missed one.
+        target: targetByPerson.get(id) ?? null,
+        committed:
+          sum(
+            lines.filter((p) => p.salespersonId === id),
+            (p) => p.projValue,
+          ) +
+          sum(
+            raised.filter((l) => l.salespersonId === id),
+            (l) => l.totalValue,
+          ),
+        achieved:
+          sum(
+            lines.filter((p) => p.salespersonId === id),
+            (p) => p.achValue,
+          ) +
+          sum(
+            won.filter((l) => l.salespersonId === id),
+            (l) => l.totalValue,
+          ),
+      }))
       .sort((a, b) => b.committed - a.committed);
   }
 

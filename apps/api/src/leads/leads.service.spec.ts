@@ -38,9 +38,11 @@ describe('LeadsService (integration)', () => {
   it('returns the seeded Acme lead enriched with products and total value', async () => {
     const res = await service.list(admin('tenant_acme', 'acme'), { limit: 20 });
 
-    expect(res.items).toHaveLength(1);
-    const l = res.items[0];
-    expect(l.customerName).toBe('Acme Corp Prospect');
+    // Found by name rather than assumed to be the only row: the fixtures carry
+    // a second, already-won lead so the dashboard's window has something to
+    // find, and a test that counts the seed breaks every time the seed grows.
+    const l = res.items.find((x) => x.customerName === 'Acme Corp Prospect')!;
+    expect(l).toBeDefined();
     expect(l.stage).toBe('NeedsAnalysis');
     expect(l.salespersonName).toBe('Acme Corp Sales One');
     expect(l.industryName).toBe('Automotive');
@@ -61,7 +63,13 @@ describe('LeadsService (integration)', () => {
     const owner = await service.list(sales('tenant_acme', 'acme', 1), {
       limit: 20,
     });
-    expect(owner.items).toHaveLength(1);
+    // The assertion that matters is WHOSE, not how many: every row belongs to
+    // the caller, and the other salesperson sees nothing at all.
+    expect(owner.items.length).toBeGreaterThan(0);
+    expect(
+      owner.items.every((l) => l.salespersonId === 'user_sales1_acme'),
+    ).toBe(true);
+
     const other = await service.list(sales('tenant_acme', 'acme', 2), {
       limit: 20,
     });

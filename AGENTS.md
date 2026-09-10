@@ -301,6 +301,29 @@ Consider:
 Define appropriate retry, timeout, fallback, idempotency, recovery, and graceful-degradation
 strategies.
 
+**A reporting window is a granularity plus an anchor, never a stored range.**
+The dashboard offers a day, a week, a month or a year; `useUi` holds
+`{granularity, anchor}` and `resolveRange` derives `from`/`to` on read, so a tab
+left open overnight moves with the calendar instead of reporting yesterday as
+today. The API is sent the resolved dates — it never learns which button was
+pressed — and works out the months it needs from them with `monthsInRange`.
+
+Two rules follow from the data model and both are easy to get wrong. A
+`Projection`, a `SalesTarget` and a `PeriodLock` are keyed by `YYYY-MM`: a
+commitment IS a month, so a day or a week resolves to the one month containing
+it and the recurring cards name that month. Do NOT prorate a monthly commitment
+across days — that is inventing numbers. And the new-sales half is scoped by two
+different dates on purpose: committed is what was RAISED in the window
+(`createdAt`), achieved is what was WON in it (`stageUpdatedAt`). Before this the
+half was not scoped at all, which is why the old month dropdown showed the same
+pipeline total under every month and looked broken.
+
+`apps/web/src/data/periodRange.ts` MIRRORS `packages/shared/src/period-range.ts`
+— the Vite build cannot consume the CJS shared dist, the same arrangement
+`months.ts` uses. Two copies of date arithmetic is the dangerous kind of
+duplication, so `tests/data/periodRange.test.ts` pins one side and
+`dashboard.service.spec` the other. Change both, or neither.
+
 ### 7. Security
 
 **Ask `pnpm wired` before reading the repository to find out what is wired.**

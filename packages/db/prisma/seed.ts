@@ -203,11 +203,31 @@ async function seedTenant(k: string, name: string, region: string, accountManage
   });
 
   // Lead
+  // Dated INSIDE the fixture period on purpose. The dashboard scopes new sales
+  // by when a lead was raised and when it was won, so a lead left to default
+  // its createdAt to "now" lands in whatever month the suite happens to run in
+  // and every windowed assertion reads zero. Both dates are fixed so the same
+  // run gives the same answer next year.
   const lead = await prisma.lead.create({
     data: {
       tenantId: t, customerName: `${name} Prospect`, salespersonId: `user_sales1_${k}`,
       stage: DealStage.NeedsAnalysis, leadStatus: "Silver", industryId: "ind_auto", area: "South",
+      createdAt: new Date("2026-08-10T00:00:00.000Z"),
+      stageUpdatedAt: new Date("2026-08-10T00:00:00.000Z"),
       products: { create: [{ productName: "New Product X", brand: "BrandX", value: "75000.00" }] },
+    },
+  });
+
+  // A second lead, RAISED and WON inside the period, so "achieved" has
+  // something to find and the two halves are distinguishable: this one counts
+  // in both, the one above only in committed.
+  await prisma.lead.create({
+    data: {
+      tenantId: t, customerName: `${name} Won Deal`, salespersonId: `user_sales1_${k}`,
+      stage: DealStage.ClosedWon, leadStatus: "Gold", industryId: "ind_auto", area: "South",
+      createdAt: new Date("2026-08-05T00:00:00.000Z"),
+      stageUpdatedAt: new Date("2026-08-20T00:00:00.000Z"),
+      products: { create: [{ productName: "Won Product Y", brand: "BrandY", value: "40000.00" }] },
     },
   });
   // A lead's timeline is `Remark`, not a table of its own — see migration

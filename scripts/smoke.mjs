@@ -16,6 +16,13 @@ const arg = (name, fallback) => {
 
 const BASE = (arg('url', process.env.SMOKE_API_URL ?? 'http://localhost:3001')).replace(/\/$/, '') + '/api/v1';
 const PERIOD = arg('period', new Date().toISOString().slice(0, 7));
+// The dashboard takes a DATE RANGE now — it answers for a day, a week, a month
+// or a year — so the period is resolved to that month's first and last day. The
+// arithmetic is trivial and written out rather than imported, because this
+// script deliberately has no dependency on the workspace build.
+const [PY, PM] = PERIOD.split('-').map(Number);
+const FROM = `${PERIOD}-01`;
+const TO = `${PERIOD}-${String(new Date(Date.UTC(PY, PM, 0)).getUTCDate()).padStart(2, '0')}`;
 const TENANT = arg('tenant', process.env.SMOKE_TENANT ?? 'tenant_promech');
 const EMAIL = arg('email', process.env.SMOKE_EMAIL ?? 'admin@greatsales.local');
 const PASSWORD = arg('password', process.env.SMOKE_PASSWORD ?? 'admin');
@@ -25,7 +32,7 @@ const CHECKS = [
   ['health', 'health'],
   ['health', 'health/ready'],
   ['auth', 'auth/me'],
-  ['dashboard', `dashboard?period=${PERIOD}`],
+  ['dashboard', `dashboard?from=${FROM}&to=${TO}`],
   ['projections', `projections?period=${PERIOD}`],
   ['leads', 'leads?limit=1'],
   ['orders', 'orders?limit=1'],

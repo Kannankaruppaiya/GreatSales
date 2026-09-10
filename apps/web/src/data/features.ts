@@ -49,8 +49,16 @@ export type Feature = {
   globalFilters: GlobalFilter[];
 };
 
-/** The filters the top bar can offer. Each maps to a field on the `ui` store. */
-export type GlobalFilter = "month" | "principal" | "owner";
+/**
+ * The filters the top bar can offer. Each maps to a field on the `ui` store.
+ *
+ * `window` is the day/week/month/year picker. Only the DASHBOARD declares it:
+ * the worksheet-shaped pages are a month at a time by their data model and
+ * carry their own month dropdown on the page, so drawing a window picker above
+ * one would put two period controls on the same screen saying different things
+ * — the topbar offering a week while the worksheet beneath it shows a month.
+ */
+export type GlobalFilter = "window" | "principal" | "owner";
 
 const ALL_ROLES: Role[] = ["super_admin", "admin", "mgmt", "sales"];
 
@@ -63,8 +71,8 @@ export const FEATURES: Feature[] = [
     paletteDesc: "Executive metrics & performance",
     icon: LayoutDashboard,
     roles: ALL_ROLES,
-  // No principal: DashboardQuerySchema takes period + ownerId only.
-    globalFilters: ["month", "owner"],
+    // No principal: DashboardQuerySchema takes the window + ownerId only.
+    globalFilters: ["window", "owner"],
   },
   {
     key: "projections",
@@ -74,7 +82,8 @@ export const FEATURES: Feature[] = [
     paletteDesc: "Recurring sales worksheet & commitments",
     icon: Repeat,
     roles: ALL_ROLES,
-    globalFilters: ["month", "principal", "owner"],
+    // No window: this page picks its own month, on the page.
+    globalFilters: ["principal", "owner"],
   },
   {
     key: "leads",

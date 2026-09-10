@@ -60,25 +60,47 @@ export class ProjectionsService {
     query: ProjectionListQuery,
     today: string = new Date().toISOString().slice(0, 10),
   ): Promise<ProjectionListResponse> {
-    const db = this.prisma.forTenant(user.tenantId);
-    const ownerId = await this.resolveOwnerScope(db, user, query.ownerId);
+    return this.forPeriods(user, [query.period], query, today);
+  }
 
-    const rows = await db.projection.findMany({
-      where: {
-        period: query.period,
-        deletedAt: null,
-        ...(ownerId ? { mapping: { salespersonId: ownerId } } : {}),
-      },
-      include: PROJECTION_INCLUDE,
-    });
+  /**
+   * The same worksheet, over SEVERAL months.
+   *
+   * The dashboard's window can be a year, and a projection is keyed by month —
+   * so twelve months of recurring commitment is twelve periods of rows summed
+   * once, not twelve calls to `list` whose summaries are then added up
+   * somewhere else. `summarize` stays the only place that arithmetic lives,
+   * which is the rule this whole service was written around.
+   *
+   * `list` is a caller of this with one period, rather than a copy of it.
+   */
+  async forPeriods(
+    user: RequestUser,
+    periods: string[],
+    filters: Omit<ProjectionListQuery, 'period'>,
+    today: string = new Date().toISOString().slice(0, 10),
+  ): Promise<ProjectionListResponse> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const ownerId = await this.resolveOwnerScope(db, user, filters.ownerId);
+
+    const rows = periods.length
+      ? await db.projection.findMany({
+          where: {
+            period: { in: periods },
+            deletedAt: null,
+            ...(ownerId ? { mapping: { salespersonId: ownerId } } : {}),
+          },
+          include: PROJECTION_INCLUDE,
+        })
+      : [];
 
     const lines = sortLines(
       applyFilters(
         rows.map((r) => toLine(toEngineLine(r))),
         {
-          principalId: query.principalId,
-          search: query.search,
-          lineFilter: query.lineFilter,
+          principalId: filters.principalId,
+          search: filters.search,
+          lineFilter: filters.lineFilter,
           today,
         },
       ),

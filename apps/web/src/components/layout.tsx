@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { roleLabel } from "@/data/constants";
-import { MonthSelect } from "@/components/MonthSelect";
+import { PeriodPicker } from "@/components/PeriodPicker";
 import { featureByKey, featureLabel, featuresFor, featurePath } from "@/data/features";
 import { loginPathFor, useRolePath } from "@/lib/rolePath";
 import type { GlobalFilter } from "@/data/features";
@@ -191,10 +191,11 @@ export function Topbar({
 }) {
   const rolePath = useRolePath();
   const {
-    month,
     principalId,
     ownerFilter,
-    setMonth,
+    granularity,
+    anchor,
+    setPeriod,
     setPrincipal,
     setOwnerFilter,
     toggleSidebar,
@@ -487,13 +488,12 @@ export function Topbar({
           )}
         </div>
 
-        {/* Month selector */}
-        {shows("month") && (
-          <MonthSelect
-            value={month}
-            onChange={setMonth}
-            ariaLabel="Filter by month"
-            className="w-[135px] h-8 text-xs font-bold"
+        {/* Reporting window: today, this week, this month, this year. */}
+        {shows("window") && (
+          <PeriodPicker
+            granularity={granularity}
+            anchor={anchor}
+            onChange={setPeriod}
           />
         )}
 

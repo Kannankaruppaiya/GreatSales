@@ -120,13 +120,22 @@ describe('TargetsService (integration)', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('sums the month for the dashboard, and says null when there is none', async () => {
-    const august = await targets.totalFor(admin(ACME, 'acme'), PERIOD);
+  it('sums the months a window covers, and says null when there is none', async () => {
+    const august = await targets.totalFor(admin(ACME, 'acme'), [PERIOD]);
     expect(august.total).toBe(500000);
     expect(august.byPerson.get('user_sales1_acme')).toBe(500000);
 
-    // Null, not zero. An unset month must not render as a met one.
-    const quiet = await targets.totalFor(admin(ACME, 'acme'), '2026-01');
+    // A year-long window covers twelve months; a person with a target in only
+    // one of them contributes only that one.
+    const wholeYear = await targets.totalFor(
+      admin(ACME, 'acme'),
+      Array.from({ length: 12 }, (_, i) => `2026-${String(i + 1).padStart(2, '0')}`),
+    );
+    expect(wholeYear.total).toBe(500000);
+
+    // Null, not zero. An unset window must not render as a met one.
+    const quiet = await targets.totalFor(admin(ACME, 'acme'), ['2026-01']);
     expect(quiet.total).toBeNull();
+    expect((await targets.totalFor(admin(ACME, 'acme'), [])).total).toBeNull();
   });
 });

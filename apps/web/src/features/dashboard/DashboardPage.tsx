@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { projTone } from "@/data/constants";
 import { periodLabel } from "@/data/months";
-import { useUi } from "@/store/ui";
+import { usePeriodRange, useUi } from "@/store/ui";
 import { useAuth, useAuthRole, useHasPermission } from "@/store/auth";
 import { inr, lakhs } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -46,7 +46,8 @@ function KpiSkeleton() {
 }
 
 export default function DashboardPage() {
-  const { month, ownerFilter } = useUi();
+  const { ownerFilter } = useUi();
+  const range = usePeriodRange();
   const role = useAuthRole();
   const accessToken = useAuth((s) => s.accessToken);
   const enabled = !!accessToken;
@@ -64,11 +65,26 @@ export default function DashboardPage() {
   // Presentation only — the API enforces the same key on PUT /targets.
   const canManageTargets = useHasPermission("target.manage");
 
-  const monthLabel = periodLabel(month);
+  const windowLabel = range.label;
+  /**
+   * What the RECURRING half covers.
+   *
+   * A commitment is a month, so a day or a week resolves to the month
+   * containing it — and the cards that show recurring figures say that month
+   * rather than the window, because "₹0 recurring this Tuesday" would be a
+   * sentence about nothing.
+   */
+  // A day or a week is SHORTER than the month the recurring figures cover, so
+  // those two cards get the month spelled out. A month or a year window
+  // already matches, and repeating it would be noise.
+  const isSubMonth = range.granularity === "day" || range.granularity === "week";
+  const recurringLabel = range.months
+    .map(periodLabel)
+    .join(range.months.length > 2 ? " … " : " and ");
   const isSalesRole = role === "sales";
 
   // ONE request for the whole page scoped by period and topbar salesperson filter.
-  const dashQuery = useDashboard(month, { ownerId, enabled });
+  const dashQuery = useDashboard(range, { ownerId, enabled });
   const updateProjection = useUpdateProjection();
 
   const kpis = dashQuery.data?.kpis;
@@ -116,7 +132,7 @@ export default function DashboardPage() {
               <TrendingUp className="h-3.5 w-3.5" />
             </span>
             <span className="text-xs font-extrabold uppercase tracking-wider text-brand-ink">
-              Commercial Sales Pulse · {monthLabel}
+              Commercial Sales Pulse · {windowLabel}
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-ink tracking-tight font-sans">
@@ -163,13 +179,21 @@ export default function DashboardPage() {
           {/* 6 Top KPI Cards with Visual Depth */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <div className="rounded-xl border border-line bg-surface p-3.5 shadow-xs hover:border-muted transition-colors">
-              <div className="text-[10.5px] font-bold uppercase tracking-wider text-muted">Recurring committed</div>
+              {/* Named with its MONTHS, not the window: a recurring
+                  commitment is a month, so a day or a week shows that month's
+                  figure and has to say so. "₹0 recurring this Tuesday" would
+                  be a sentence about nothing. */}
+              <div className="text-3xs font-bold uppercase tracking-wider text-muted">
+                Recurring committed{isSubMonth && ` · ${recurringLabel}`}
+              </div>
               <div className="text-xl font-black text-ink mt-1 tabular-nums">{lakhs(recurringCommitted)}</div>
               <div className="text-xs text-muted mt-0.5">Achieved: {lakhs(recurringAchieved)}</div>
             </div>
 
             <div className="rounded-xl border border-brand/40 bg-brand-soft/70 p-3.5 shadow-xs">
-              <div className="text-[10.5px] font-bold uppercase tracking-wider text-brand-ink">Recurring achieved</div>
+              <div className="text-3xs font-bold uppercase tracking-wider text-brand-ink">
+                Recurring achieved{isSubMonth && ` · ${recurringLabel}`}
+              </div>
               <div className="text-xl font-black text-brand-ink mt-1 tabular-nums">{lakhs(recurringAchieved)}</div>
               <div className="text-xs text-brand-ink/80 mt-0.5 font-semibold">
                 {recPct != null ? `${recPct.toFixed(1)}% achieved` : "—"}
@@ -384,7 +408,7 @@ export default function DashboardPage() {
               <Card className="p-4 shadow-xs border-line">
                 <div className="flex items-center justify-between mb-3">
                   <div className="font-bold text-sm text-ink">
-                    Committed vs achieved by salesperson — {monthLabel}
+                    Committed vs achieved by salesperson — {windowLabel}
                   </div>
                   <CompareLegend />
                 </div>
@@ -582,7 +606,7 @@ export default function DashboardPage() {
         <SetTargetsModal
           open
           onClose={() => setShowTargets(false)}
-          period={month}
+          period={range.months[0]}
         />
       )}
     </div>

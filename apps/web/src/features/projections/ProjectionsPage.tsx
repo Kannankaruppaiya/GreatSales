@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { periodLabel } from "@/data/months";
 import { MonthSelect } from "@/components/MonthSelect";
-import { useUi } from "@/store/ui";
+import { useMonth, useUi } from "@/store/ui";
 import { usePeriodLock } from "@/features/data/periodQueries";
 import { useAuth, useAuthRole } from "@/store/auth";
 import {
@@ -28,7 +28,9 @@ export default function ProjectionsPage() {
   // page used to seed local state from the store at mount, so the topbar month
   // selector silently stopped applying once the worksheet was open, and the two
   // month controls on screen could disagree.
-  const period = useUi((s) => s.month);
+  // The window's month. A worksheet IS a month, so a week window opens the
+  // month containing it — one selection in the store, read two ways.
+  const period = useMonth();
   const setPeriod = useUi((s) => s.setMonth);
   const ownerFilter = useUi((s) => s.ownerFilter);
   const accessToken = useAuth((s) => s.accessToken);

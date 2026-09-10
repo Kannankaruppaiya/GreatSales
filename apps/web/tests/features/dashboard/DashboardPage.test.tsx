@@ -59,7 +59,9 @@ const EMPTY_KPIS: DashboardResponse["kpis"] = {
 /** A complete aggregate response — the page renders it verbatim. */
 function makeDashboard(overrides: Partial<DashboardResponse>): DashboardResponse {
   return {
-    period: "2026-08",
+    from: "2026-08-01",
+    to: "2026-08-31",
+    months: ["2026-08"],
     kpis: EMPTY_KPIS,
     bySalesperson: [],
     byPrincipal: [],
@@ -106,7 +108,14 @@ describe("DashboardPage", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     setRole("mgmt");
-    useUi.setState({ month: "2026-08", principalId: "ALL", ownerFilter: "ALL" });
+        // A month window: granularity plus an anchor day inside it, which is what
+    // the store holds now.
+    useUi.setState({
+      granularity: "month",
+      anchor: "2026-08-15",
+      principalId: "ALL",
+      ownerFilter: "ALL",
+    });
   });
 
   it("renders KPI totals straight from the aggregate, without recomputing them", async () => {
@@ -160,8 +169,13 @@ describe("DashboardPage", () => {
     expect(paths.filter((p) => p.startsWith("/projections"))).toEqual([]);
   });
 
-  it("passes the period through so switching month refetches", async () => {
-    useUi.setState({ month: "2026-09", principalId: "ALL", ownerFilter: "ALL" });
+  it("passes the window through so changing it refetches", async () => {
+    useUi.setState({
+      granularity: "month",
+      anchor: "2026-09-15",
+      principalId: "ALL",
+      ownerFilter: "ALL",
+    });
     const spy = vi.spyOn(api, "apiFetch").mockImplementation((path: unknown) => {
       const p = String(path);
       if (p.startsWith("/dashboard")) return Promise.resolve(makeDashboard({}));
@@ -181,7 +195,10 @@ describe("DashboardPage", () => {
         .map((c) => String(c[0]))
         .filter((p) => p.startsWith("/dashboard"));
       expect(dash).toHaveLength(1);
-      expect(dash[0]).toContain("period=2026-09");
+      // The resolved range, not the granularity: the server is told which days
+      // to summarise, not which button was pressed.
+      expect(dash[0]).toContain("from=2026-09-01");
+      expect(dash[0]).toContain("to=2026-09-30");
     });
   });
 

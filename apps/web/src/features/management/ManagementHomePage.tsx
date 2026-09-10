@@ -11,7 +11,8 @@ import {
   Target,
   Users,
 } from "lucide-react";
-import { useUi } from "@/store/ui";
+import { useMonth, useUi } from "@/store/ui";
+import { resolveRange } from "@/data/periodRange";
 import { useAuth } from "@/store/auth";
 import { useManagements } from "@/features/management/queries";
 import { useDashboard } from "@/features/dashboard/queries";
@@ -50,14 +51,21 @@ export default function ManagementHomePage() {
   const navigate = useNavigate();
   const accessToken = useAuth((s) => s.accessToken);
   const activeManagementId = useUi((s) => s.activeManagementId);
-  const month = useUi((s) => s.month);
+  // The window's month. A worksheet IS a month, so a week window opens the
+  // month containing it — one selection in the store, read two ways.
+  const month = useMonth();
   const setMonth = useUi((s) => s.setMonth);
 
   const [searchQuery, setSearchQuery] = useState("");
 
   const managementsQ = useManagements();
   const management = managementsQ.data?.[0] ?? null;
-  const dashQ = useDashboard(month, { enabled: !!accessToken });
+  // This page is a month at a time — it sits beside a month dropdown — so it
+  // resolves the month to its window rather than carrying a second kind of
+  // period selection of its own.
+  const dashQ = useDashboard(resolveRange("month", `${month}-01`), {
+    enabled: !!accessToken,
+  });
   const usersQ = useUsers();
 
   const kpis = dashQ.data?.kpis;

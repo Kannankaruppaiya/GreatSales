@@ -82,7 +82,8 @@ describe("ProjectionsPage salesperson column", () => {
     vi.restoreAllMocks();
     useUi.setState({
       activeManagementId: DEFAULT_MANAGEMENT_ID,
-      month: "2026-06",
+      granularity: "month",
+      anchor: "2026-06-01",
       principalId: "ALL",
     });
     vi.spyOn(api, "apiFetch").mockResolvedValue(RESPONSE);

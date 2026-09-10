@@ -64,7 +64,11 @@ export interface DashboardCategorySlice {
 }
 
 export interface DashboardResponse {
-  period: string;
+  /** The window answered for, echoed back. Inclusive `YYYY-MM-DD`. */
+  from: string;
+  to: string;
+  /** The months the window touched — what the RECURRING figures cover. */
+  months: string[];
   kpis: DashboardKpis;
   bySalesperson: DashboardBreakdown[];
   byPrincipal: DashboardBreakdown[];

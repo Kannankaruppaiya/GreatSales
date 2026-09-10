@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PeriodSchema } from "./period";
+import { IsoDateSchema } from "./period-range";
 import type { LeadRow } from "./lead";
 import type { ProjectionLine } from "./projection";
 
@@ -26,12 +26,31 @@ import type { ProjectionLine } from "./projection";
  * from growing back into the thing it replaced.
  */
 
-export const DashboardQuerySchema = z.object({
-  /** `YYYY-MM`. The recurring half is per-period; the new-sales half is not. */
-  period: PeriodSchema,
-  /** Admin/management may scope to one salesperson; sales is forced to self. */
-  ownerId: z.string().optional(),
-});
+/**
+ * The window this page answers for.
+ *
+ * A pair of dates rather than a `YYYY-MM`, because the page now offers a day, a
+ * week, a month and a year. The client resolves its granularity to a range with
+ * `resolveRange` in period-range.ts and sends the range; the server does not
+ * need to know which button was pressed, only which days it is summarising.
+ *
+ * The recurring half is still per-MONTH underneath, since a commitment is a
+ * month — see `PeriodRange.months` for why a week resolves to its month rather
+ * than to a slice of one.
+ */
+export const DashboardQuerySchema = z
+  .object({
+    /** Inclusive `YYYY-MM-DD`. */
+    from: IsoDateSchema,
+    /** Inclusive `YYYY-MM-DD`. */
+    to: IsoDateSchema,
+    /** Admin/management may scope to one salesperson; sales is forced to self. */
+    ownerId: z.string().optional(),
+  })
+  .refine((q) => q.from <= q.to, {
+    message: "`from` must not be after `to`",
+    path: ["from"],
+  });
 export type DashboardQuery = z.infer<typeof DashboardQuerySchema>;
 
 export interface DashboardKpis {
@@ -87,7 +106,16 @@ export interface DashboardCategorySlice {
 }
 
 export interface DashboardResponse {
-  period: string;
+  /** The window answered for, echoed back. Inclusive `YYYY-MM-DD`. */
+  from: string;
+  to: string;
+  /**
+   * The months the window touched, which is what the RECURRING figures cover.
+   * A day or a week resolves to the one month containing it, so the page can
+   * say "recurring, Sep 2026" rather than implying a week's worth of a monthly
+   * commitment.
+   */
+  months: string[];
   kpis: DashboardKpis;
   /** Recurring + new sales, per salesperson. Empty for a sales user's own view. */
   bySalesperson: DashboardBreakdown[];
