@@ -6,6 +6,7 @@ import { ProjectionsService } from '../projections/projections.service';
 import { TargetsService } from '../targets/targets.service';
 import { LeadsService } from '../leads/leads.service';
 import { DashboardService } from './dashboard.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 /**
  * F11 — the dashboard aggregate.
@@ -40,8 +41,11 @@ describe('DashboardService', () => {
     reseedTestDatabase();
     prisma = new PrismaService(process.env.DATABASE_URL as string);
     await prisma.onModuleInit();
+    // Real, not a stub: notify() writes a row and swallows its own failures,
+    // so a service under test behaves exactly as it does in the app.
+    const notifications = new NotificationsService(prisma);
     projections = new ProjectionsService(prisma);
-    leads = new LeadsService(prisma);
+    leads = new LeadsService(prisma, notifications);
     targets = new TargetsService(prisma);
     service = new DashboardService(projections, leads, targets);
   }, 120_000);

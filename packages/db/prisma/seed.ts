@@ -57,10 +57,13 @@ async function seedPlatform() {
     },
   });
 
+  // The flags the APPLICATION reads (packages/shared FEATURE_KEYS). A flag row
+  // nothing gates on is not a feature toggle, it is a row — the previous pair
+  // ("new-dashboard", an unbuilt page) were exactly that.
   await prisma.featureFlag.createMany({
     data: [
-      { id: "ff_new_dash", key: "new-dashboard", description: "Revamped analytics dashboard", enabledGlobal: false, rolloutPercent: 25 },
-      { id: "ff_bulk_import", key: "bulk-import", description: "Excel bulk import UI", enabledGlobal: true },
+      { id: "ff_customer_location", key: "customer-location", description: "Pin and share a customer's GPS location", enabledGlobal: true },
+      { id: "ff_bulk_import", key: "bulk-import", description: "Load customers from a spreadsheet", enabledGlobal: false, rolloutPercent: 50 },
     ],
   });
 
@@ -87,10 +90,14 @@ async function seedTenant(k: string, name: string, region: string, accountManage
     data: { id: t, name, plan: "free", status: "Active", region, accountManagerId },
   });
 
-  // Per-tenant feature-flag override (turn new-dashboard ON for this tenant).
-  await prisma.tenantFeatureFlag.create({
-    data: { tenantId: t, featureFlagId: "ff_new_dash", enabled: true },
-  });
+  // Per-tenant override. Globex opts OUT of location tracking while Acme keeps
+  // the global default, so the fixtures carry both sides of the rule and a test
+  // can prove an override beats the global flag rather than assuming it.
+  if (k === "globex") {
+    await prisma.tenantFeatureFlag.create({
+      data: { tenantId: t, featureFlagId: "ff_customer_location", enabled: false },
+    });
+  }
 
   // Roles
   for (const r of ["admin", "mgmt", "sales"] as const) {

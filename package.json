@@ -23,6 +23,7 @@
     "test:e2e": "playwright test",
     "test:e2e:qa": "playwright test tests/e2e/qa",
     "test:e2e:ui": "playwright test --ui",
+    "db:deploy:test": "node scripts/migrate-test-db.mjs",
     "db:backup": "pnpm --filter @greatsales/db db:backup",
     "db:clear-data": "pnpm --filter @greatsales/db db:clear-data",
     "db:restore": "pnpm --filter @greatsales/db db:restore",

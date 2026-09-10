@@ -35,6 +35,12 @@ import { useFollowUps, flattenFollowUps } from "@/features/followups/queries";
 import { usePayments, flattenPayments } from "@/features/payments/queries";
 import { usePrincipals } from "@/features/products/queries";
 import { useUsers, flattenUsers } from "@/features/users/queries";
+import {
+  useMarkAllNotificationsRead,
+  useMarkNotificationRead,
+  useNotifications,
+  type NotificationRow,
+} from "@/features/notifications/queries";
 
 export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => void }) {
   const rolePath = useRolePath();
@@ -236,7 +242,52 @@ export function Topbar({
     (f) => f.dueDate && f.dueDate < todayStr,
   );
   const redZonePayments = payments.filter((p) => p.payZone === "RedZone");
-  const totalAlerts = overdueFollowUps.length + redZonePayments.length;
+
+  /**
+   * The bell holds two different kinds of thing, and they are not
+   * interchangeable.
+   *
+   * ALERTS are state — what is overdue, who is in the red zone. They are
+   * derived here from data the app already has, and they must stay derived: a
+   * stored row saying "this is overdue" is a copy that goes stale the moment
+   * somebody completes the follow-up.
+   *
+   * NOTIFICATIONS are events — a lead handed to you, an order you own moving
+   * on. Nothing on any screen tells you those happened, because by the time you
+   * look the screen shows only the result. Those come from the server, and only
+   * those carry a read state, because only an event can be "seen".
+   */
+  const notifications = useNotifications();
+  const events = notifications.data?.items ?? [];
+  const unreadEvents = notifications.data?.unread ?? 0;
+  const markRead = useMarkNotificationRead();
+  const markAllRead = useMarkAllNotificationsRead();
+
+  const totalAlerts =
+    overdueFollowUps.length + redZonePayments.length + unreadEvents;
+
+  /** Which page can action this notification. */
+  const featureForEvent = (n: NotificationRow): string => {
+    switch (n.entityType) {
+      case "Customer":
+        return "customers";
+      case "Lead":
+        return "leads";
+      case "Order":
+        return "orders";
+      case "Payment":
+        return "payments";
+      default:
+        return "dashboard";
+    }
+  };
+
+  const openEvent = (n: NotificationRow) => {
+    // Marked read on the way out rather than on render: opening the bell is
+    // not the same as having dealt with what is in it.
+    if (!n.read) markRead.mutate(n.id);
+    openAlert(featureForEvent(n));
+  };
 
   return (
     <header className="sticky top-0 z-20 flex flex-wrap items-center gap-2.5 border-b border-line bg-surface/90 px-4 py-2.5 backdrop-blur-md sm:px-6">
@@ -359,12 +410,48 @@ export function Topbar({
               <div className="absolute right-0 mt-1 z-30 w-72 rounded-xl border border-line bg-surface p-3 shadow-xl text-xs space-y-2.5 animate-in fade-in">
                 <div className="flex items-center justify-between font-bold text-ink border-b border-line pb-1.5">
                   <span>Urgent Alerts & Action Items</span>
-                  <span className="text-[10px] font-bold text-muted">{totalAlerts} items</span>
+                  {unreadEvents > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => markAllRead.mutate()}
+                      disabled={markAllRead.isPending}
+                      className="text-3xs font-bold uppercase tracking-wider text-brand hover:underline cursor-pointer disabled:opacity-50"
+                    >
+                      Mark all read
+                    </button>
+                  ) : (
+                    <span className="text-3xs font-bold text-muted">{totalAlerts} items</span>
+                  )}
                 </div>
 
                 <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
                   {/* Each alert navigates to the surface that can action it —
                       an alert you cannot click is a label, not a notification. */}
+
+                  {/* Events first: somebody else caused these, and unlike the
+                      derived alerts below they will not resurface tomorrow. */}
+                  {events.slice(0, 5).map((n) => (
+                    <button
+                      key={n.id}
+                      type="button"
+                      onClick={() => openEvent(n)}
+                      className={cn(
+                        "w-full text-left p-2 rounded-lg border text-2xs space-y-0.5 cursor-pointer",
+                        n.read
+                          ? "bg-surface border-line text-muted hover:border-muted"
+                          : "bg-brand-soft border-brand/20 text-brand-ink hover:border-brand/50",
+                      )}
+                    >
+                      <div className="font-bold flex items-center gap-1.5">
+                        {!n.read && (
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
+                        )}
+                        <span className="truncate">{n.title}</span>
+                      </div>
+                      {n.body && <div className="text-3xs truncate opacity-80">{n.body}</div>}
+                    </button>
+                  ))}
+
                   {overdueFollowUps.slice(0, 4).map((f) => (
                     <button
                       key={f.id}
@@ -389,7 +476,7 @@ export function Topbar({
                     </button>
                   ))}
 
-                  {totalAlerts === 0 && (
+                  {totalAlerts === 0 && events.length === 0 && (
                     <div className="py-6 text-center text-muted text-xs">
                       All caught up! No overdue alerts.
                     </div>

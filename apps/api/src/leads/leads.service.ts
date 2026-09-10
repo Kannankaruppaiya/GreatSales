@@ -13,6 +13,7 @@ import type {
   RequestUser,
 } from '@greatsales/shared';
 import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 /**
  * Prisma include graph for a {@link LeadRow}. NOTE: `Lead.industryId` is a loose
@@ -77,7 +78,10 @@ function toRow(l: LeadWithGraph, industryName: string | null): LeadRow {
 
 @Injectable()
 export class LeadsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /** Tenant-scoped (RLS) lead list, cursor-paginated, role-scoped for sales. */
   async list(
@@ -230,6 +234,19 @@ export class LeadsService {
       },
       include: LEAD_INCLUDE,
     });
+    // Being handed a lead is not visible anywhere else: by the time the owner
+    // opens the list it simply contains a row that was not there before.
+    await this.notifications.notify({
+      tenantId: user.tenantId,
+      userId: salespersonId,
+      actorId: user.userId,
+      type: 'LeadAssigned',
+      title: `New lead: ${created.customerName}`,
+      body: 'Assigned to you.',
+      entityType: 'Lead',
+      entityId: created.id,
+    });
+
     return toRow(created, await this.oneIndustryName(db, created.industryId));
   }
 
@@ -250,6 +267,12 @@ export class LeadsService {
   ): Promise<LeadRow> {
     const db = this.prisma.forTenant(user.tenantId);
     await this.assertOwned(db, user, id);
+
+    // Read before the write: "who owned this a moment ago" is the only way to
+    // tell a reassignment from a patch that happens to name the same person.
+    const previousOwnerId = (
+      await db.lead.findFirst({ where: { id }, select: { salespersonId: true } })
+    )?.salespersonId;
 
     const data: Prisma.LeadUpdateInput = {};
     if (patch.customerName !== undefined)
@@ -288,6 +311,22 @@ export class LeadsService {
       data,
       include: LEAD_INCLUDE,
     });
+
+    if (
+      patch.salespersonId !== undefined &&
+      patch.salespersonId !== previousOwnerId
+    ) {
+      await this.notifications.notify({
+        tenantId: user.tenantId,
+        userId: patch.salespersonId,
+        actorId: user.userId,
+        type: 'LeadAssigned',
+        title: `Lead moved to you: ${updated.customerName}`,
+        entityType: 'Lead',
+        entityId: updated.id,
+      });
+    }
+
     return toRow(updated, await this.oneIndustryName(db, updated.industryId));
   }
 

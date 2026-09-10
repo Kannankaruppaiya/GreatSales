@@ -4,6 +4,8 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { RequestUser } from '@greatsales/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CustomersService } from './customers.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
 
 /**
  * Integration test against the real Dockerized Postgres via the RLS-bound app
@@ -29,7 +31,11 @@ describe('CustomersService (integration)', () => {
     reseedTestDatabase();
     prisma = new PrismaService(process.env.DATABASE_URL as string);
     await prisma.onModuleInit();
-    service = new CustomersService(prisma);
+    // Real, not a stub: notify() writes a row and swallows its own failures,
+    // so a service under test behaves exactly as it does in the app.
+    const notifications = new NotificationsService(prisma);
+    const features = new FeatureFlagsService(prisma);
+    service = new CustomersService(prisma, notifications, features);
   }, 120_000);
 
   afterAll(async () => {

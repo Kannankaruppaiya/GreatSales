@@ -13,9 +13,16 @@ import type {
   RequestUser,
 } from '@greatsales/shared';
 import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { agingDays, deriveStatus, pending } from './payment-engine';
 
 /** Prisma include graph that carries everything a {@link PaymentRow} needs. */
+/**
+ * The four reminder letters, in order. Marking one sent is the only event on a
+ * payment that somebody other than its owner routinely causes.
+ */
+const REMINDER_STAGES = ['mail1', 'mail2', 'mail3', 'mail4'] as const;
+
 const PAYMENT_INCLUDE = {
   customer: true,
   salesperson: true,
@@ -73,7 +80,10 @@ function toRow(p: PaymentWithGraph, today: string): PaymentRow {
 
 @Injectable()
 export class PaymentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /** Tenant-scoped (RLS) payment list, cursor-paginated, role-scoped for sales. */
   async list(
@@ -227,6 +237,27 @@ export class PaymentsService {
       data,
       include: PAYMENT_INCLUDE,
     });
+
+    // Which reminder stage was just marked sent, if any. The collector is the
+    // one chasing this invoice, so they are the one who needs to know that
+    // somebody else already sent the letter.
+    const sentStage = REMINDER_STAGES.find(
+      (stage) => patch[stage] === true && existing[stage] === false,
+    );
+    // A manual payment need not have an owner; then there is nobody to tell.
+    if (sentStage && updated.salespersonId) {
+      await this.notifications.notify({
+        tenantId: user.tenantId,
+        userId: updated.salespersonId,
+        actorId: user.userId,
+        type: 'PaymentReminder',
+        title: `${sentStage.toUpperCase()} sent for ${updated.invoiceNo ?? 'an invoice'}`,
+        body: updated.customer?.name ?? updated.customerName,
+        entityType: 'Payment',
+        entityId: updated.id,
+      });
+    }
+
     return toRow(updated, today);
   }
 
@@ -246,6 +277,10 @@ export class PaymentsService {
     amount: Prisma.Decimal;
     received: Prisma.Decimal;
     dueDate: Date | null;
+    mail1: boolean;
+    mail2: boolean;
+    mail3: boolean;
+    mail4: boolean;
   }> {
     const existing = await db.payment.findFirst({
       where: { id, deletedAt: null },
@@ -254,6 +289,13 @@ export class PaymentsService {
         amount: true,
         received: true,
         dueDate: true,
+        // The four reminder flags come along so `update` can tell a letter
+        // that was just marked sent from one that was already sent — a patch
+        // repeating `mail2: true` is not an event.
+        mail1: true,
+        mail2: true,
+        mail3: true,
+        mail4: true,
       },
     });
     if (!existing) throw new NotFoundException('Payment not found');

@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { LeadsController } from './leads.controller';
 import { LeadsService } from './leads.service';
 import { PermissionsGuard } from '../common/permissions.guard';
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [LeadsController],
   providers: [LeadsService, PermissionsGuard],
   // Exported for DashboardModule: the aggregate COMPOSES this service

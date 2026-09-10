@@ -814,12 +814,20 @@ model Notification {
   body     String?
   read     Boolean          @default(false)
   at       DateTime         @default(now())
+  // What this is about, so the bell can navigate to it. Nullable because a
+  // System notice is about the workspace rather than any one row — but for
+  // every other type these are set, since an alert you cannot click is a
+  // label, not a notification.
+  entityType EntityType?
+  entityId   String?
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   user   User   @relation(fields: [userId], references: [id])
 
   @@index([tenantId])
   @@index([userId, read])
+  // The bell's own query: this user's inbox, newest first.
+  @@index([userId, at])
 }
 
 model Attachment {

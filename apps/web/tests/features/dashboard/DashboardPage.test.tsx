@@ -165,13 +165,24 @@ describe("DashboardPage", () => {
     const spy = vi.spyOn(api, "apiFetch").mockImplementation((path: unknown) => {
       const p = String(path);
       if (p.startsWith("/dashboard")) return Promise.resolve(makeDashboard({}));
+      // The page also asks which features this workspace has, for the modals
+      // it mounts. That is not the request under test.
+      if (p.startsWith("/feature-flags")) return Promise.resolve({});
       return Promise.reject(new Error(`unexpected path ${p}`));
     });
 
     renderPage();
-    await waitFor(() => expect(spy).toHaveBeenCalled());
 
-    expect(String(spy.mock.calls[0][0])).toContain("period=2026-09");
+    // Found among the calls rather than assumed to be the first one: the page
+    // legitimately makes more than one request, and pinning this to call 0 made
+    // it fail the next time an unrelated query was added to the tree.
+    await waitFor(() => {
+      const dash = spy.mock.calls
+        .map((c) => String(c[0]))
+        .filter((p) => p.startsWith("/dashboard"));
+      expect(dash).toHaveLength(1);
+      expect(dash[0]).toContain("period=2026-09");
+    });
   });
 
   it("renders the oral-confirmation deals the server selected, not its own filter", async () => {

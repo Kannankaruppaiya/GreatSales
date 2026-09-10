@@ -5,6 +5,8 @@ import type { RequestUser } from '@greatsales/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { RemarksService } from './remarks.service';
 import { CustomersService } from '../customers/customers.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
 
 /**
  * Remarks carry no permission key of their own — they inherit the parent
@@ -37,8 +39,12 @@ describe('RemarksService (integration)', () => {
     reseedTestDatabase();
     prisma = new PrismaService(process.env.DATABASE_URL as string);
     await prisma.onModuleInit();
+    // Real, not a stub: notify() writes a row and swallows its own failures,
+    // so a service under test behaves exactly as it does in the app.
+    const notifications = new NotificationsService(prisma);
+    const features = new FeatureFlagsService(prisma);
     service = new RemarksService(prisma);
-    customers = new CustomersService(prisma);
+    customers = new CustomersService(prisma, notifications, features);
   }, 120_000);
 
   afterAll(async () => {

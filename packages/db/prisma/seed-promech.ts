@@ -584,6 +584,16 @@ async function main() {
     }
   }
 
+  // ---- feature flags -----------------------------------------------------
+  // Seeded because a MISSING flag resolves to off: without these rows the
+  // Promech workspace would silently lose location pinning, which it has.
+  await prisma.featureFlag.createMany({
+    data: [
+      { id: "ff_customer_location", key: "customer-location", description: "Pin and share a customer's GPS location", enabledGlobal: true },
+      { id: "ff_bulk_import", key: "bulk-import", description: "Load customers from a spreadsheet", enabledGlobal: true },
+    ],
+  });
+
   // ---- sales orders ------------------------------------------------------
   for (const o of PM.salesOrders) {
     const status = ORDER_STATUS[o.status];

@@ -188,11 +188,10 @@ async function main() {
   await prisma.featureFlag.createMany({
     data: [
       {
-        id: "ff_new_dash",
-        key: "new-dashboard",
-        description: "Revamped analytics dashboard",
-        enabledGlobal: false,
-        rolloutPercent: 25,
+        id: "ff_customer_location",
+        key: "customer-location",
+        description: "Pin and share a customer's GPS location",
+        enabledGlobal: true,
       },
       { id: "ff_bulk_import", key: "bulk-import", description: "Excel bulk import UI", enabledGlobal: true },
     ],

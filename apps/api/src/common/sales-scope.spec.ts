@@ -8,6 +8,8 @@ import { OrdersService } from '../orders/orders.service';
 import { PaymentsService } from '../payments/payments.service';
 import { FollowUpsService } from '../followups/followups.service';
 import { ProjectionsService } from '../projections/projections.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
 
 /**
  * Cross-module guarantee: a salesperson's scope is derived from their own
@@ -39,10 +41,14 @@ describe('sales ownership scope (cross-module)', () => {
     reseedTestDatabase();
     prisma = new PrismaService(process.env.DATABASE_URL as string);
     await prisma.onModuleInit();
-    customers = new CustomersService(prisma);
-    leads = new LeadsService(prisma);
-    orders = new OrdersService(prisma);
-    payments = new PaymentsService(prisma);
+    // Real, not a stub: notify() writes a row and swallows its own failures,
+    // so a service under test behaves exactly as it does in the app.
+    const notifications = new NotificationsService(prisma);
+    const features = new FeatureFlagsService(prisma);
+    customers = new CustomersService(prisma, notifications, features);
+    leads = new LeadsService(prisma, notifications);
+    orders = new OrdersService(prisma, notifications);
+    payments = new PaymentsService(prisma, notifications);
     followups = new FollowUpsService(prisma);
     projections = new ProjectionsService(prisma);
 

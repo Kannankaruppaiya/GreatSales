@@ -78,6 +78,7 @@ const CONTRACTS = [
   { path: 'period-locks', type: 'PeriodLockRow' },
   { path: 'managements', type: 'ManagementRow' },
   { path: 'targets?period=2026-06', type: 'SalesTargetRow' },
+  { path: 'notifications?limit=1', type: 'NotificationRow' },
 ];
 
 // ---------------------------------------------------------------------------

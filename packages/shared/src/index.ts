@@ -22,3 +22,5 @@ export * from "./period";
 export * from "./period-lock";
 export * from "./management";
 export * from "./target";
+export * from "./notification";
+export * from "./feature-flag";

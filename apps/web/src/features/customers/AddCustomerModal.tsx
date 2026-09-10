@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { LocationField, type Pin } from "./LocationField";
+import { useFeature } from "@/lib/featureFlags";
 import { Building2 } from "lucide-react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
 import { ConfirmActionModal } from "@/components/modals/ConfirmActionModal";
@@ -37,6 +38,7 @@ export function AddCustomerModal({
   collectors?: CustomerFkOption[];
   industries?: CustomerFkOption[];
 }) {
+  const canPinLocation = useFeature("customer-location");
   const create = useCreateCustomer();
   const role = useAuthRole();
   const authUser = useAuthUser();
@@ -569,19 +571,23 @@ export function AddCustomerModal({
                 />
               </div>
             </div>
-            <div className="sm:col-span-2">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <span className="text-xs font-semibold text-ink">Location</span>
-                <span className="text-[11px] text-muted font-normal">(Optional)</span>
+            {/* Hidden when the workspace has location tracking switched off.
+                Cosmetic only — the API refuses the coordinates either way. */}
+            {canPinLocation && (
+              <div className="sm:col-span-2">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="text-xs font-semibold text-ink">Location</span>
+                  <span className="text-[11px] text-muted font-normal">(Optional)</span>
+                </div>
+                <LocationField
+                  value={pin}
+                  accuracyM={pin?.locationAccuracyM}
+                  customerName={name.trim()}
+                  onChange={setPin}
+                  disabled={create.isPending}
+                />
               </div>
-              <LocationField
-                value={pin}
-                accuracyM={pin?.locationAccuracyM}
-                customerName={name.trim()}
-                onChange={setPin}
-                disabled={create.isPending}
-              />
-            </div>
+            )}
           </div>
 
           {create.isError && (

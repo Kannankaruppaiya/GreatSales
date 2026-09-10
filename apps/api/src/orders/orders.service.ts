@@ -13,9 +13,25 @@ import type {
   RequestUser,
 } from '@greatsales/shared';
 import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { computeTotal, lineTotal } from './order-engine';
 
 /** Prisma include graph that carries everything an {@link OrderRow} needs. */
+/**
+ * Status words for a notification, which is read as a sentence rather than
+ * scanned in a column. The enum's own spelling ("DeliveredFromWarehouse")
+ * belongs in a payload, not in a line somebody reads on their phone.
+ */
+const ORDER_STATUS_WORDS: Record<string, string> = {
+  Created: 'created',
+  Acknowledged: 'acknowledged',
+  DeliveryPartnerAssigned: 'with the delivery partner',
+  DeliveredFromWarehouse: 'out for delivery',
+  DeliveredToCustomer: 'delivered',
+  CustomerReceiptConfirmed: 'confirmed received',
+  Cancelled: 'cancelled',
+};
+
 const ORDER_INCLUDE = {
   customer: true,
   salesperson: true,
@@ -89,7 +105,10 @@ function toRow(o: OrderWithGraph): OrderRow {
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /** Tenant-scoped (RLS) order list, cursor-paginated, role-scoped for sales. */
   async list(
@@ -248,6 +267,23 @@ export class OrdersService {
       data,
       include: ORDER_INCLUDE,
     });
+
+    if (statusChanged) {
+      // The owner is told, not the person who moved it: warehouse and office
+      // staff advance other people's orders, and the salesperson is the one
+      // who has to answer the customer for where it is.
+      await this.notifications.notify({
+        tenantId: user.tenantId,
+        userId: updated.salespersonId,
+        actorId: user.userId,
+        type: 'OrderUpdate',
+        title: `${updated.code} is now ${ORDER_STATUS_WORDS[updated.status] ?? updated.status}`,
+        body: patch.statusNote ?? null,
+        entityType: 'Order',
+        entityId: updated.id,
+      });
+    }
+
     return toRow(updated);
   }
 

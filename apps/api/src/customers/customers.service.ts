@@ -14,6 +14,8 @@ import type {
 } from '@greatsales/shared';
 import { mapsUrl } from '@greatsales/shared';
 import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
 
 /** Prisma include graph that carries everything a {@link CustomerRow} needs. */
 const CUSTOMER_INCLUDE = {
@@ -74,7 +76,11 @@ function toRow(c: CustomerWithGraph): CustomerRow {
 
 @Injectable()
 export class CustomersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+    private readonly features: FeatureFlagsService,
+  ) {}
 
   /**
    * Tenant-scoped (RLS) customer list, cursor-paginated. Salespeople see only
@@ -153,6 +159,10 @@ export class CustomersService {
       body.email !== undefined ||
       body.designation !== undefined;
 
+    if (body.latitude != null && body.longitude != null) {
+      await this.features.assertEnabled(user.tenantId, 'customer-location');
+    }
+
     const created = await db.customer.create({
       data: {
         tenant: { connect: { id: user.tenantId } },
@@ -178,6 +188,9 @@ export class CustomersService {
         // The pin is stamped, never trusted from the client: `pinnedAt` is
         // server time and `pinnedBy` is the caller, so a stale or forged
         // "who and when" cannot be posted alongside the coordinates.
+        // Gated above by `customer-location`, on the server — a workspace that
+        // has switched location tracking off must not be able to store one by
+        // posting the field directly.
         ...(body.latitude != null && body.longitude != null
           ? {
               latitude: body.latitude,
@@ -210,6 +223,17 @@ export class CustomersService {
       },
       include: CUSTOMER_INCLUDE,
     });
+    await this.notifications.notify({
+      tenantId: user.tenantId,
+      userId: salespersonId,
+      actorId: user.userId,
+      type: 'CustomerAssigned',
+      title: `New account: ${created.name}`,
+      body: 'Assigned to you.',
+      entityType: 'Customer',
+      entityId: created.id,
+    });
+
     return toRow(created);
   }
 
@@ -221,6 +245,15 @@ export class CustomersService {
   ): Promise<CustomerRow> {
     const db = this.prisma.forTenant(user.tenantId);
     await this.assertOwned(db, user, id);
+
+    // Read before the write, so a patch that names the same owner is not
+    // reported as a reassignment.
+    const previousOwnerId = (
+      await db.customer.findFirst({
+        where: { id },
+        select: { salespersonId: true },
+      })
+    )?.salespersonId;
 
     const data: Prisma.CustomerUpdateInput = {};
     if (patch.name !== undefined) data.name = patch.name;
@@ -251,6 +284,12 @@ export class CustomersService {
     // the stamp too, so a cleared pin leaves no misleading "pinned by X" behind.
     if ('latitude' in patch || 'longitude' in patch) {
       const pinned = patch.latitude != null && patch.longitude != null;
+      // Clearing a pin stays allowed with the feature off: a workspace that has
+      // just switched location tracking off must be able to remove what it
+      // already stored, which is most of the reason it switched it off.
+      if (pinned) {
+        await this.features.assertEnabled(user.tenantId, 'customer-location');
+      }
       data.latitude = pinned ? patch.latitude : null;
       data.longitude = pinned ? patch.longitude : null;
       data.locationAccuracyM = pinned ? (patch.locationAccuracyM ?? null) : null;
@@ -323,6 +362,22 @@ export class CustomersService {
       data,
       include: CUSTOMER_INCLUDE,
     });
+
+    if (
+      patch.salespersonId !== undefined &&
+      patch.salespersonId !== previousOwnerId
+    ) {
+      await this.notifications.notify({
+        tenantId: user.tenantId,
+        userId: patch.salespersonId,
+        actorId: user.userId,
+        type: 'CustomerAssigned',
+        title: `Account moved to you: ${updated.name}`,
+        entityType: 'Customer',
+        entityId: updated.id,
+      });
+    }
+
     return toRow(updated);
   }
 

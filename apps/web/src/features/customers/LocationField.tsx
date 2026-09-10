@@ -69,6 +69,7 @@ export function LocationField({
   customerName,
   onChange,
   disabled,
+  readOnly,
 }: {
   value: { latitude: number; longitude: number } | null;
   accuracyM?: number | null;
@@ -77,6 +78,13 @@ export function LocationField({
   customerName?: string;
   onChange: (pin: Pin | null) => void;
   disabled?: boolean;
+  /**
+   * The workspace has location tracking switched off, but this account already
+   * carries a pin. Everything stays visible and Clear stays live — removing
+   * what is stored is usually the reason the feature was switched off — while
+   * pinning a new one is not offered.
+   */
+  readOnly?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -153,22 +161,25 @@ export function LocationField({
         </div>
       ) : (
         <p className="text-xs text-muted">
-          No location pinned. The salesperson pins this from the mobile app at the
-          customer's place.
+          {readOnly
+            ? "Location tracking is switched off for this workspace."
+            : "No location pinned. The salesperson pins this from the mobile app at the customer's place."}
         </p>
       )}
 
       <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={capture}
-          disabled={disabled || busy}
-        >
-          <Crosshair className="h-3.5 w-3.5" aria-hidden="true" />
-          {busy ? "Getting location…" : value ? "Re-pin here" : "Use my location"}
-        </Button>
+        {!readOnly && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={capture}
+            disabled={disabled || busy}
+          >
+            <Crosshair className="h-3.5 w-3.5" aria-hidden="true" />
+            {busy ? "Getting location…" : value ? "Re-pin here" : "Use my location"}
+          </Button>
+        )}
         {url ? (
           <>
             <Button type="button" variant="secondary" size="sm" onClick={share} disabled={disabled}>

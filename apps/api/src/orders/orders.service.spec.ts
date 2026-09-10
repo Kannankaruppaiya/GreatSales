@@ -4,6 +4,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { RequestUser } from '@greatsales/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrdersService } from './orders.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const admin = (tid: string, roleKey: string): RequestUser => ({
   userId: `user_admin_${roleKey}`,
@@ -24,7 +25,10 @@ describe('OrdersService (integration)', () => {
     reseedTestDatabase();
     prisma = new PrismaService(process.env.DATABASE_URL as string);
     await prisma.onModuleInit();
-    service = new OrdersService(prisma);
+    // Real, not a stub: notify() writes a row and swallows its own failures,
+    // so a service under test behaves exactly as it does in the app.
+    const notifications = new NotificationsService(prisma);
+    service = new OrdersService(prisma, notifications);
   }, 120_000);
 
   afterAll(async () => {
