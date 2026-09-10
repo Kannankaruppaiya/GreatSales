@@ -6,6 +6,7 @@ import { useAuthRole } from "@/store/auth";
 import { useDeleteLead, useUpdateLead } from "@/features/leads/queries";
 import { DeleteAction } from "@/components/modals/DeleteAction";
 import { RemarksPanel } from "@/features/remarks/RemarksPanel";
+import { AttachmentsPanel } from "@/features/attachments/AttachmentsPanel";
 import {
   DEAL_STAGE_VALUES,
   DEAL_STAGE_LABELS,
@@ -218,6 +219,13 @@ export function LeadDetailModal({
             {update.error instanceof ApiError ? update.error.message : "Failed to save change."}
           </p>
         )}
+
+        <AttachmentsPanel
+          entityType="Lead"
+          entityId={lead.id}
+          enabled={open}
+          canWrite={canEdit}
+        />
 
         <RemarksPanel
           entityType="Lead"

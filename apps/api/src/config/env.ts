@@ -132,6 +132,35 @@ const baseEnvSchema = z.object({
    * checklists/03-API.md C.1.13.
    */
   REDIS_URL: z.string().url().optional(),
+
+  /**
+   * Where uploaded files go.
+   *
+   * "local" writes under STORAGE_LOCAL_DIR and is for a developer machine: the
+   * files live on one box's disk, so a second API instance cannot serve them
+   * and a container restart on ephemeral storage loses them. Production is
+   * "s3", which the production rules below insist on — DEPLOYMENT.md has said
+   * "Files/attachments | S3" since before there were any.
+   */
+  STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+  STORAGE_LOCAL_DIR: z.string().default('.storage'),
+  S3_BUCKET: z
+    .string()
+    .transform((v) => (v.trim() === '' ? undefined : v))
+    .optional(),
+  S3_REGION: z
+    .string()
+    .transform((v) => (v.trim() === '' ? undefined : v))
+    .optional(),
+  /**
+   * Only for a local S3 stand-in (MinIO, LocalStack). Unset in production,
+   * where the SDK resolves the real endpoint from the region.
+   */
+  S3_ENDPOINT: z
+    .string()
+    .transform((v) => (v.trim() === '' ? undefined : v))
+    .pipe(z.string().url().optional())
+    .optional(),
 });
 
 type BaseEnv = z.infer<typeof baseEnvSchema>;
@@ -195,6 +224,23 @@ function productionRules(env: BaseEnv, ctx: z.RefinementCtx): void {
   // The explorer documents every endpoint. Not in production.
   if (env.SWAGGER_ENABLED) {
     fail('SWAGGER_ENABLED', 'SWAGGER_ENABLED must be false in production.');
+  }
+
+  // Uploads on a container's local disk are lost on the next deploy, and
+  // invisible to every other instance in the meantime — which is not a
+  // degraded file feature, it is a broken one that looks fine on one box.
+  if (env.STORAGE_DRIVER !== 's3') {
+    fail(
+      'STORAGE_DRIVER',
+      'STORAGE_DRIVER must be "s3" in production: local disk is not shared ' +
+        'between instances and does not survive a deploy.',
+    );
+  }
+  if (env.STORAGE_DRIVER === 's3' && !env.S3_BUCKET) {
+    fail('S3_BUCKET', 'S3_BUCKET is required when STORAGE_DRIVER is "s3".');
+  }
+  if (env.STORAGE_DRIVER === 's3' && !env.S3_REGION) {
+    fail('S3_REGION', 'S3_REGION is required when STORAGE_DRIVER is "s3".');
   }
 
   // The API must connect as the RLS-bound role, the migration job as the

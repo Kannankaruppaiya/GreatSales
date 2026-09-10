@@ -1,15 +1,23 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type {
-  EntityTypeValue,
-  PermissionKey,
   RemarkCreate,
   RemarkListQuery,
   RemarkRow,
   RequestUser,
 } from '@greatsales/shared';
 import { CursorPage } from '@greatsales/shared';
-import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
+/**
+ * A remark inherits the authorization of the record it is attached to. Both
+ * halves of that rule now live in common/entity-access.ts, because attachments
+ * obey exactly the same one and a second copy is how the sales-scope check ends
+ * up disagreeing with itself.
+ */
+import {
+  assertEntityPermission,
+  assertParentVisible,
+} from '../common/entity-access';
 
 const REMARK_INCLUDE = { user: true } satisfies Prisma.RemarkInclude;
 
@@ -29,25 +37,6 @@ function toRow(r: RemarkWithGraph): RemarkRow {
   };
 }
 
-/**
- * A remark inherits the authorization of the record it is attached to.
- *
- * There is no `remark.read` / `remark.write` key on purpose: a note about a
- * payment is payment data, and inventing a separate key would let a role read
- * the commentary on records it cannot open. Reads require the parent's read
- * permission, writes the parent's write permission.
- */
-const PARENT_PERMISSION: Record<
-  EntityTypeValue,
-  { read: PermissionKey; write: PermissionKey }
-> = {
-  Projection: { read: 'projection.read', write: 'projection.write' },
-  Lead: { read: 'lead.read', write: 'lead.write' },
-  Payment: { read: 'payment.read', write: 'payment.write' },
-  Order: { read: 'order.read', write: 'order.write' },
-  Customer: { read: 'customer.read', write: 'customer.write' },
-};
-
 @Injectable()
 export class RemarksService {
   constructor(private readonly prisma: PrismaService) {}
@@ -57,8 +46,8 @@ export class RemarksService {
     query: RemarkListQuery,
   ): Promise<CursorPage<RemarkRow>> {
     const db = this.prisma.forTenant(user.tenantId);
-    await this.assertPermission(db, user, query.entityType, 'read');
-    await this.assertParentVisible(db, user, query.entityType, query.entityId);
+    await assertEntityPermission(db, user, query.entityType, 'read', 'remarks');
+    await assertParentVisible(db, user, query.entityType, query.entityId);
 
     const where: Prisma.RemarkWhereInput = {
       entityType: query.entityType,
@@ -88,8 +77,8 @@ export class RemarksService {
 
   async create(user: RequestUser, body: RemarkCreate): Promise<RemarkRow> {
     const db = this.prisma.forTenant(user.tenantId);
-    await this.assertPermission(db, user, body.entityType, 'write');
-    await this.assertParentVisible(db, user, body.entityType, body.entityId);
+    await assertEntityPermission(db, user, body.entityType, 'write', 'remarks');
+    await assertParentVisible(db, user, body.entityType, body.entityId);
 
     const created = await db.remark.create({
       data: {
@@ -106,99 +95,4 @@ export class RemarksService {
     return toRow(created);
   }
 
-  /**
-   * The caller's role must hold the parent entity's permission.
-   *
-   * PermissionsGuard cannot do this: the required key depends on the
-   * `entityType` in the request body, which the guard does not read.
-   */
-  private async assertPermission(
-    db: TenantPrisma,
-    user: RequestUser,
-    entityType: EntityTypeValue,
-    action: 'read' | 'write',
-  ): Promise<void> {
-    const needed = PARENT_PERMISSION[entityType][action];
-    const held = await db.rolePermission.findFirst({
-      where: {
-        roleId: user.roleId,
-        permission: { key: needed },
-      },
-      select: { permissionId: true },
-    });
-    if (!held) {
-      throw new ForbiddenException(
-        `Requires ${needed} to ${action} remarks on a ${entityType}`,
-      );
-    }
-  }
-
-  /**
-   * The parent row must exist and be reachable by this caller.
-   *
-   * RLS already bounds the lookup to the tenant, so this closes the remaining
-   * gap: a sales user must not read or annotate another rep's records, and an
-   * id for a row that does not exist must 403 rather than create an orphan
-   * remark that no screen will ever show.
-   */
-  private async assertParentVisible(
-    db: TenantPrisma,
-    user: RequestUser,
-    entityType: EntityTypeValue,
-    entityId: string,
-  ): Promise<void> {
-    const ownerId = (await this.isSalesOnly(db, user.roleId))
-      ? user.userId
-      : undefined;
-    const owned = ownerId ? { salespersonId: ownerId } : {};
-
-    const found = await (async () => {
-      switch (entityType) {
-        case 'Customer':
-          return db.customer.findFirst({
-            where: { id: entityId, deletedAt: null, ...owned },
-            select: { id: true },
-          });
-        case 'Lead':
-          return db.lead.findFirst({
-            where: { id: entityId, deletedAt: null, ...owned },
-            select: { id: true },
-          });
-        case 'Order':
-          return db.salesOrder.findFirst({
-            where: { id: entityId, deletedAt: null, ...owned },
-            select: { id: true },
-          });
-        case 'Payment':
-          return db.payment.findFirst({
-            where: { id: entityId, deletedAt: null, ...owned },
-            select: { id: true },
-          });
-        case 'Projection':
-          return db.projection.findFirst({
-            where: {
-              id: entityId,
-              deletedAt: null,
-              ...(ownerId ? { mapping: { salespersonId: ownerId } } : {}),
-            },
-            select: { id: true },
-          });
-      }
-    })();
-
-    if (!found) {
-      throw new ForbiddenException(
-        `No ${entityType} you can reach with id ${entityId}`,
-      );
-    }
-  }
-
-  /** True when the caller's role can only ever act on its own records. */
-  private async isSalesOnly(
-    db: TenantPrisma,
-    roleId: string,
-  ): Promise<boolean> {
-    const role = await db.role.findUnique({ where: { id: roleId } });
-    return role?.name === 'sales';
-  }
 }

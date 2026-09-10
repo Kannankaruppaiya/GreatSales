@@ -7,6 +7,7 @@ import { useAuthRole } from "@/store/auth";
 import { useDeleteOrder, useUpdateOrder } from "@/features/orders/queries";
 import { DeleteAction } from "@/components/modals/DeleteAction";
 import { RemarksPanel } from "@/features/remarks/RemarksPanel";
+import { AttachmentsPanel } from "@/features/attachments/AttachmentsPanel";
 import {
   ORDER_STATUS_VALUES,
   ORDER_STATUS_LABELS,
@@ -320,6 +321,13 @@ export function SalesOrderDetailModal({
             ))}
           </div>
         </div>
+
+        <AttachmentsPanel
+          entityType="Order"
+          entityId={liveOrder.id}
+          enabled={open}
+          canWrite={canEdit}
+        />
 
         <RemarksPanel
           entityType="Order"

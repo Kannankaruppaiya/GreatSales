@@ -10,6 +10,7 @@ import { useMappings } from "@/features/mappings/queries";
 import { useOrders } from "@/features/orders/queries";
 import { usePayments } from "@/features/payments/queries";
 import { RemarksPanel } from "@/features/remarks/RemarksPanel";
+import { AttachmentsPanel } from "@/features/attachments/AttachmentsPanel";
 import {
   PAY_ZONE_LABELS,
   type PayZoneValue,
@@ -330,6 +331,12 @@ export function CustomerDrawer({
                 <RelatedStat label="Sales orders" value={ordersQ.data?.pages[0]?.total} />
                 <RelatedStat label="Invoices" value={paymentsQ.data?.pages[0]?.total} />
               </div>
+
+              <AttachmentsPanel
+                entityType="Customer"
+                entityId={customer.id}
+                canWrite={role !== "mgmt"}
+              />
 
               <RemarksPanel
                 entityType="Customer"

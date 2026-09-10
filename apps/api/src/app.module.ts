@@ -25,6 +25,7 @@ import { TargetsModule } from './targets/targets.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { ImportsModule } from './imports/imports.module';
+import { AttachmentsModule } from './attachments/attachments.module';
 import { ManagementsModule } from './managements/managements.module';
 
 @Module({
@@ -55,6 +56,7 @@ import { ManagementsModule } from './managements/managements.module';
     NotificationsModule,
     FeatureFlagsModule,
     ImportsModule,
+    AttachmentsModule,
     ManagementsModule,
   ],
   controllers: [AppController],

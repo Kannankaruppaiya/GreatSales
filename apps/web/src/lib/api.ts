@@ -57,6 +57,28 @@ export async function apiFetch<T>(
   return doFetch<T>(path, init, false);
 }
 
+/**
+ * Fetch a file rather than JSON.
+ *
+ * Goes through the same path as everything else — bearer token, cookie
+ * credentials, single-flight refresh on a 401 — because a download whose
+ * session has just expired should renew and succeed, not fail with a browser
+ * error page in a new tab. A plain `<a href>` would get none of that: it sends
+ * no Authorization header at all.
+ */
+export async function apiFetchBlob(
+  path: string,
+  init: RequestInit = {},
+): Promise<Blob> {
+  return doFetch<Blob>(path, { ...init, [BLOB_RESPONSE]: true }, false);
+}
+
+/**
+ * Marks a request whose response is a file. A symbol so it cannot collide with
+ * a real `RequestInit` key, and is dropped before the init reaches `fetch`.
+ */
+const BLOB_RESPONSE = Symbol.for("greatsales.blobResponse") as unknown as string;
+
 async function doFetch<T>(
   path: string,
   init: RequestInit,
@@ -64,13 +86,20 @@ async function doFetch<T>(
   overrideToken?: string,
 ): Promise<T> {
   const headers = new Headers(init.headers);
-  headers.set("Content-Type", "application/json");
+  // A multipart body must be sent with NO content-type header: the browser
+  // writes it, and the boundary it generates is the only thing that makes the
+  // body parseable. Setting it by hand produces a request the server cannot
+  // read and an error that says nothing about why.
+  if (!(init.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
   const token = overrideToken ?? tokenGetter();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   // `credentials: "include"` is mandatory, not optional: the refresh token
   // lives in an httpOnly cookie, so without it the session cannot be renewed
   // and the browser would never store the cookie in the first place.
+  const wantsBlob = (init as Record<string, unknown>)[BLOB_RESPONSE] === true;
   const res = await fetch(`${env.API_BASE_URL}${path}`, {
     ...init,
     headers,
@@ -82,7 +111,11 @@ async function doFetch<T>(
     if (fresh) return doFetch<T>(path, init, true, fresh);
   }
 
+  if (wantsBlob && res.ok) return (await res.blob()) as T;
+
   const text = await res.text();
+  // A file endpoint that fails still answers with JSON; a 204 answers with
+  // nothing, and JSON.parse("") throws.
   const body: unknown = text ? JSON.parse(text) : null;
 
   if (!res.ok) {

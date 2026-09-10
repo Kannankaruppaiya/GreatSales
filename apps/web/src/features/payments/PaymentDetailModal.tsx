@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useAuthRole } from "@/store/auth";
 import { useUpdatePayment } from "@/features/payments/queries";
 import { RemarksPanel } from "@/features/remarks/RemarksPanel";
+import { AttachmentsPanel } from "@/features/attachments/AttachmentsPanel";
 import {
   PAY_ZONE_VALUES,
   PAY_ZONE_LABELS,
@@ -267,6 +268,13 @@ export function PaymentDetailModal({
             {update.error instanceof ApiError ? update.error.message : "Failed to save changes."}
           </p>
         )}
+
+        <AttachmentsPanel
+          entityType="Payment"
+          entityId={payment.id}
+          enabled={open}
+          canWrite={canEdit}
+        />
 
         <RemarksPanel
           entityType="Payment"
