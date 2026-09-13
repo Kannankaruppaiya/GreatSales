@@ -111,6 +111,16 @@ where findings get recorded.
 explicit waits with the reason written at the call site; if you add another lazy boundary,
 expect to extend those rather than dismiss the result as a flake.
 
+**`pnpm --filter web lint` is a correctness gate, not a style pass**, and it runs inside
+`pnpm verify`. This workspace had no lint at all until 2026-09-13 while `api` and `mobile`
+both did — and this is where every React hook in the product lives. The rule that matters
+is `react-hooks/rules-of-hooks`, set to error: a component that returns early *before* its
+hooks run (`if (!row) return null` above a `useState`) changes its hook count between
+renders and loses its state, and neither `tsc` nor vitest sees it. `exhaustive-deps` is a
+warning because the fix is sometimes a deliberate omission. The config deliberately leaves
+out the plugin's full React-Compiler ruleset — burying two real rules under hundreds of
+advisory ones is how a check stops being kept green.
+
 ## Repo-root reports are not evidence
 
 `FRONTEND-PRODUCTION-READINESS-QUESTIONNAIRE.md` is a question bank, not a status report. The

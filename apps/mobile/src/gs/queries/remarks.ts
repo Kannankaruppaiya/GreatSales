@@ -6,8 +6,10 @@
  * so a rep in the field could read a customer's history on a laptop and not on
  * the phone they actually carry, and could not add to it at all.
  *
- * Keyed by (entityType, entityId) so two records never share a cache entry and
- * a post invalidates only the timeline it belongs to.
+ * Keyed by (entityType, entityId) so two records never share a cache entry.
+ * A post still goes through `invalidateAfter` rather than invalidating just
+ * that key: the projections worksheet prints the remark COUNT as a badge on
+ * each line, so a note added here has to move that badge too.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
@@ -17,6 +19,7 @@ import type {
   CursorPage,
 } from '@greatsales/shared';
 import { apiFetch, buildQuery } from '../api';
+import { invalidateAfter } from '../invalidate';
 
 export type { RemarkRow, EntityTypeValue };
 
@@ -54,10 +57,6 @@ export function useCreateRemark() {
   return useMutation({
     mutationFn: (body: RemarkCreate) =>
       apiFetch<RemarkRow>('/remarks', { method: 'POST', body: JSON.stringify(body) }),
-    onSuccess: (_row, body) => {
-      void qc.invalidateQueries({
-        queryKey: remarkKey({ entityType: body.entityType, entityId: body.entityId }),
-      });
-    },
+    onSuccess: () => invalidateAfter(qc, 'remarks'),
   });
 }

@@ -33,11 +33,9 @@ Things worth knowing before writing code here:
   `/principals`, industries are `/industries`. `AREAS` is still a local constant —
   see the gap below.
 
-Three gaps remain, and they are missing FEATURES rather than broken wiring:
+Two gaps remain, and they are missing FEATURES rather than broken wiring:
 
 - No order-create screen. Orders are created from the projections convert flow only.
-- `GET /customers/:id` is still unwired here, so the customer detail sheet renders from the
-  list row rather than the fuller record web's drawer fetches. `POST /remarks` is web-only.
 - `AREAS` in `gs/domain.ts` is still a hardcoded list of Chennai localities, matching
   the web console's `INDUSTRIAL_AREAS`. There is no areas endpoint on either client.
 

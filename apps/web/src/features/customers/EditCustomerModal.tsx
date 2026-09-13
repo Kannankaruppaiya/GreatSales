@@ -69,7 +69,8 @@ export function EditCustomerModal({
   const collectorOptions = collectors ?? fetchedCollectors;
 
   const areaOf = (c: CustomerRow | null) => {
-    const isKnownArea = INDUSTRIAL_AREAS.slice(0, -1).includes((c?.area || "") as any);
+    const knownAreas: readonly string[] = INDUSTRIAL_AREAS.slice(0, -1);
+    const isKnownArea = knownAreas.includes(c?.area || "");
     return {
       areaSelect: isKnownArea ? (c?.area || INDUSTRIAL_AREAS[0]) : "Other",
       customArea: isKnownArea ? "" : (c?.area === "Other" ? "" : (c?.area || "")),

@@ -191,7 +191,7 @@ export function AddLeadModal({
 
     const products = leadProducts
       .filter((p) => p.productName.trim())
-      .map(({ rowId, ...p }) => p);
+      .map(({ rowId: _rowId, ...p }) => p);
 
     const effectiveArea = area === "Other" ? (customArea.trim() || "Other") : area;
 

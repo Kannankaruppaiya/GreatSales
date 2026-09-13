@@ -19,7 +19,7 @@
     "contract": "node scripts/check-contract.mjs",
     "wired": "node scripts/wired.mjs",
     "design": "node scripts/check-design.mjs",
-    "verify": "node scripts/check-wiring.mjs && node scripts/check-design.mjs && node scripts/smoke.mjs && node scripts/check-contract.mjs --strict && pnpm --filter api test && pnpm --filter web test",
+    "verify": "node scripts/check-wiring.mjs && node scripts/check-design.mjs && pnpm --filter web lint && node scripts/smoke.mjs && node scripts/check-contract.mjs --strict && pnpm --filter api test && pnpm --filter web test",
     "test:e2e": "playwright test",
     "test:e2e:qa": "playwright test tests/e2e/qa",
     "test:e2e:ui": "playwright test --ui",

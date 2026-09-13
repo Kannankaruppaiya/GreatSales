@@ -102,8 +102,17 @@ export const useUi = create<UiState>()(
       // existing install is carrying a stale month right now.
       // v8→v9: `month` became a granularity + anchor pair. A stored `month` is
       // dropped rather than translated, for the same reason: it is stale.
-      migrate: (persistedState: any) => {
-        const base = persistedState ?? {};
+      // Returns the same partialized shape `partialize` writes, so both halves
+      // of the persist contract describe one type rather than two.
+      migrate: (persistedState: unknown): UiState => {
+        // Only the four keys read below are trusted off the stored blob; every
+        // other field is recomputed, so a legacy shape cannot smuggle one in.
+        const base = (persistedState ?? {}) as Partial<
+          Pick<
+            UiState,
+            "activeManagementId" | "principalId" | "ownerFilter" | "sidebarOpen"
+          >
+        >;
         return {
           activeManagementId: base.activeManagementId ?? DEFAULT_MANAGEMENT_ID,
           granularity: "month" as Granularity,
@@ -111,7 +120,7 @@ export const useUi = create<UiState>()(
           principalId: base.principalId ?? "ALL",
           ownerFilter: base.ownerFilter ?? "ALL",
           sidebarOpen: base.sidebarOpen ?? true,
-        };
+        } as UiState;
       },
     },
   ),

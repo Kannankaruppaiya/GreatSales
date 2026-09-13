@@ -12,7 +12,7 @@ import {
 function parseMap(source: string): Record<string, string[]> {
   const body = source.slice(source.indexOf("STALE_AFTER"));
   const out: Record<string, string[]> = {};
-  for (const [, key, list] of body.matchAll(/^  (\w+): \[([^\]]*)\],$/gm)) {
+  for (const [, key, list] of body.matchAll(/^ {2}(\w+): \[([^\]]*)\],$/gm)) {
     out[key] = [...list.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
   }
   return out;
