@@ -8,5 +8,7 @@ import { PermissionsGuard } from '../common/permissions.guard';
   imports: [NotificationsModule],
   controllers: [OrdersController],
   providers: [OrdersService, PermissionsGuard],
+  // Exported for ExportModule — see CustomersModule's export for why.
+  exports: [OrdersService],
 })
 export class OrdersModule {}

@@ -1,6 +1,10 @@
 import '../load-env'; // authoritative greatsales_app DATABASE_URL (RLS-bound)
 import { reseedTestDatabase } from '../test-support/reseed';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import type { RequestUser } from '@greatsales/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { CustomersService } from './customers.service';
@@ -128,6 +132,128 @@ describe('CustomersService (integration)', () => {
     await expect(
       service.update(sales('tenant_acme', 'acme', 2), id, { area: 'West' }),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('onboards a customer with its product mappings in one call', async () => {
+    const created = await service.create(admin('tenant_acme', 'acme'), {
+      name: 'Onboarded With Products',
+      salespersonId: 'user_sales1_acme',
+      mappings: [
+        { productId: 'prod_a_acme', customPrice: 123.5 },
+        { productId: 'prod_b_acme' },
+      ],
+    });
+
+    const db = prisma.forTenant('tenant_acme');
+    const maps = await db.mapping.findMany({
+      where: { customerId: created.id },
+      orderBy: { productId: 'asc' },
+    });
+    expect(maps).toHaveLength(2);
+    expect(maps[0].productId).toBe('prod_a_acme');
+    expect(Number(maps[0].customPrice)).toBe(123.5);
+    // Omitted price stays null so the catalog price applies.
+    expect(maps[1].customPrice).toBeNull();
+    // Mappings inherit the account's owner, not the caller.
+    expect(maps.every((m) => m.salespersonId === 'user_sales1_acme')).toBe(
+      true,
+    );
+
+    // No period was named, so nothing was opened on any worksheet.
+    const lines = await db.projection.findMany({
+      where: { mappingId: { in: maps.map((m) => m.id) } },
+    });
+    expect(lines).toHaveLength(0);
+  });
+
+  it('opens a blank worksheet line per mapping when a period is given', async () => {
+    const created = await service.create(admin('tenant_acme', 'acme'), {
+      name: 'Onboarded Into A Month',
+      salespersonId: 'user_sales1_acme',
+      period: '2026-09',
+      mappings: [{ productId: 'prod_a_acme', customPrice: 90 }],
+    });
+
+    const db = prisma.forTenant('tenant_acme');
+    const map = await db.mapping.findFirstOrThrow({
+      where: { customerId: created.id },
+    });
+    const line = await db.projection.findFirstOrThrow({
+      where: { mappingId: map.id },
+    });
+    expect(line.period).toBe('2026-09');
+    // Blank: present to be committed against, claiming nothing.
+    expect(Number(line.committedQty)).toBe(0);
+    expect(Number(line.achievedQty)).toBe(0);
+    expect(line.status).toBe('ProjectionCreated');
+    // The agreed price carries onto the line so it prices itself like the
+    // mapping rather than falling through to the catalog.
+    expect(Number(line.price)).toBe(90);
+  });
+
+  it('refuses to open lines in a locked month, and writes nothing at all', async () => {
+    const db = prisma.forTenant('tenant_acme');
+    await db.periodLock.create({
+      data: {
+        tenantId: 'tenant_acme',
+        period: '2026-01',
+        lockedById: 'user_admin_acme',
+      },
+    });
+
+    await expect(
+      service.create(admin('tenant_acme', 'acme'), {
+        name: 'Into A Locked Month',
+        salespersonId: 'user_sales1_acme',
+        period: '2026-01',
+        mappings: [{ productId: 'prod_a_acme' }],
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    const orphan = await db.customer.findFirst({
+      where: { name: 'Into A Locked Month' },
+    });
+    expect(orphan).toBeNull();
+
+    await db.periodLock.deleteMany({ where: { period: '2026-01' } });
+  });
+
+  it('rejects an unknown product without creating the customer', async () => {
+    await expect(
+      service.create(admin('tenant_acme', 'acme'), {
+        name: 'Bad Product Onboarding',
+        salespersonId: 'user_sales1_acme',
+        mappings: [
+          { productId: 'prod_a_acme' },
+          { productId: 'no_such_product' },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    const db = prisma.forTenant('tenant_acme');
+    expect(
+      await db.customer.findFirst({
+        where: { name: 'Bad Product Onboarding' },
+      }),
+    ).toBeNull();
+  });
+
+  it("will not map another tenant's product, and rolls the customer back", async () => {
+    await expect(
+      service.create(admin('tenant_acme', 'acme'), {
+        name: 'Cross Tenant Onboarding',
+        salespersonId: 'user_sales1_acme',
+        // Real row, wrong tenant. RLS must make it read as missing.
+        mappings: [{ productId: 'prod_a_globex' }],
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    const db = prisma.forTenant('tenant_acme');
+    expect(
+      await db.customer.findFirst({
+        where: { name: 'Cross Tenant Onboarding' },
+      }),
+    ).toBeNull();
   });
 
   it('soft-deletes a customer so it drops out of the list', async () => {

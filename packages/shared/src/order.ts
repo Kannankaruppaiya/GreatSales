@@ -103,6 +103,17 @@ export const OrderCreateSchema = z.object({
   transporterName: z.string().nullable().optional(),
   lrNumber: z.string().nullable().optional(),
   deliveryInstructions: z.string().nullable().optional(),
+  /**
+   * The recurring-projection line this order is being raised from.
+   *
+   * `Projection.salesOrderId` exists in the schema and was never written by
+   * anything: the worksheet could set a line to "Order Placed" but the status
+   * was a label somebody typed, with no order behind it and no way to reach
+   * one. Passing the line here links the two in the same transaction, which is
+   * what lets the worksheet show the order's real status and refuse to delete a
+   * line that has become an order.
+   */
+  projectionId: z.string().optional(),
 });
 export type OrderCreate = z.infer<typeof OrderCreateSchema>;
 
@@ -113,6 +124,18 @@ export type OrderCreate = z.infer<typeof OrderCreateSchema>;
  */
 export const OrderUpdateSchema = z
   .object({
+    /**
+     * Replaces the line items, and `total` is recomputed from them — accepted
+     * only while the order is still `Created`, because an order the warehouse
+     * has already acknowledged is a commitment rather than a draft.
+     *
+     * Without this the only way to correct a mistyped quantity or a
+     * renegotiated price was to delete the order and raise it again, losing
+     * its number, its status trail, its remarks and its attachments with it.
+     */
+    items: z.array(OrderItemInputSchema).min(1).optional(),
+    /** The business issue date, which the printed invoice and the SLA clock both use. */
+    date: z.string().optional(),
     status: OrderStatusSchema.optional(),
     statusNote: z.string().nullable().optional(),
     cancelReason: z.string().nullable().optional(),

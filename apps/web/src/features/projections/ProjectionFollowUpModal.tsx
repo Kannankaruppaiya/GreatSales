@@ -23,6 +23,7 @@ export function ProjectionFollowUpModal({
   title,
   subtitle,
   currentDate,
+  currentTargetDate,
   currentProb,
   currentStatus,
   projectionId,
@@ -33,6 +34,8 @@ export function ProjectionFollowUpModal({
   title: string;
   subtitle?: string;
   currentDate?: string | null;
+  /** `targetDate` — when the line is expected to close. */
+  currentTargetDate?: string | null;
   currentProb?: number;
   currentStatus?: string;
   /** The projection this log belongs to. Notes are posted against it. */
@@ -41,10 +44,12 @@ export function ProjectionFollowUpModal({
     nextDate: string | null,
     note: string,
     prob?: number,
-    nextStatus?: string
+    nextStatus?: string,
+    targetDate?: string | null
   ) => void;
 }) {
   const [date, setDate] = useState(currentDate || "");
+  const [targetDate, setTargetDate] = useState(currentTargetDate || "");
   const [prob, setProb] = useState<number | undefined>(currentProb);
   const [status, setStatus] = useState<string | undefined>(currentStatus);
   const [note, setNote] = useState("");
@@ -77,7 +82,7 @@ export function ProjectionFollowUpModal({
         return;
       }
     }
-    onSave(date || null, body, prob, status);
+    onSave(date || null, body, prob, status, targetDate || null);
     onClose();
   };
 
@@ -143,6 +148,23 @@ export function ProjectionFollowUpModal({
               label="Follow-up date"
               value={date}
               onChange={setDate}
+            />
+          </div>
+          {/* Expected closure. Entered here rather than in the worksheet cell
+              because a date in this app is picked as day / month / year, which
+              does not fit a table column. */}
+          <div className="sm:col-span-2">
+            <label
+              htmlFor="pf-target"
+              className="text-xs font-semibold text-muted uppercase tracking-wider block mb-1.5"
+            >
+              Expected Closure Date
+            </label>
+            <DateField
+              id="pf-target"
+              label="Expected closure date"
+              value={targetDate}
+              onChange={setTargetDate}
             />
           </div>
           <div>

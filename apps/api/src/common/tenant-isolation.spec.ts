@@ -252,7 +252,7 @@ describe('tenant isolation', () => {
 
     it('EVERY protected table keeps the two tenants disjoint — including sub-resources', async () => {
       // The named resources above cover the 11 top-level ones. Sub-resources
-      // (SalesOrderItem, LeadProduct, CustomerContact, OrderStatusHistory,
+      // (SalesOrderItem, LeadProduct, OrderStatusHistory,
       // PaymentFollowup, RolePermission, ...) are protected by policies that
       // reach through a parent with EXISTS, which is a different and more
       // fragile shape — a wrong join there leaks quietly.

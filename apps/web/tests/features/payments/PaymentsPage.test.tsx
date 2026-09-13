@@ -30,6 +30,10 @@ function makePayment(overrides: Partial<PaymentRow>): PaymentRow {
     mail2: false,
     mail3: false,
     mail4: false,
+    mail1At: null,
+    mail2At: null,
+    mail3At: null,
+    mail4At: null,
     status: "Pending",
     followups: [],
     createdAt: "2026-07-01T00:00:00.000Z",
@@ -73,10 +77,22 @@ describe("PaymentsPage", () => {
   it("auto-fetches every page before showing KPI totals, instead of only the first page", async () => {
     const page1 = makePayment({ id: "pmt_1", pending: 1000 });
     const page2 = makePayment({ id: "pmt_2", pending: 500 });
-    const spy = vi
-      .spyOn(api, "apiFetch")
-      .mockImplementationOnce(() => Promise.resolve({ items: [page1], nextCursor: "c1" }))
-      .mockImplementationOnce(() => Promise.resolve({ items: [page2], nextCursor: null }));
+    // Answered by PATH, not by call order. The page asks for its follow-ups as
+    // well as its invoices, and two `mockImplementationOnce`s in a row handed
+    // one of the payment pages to whichever query happened to fire first — a
+    // mock that breaks every time the page gains a request is a mock that is
+    // testing the order of useEffects rather than the behaviour.
+    let payPage = 0;
+    const spy = vi.spyOn(api, "apiFetch").mockImplementation((path) => {
+      if (String(path).startsWith("/followups"))
+        return Promise.resolve({ items: [], nextCursor: null });
+      payPage += 1;
+      return Promise.resolve(
+        payPage === 1
+          ? { items: [page1], nextCursor: "c1" }
+          : { items: [page2], nextCursor: null },
+      );
+    });
 
     renderPage();
 
@@ -85,9 +101,12 @@ describe("PaymentsPage", () => {
     // ("₹1.0K"). This is the accurate-aggregate fix: nothing should ever
     // settle on a partial total.
     await waitFor(() => expect(screen.getByText("₹1.5K")).toBeTruthy());
-    expect(spy).toHaveBeenCalledTimes(2);
+    const payCalls = spy.mock.calls
+      .map((c) => String(c[0]))
+      .filter((u) => u.startsWith("/payments"));
+    expect(payCalls).toHaveLength(2);
     // The second call paged in via the cursor from page 1.
-    expect(spy.mock.calls[1][0]).toContain("cursor=c1");
+    expect(payCalls[1]).toContain("cursor=c1");
     // No stale "loaded" partial-total wording is left once totals are complete.
     expect(screen.queryByText(/loading full totals/i)).toBeNull();
   });
@@ -143,10 +162,103 @@ describe("PaymentsPage", () => {
     await screen.findByText("INV-1");
     expect(screen.queryByText("Import Tally Excel")).toBeNull();
     expect(screen.queryByText(/Add Invoice/i)).toBeNull();
-    // The 4 reminder chips render for everyone (read-only view), but must be
-    // disabled — not just for mgmt, but for sales too.
-    for (let i = 1; i <= 4; i++) {
-      expect(screen.getByTitle(`Reminder ${i} sent`)).toBeDisabled();
-    }
+    // The reminder dropdown opens for everyone — where the chase has got to is
+    // worth reading even when you cannot move it — but nothing inside it may
+    // be actionable. Not just for mgmt: for sales too.
+    await userEvent.click(screen.getByRole("button", { name: /Reminders for INV-1/i }));
+    const items = screen.getAllByRole("menuitem");
+    expect(items).toHaveLength(4);
+    items.forEach((item) => expect(item).toBeDisabled());
+    expect(
+      screen.getByText(/Read-only — reminders are sent by the collections team/i),
+    ).toBeInTheDocument();
+  });
+
+  describe("the reminder dropdown", () => {
+    it("says how far the chase has got instead of four unlabelled chips", async () => {
+      setRole("admin");
+      const row = makePayment({ mail1: true, mail1At: "2026-07-04T09:00:00.000Z" });
+      vi.spyOn(api, "apiFetch").mockResolvedValue({ items: [row], nextCursor: null });
+      renderPage();
+
+      await screen.findByText("INV-1");
+      await userEvent.click(screen.getByRole("button", { name: /Reminders for INV-1/i }));
+      expect(screen.getByText("1st sent")).toBeInTheDocument();
+      expect(screen.getByText(/Sent 04 Jul/)).toBeInTheDocument();
+      expect(screen.getByText("Next: 2nd reminder.")).toBeInTheDocument();
+    });
+
+    it("offers only the next letter, and sends the flag without a date", async () => {
+      setRole("admin");
+      const row = makePayment({ mail1: true, mail1At: "2026-07-04T09:00:00.000Z" });
+      const fetch = vi
+        .spyOn(api, "apiFetch")
+        .mockResolvedValue({ items: [row], nextCursor: null });
+      renderPage();
+
+      await screen.findByText("INV-1");
+      await userEvent.click(screen.getByRole("button", { name: /Reminders for INV-1/i }));
+      const items = screen.getAllByRole("menuitem");
+      // 1st is the last one sent, so it can be taken back; 2nd is next; the
+      // 3rd and 4th are out of order and must not be reachable — marking one
+      // notifies the collector about a letter that was never written.
+      expect(items[0]).toBeEnabled();
+      expect(items[1]).toBeEnabled();
+      expect(items[2]).toBeDisabled();
+      expect(items[3]).toBeDisabled();
+
+      fetch.mockClear();
+      await userEvent.click(items[1]);
+      await waitFor(() => {
+        expect(fetch).toHaveBeenCalledWith(
+          "/payments/pmt_1",
+          expect.objectContaining({
+            method: "PATCH",
+            body: JSON.stringify({ mail2: true }),
+          }),
+        );
+      });
+    });
+
+    it("takes back the most recent letter", async () => {
+      setRole("admin");
+      const row = makePayment({
+        mail1: true,
+        mail2: true,
+        mail1At: "2026-07-04T09:00:00.000Z",
+        mail2At: "2026-07-20T09:00:00.000Z",
+      });
+      const fetch = vi
+        .spyOn(api, "apiFetch")
+        .mockResolvedValue({ items: [row], nextCursor: null });
+      renderPage();
+
+      await screen.findByText("INV-1");
+      await userEvent.click(screen.getByRole("button", { name: /Reminders for INV-1/i }));
+      fetch.mockClear();
+      await userEvent.click(screen.getAllByRole("menuitem")[1]);
+      await waitFor(() => {
+        expect(fetch).toHaveBeenCalledWith(
+          "/payments/pmt_1",
+          expect.objectContaining({
+            method: "PATCH",
+            body: JSON.stringify({ mail2: false }),
+          }),
+        );
+      });
+    });
+
+    it("says a letter is sent without inventing a date it does not have", async () => {
+      setRole("admin");
+      // Marked sent before the timestamp column existed.
+      const row = makePayment({ mail1: true, mail1At: null });
+      vi.spyOn(api, "apiFetch").mockResolvedValue({ items: [row], nextCursor: null });
+      renderPage();
+
+      await screen.findByText("INV-1");
+      await userEvent.click(screen.getByRole("button", { name: /Reminders for INV-1/i }));
+      expect(screen.getByText("Sent")).toBeInTheDocument();
+      expect(screen.queryByText(/Sent \d/)).toBeNull();
+    });
   });
 });

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { periodLabel } from "@/data/months";
 import { Button, Dialog, Input } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { flattenUsers, useUsers } from "@/features/users/queries";
+import { useUserDirectory } from "@/features/users/queries";
 import {
   useClearTarget,
   useSetTarget,
@@ -34,7 +34,7 @@ export function SetTargetsModal({
   const targets = useTargets(period, open);
   // Only active people can carry a target; a deactivated user's month is not a
   // gap somebody needs to fill in.
-  const people = useUsers({ status: "active", sort: "name" });
+  const people = useUserDirectory();
   const setTarget = useSetTarget();
   const clearTarget = useClearTarget();
 
@@ -46,12 +46,14 @@ export function SetTargetsModal({
     const byPerson = new Map(
       (targets.data ?? []).map((t) => [t.salespersonId, t]),
     );
-    return flattenUsers(people.data).map((u) => ({
-      id: u.id,
-      name: u.name,
-      roleName: u.roleName,
-      existing: byPerson.get(u.id) ?? null,
-    }));
+    return (people.data ?? [])
+      .filter((u) => u.active)
+      .map((u) => ({
+        id: u.id,
+        name: u.name,
+        roleName: u.roleName,
+        existing: byPerson.get(u.id) ?? null,
+      }));
   }, [people.data, targets.data]);
 
   const valueFor = (id: string, existing: number | null) =>

@@ -10,7 +10,6 @@ import {
   Lock,
   Mail,
   ShieldCheck,
-  Sparkles,
   TrendingUp,
   UserRound,
   Users,
@@ -20,6 +19,7 @@ import { useAuth, useLastTenantId } from "@/store/auth";
 import { ApiError } from "@/lib/api";
 import { env } from "@/lib/config";
 import { Button, Input } from "@/components/ui";
+import { BrandMark } from "@/components/BrandMark";
 import { PortalCrest, type CrestState } from "./PortalCrest";
 
 export type LoginRole = "super_admin" | "admin" | "mgmt" | "sales";
@@ -289,9 +289,7 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
 
         {/* Logo */}
         <div className="relative flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-brand to-emerald-400 text-white font-black shadow-lg shadow-brand/30">
-            <Sparkles className="h-5 w-5" />
-          </div>
+          <BrandMark className="h-10 w-10 drop-shadow-lg" />
           <div>
             <div className="flex items-center gap-1.5">
               <span className="text-xl font-bold tracking-tight">GreatSales</span>
@@ -357,9 +355,7 @@ export default function LoginPage({ initialRole }: LoginPageProps) {
 
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center gap-2.5">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand text-white font-extrabold shadow-sm">
-              <Sparkles className="h-5 w-5" />
-            </div>
+            <BrandMark className="h-9 w-9 drop-shadow-sm" />
             <div>
               <div className="text-lg font-bold text-ink">GreatSales PRO</div>
               <div className="text-xs text-muted">Distribution Management</div>

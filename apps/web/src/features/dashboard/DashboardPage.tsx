@@ -6,14 +6,12 @@ import {
   Target,
   TrendingUp,
 } from "lucide-react";
-import { projTone } from "@/data/constants";
 import { periodLabel } from "@/data/months";
 import { usePeriodRange, useUi } from "@/store/ui";
 import { useAuth, useAuthRole, useHasPermission } from "@/store/auth";
-import { inr, lakhs } from "@/lib/format";
+import { inr, lakhs, longDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
-import { StatusBadge } from "@/components/StatusBadge";
 import { CompareLegend, GroupedBars } from "@/components/charts";
 import { QueryBoundary } from "@/components/common/QueryBoundary";
 import { LeadDetailModal } from "@/features/leads/LeadDetailModal";
@@ -32,6 +30,8 @@ import {
 import type { LeadRow } from "@/features/leads/types";
 import { useDashboard } from "@/features/dashboard/queries";
 import { SetTargetsModal } from "@/features/dashboard/SetTargetsModal";
+import { FollowUpsDueModal } from "@/features/dashboard/FollowUpsDueModal";
+import { TopOpenProjectionsCard } from "@/features/dashboard/TopOpenProjectionsCard";
 import type { DashboardBreakdown } from "@/features/dashboard/types";
 
 // The stage/status lists that used to live here moved to the server with the
@@ -62,6 +62,7 @@ export default function DashboardPage() {
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [showTargets, setShowTargets] = useState(false);
+  const [showFollowUps, setShowFollowUps] = useState(false);
   // Presentation only — the API enforces the same key on PUT /targets.
   const canManageTargets = useHasPermission("target.manage");
 
@@ -247,7 +248,23 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className={cn("rounded-xl border p-3.5 shadow-xs transition-colors", fuOverdue > 0 ? "border-red/40 bg-red-soft/70" : "border-line bg-surface")}>
+            {/* The only tile you can open. It counts follow-ups across leads,
+                recurring lines, standalone tasks and unpaid invoices, and the
+                Follow-ups page lists only the third — so a number here with no
+                way to see what it is made of sent people to a page that looked
+                empty and wrong. */}
+            <button
+              type="button"
+              onClick={() => fuDue + fuOverdue > 0 && setShowFollowUps(true)}
+              disabled={dashQuery.isLoading || fuDue + fuOverdue === 0}
+              className={cn(
+                "rounded-xl border p-3.5 shadow-xs text-left transition-colors",
+                fuOverdue > 0 ? "border-red/40 bg-red-soft/70" : "border-line bg-surface",
+                fuDue + fuOverdue > 0
+                  ? "cursor-pointer hover:border-ink/30"
+                  : "cursor-default",
+              )}
+            >
               <div className={cn("text-[10.5px] font-bold uppercase tracking-wider", fuOverdue > 0 ? "text-red" : "text-muted")}>
                 Follow-ups due
               </div>
@@ -257,7 +274,7 @@ export default function DashboardPage() {
               <div className={cn("text-xs mt-0.5 font-semibold", fuOverdue > 0 ? "text-red" : "text-muted")}>
                 {dashQuery.isLoading ? "…" : fuOverdue > 0 ? `${fuOverdue} overdue` : "All up to date"}
               </div>
-            </div>
+            </button>
           </div>
 
           {isSalesRole ? (
@@ -313,7 +330,9 @@ export default function DashboardPage() {
                               <td className="py-2.5 px-3 text-right tabular-nums font-bold text-brand">
                                 {inr(l.totalValue || 0)}
                               </td>
-                              <td className="py-2.5 px-3 tabular-nums text-muted">{l.nextFollowUp || "—"}</td>
+                              <td className="py-2.5 px-3 tabular-nums text-muted whitespace-nowrap">
+                              {longDate(l.nextFollowUp)}
+                            </td>
                               <td className="py-2.5 px-3 tabular-nums text-muted">{l.expClose || "—"}</td>
                               <td className="py-2.5 px-3 text-center">
                                 <button
@@ -334,72 +353,12 @@ export default function DashboardPage() {
               </Card>
 
               {/* 2. Top open projections */}
-              <Card className="p-0 overflow-hidden shadow-xs border-line">
-                <div className="p-3.5 border-b border-line flex items-center justify-between bg-surface-2/40">
-                  <div className="font-bold text-sm text-ink">Top open projections this month</div>
-                  <span className="text-xs text-muted font-medium">{topOpenProjections.length} lines</span>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead className="bg-surface-2 text-[11px] font-bold uppercase tracking-wider text-muted border-b border-line whitespace-nowrap">
-                      <tr>
-                        <th className="py-2.5 px-3">Customer</th>
-                        <th className="py-2.5 px-3">Principal</th>
-                        <th className="py-2.5 px-3">Sub product</th>
-                        <th className="py-2.5 px-3 text-right">Proj value</th>
-                        <th className="py-2.5 px-3">Status</th>
-                        <th className="py-2.5 px-3">Next follow-up</th>
-                        <th className="py-2.5 px-3 text-center"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-line/60">
-                      {topOpenProjections.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="py-8 text-center text-xs text-muted">
-                            No open projections for this month.
-                          </td>
-                        </tr>
-                      ) : (
-                        topOpenProjections.map((p) => (
-                          <tr key={p.id} className="hover:bg-surface-2/60 transition-colors">
-                            <td className="py-2.5 px-3">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedDrawerCustId(p.customerId)}
-                                className="font-bold text-ink hover:text-brand hover:underline cursor-pointer text-left"
-                              >
-                                {p.customerName}
-                              </button>
-                            </td>
-                            <td className="py-2.5 px-3 text-muted">{p.principalName}</td>
-                            <td className="py-2.5 px-3 font-semibold text-ink">{p.productName}</td>
-                            <td className="py-2.5 px-3 text-right tabular-nums font-bold text-ink">
-                              {p.projValue > 0 ? inr(p.projValue) : "—"}
-                            </td>
-                            <td className="py-2.5 px-3">
-                              <StatusBadge
-                                label={PROJ_STATUS_LABELS[p.status] ?? p.status}
-                                tone={projTone(PROJ_STATUS_LABELS[p.status] ?? p.status)}
-                              />
-                            </td>
-                            <td className="py-2.5 px-3 tabular-nums text-muted">{p.nextFollowUp || "—"}</td>
-                            <td className="py-2.5 px-3 text-center">
-                              <button
-                                type="button"
-                                onClick={() => setSelectedFuProj(p)}
-                                className="rounded-lg border border-line bg-surface px-2.5 py-1 text-xs font-bold text-ink hover:border-brand hover:text-brand cursor-pointer shadow-2xs transition-colors"
-                              >
-                                Log Follow-Up
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
+              <TopOpenProjectionsCard
+                rows={topOpenProjections}
+                windowLabel={windowLabel}
+                onCustomer={(id) => setSelectedDrawerCustId(id)}
+                onLogFollowUp={(p) => setSelectedFuProj(p)}
+              />
             </div>
           ) : (
             /* Admin & Management Dashboard Views */
@@ -419,7 +378,19 @@ export default function DashboardPage() {
                 </QueryBoundary>
               </Card>
 
-              {/* 2. Deals at Oral Confirmation */}
+              {/* 2. Top open projections — the aggregate has always carried
+                  these for every role; only the sales branch rendered them, so
+                  an administrator was sent ten lines a page it never drew.
+                  Management reads the workspace rather than writing to it, so
+                  it gets the table and not the follow-up action. */}
+              <TopOpenProjectionsCard
+                rows={topOpenProjections}
+                windowLabel={windowLabel}
+                onCustomer={(id) => setSelectedDrawerCustId(id)}
+                onLogFollowUp={role === "mgmt" ? undefined : (p) => setSelectedFuProj(p)}
+              />
+
+              {/* 3. Deals at Oral Confirmation */}
               <Card className="p-0 overflow-hidden shadow-xs border-line">
                 <div className="p-3.5 border-b border-line flex items-center justify-between bg-surface-2/40">
                   <div className="flex items-center gap-2">
@@ -491,7 +462,11 @@ export default function DashboardPage() {
                 <Card className="p-4 shadow-xs border-line">
                   <div className="font-bold text-sm text-ink mb-3">Principal performance this month</div>
                   <div className="space-y-3">
-                    {principalStats.slice(0, 6).map((pr) => {
+                    {/* All of them, not the first six. The heading promises
+                        principal performance and the list arrives sorted by
+                        committed value, so truncating it silently dropped the
+                        smallest brands off a card that claimed to cover them. */}
+                    {principalStats.map((pr) => {
                       const achPct = pr.committed > 0 ? (pr.achieved / pr.committed) * 100 : 0;
                       return (
                         <div key={pr.name} className="space-y-1">
@@ -609,6 +584,14 @@ export default function DashboardPage() {
           period={range.months[0]}
         />
       )}
+
+      <FollowUpsDueModal
+        open={showFollowUps}
+        onClose={() => setShowFollowUps(false)}
+        items={dashQuery.data?.followUps ?? []}
+        due={fuDue}
+        overdue={fuOverdue}
+      />
     </div>
   );
 }

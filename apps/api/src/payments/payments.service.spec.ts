@@ -142,6 +142,187 @@ describe('PaymentsService (integration)', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  describe('who owns a receivable', () => {
+    it('scopes a salesperson to invoices on their accounts, not just ones stamped with their id', async () => {
+      // An invoice exported from an accounting system carries no sales owner —
+      // the Promech import arrived with all 141 of them blank. Scoping on the
+      // column alone meant a salesperson opened the receivables page and saw
+      // nothing at all.
+      const unstamped = await service.create(admin('tenant_acme', 'acme'), {
+        amount: 9000,
+        refNo: 'PAY-NO-OWNER',
+        customerId: 'cust_1_acme',
+      });
+      expect(unstamped.salespersonId).toBe('user_sales1_acme');
+      expect(unstamped.salespersonName).toBe('Acme Corp Sales One');
+
+      const theirs = await service.list(
+        sales('tenant_acme', 'acme', 1),
+        { limit: 50 },
+        TODAY,
+      );
+      expect(theirs.items.some((p) => p.refNo === 'PAY-NO-OWNER')).toBe(true);
+    });
+
+    it('still lets the other salesperson see nothing of it', async () => {
+      const other = await service.list(
+        sales('tenant_acme', 'acme', 2),
+        { limit: 50 },
+        TODAY,
+      );
+      expect(other.items.every((p) => p.refNo !== 'PAY-NO-OWNER')).toBe(true);
+    });
+
+    it('lets the account owner edit an invoice that names no owner of its own', async () => {
+      const list = await service.list(
+        admin('tenant_acme', 'acme'),
+        { limit: 50 },
+        TODAY,
+      );
+      const id = list.items.find((p) => p.refNo === 'PAY-NO-OWNER')!.id;
+      const edited = await service.update(sales('tenant_acme', 'acme', 1), id, {
+        delayReason: 'Cheque promised Friday',
+      });
+      expect(edited.delayReason).toBe('Cheque promised Friday');
+      await expect(
+        service.update(sales('tenant_acme', 'acme', 2), id, {
+          delayReason: 'x',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('an explicit owner on the invoice still wins over the account', async () => {
+      const stamped = await service.create(admin('tenant_acme', 'acme'), {
+        amount: 100,
+        refNo: 'PAY-OWNER-WINS',
+        customerId: 'cust_1_acme',
+        salespersonId: 'user_sales2_acme',
+      });
+      expect(stamped.salespersonId).toBe('user_sales2_acme');
+      const owner = await service.list(
+        sales('tenant_acme', 'acme', 2),
+        { limit: 50 },
+        TODAY,
+      );
+      expect(owner.items.some((p) => p.refNo === 'PAY-OWNER-WINS')).toBe(true);
+      const accountOwner = await service.list(
+        sales('tenant_acme', 'acme', 1),
+        { limit: 50 },
+        TODAY,
+      );
+      expect(
+        accountOwner.items.every((p) => p.refNo !== 'PAY-OWNER-WINS'),
+      ).toBe(true);
+    });
+  });
+
+  describe('the reminder chase', () => {
+    it('stamps a letter with the moment it was marked sent', async () => {
+      const created = await service.create(admin('tenant_acme', 'acme'), {
+        amount: 500,
+        refNo: 'PAY-CHASE-1',
+        salespersonId: 'user_sales1_acme',
+      });
+      expect(created.mail1).toBe(false);
+      expect(created.mail1At).toBeNull();
+
+      const before = Date.now();
+      const sent = await service.update(
+        admin('tenant_acme', 'acme'),
+        created.id,
+        {
+          mail1: true,
+        },
+      );
+      expect(sent.mail1).toBe(true);
+      expect(sent.mail1At).not.toBeNull();
+      expect(new Date(sent.mail1At!).getTime()).toBeGreaterThanOrEqual(before);
+      // The letters that have not gone stay empty.
+      expect(sent.mail2At).toBeNull();
+    });
+
+    it('does not move the date when a patch repeats a letter already sent', async () => {
+      const created = await service.create(admin('tenant_acme', 'acme'), {
+        amount: 500,
+        refNo: 'PAY-CHASE-2',
+      });
+      const first = await service.update(
+        admin('tenant_acme', 'acme'),
+        created.id,
+        {
+          mail1: true,
+        },
+      );
+      const again = await service.update(
+        admin('tenant_acme', 'acme'),
+        created.id,
+        {
+          mail1: true,
+        },
+      );
+      // Re-sending the same flag is a no-op, not a second letter: the UI
+      // patches the whole reminder state on every open.
+      expect(again.mail1At).toBe(first.mail1At);
+    });
+
+    it('clears the date when a letter is taken back', async () => {
+      const created = await service.create(admin('tenant_acme', 'acme'), {
+        amount: 500,
+        refNo: 'PAY-CHASE-3',
+      });
+      await service.update(admin('tenant_acme', 'acme'), created.id, {
+        mail1: true,
+      });
+      const undone = await service.update(
+        admin('tenant_acme', 'acme'),
+        created.id,
+        {
+          mail1: false,
+        },
+      );
+      expect(undone.mail1).toBe(false);
+      // A date on a letter that has not gone is worse than no date at all.
+      expect(undone.mail1At).toBeNull();
+    });
+
+    it('tells the collector in words which letter went out', async () => {
+      const created = await service.create(admin('tenant_acme', 'acme'), {
+        amount: 500,
+        refNo: 'PAY-CHASE-4',
+        invoiceNo: 'INV-CHASE-4',
+        salespersonId: 'user_sales1_acme',
+      });
+      await service.update(admin('tenant_acme', 'acme'), created.id, {
+        mail1: true,
+      });
+      await service.update(admin('tenant_acme', 'acme'), created.id, {
+        mail2: true,
+      });
+
+      const notes = await prisma
+        .forTenant('tenant_acme')
+        .notification.findMany({
+          where: { entityId: created.id, type: 'PaymentReminder' },
+          orderBy: { at: 'asc' },
+        });
+      expect(notes.map((n) => n.title)).toEqual([
+        '1st reminder sent for INV-CHASE-4',
+        '2nd reminder sent for INV-CHASE-4',
+      ]);
+    });
+
+    it('stamps letters that arrive already sent on a new payment', async () => {
+      const created = await service.create(admin('tenant_acme', 'acme'), {
+        amount: 500,
+        refNo: 'PAY-CHASE-5',
+        mail1: true,
+        mail2: false,
+      });
+      expect(created.mail1At).not.toBeNull();
+      expect(created.mail2At).toBeNull();
+    });
+  });
+
   it('soft-deletes a payment so it drops out of the list', async () => {
     const created = await service.create(admin('tenant_acme', 'acme'), {
       amount: 10,

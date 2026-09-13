@@ -10,6 +10,7 @@
  */
 import type { LeadRow } from "@/features/leads/types";
 import type { ProjectionLine } from "@/features/projections/types";
+import type { EntityTypeValue } from "@/features/followups/types";
 
 export interface DashboardKpis {
   recurringCommitted: number;
@@ -57,6 +58,28 @@ export interface TargetUpsert {
   targetValue: number;
 }
 
+/**
+ * One follow-up still owed — a row of the `FollowUp` table, which is what this
+ * product means by the word.
+ *
+ * A follow-up points at the record it concerns through `entityType` and
+ * `entityId`; the Follow-ups page and the mobile screen both list this table
+ * and send you to that record's own surface. The `nextFollowUp` column a lead,
+ * a line or a payment carries is a date ON that record, not a follow-up.
+ */
+export interface DashboardFollowUp {
+  id: string;
+  entityType: EntityTypeValue;
+  entityId: string;
+  title: string;
+  subtitle: string | null;
+  ownerName: string | null;
+  dueDate: string;
+  /** Days late against the tenant's business day; 0 means it falls today. */
+  daysOverdue: number;
+  amount: number | null;
+}
+
 export interface DashboardCategorySlice {
   tier: string;
   committed: number;
@@ -77,4 +100,6 @@ export interface DashboardResponse {
   oralConfirmationDeals: LeadRow[];
   oralConfirmationTotal: number;
   topOpenProjections: ProjectionLine[];
+  /** The rows behind `followUpsDue` + `followUpsOverdue`, most overdue first. */
+  followUps: DashboardFollowUp[];
 }

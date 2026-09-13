@@ -20,6 +20,7 @@ import type {
   PaymentCreate,
   PaymentUpdate,
 } from "./types";
+import { invalidateAfter } from "@/lib/invalidate";
 
 const PAGE_SIZE = 50;
 
@@ -65,7 +66,7 @@ export function flattenPayments(data?: { pages: PaymentListResponse[] }): Paymen
 }
 
 export function onPaymentMutationSuccess(qc: QueryClient) {
-  return qc.invalidateQueries({ queryKey: ["payments"] });
+  return invalidateAfter(qc, "payments");
 }
 
 export function useCreatePayment() {

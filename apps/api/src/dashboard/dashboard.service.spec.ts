@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { ProjectionsService } from '../projections/projections.service';
 import { TargetsService } from '../targets/targets.service';
+import { FollowUpsService } from '../followups/followups.service';
 import { LeadsService } from '../leads/leads.service';
 import { DashboardService } from './dashboard.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -48,6 +49,7 @@ describe('DashboardService', () => {
   let projections: ProjectionsService;
   let leads: LeadsService;
   let targets: TargetsService;
+  let followUps: FollowUpsService;
   let service: DashboardService;
 
   beforeAll(async () => {
@@ -60,7 +62,10 @@ describe('DashboardService', () => {
     projections = new ProjectionsService(prisma);
     leads = new LeadsService(prisma, notifications);
     targets = new TargetsService(prisma);
-    service = new DashboardService(projections, leads, targets);
+    // Real too: the follow-up tile counts this service's rows, and stubbing it
+    // would test a dashboard nobody uses.
+    followUps = new FollowUpsService(prisma);
+    service = new DashboardService(projections, leads, targets, followUps);
   }, 120_000);
 
   afterAll(async () => {

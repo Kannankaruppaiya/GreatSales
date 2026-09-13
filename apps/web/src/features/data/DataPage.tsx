@@ -32,24 +32,8 @@ import {
   usePeriodLock,
   useUnlockPeriod,
 } from "@/features/data/periodQueries";
-
-/**
- * Sanitizes CSV field values to prevent CSV / Excel Formula Injection (DDE attacks).
- * If a cell starts with =, +, -, @, \t, or \r, prepend a single quote so spreadsheets
- * treat it as plain text rather than executing dynamic formulas.
- */
-function sanitizeCsvValue(val: unknown): string {
-  if (val == null) return "";
-  let str = String(val).trim();
-  if (/^[=+\-@\t\r]/.test(str)) {
-    str = `'${str}`;
-  }
-  // Escape double quotes
-  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-    str = `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
+import { downloadTenantExport } from "@/features/data/exportQueries";
+import { today } from "@/lib/format";
 
 export default function DataPage() {
   const role = useAuthRole();
@@ -107,42 +91,28 @@ export default function DataPage() {
     paymentsQ.isLoading ||
     leadsQ.isLoading;
 
-  const handleExportSummaryCsv = () => {
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  /**
+   * The whole tenant's data, not just what happened to be sitting in the
+   * paginated queries above (`counts.*`, capped at whatever page each list
+   * query last fetched). GET /export/tenant.csv walks every page of every
+   * entity server-side — see apps/api/src/export — so the file this produces
+   * carries the real total, not the count badge shown on this page.
+   */
+  const handleExportFull = async () => {
     setIsExporting(true);
+    setExportError(null);
     try {
-      const headers = ["Entity Type", "Total Records", "Tenant ID", "Last Refreshed"];
-      const now = new Date().toISOString();
-      const rows = [
-        ["Customers", counts.customers ?? 0, user?.tenantId || "default", now],
-        ["Principal Brands", counts.principals ?? 0, user?.tenantId || "default", now],
-        ["Product Catalog SKUs", counts.products ?? 0, user?.tenantId || "default", now],
-        ["Sales Orders", counts.orders ?? 0, user?.tenantId || "default", now],
-        ["Invoices & Receivables", counts.payments ?? 0, user?.tenantId || "default", now],
-        ["Sales Leads", counts.leads ?? 0, user?.tenantId || "default", now],
-      ];
-
-      const csvContent =
-        "data:text/csv;charset=utf-8," +
-        [
-          headers.map(sanitizeCsvValue).join(","),
-          ...rows.map((row) => row.map(sanitizeCsvValue).join(",")),
-        ].join("\n");
-
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute(
-        "download",
-        `GreatSales_Tenant_${user?.tenantId || "acme"}_Metrics_${new Date().toISOString().slice(0, 10)}.csv`,
+      await downloadTenantExport(
+        `GreatSales_Tenant_${user?.tenantId || "acme"}_Export_${today()}.csv`,
       );
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      setStatusMessage("Tenant metrics spreadsheet generated with Formula Sanitization.");
+      setStatusMessage("Full tenant export downloaded.");
       setTimeout(() => setStatusMessage(null), 4000);
-    } catch {
-      setStatusMessage("Export failed. Please try again.");
+    } catch (err) {
+      setExportError(
+        err instanceof ApiError ? err.message : "Export failed. Please try again.",
+      );
     } finally {
       setIsExporting(false);
     }
@@ -213,11 +183,11 @@ export default function DataPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleExportSummaryCsv}
+            onClick={() => void handleExportFull()}
             disabled={isExporting}
           >
             <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5 text-brand" />
-            {isExporting ? "Exporting…" : "Export Safe CSV"}
+            {isExporting ? "Exporting…" : "Export Full Tenant Data"}
           </Button>
         </div>
       </div>
@@ -229,6 +199,12 @@ export default function DataPage() {
         <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-3.5 text-xs font-bold text-emerald-900 flex items-center gap-2 shadow-xs animate-in">
           <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
           <span>{statusMessage}</span>
+        </div>
+      )}
+
+      {exportError && (
+        <div className="rounded-xl border border-red/30 bg-red-soft p-3.5 text-xs font-bold text-red">
+          {exportError}
         </div>
       )}
 

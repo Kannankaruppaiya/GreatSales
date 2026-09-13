@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api';
 import { listParams, useCursorList } from './cursorList';
 import type { FollowUpRow, FollowUpListResponse, FollowUpCreate, FollowUpUpdate } from '@greatsales/shared';
+import { invalidateAfter } from '../invalidate';
 
 export type { FollowUpRow, FollowUpCreate, FollowUpUpdate };
 
@@ -34,7 +35,7 @@ export function useCreateFollowUp() {
   return useMutation({
     mutationFn: (body: FollowUpCreate) =>
       apiFetch<FollowUpRow>('/followups', { method: 'POST', body: JSON.stringify(body) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: followUpKeys.all }),
+    onSuccess: () => invalidateAfter(qc, 'followups'),
   });
 }
 
@@ -46,7 +47,7 @@ export function useUpdateFollowUp() {
         method: 'PATCH',
         body: JSON.stringify(patch),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: followUpKeys.all }),
+    onSuccess: () => invalidateAfter(qc, 'followups'),
   });
 }
 
@@ -54,7 +55,7 @@ export function useDeleteFollowUp() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => apiFetch<void>(`/followups/${id}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: followUpKeys.all }),
+    onSuccess: () => invalidateAfter(qc, 'followups'),
   });
 }
 

@@ -62,15 +62,6 @@ export const DEAL_STAGE_VALUES = [
 export type DealStageValue = (typeof DEAL_STAGE_VALUES)[number];
 export const DealStageSchema = z.enum(DEAL_STAGE_VALUES);
 
-export const LEAD_STATUS_VALUES = [
-  "Platinum",
-  "Gold",
-  "Silver",
-  "Bronze",
-] as const;
-export type LeadStatusValue = (typeof LEAD_STATUS_VALUES)[number];
-export const LeadStatusSchema = z.enum(LEAD_STATUS_VALUES);
-
 export const ORDER_STATUS_VALUES = [
   "Created",
   "Acknowledged",

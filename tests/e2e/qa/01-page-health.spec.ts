@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { FEATURES } from "../helpers/features";
-import { featureUrl, loginAs, watchErrors } from "../helpers/session";
+import { apiToken, auth, featureUrl, loginAs, watchErrors } from "../helpers/session";
 
 /**
  * One pass over every routed surface in the registry: it must render its own
@@ -49,7 +49,17 @@ test.describe("Page health — every feature renders clean", () => {
     const rows = await page.locator("table tbody tr").count();
     expect(rows, "customers page must render its first page of rows").toBeGreaterThan(10);
 
-    // The count badge in the toolbar must agree with the rows on screen.
-    await expect(page.getByText(new RegExp(`${rows} accounts`))).toBeVisible();
+    // The toolbar badge is the TENANT's total, not the page on screen. This
+    // used to compare it against the rendered row count, which held only while
+    // the list was capped and everything fit; the list is cursor-paginated now,
+    // so 50 rows under a badge reading 418 is the correct answer and the old
+    // assertion failed on a working page.
+    const res = await request.get("/api/v1/customers?limit=1", {
+      headers: auth(await apiToken(request, "admin")),
+    });
+    expect(res.status()).toBe(200);
+    const { total } = (await res.json()) as { total: number };
+    expect(total, "the Promech seed is missing — re-run db:seed:promech").toBeGreaterThan(rows);
+    await expect(page.getByText(new RegExp(`${total} accounts`))).toBeVisible();
   });
 });

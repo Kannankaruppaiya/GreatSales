@@ -1,10 +1,11 @@
 import { test, expect } from "@playwright/test";
+import { MGMT_ID } from "../fixtures/test-data";
 import { loginAsAdmin } from "../helpers/auth";
 
 test.describe("Dashboard Page (Executive Overview)", () => {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
-    await page.goto("/managements/greatsales-industrial-corp/dashboard");
+    await page.goto(`/managements/${MGMT_ID}/dashboard`);
     await page.waitForLoadState("networkidle");
   });
 

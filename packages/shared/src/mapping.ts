@@ -28,6 +28,22 @@ export const MappingListQuerySchema = z.object({
   productId: z.string().optional(),
   /** Admin/management may filter by owner; a sales user is always forced to self. */
   ownerId: z.string().optional(),
+  /** Only mappings whose product belongs to this principal. */
+  principalId: z.string().optional(),
+  /**
+   * Only mappings that cannot price anything — no agreed price AND no catalog
+   * price behind it.
+   *
+   * This page calls a mapping "the basis for every projection line", and the
+   * projection engine resolves `projectionPrice ?? customPrice ?? basePrice ?? 0`
+   * — so projecting one of these values it at ZERO unless somebody types a price
+   * on the line itself. They are the actionable set on this page and there was
+   * no way to find them among hundreds of rows.
+   *
+   * Not `z.coerce.boolean()`: that casts any non-empty string to true, so
+   * `?unpriced=false` would turn the filter ON. Only the literal "true" counts.
+   */
+  unpriced: z.enum(["true", "false"]).optional(),
   /** Matches customer name or product name/SKU. */
   search: z.string().optional(),
 });

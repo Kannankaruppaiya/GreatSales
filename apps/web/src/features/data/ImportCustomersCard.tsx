@@ -6,6 +6,7 @@ import { Button, Card, CardHeader } from "@/components/ui";
 import { ApiError, apiFetch } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFeature } from "@/lib/featureFlags";
+import { invalidateAfter } from "@/lib/invalidate";
 
 /** Mirrors `IMPORT_MAX_ROWS` in packages/shared/src/import.ts. */
 const MAX_ROWS = 500;
@@ -139,8 +140,7 @@ export function ImportCustomersCard() {
       );
       // The customers page is now wrong by however many rows just landed, and
       // the history below is one run short.
-      void qc.invalidateQueries({ queryKey: ["customers"] });
-      void qc.invalidateQueries({ queryKey: ["imports"] });
+      void invalidateAfter(qc, "customers", "imports");
     } catch (err) {
       setError(
         err instanceof ApiError

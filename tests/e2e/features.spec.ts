@@ -1,10 +1,11 @@
 import { test, expect } from "@playwright/test";
+import { MGMT_ID } from "./fixtures/test-data";
 import { loginAsAdmin } from "./helpers/auth";
 
 test.describe("GreatSales All Features Suite", () => {
   test("1. Dashboard Feature: renders executive overview, KPI metrics, and modals", async ({ page }) => {
     await loginAsAdmin(page);
-    await page.goto("/managements/greatsales-industrial-corp/dashboard");
+    await page.goto(`/managements/${MGMT_ID}/dashboard`);
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByRole("heading", { name: /Executive Overview/i })).toBeVisible();
@@ -38,7 +39,7 @@ test.describe("GreatSales All Features Suite", () => {
 
   test("2. Recurring Projections Feature: renders table and search filter", async ({ page }) => {
     await loginAsAdmin(page);
-    await page.goto("/managements/greatsales-industrial-corp/projections");
+    await page.goto(`/managements/${MGMT_ID}/projections`);
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByRole("heading", { name: /Recurring/i })).toBeVisible();
@@ -53,7 +54,7 @@ test.describe("GreatSales All Features Suite", () => {
 
   test("3. Leads & Pipeline Feature: toggles views and tests Add Lead modal", async ({ page }) => {
     await loginAsAdmin(page);
-    await page.goto("/managements/greatsales-industrial-corp/leads");
+    await page.goto(`/managements/${MGMT_ID}/leads`);
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByRole("heading", { name: /Pipeline & Leads/i })).toBeVisible();
@@ -76,7 +77,7 @@ test.describe("GreatSales All Features Suite", () => {
 
   test("4. Sales Orders Feature: displays orders table and Create Order modal", async ({ page }) => {
     await loginAsAdmin(page);
-    await page.goto("/managements/greatsales-industrial-corp/orders");
+    await page.goto(`/managements/${MGMT_ID}/orders`);
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByRole("heading", { name: /Sales Order/i })).toBeVisible();
@@ -93,7 +94,7 @@ test.describe("GreatSales All Features Suite", () => {
 
   test("5. Payments & Receivables Feature: renders aging and Record Payment modal", async ({ page }) => {
     await loginAsAdmin(page);
-    await page.goto("/managements/greatsales-industrial-corp/payments");
+    await page.goto(`/managements/${MGMT_ID}/payments`);
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByRole("heading", { name: /Payments & Receivables/i })).toBeVisible();
@@ -111,7 +112,7 @@ test.describe("GreatSales All Features Suite", () => {
 
   test("6. Follow-ups Feature: displays timeline and Add Follow-up modal", async ({ page }) => {
     await loginAsAdmin(page);
-    await page.goto("/managements/greatsales-industrial-corp/followups");
+    await page.goto(`/managements/${MGMT_ID}/followups`);
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByText(/Actionable Timeline/i)).toBeVisible();
@@ -128,7 +129,7 @@ test.describe("GreatSales All Features Suite", () => {
 
   test("7. Customers Feature: renders directory table and Add Customer modal", async ({ page }) => {
     await loginAsAdmin(page);
-    await page.goto("/managements/greatsales-industrial-corp/customers");
+    await page.goto(`/managements/${MGMT_ID}/customers`);
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByRole("heading", { name: /Customer/i }).first()).toBeVisible();
@@ -145,7 +146,7 @@ test.describe("GreatSales All Features Suite", () => {
 
   test("8. Products Feature: renders catalog and Add Product modal", async ({ page }) => {
     await loginAsAdmin(page);
-    await page.goto("/managements/greatsales-industrial-corp/products");
+    await page.goto(`/managements/${MGMT_ID}/products`);
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByRole("heading", { name: /Product/i }).first()).toBeVisible();
@@ -163,7 +164,7 @@ test.describe("GreatSales All Features Suite", () => {
 
   test("9. Customer & Product Mapping Feature: renders grid and Map Product modal", async ({ page }) => {
     await loginAsAdmin(page);
-    await page.goto("/managements/greatsales-industrial-corp/mappings");
+    await page.goto(`/managements/${MGMT_ID}/mappings`);
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByRole("heading", { name: /Mapping/i }).first()).toBeVisible();
@@ -181,7 +182,7 @@ test.describe("GreatSales All Features Suite", () => {
 
   test("10. Team & User Governance Feature: renders users and switches to Teams tab", async ({ page }) => {
     await loginAsAdmin(page);
-    await page.goto("/managements/greatsales-industrial-corp/users");
+    await page.goto(`/managements/${MGMT_ID}/users`);
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByRole("tab", { name: "Users" })).toBeVisible();
@@ -195,7 +196,7 @@ test.describe("GreatSales All Features Suite", () => {
 
   test("11. Data Administration Feature: renders metrics and overview cards", async ({ page }) => {
     await loginAsAdmin(page);
-    await page.goto("/managements/greatsales-industrial-corp/data");
+    await page.goto(`/managements/${MGMT_ID}/data`);
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByRole("heading", { name: /Data/i }).first()).toBeVisible();
@@ -205,7 +206,7 @@ test.describe("GreatSales All Features Suite", () => {
 
   test("12. Global Navigation & Layout: tests sidebar links and command palette", async ({ page }) => {
     await loginAsAdmin(page);
-    await page.goto("/managements/greatsales-industrial-corp/dashboard");
+    await page.goto(`/managements/${MGMT_ID}/dashboard`);
 
     const sidebar = page.locator("aside");
     await expect(sidebar).toBeVisible();

@@ -26,12 +26,14 @@ import type {
   TeamRow,
   TeamUpdate,
   UserCreate,
+  UserDirectoryEntry,
   UserListResponse,
   UserRow,
   UserSortField,
   UserStatusFilter,
   UserUpdate,
 } from "./types";
+import { invalidateAfter } from "@/lib/invalidate";
 
 const PAGE_SIZE = 25;
 
@@ -70,11 +72,7 @@ export const teamKeys = {
  * after they changed them — the moment they are most likely to be looking.
  */
 export function invalidateAdminFamilies(qc: QueryClient): Promise<void> {
-  return Promise.all([
-    qc.invalidateQueries({ queryKey: userKeys.all }),
-    qc.invalidateQueries({ queryKey: roleKeys.all }),
-    qc.invalidateQueries({ queryKey: teamKeys.all }),
-  ]).then(() => undefined);
+  return invalidateAfter(qc, "people");
 }
 
 /* ── Users ──────────────────────────────────────────────────────────────── */
@@ -113,6 +111,22 @@ export function useUsers(
 
 export function flattenUsers(data?: { pages: UserListResponse[] }): UserRow[] {
   return data?.pages.flatMap((pg) => pg.items) ?? [];
+}
+
+/**
+ * The tenant roster for salesperson/assignee pickers — readable by any
+ * authenticated member, unlike `useUsers`, which 403s for mgmt and sales.
+ * Use this wherever a component only needs id/name/role to populate a
+ * dropdown or filter; keep `useUsers` for the actual user-administration page.
+ */
+export const directoryKey = ["users", "directory"] as const;
+
+export function useUserDirectory(opts: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: directoryKey,
+    queryFn: () => apiFetch<UserDirectoryEntry[]>("/users/directory"),
+    enabled: opts.enabled ?? true,
+  });
 }
 
 /**

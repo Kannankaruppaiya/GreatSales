@@ -1,5 +1,7 @@
 import { z } from "zod";
+import type { ContactRow } from "./contact";
 import { CursorSchema, QueryBool, type CursorPage } from "./pagination";
+import { PeriodSchema } from "./period";
 import {
   CustomerCategorySchema,
   CustomerTypeSchema,
@@ -62,6 +64,8 @@ export interface CustomerRow {
   salespersonName: string;
   collectorId: string | null;
   collectorName: string | null;
+  /** Everyone at this account, primary first. */
+  contacts: ContactRow[];
   primaryContactName: string | null;
   primaryContactPhone: string | null;
   /** Pinned on site from GPS. Both coordinates are present, or neither is. */
@@ -154,10 +158,52 @@ const bothCoordsOrNeither = <T extends { latitude?: unknown; longitude?: unknown
 ) => (o.latitude == null) === (o.longitude == null);
 const COORD_PAIR_MESSAGE = "latitude and longitude must be sent together";
 
-export const CustomerCreateSchema = CustomerFields.refine(bothCoordsOrNeither, {
-  message: COORD_PAIR_MESSAGE,
-  path: ["longitude"],
+/**
+ * One customer x product pairing to open alongside the account.
+ *
+ * A recurring-sales customer is not usable until something is mapped to it:
+ * `Projection.mappingId` is required, so an account with no mappings can never
+ * appear on the worksheet. Onboarding the account and its products in one
+ * request is what the POC's "Add new customer" did, and splitting it into
+ * `POST /customers` followed by N `POST /mappings` calls means a half-created
+ * customer whenever one of the later calls fails.
+ */
+export const CustomerMappingSeedSchema = z.object({
+  productId: z.string().min(1),
+  /** Agreed price for this account. Omit to let the catalog price apply. */
+  customPrice: z.number().nonnegative().nullable().optional(),
 });
+export type CustomerMappingSeed = z.infer<typeof CustomerMappingSeedSchema>;
+
+export const CustomerCreateSchema = CustomerFields.extend({
+  /**
+   * Products to map to the new account, in the same transaction. Capped
+   * because this is an onboarding form, not an import.
+   */
+  mappings: z.array(CustomerMappingSeedSchema).max(50).optional(),
+  /**
+   * When given, a BLANK projection line is opened for each new mapping in this
+   * month, so a customer added from the worksheet appears on the worksheet
+   * instead of being created into a month that cannot show it. Omit from the
+   * customers page, where no month is in view.
+   */
+  period: PeriodSchema.optional(),
+})
+  .refine(bothCoordsOrNeither, {
+    message: COORD_PAIR_MESSAGE,
+    path: ["longitude"],
+  })
+  // Silently collapsing a repeated product would report more mappings than it
+  // created, so the duplicate is named instead.
+  .refine(
+    (o) =>
+      !o.mappings ||
+      new Set(o.mappings.map((m) => m.productId)).size === o.mappings.length,
+    {
+      message: "The same product is mapped more than once",
+      path: ["mappings"],
+    },
+  );
 export type CustomerCreate = z.infer<typeof CustomerCreateSchema>;
 
 /** PATCH /customers/:id — partial edit. At least one field required. */

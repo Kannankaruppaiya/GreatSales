@@ -10,6 +10,7 @@ import type {
   ProjectionListResponse,
   ProjStatusValue,
 } from "@/features/projections/types";
+import { invalidateAfter } from "@/lib/invalidate";
 
 export interface ProjectionParams {
   period: string;
@@ -27,6 +28,48 @@ export interface ProjectionPatch {
   probability?: number | null;
   nextFollowUp?: string | null;
   targetDate?: string | null;
+}
+
+export interface RollForwardResult {
+  from: string;
+  to: string;
+  created: number;
+  skipped: number;
+}
+
+/**
+ * Open a month by carrying the previous month's commitments into it.
+ *
+ * Invalidates the whole `projections` family rather than one key: the month
+ * just filled is usually the one on screen, and the footer totals are the
+ * server's, so re-reading is the only way they can be right.
+ */
+/**
+ * Drop a line from a month — the counterpart to rolling one in.
+ *
+ * A roll carries every commitment the previous month held, and some are for
+ * customers who have since stopped buying; without this the only way to take
+ * one out of the total is to commit zero and pretend.
+ */
+export function useDeleteProjection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`/projections/${id}`, { method: "DELETE" }),
+    onSuccess: () => invalidateAfter(qc, "projections"),
+  });
+}
+
+export function useRollForward() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { to: string; from?: string; ownerId?: string }) =>
+      apiFetch<RollForwardResult>("/projections/roll-forward", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => invalidateAfter(qc, "projections"),
+  });
 }
 
 export function useProjections(params: ProjectionParams, enabled: boolean) {
@@ -54,6 +97,6 @@ export function useUpdateProjection() {
         method: "PATCH",
         body: JSON.stringify(patch),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["projections"] }),
+    onSuccess: () => invalidateAfter(qc, "projections"),
   });
 }

@@ -54,6 +54,11 @@ export class FollowUpsService {
     const where: Prisma.FollowUpWhereInput = {
       ...(ownerId ? { salespersonId: ownerId } : {}),
       ...(query.entityType ? { entityType: query.entityType } : {}),
+      // Only applied alongside entityType — an id alone could collide across
+      // entity types (a Lead and a Payment can share a cuid by coincidence).
+      ...(query.entityType && query.entityId
+        ? { entityId: query.entityId }
+        : {}),
       ...(query.done !== undefined ? { done: query.done } : {}),
       ...(query.search
         ? { title: { contains: query.search, mode: 'insensitive' } }
@@ -78,6 +83,33 @@ export class FollowUpsService {
       nextCursor: hasMore ? page[page.length - 1].id : null,
       total,
     };
+  }
+
+  /**
+   * Every task still owed on or before `today`, for the dashboard's card.
+   *
+   * Uncapped and unpaginated on purpose: it feeds a count, and a count that
+   * stopped at a page size would be a different number from the truth. Rows
+   * are narrow and only the outstanding ones are selected, so the set is the
+   * size of somebody's actual to-do list.
+   */
+  async outstanding(
+    user: RequestUser,
+    ownerId: string | undefined,
+    today: string,
+  ): Promise<FollowUpRow[]> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const scoped = await this.resolveOwnerScope(db, user, ownerId);
+    const rows = await db.followUp.findMany({
+      where: {
+        done: false,
+        dueDate: { lte: new Date(`${today}T23:59:59.999Z`) },
+        ...(scoped ? { salespersonId: scoped } : {}),
+      },
+      include: FOLLOWUP_INCLUDE,
+      orderBy: { dueDate: 'asc' },
+    });
+    return rows.map(toRow);
   }
 
   /** Create a follow-up. Sales-only callers always own what they create. */

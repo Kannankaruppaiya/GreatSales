@@ -49,7 +49,8 @@ describe('AuthService.changePassword', () => {
       tenantId: ACME,
       email,
       password,
-      tokenDelivery: 'cookie' as const, client: 'web' as const
+      tokenDelivery: 'cookie' as const,
+      client: 'web' as const,
     });
 
   beforeAll(async () => {

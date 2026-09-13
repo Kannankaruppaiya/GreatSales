@@ -17,6 +17,12 @@ export const FollowUpListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().optional(),
   entityType: EntityTypeSchema.optional(),
+  /**
+   * One specific record's follow-ups, e.g. a Customer 360 view. Only
+   * meaningful alongside `entityType` — the same id could otherwise collide
+   * across entity types — so the service requires both together.
+   */
+  entityId: z.string().optional(),
   done: QueryBool.optional(),
   ownerId: z.string().optional(),
 });

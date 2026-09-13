@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LocationField, type Pin } from "./LocationField";
 import { useFeature } from "@/lib/featureFlags";
 import { Building2 } from "lucide-react";
@@ -7,7 +7,7 @@ import { ConfirmActionModal } from "@/components/modals/ConfirmActionModal";
 import { ApiError } from "@/lib/api";
 import { CUSTOMER_TIERS, INDUSTRIAL_AREAS } from "@/data/constants";
 import { useUpdateCustomer, useIndustries } from "@/features/customers/queries";
-import { useUsers, flattenUsers } from "@/features/users/queries";
+import { useUserDirectory } from "@/features/users/queries";
 import {
   PAYMENT_TERMS_VALUES,
   PAYMENT_TERMS_LABELS,
@@ -47,8 +47,8 @@ export function EditCustomerModal({
   const industryOptions = Array.isArray(rawIndustries) ? rawIndustries : [];
 
   const needsUsersFetch = salespeople === undefined || collectors === undefined;
-  const usersQuery = useUsers({}, { enabled: needsUsersFetch && open });
-  const allUsers = useMemo(() => flattenUsers(usersQuery.data), [usersQuery.data]);
+  const usersQuery = useUserDirectory({ enabled: needsUsersFetch && open });
+  const allUsers = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
 
   const fetchedSalespeople = useMemo(
     () =>
@@ -68,31 +68,33 @@ export function EditCustomerModal({
   );
   const collectorOptions = collectors ?? fetchedCollectors;
 
-  if (!customer) return null;
+  const areaOf = (c: CustomerRow | null) => {
+    const isKnownArea = INDUSTRIAL_AREAS.slice(0, -1).includes((c?.area || "") as any);
+    return {
+      areaSelect: isKnownArea ? (c?.area || INDUSTRIAL_AREAS[0]) : "Other",
+      customArea: isKnownArea ? "" : (c?.area === "Other" ? "" : (c?.area || "")),
+    };
+  };
 
-  const isKnownArea = INDUSTRIAL_AREAS.slice(0, -1).includes((customer.area || "") as any);
-  const initialAreaSelect = isKnownArea ? (customer.area || INDUSTRIAL_AREAS[0]) : "Other";
-  const initialCustomArea = isKnownArea ? "" : (customer.area === "Other" ? "" : (customer.area || ""));
-
-  const [name, setName] = useState(customer.name);
-  const [salespersonId, setSalespersonId] = useState(customer.salespersonId);
-  const [category, setCategory] = useState(customer.category || CUSTOMER_TIERS[0]);
-  const [type, setType] = useState(customer.type || CUSTOMER_TYPES[0]);
-  const [industryId, setIndustryId] = useState(customer.industryId || "");
-  const [subIndustry, setSubIndustry] = useState(customer.subIndustry || "");
-  const [area, setArea] = useState(initialAreaSelect);
-  const [customArea, setCustomArea] = useState(initialCustomArea);
+  const [name, setName] = useState(customer?.name ?? "");
+  const [salespersonId, setSalespersonId] = useState(customer?.salespersonId ?? "");
+  const [category, setCategory] = useState(customer?.category || CUSTOMER_TIERS[0]);
+  const [type, setType] = useState(customer?.type || CUSTOMER_TYPES[0]);
+  const [industryId, setIndustryId] = useState(customer?.industryId || "");
+  const [subIndustry, setSubIndustry] = useState(customer?.subIndustry || "");
+  const [area, setArea] = useState(areaOf(customer).areaSelect);
+  const [customArea, setCustomArea] = useState(areaOf(customer).customArea);
   const [paymentTerms, setPaymentTerms] = useState<PaymentTermsValue>(
-    (customer.paymentTerms as PaymentTermsValue) || "Credit30",
+    (customer?.paymentTerms as PaymentTermsValue) || "Credit30",
   );
   const [payZone, setPayZone] = useState<PayZoneValue>(
-    (customer.payZone as PayZoneValue) || "GreenZone",
+    (customer?.payZone as PayZoneValue) || "GreenZone",
   );
-  const [collectorId, setCollectorId] = useState(customer.collectorId || "");
-  const [outstanding, setOutstanding] = useState(String(customer.outstanding ?? ""));
-  const [active, setActive] = useState(customer.active);
+  const [collectorId, setCollectorId] = useState(customer?.collectorId || "");
+  const [outstanding, setOutstanding] = useState(String(customer?.outstanding ?? ""));
+  const [active, setActive] = useState(customer?.active ?? true);
   const [pin, setPin] = useState<Pin | null>(
-    customer.latitude != null && customer.longitude != null
+    customer && customer.latitude != null && customer.longitude != null
       ? {
           latitude: customer.latitude,
           longitude: customer.longitude,
@@ -102,9 +104,42 @@ export function EditCustomerModal({
   );
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
+  // All hooks above must run on every render regardless of `customer` (Rules
+  // of Hooks) — the caller renders this modal with no `key`, so switching the
+  // `customer` prop without an unmount in between must not leave one
+  // customer's edited-but-unsaved fields on screen for another.
+  useEffect(() => {
+    if (!customer) return;
+    setName(customer.name);
+    setSalespersonId(customer.salespersonId);
+    setCategory(customer.category || CUSTOMER_TIERS[0]);
+    setType(customer.type || CUSTOMER_TYPES[0]);
+    setIndustryId(customer.industryId || "");
+    setSubIndustry(customer.subIndustry || "");
+    const { areaSelect, customArea: customAreaVal } = areaOf(customer);
+    setArea(areaSelect);
+    setCustomArea(customAreaVal);
+    setPaymentTerms((customer.paymentTerms as PaymentTermsValue) || "Credit30");
+    setPayZone((customer.payZone as PayZoneValue) || "GreenZone");
+    setCollectorId(customer.collectorId || "");
+    setOutstanding(String(customer.outstanding ?? ""));
+    setActive(customer.active);
+    setPin(
+      customer.latitude != null && customer.longitude != null
+        ? {
+            latitude: customer.latitude,
+            longitude: customer.longitude,
+            locationAccuracyM: customer.locationAccuracyM,
+          }
+        : null,
+    );
+    setShowDiscardConfirm(false);
+  }, [customer?.id, customer?.updatedAt]);
+
   const effectiveArea = area === "Other" ? (customArea.trim() || "Other") : area;
 
   const isDirty = useMemo(() => {
+    if (!customer) return false;
     return (
       name.trim() !== customer.name ||
       salespersonId !== customer.salespersonId ||
@@ -137,6 +172,8 @@ export function EditCustomerModal({
     outstanding,
     active,
   ]);
+
+  if (!customer) return null;
 
   const handleAttemptClose = () => {
     if (update.isPending) return;

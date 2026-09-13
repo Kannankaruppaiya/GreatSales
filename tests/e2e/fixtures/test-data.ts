@@ -5,8 +5,27 @@
  */
 
 export const TENANT = "tenant_promech";
-export const MGMT_ID = "greatsales-industrial-corp";
-export const SEEDED_PERIOD = "2026-06";
+/**
+ * The seed gives the workspace the tenant's own id. This was the literal
+ * "greatsales-industrial-corp" — the console's `DEFAULT_MANAGEMENT_ID`, which
+ * no seeded workspace has ever carried — and an unknown workspace is bounced to
+ * the real one's dashboard, so every URL below quietly resolved to the same
+ * page. Derive it, so the two cannot part again.
+ */
+export const MGMT_ID = TENANT;
+/**
+ * The month the seed opens, `YYYY-MM`.
+ *
+ * It was the literal "2026-06", which stopped being true the moment the
+ * calendar passed June: a spec selecting it landed on a month with no rows and
+ * failed for a reason that had nothing to do with the page. The seed counts its
+ * months back from the day it runs and leaves the current one open, so that is
+ * what this names.
+ */
+export const SEEDED_PERIOD = (() => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+})();
 
 export const URLS = {
   dashboard: `/managements/${MGMT_ID}/dashboard`,

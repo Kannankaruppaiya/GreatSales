@@ -30,6 +30,8 @@ export interface EngineRow {
   targetDate: string | null;
   salesOrderId: string | null;
   salesOrderStatus: string | null;
+  remarkCount: number;
+  followUpCount: number;
   customerId: string;
   customerName: string;
   contactName: string | null;
@@ -45,6 +47,19 @@ export interface EngineRow {
 /** Effective per-unit price, applying the projection → mapping → product fallback. */
 export function resolvePrice(row: EngineRow): number {
   return row.projectionPrice ?? row.customPrice ?? row.basePrice ?? 0;
+}
+
+/**
+ * What the line would charge if it carried no price of its own — the mapping's
+ * agreed price, else the catalog price.
+ *
+ * Reported separately from {@link resolvePrice} so the worksheet's price cell
+ * can be edited: the input holds the line's own price and shows this as its
+ * placeholder, which is what makes "clear the field to go back to the agreed
+ * price" expressible at all.
+ */
+export function inheritedPrice(row: EngineRow): number | null {
+  return row.customPrice ?? row.basePrice ?? null;
 }
 
 /** Enrich a raw row into a wire {@link ProjectionLine} with computed values. */
@@ -66,6 +81,8 @@ export function toLine(row: EngineRow): ProjectionLine {
     salespersonId: row.salespersonId,
     salespersonName: row.salespersonName,
     price,
+    ownPrice: row.projectionPrice,
+    inheritedPrice: inheritedPrice(row),
     committedQty: row.committedQty,
     achievedQty: row.achievedQty,
     projValue,
@@ -77,6 +94,8 @@ export function toLine(row: EngineRow): ProjectionLine {
     targetDate: row.targetDate,
     salesOrderId: row.salesOrderId,
     salesOrderStatus: row.salesOrderStatus,
+    remarkCount: row.remarkCount,
+    followUpCount: row.followUpCount,
   };
 }
 

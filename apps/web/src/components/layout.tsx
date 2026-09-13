@@ -10,7 +10,6 @@ import {
   Search,
   ShieldCheck,
   ShoppingCart,
-  Sparkles,
   Target,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
@@ -23,6 +22,7 @@ import { useUi, DEFAULT_MANAGEMENT_ID } from "@/store/ui";
 import { useAuthRole, useAuthUser, useAuth } from "@/store/auth";
 import { cn } from "@/lib/utils";
 import { Avatar, Badge, Select } from "@/components/ui";
+import { BrandMark } from "@/components/BrandMark";
 import { CommandPaletteModal } from "@/components/CommandPaletteModal";
 import { ManagementSwitcher } from "@/features/management/ManagementSwitcher";
 import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
@@ -34,13 +34,14 @@ import { CreateSalesOrderModal } from "@/features/orders/CreateSalesOrderModal";
 import { useFollowUps, flattenFollowUps } from "@/features/followups/queries";
 import { usePayments, flattenPayments } from "@/features/payments/queries";
 import { usePrincipals } from "@/features/products/queries";
-import { useUsers, flattenUsers } from "@/features/users/queries";
+import { useUserDirectory } from "@/features/users/queries";
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotifications,
   type NotificationRow,
 } from "@/features/notifications/queries";
+import { today } from "@/lib/format";
 
 export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => void }) {
   const rolePath = useRolePath();
@@ -67,7 +68,7 @@ export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => 
   const nav = featuresFor(role);
 
   // Calculate overdue follow-ups count for live notification badge
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = today();
   const overdueCount = pendingFollowUps.filter(
     (f) => f.dueDate && f.dueDate < todayStr,
   ).length;
@@ -90,9 +91,7 @@ export function Sidebar({ onOpenCommandPalette }: { onOpenCommandPalette: () => 
       >
         {/* Brand Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-line/70 bg-surface-2/40">
-          <div className="relative grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-brand to-emerald-800 text-white font-extrabold shadow-md shadow-brand/20">
-            <Sparkles className="h-5 w-5" />
-          </div>
+          <BrandMark className="h-9 w-9 drop-shadow-md" />
           <div className="leading-tight min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="text-[15px] font-extrabold text-ink tracking-tight font-sans">GreatSales</span>
@@ -209,8 +208,8 @@ export function Topbar({
   const principalsQ = usePrincipals();
   const principals = principalsQ.data?.items ?? [];
 
-  const usersQ = useUsers();
-  const users = flattenUsers(usersQ.data);
+  const usersQ = useUserDirectory();
+  const users = usersQ.data ?? [];
   const salespeople = users.filter(
     (u) => u.roleId === "role_sales" || u.roleName?.toLowerCase().includes("sales"),
   );
@@ -238,7 +237,7 @@ export function Topbar({
     navigate(featurePath(featureKey, activeManagementId, rolePath));
   };
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = today();
   const overdueFollowUps = pendingFollowUps.filter(
     (f) => f.dueDate && f.dueDate < todayStr,
   );

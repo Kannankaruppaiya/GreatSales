@@ -38,8 +38,8 @@ async function reset() {
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE
     "TenantFeatureFlag","FeatureFlag","PlatformAuditLog","PlatformUser",
     "OrderStatusHistory","SalesOrderItem","SalesOrder","PaymentFollowup","Payment",
-    "LeadProduct","Lead","Projection","SalesTarget","Mapping",
-    "Product","Principal","CustomerContact","Customer","FollowUp","Activity",
+    "Contact","LeadProduct","Lead","Projection","SalesTarget","Mapping",
+    "Product","Principal","Customer","FollowUp","Activity",
     "Notification","Attachment","AuditLog","ImportJob","RolePermission","Role",
     "Permission","Industry","User","Team","Tenant"
     RESTART IDENTITY CASCADE`);
@@ -191,7 +191,16 @@ async function seedTenant(k: string, name: string, region: string, accountManage
       id: `cust_1_${k}`, tenantId: t, name: `${name} Customer One`, division: "LUB", category: "Gold", type: "Existing",
       industryId: "ind_pharma", area: "North", paymentTerms: "Credit30", payZone: "GreenZone", outstanding: "40000.00",
       salespersonId: `user_sales1_${k}`, collectorId: `user_sales1_${k}`,
-      contacts: { create: [{ name: "Primary Contact", designation: "Purchase Head", phone: "9000000001", mobile: "9000000001", whatsapp: "9000000001", sameAsMobile: true, email: `buyer@${k}.test`, isPrimary: true }] },
+    },
+  });
+  // `Contact` is polymorphic (20260912100000), so it is written beside the
+  // customer rather than nested inside it.
+  await prisma.contact.create({
+    data: {
+      tenantId: t, entityType: "Customer", entityId: `cust_1_${k}`,
+      name: "Primary Contact", designation: "Purchase Head",
+      phone: "9000000001", whatsapp: "9000000001", sameAsMobile: true,
+      email: `buyer@${k}.test`, isPrimary: true,
     },
   });
 
@@ -211,10 +220,18 @@ async function seedTenant(k: string, name: string, region: string, accountManage
   const lead = await prisma.lead.create({
     data: {
       tenantId: t, customerName: `${name} Prospect`, salespersonId: `user_sales1_${k}`,
-      stage: DealStage.NeedsAnalysis, leadStatus: "Silver", industryId: "ind_auto", area: "South",
+      stage: DealStage.NeedsAnalysis, tier: "Silver", industryId: "ind_auto", area: "South",
       createdAt: new Date("2026-08-10T00:00:00.000Z"),
       stageUpdatedAt: new Date("2026-08-10T00:00:00.000Z"),
       products: { create: [{ productName: "New Product X", brand: "BrandX", value: "75000.00" }] },
+    },
+  });
+  await prisma.contact.create({
+    data: {
+      tenantId: t, entityType: "Lead", entityId: lead.id,
+      name: "Prospect Buyer", designation: "Purchase Manager",
+      phone: "9000000002", whatsapp: "9000000002", sameAsMobile: true,
+      isPrimary: true,
     },
   });
 
@@ -224,7 +241,7 @@ async function seedTenant(k: string, name: string, region: string, accountManage
   await prisma.lead.create({
     data: {
       tenantId: t, customerName: `${name} Won Deal`, salespersonId: `user_sales1_${k}`,
-      stage: DealStage.ClosedWon, leadStatus: "Gold", industryId: "ind_auto", area: "South",
+      stage: DealStage.ClosedWon, tier: "Gold", industryId: "ind_auto", area: "South",
       createdAt: new Date("2026-08-05T00:00:00.000Z"),
       stageUpdatedAt: new Date("2026-08-20T00:00:00.000Z"),
       products: { create: [{ productName: "Won Product Y", brand: "BrandY", value: "40000.00" }] },

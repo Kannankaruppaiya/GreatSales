@@ -1,6 +1,6 @@
 import { Printer } from "lucide-react";
 import { Button, Dialog } from "@/components/ui";
-import { inr } from "@/lib/format";
+import { inr, today } from "@/lib/format";
 import type { OrderRow } from "@/features/orders/types";
 import { DELIVERY_MODE_LABELS, type DeliveryModeValue } from "@/features/orders/types";
 
@@ -62,7 +62,7 @@ export function InvoicePrintModal({
             <div className="text-sm font-extrabold text-emerald-800">SALES ORDER</div>
             <div className="font-mono font-bold text-xs text-slate-900 mt-0.5">{order.code}</div>
             <div className="text-[11px] text-slate-500 mt-0.5">
-              Date: {order.date ? order.date.slice(0, 10) : new Date().toISOString().slice(0, 10)}
+              Date: {order.date ? order.date.slice(0, 10) : today()}
             </div>
           </div>
         </div>

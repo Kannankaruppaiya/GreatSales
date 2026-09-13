@@ -129,3 +129,19 @@ export const UserUpdateSchema = UserCreateSchema.partial().refine(
   { message: "At least one field must be provided" },
 );
 export type UserUpdate = z.infer<typeof UserUpdateSchema>;
+
+/**
+ * GET /users/directory — the tenant roster, minus everything `user.manage`
+ * exists to protect (email, manager/team, audit trail). Every authenticated
+ * tenant member can read this, not just an admin: picking a salesperson to
+ * assign a lead to, or filtering a report by rep, is a normal part of the
+ * mgmt and sales roles' own jobs and should not require the permission that
+ * lets someone create or delete accounts.
+ */
+export interface UserDirectoryEntry {
+  id: string;
+  name: string;
+  roleId: string;
+  roleName: string;
+  active: boolean;
+}

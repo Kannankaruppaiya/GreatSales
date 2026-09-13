@@ -92,9 +92,22 @@ export interface OrderCreate {
   transporterName?: string | null;
   lrNumber?: string | null;
   deliveryInstructions?: string | null;
+  /**
+   * The recurring-projection line this order is raised from. The server links
+   * the two in one transaction and refuses a second order for the same line,
+   * which is what makes the worksheet's sales-order column real.
+   */
+  projectionId?: string;
 }
 
 export interface OrderUpdate {
+  /**
+   * Replaces the line items; the server recomputes `total` from them and
+   * accepts the change only while the order is still `Created`.
+   */
+  items?: OrderItemInput[];
+  /** The business issue date the invoice prints and the SLA clock starts from. */
+  date?: string;
   status?: string;
   statusNote?: string | null;
   cancelReason?: string | null;

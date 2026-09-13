@@ -1,14 +1,18 @@
-import { useState } from "react";
-import { Building2, Check, MapPin, MessageCircle, Phone, Share2, Trash2, X } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Building2, Check, MapPin, MessageCircle, Phone, Plus, Share2, Trash2, X } from "lucide-react";
 import { mapsUrl, shareLocationUrl } from "./LocationField";
 import { useAuthRole } from "@/store/auth";
 import { ApiError } from "@/lib/api";
-import { inr } from "@/lib/format";
+import { inr, shortDate } from "@/lib/format";
 import { Badge, Button, Skeleton } from "@/components/ui";
 import { useCustomer, useDeleteCustomer } from "@/features/customers/queries";
 import { useMappings } from "@/features/mappings/queries";
 import { useOrders } from "@/features/orders/queries";
+import { ORDER_STATUS_LABELS } from "@/features/orders/types";
 import { usePayments } from "@/features/payments/queries";
+import { PAYMENT_STATUS_LABELS } from "@/features/payments/types";
+import { useFollowUps, flattenFollowUps, useUpdateFollowUp } from "@/features/followups/queries";
+import { FollowUpModal } from "@/features/followups/FollowUpModal";
 import { RemarksPanel } from "@/features/remarks/RemarksPanel";
 import { AttachmentsPanel } from "@/features/attachments/AttachmentsPanel";
 import {
@@ -57,6 +61,16 @@ export function CustomerDrawer({
     { customerId: customerId ?? undefined },
     { enabled: relatedEnabled },
   );
+  // Not a count-only query like the three above — a Customer's follow-ups
+  // aren't shown anywhere else in the console today, so this section is the
+  // only view of them, not a summary of a fuller one.
+  const followUpsQ = useFollowUps(
+    { entityType: "Customer", entityId: customerId ?? undefined },
+    { enabled: relatedEnabled },
+  );
+  const followUps = flattenFollowUps(followUpsQ.data);
+  const markFollowUpDone = useUpdateFollowUp();
+  const [showAddFollowUp, setShowAddFollowUp] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [locationStatus, setLocationStatus] = useState<"copied" | "failed" | null>(null);
 
@@ -325,12 +339,136 @@ export function CustomerDrawer({
 
               {/* The 360° view. This was a "will appear here once those pages
                   are wired to the API" placeholder long after those pages were
-                  wired — the three endpoints all take a customerId filter. */}
+                  wired — the endpoints below all take a customerId filter
+                  (follow-ups take entityType/entityId instead, the same shape
+                  Payments and Projections already use for their own panels).
+
+                  Leads and Projections/targets are NOT shown here: a Lead has
+                  no customerId (it carries a free-text `customerName` until it
+                  converts — packages/db/prisma/schema.prisma `model Lead`), and
+                  a Projection is scoped by Mapping, not Customer, directly.
+                  Matching either one back to this customer would mean a
+                  name match, which is exactly the kind of guess a 360 view
+                  must not present as fact. The Leads and Projections pages
+                  can still be searched by customer name directly. */}
               <div className="grid grid-cols-3 gap-2">
                 <RelatedStat label="Mapped SKUs" value={mappingsQ.data?.pages[0]?.total} />
                 <RelatedStat label="Sales orders" value={ordersQ.data?.pages[0]?.total} />
                 <RelatedStat label="Invoices" value={paymentsQ.data?.pages[0]?.total} />
               </div>
+
+              {customer.contacts.length > 0 && (
+                <RelatedSection title="Contacts" count={customer.contacts.length}>
+                  {customer.contacts.map((c) => (
+                    <div
+                      key={c.id}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-2/60 p-2"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-semibold text-ink truncate">
+                          {c.name}
+                          {c.isPrimary && (
+                            <span className="ml-1.5 rounded bg-brand-soft px-1.5 py-0.5 text-3xs font-bold text-brand-ink">
+                              Primary
+                            </span>
+                          )}
+                        </div>
+                        {c.designation && <div className="text-3xs text-muted">{c.designation}</div>}
+                      </div>
+                      {c.phone && (
+                        <a href={`tel:${c.phone}`} className="shrink-0 text-brand font-semibold">
+                          {c.phone}
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </RelatedSection>
+              )}
+
+              <RelatedSection
+                title="Product mappings"
+                count={mappingsQ.data?.pages[0]?.total}
+                emptyLabel="No products mapped to this account yet."
+              >
+                {(mappingsQ.data?.pages[0]?.items ?? []).slice(0, 5).map((m) => (
+                  <div key={m.id} className="flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-2/60 p-2">
+                    <span className="min-w-0 truncate font-semibold text-ink">{m.productName}</span>
+                    <span className="shrink-0 tabular-nums text-muted">
+                      {m.effectivePrice == null ? "No price" : inr(m.effectivePrice)}
+                    </span>
+                  </div>
+                ))}
+              </RelatedSection>
+
+              <RelatedSection
+                title="Sales orders"
+                count={ordersQ.data?.pages[0]?.total}
+                emptyLabel="No sales orders for this account yet."
+              >
+                {(ordersQ.data?.pages[0]?.items ?? []).slice(0, 5).map((o) => (
+                  <div key={o.id} className="flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-2/60 p-2">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-ink truncate">{o.code}</div>
+                      <div className="text-3xs text-muted">{shortDate(o.date)} · {ORDER_STATUS_LABELS[o.status as keyof typeof ORDER_STATUS_LABELS] ?? o.status}</div>
+                    </div>
+                    <span className="shrink-0 tabular-nums font-semibold text-ink">{inr(o.total)}</span>
+                  </div>
+                ))}
+              </RelatedSection>
+
+              <RelatedSection
+                title="Invoices"
+                count={paymentsQ.data?.pages[0]?.total}
+                emptyLabel="No invoices for this account yet."
+              >
+                {(paymentsQ.data?.pages[0]?.items ?? []).slice(0, 5).map((p) => (
+                  <div key={p.id} className="flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-2/60 p-2">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-ink truncate">{p.refNo || p.invoiceNo || "—"}</div>
+                      <div className="text-3xs text-muted">{PAYMENT_STATUS_LABELS[p.status as keyof typeof PAYMENT_STATUS_LABELS] ?? p.status}</div>
+                    </div>
+                    <span className={`shrink-0 tabular-nums font-semibold ${p.pending > 0 ? "text-red" : "text-ink"}`}>
+                      {inr(p.pending)} due
+                    </span>
+                  </div>
+                ))}
+              </RelatedSection>
+
+              <RelatedSection
+                title="Follow-ups"
+                count={followUpsQ.data?.pages[0]?.total}
+                emptyLabel="No follow-ups logged for this account yet."
+                action={
+                  <button
+                    type="button"
+                    onClick={() => setShowAddFollowUp(true)}
+                    className="inline-flex items-center gap-1 text-3xs font-bold uppercase tracking-wider text-brand hover:underline cursor-pointer"
+                  >
+                    <Plus className="h-3 w-3" /> Add
+                  </button>
+                }
+              >
+                {followUps.slice(0, 5).map((f) => (
+                  <div key={f.id} className="flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-2/60 p-2">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-ink truncate">{f.title || "Follow-up"}</div>
+                      <div className="text-3xs text-muted">Due {shortDate(f.dueDate)}</div>
+                    </div>
+                    {f.done ? (
+                      <span className="shrink-0 text-3xs font-bold uppercase tracking-wider text-muted">Done</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => markFollowUpDone.mutate({ id: f.id, patch: { done: true } })}
+                        disabled={markFollowUpDone.isPending}
+                        className="shrink-0 text-3xs font-bold uppercase tracking-wider text-brand hover:underline cursor-pointer disabled:opacity-50"
+                      >
+                        Mark done
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </RelatedSection>
 
               <AttachmentsPanel
                 entityType="Customer"
@@ -361,6 +499,18 @@ export function CustomerDrawer({
           </>
         )}
       </div>
+
+      {customer && showAddFollowUp && (
+        <FollowUpModal
+          open={showAddFollowUp}
+          onClose={() => setShowAddFollowUp(false)}
+          defaults={{
+            entityType: "Customer",
+            entityId: customer.id,
+            subtitle: customer.name,
+          }}
+        />
+      )}
     </>
   );
 }
@@ -374,6 +524,42 @@ function RelatedStat({ label, value }: { label: string; value?: number }) {
       </div>
       <div className="text-[10px] font-bold uppercase tracking-wider text-muted mt-0.5">
         {label}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One 360° block: a title with the server's true count, an optional action
+ * (e.g. "Add"), and up to a handful of rows — loading/empty states included
+ * so a slow or empty relation never just renders as a gap in the drawer.
+ */
+function RelatedSection({
+  title,
+  count,
+  emptyLabel,
+  action,
+  children,
+}: {
+  title: string;
+  count?: number;
+  emptyLabel?: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  const rows = Array.isArray(children) ? children : [children];
+  const hasRows = rows.some(Boolean);
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold text-ink uppercase tracking-wider">
+          {title}
+          {count !== undefined && <span className="ml-1 font-medium text-muted normal-case">({count})</span>}
+        </span>
+        {action}
+      </div>
+      <div className="space-y-1.5 text-xs">
+        {hasRows ? children : <p className="text-2xs text-muted">{emptyLabel ?? "Nothing here yet."}</p>}
       </div>
     </div>
   );

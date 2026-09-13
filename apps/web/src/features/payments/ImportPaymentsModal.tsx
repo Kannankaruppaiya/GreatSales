@@ -1,10 +1,27 @@
 import { useState } from "react";
 import { CheckCircle2, Upload } from "lucide-react";
 import { Button, Dialog } from "@/components/ui";
-import { ApiError } from "@/lib/api";
-import { inr } from "@/lib/format";
-import { useCreatePayment } from "@/features/payments/queries";
-import { PAY_ZONE_LABELS, type PayZoneValue, type PaymentCreate } from "@/features/payments/types";
+import { useQueryClient } from "@tanstack/react-query";
+import { ApiError, apiFetch } from "@/lib/api";
+import { inr, today } from "@/lib/format";
+import { PAY_ZONE_LABELS, type PayZoneValue } from "@/features/payments/types";
+import { invalidateAfter } from "@/lib/invalidate";
+
+/**
+ * How many invoices one request may carry — mirrors IMPORT_MAX_ROWS in
+ * packages/shared/src/import.ts, which is the number the API enforces.
+ */
+const MAX_ROWS = 500;
+
+/** What POST /imports/payments answers with. */
+interface ImportJobResult {
+  id: string;
+  total: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: { line: number; name: string; reason: string }[];
+}
 
 // Flexible header normalizer
 function normH(h: unknown): string {
@@ -76,7 +93,7 @@ export function ImportPaymentsModal({
   onClose: () => void;
   existingRefNos?: string[];
 }) {
-  const create = useCreatePayment();
+  const qc = useQueryClient();
 
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<{
@@ -87,9 +104,12 @@ export function ImportPaymentsModal({
   } | null>(null);
   const [parsedRecords, setParsedRecords] = useState<ParsedRow[]>([]);
   const [importing, setImporting] = useState(false);
-  const [results, setResults] = useState<{ success: number; failed: number; errors: string[] } | null>(
-    null,
-  );
+  const [results, setResults] = useState<{
+    success: number;
+    failed: number;
+    errors: string[];
+    skipped: number;
+  } | null>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -165,7 +185,7 @@ export function ImportPaymentsModal({
               dateStr = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
             }
           } else if (!dateStr) {
-            dateStr = new Date().toISOString().slice(0, 10);
+            dateStr = today();
           }
 
           const openAmt = Number(String(row[openIdx] || "0").replace(/[^0-9.-]/g, "")) || 0;
@@ -211,34 +231,57 @@ export function ImportPaymentsModal({
     if (parsedRecords.length === 0) return;
     setImporting(true);
 
-    let success = 0;
-    const errors: string[] = [];
-
-    // Sequential, not Promise.all: keeps errors attributable to a specific
-    // row and avoids hammering the API with 100+ concurrent POSTs on a large
-    // spreadsheet.
-    for (const rec of parsedRecords) {
-      const body: PaymentCreate = {
-        amount: rec.amount,
-        refNo: rec.refNo || undefined,
-        customerName: rec.customerName,
-        invoiceDate: rec.invoiceDate,
-        received: rec.received || undefined,
-        payZone: rec.payZone,
-        delayReason: rec.delayReason || undefined,
-      };
-      try {
-        await create.mutateAsync(body);
-        success++;
-      } catch (err) {
-        const msg = err instanceof ApiError ? err.message : "Failed to create invoice.";
-        errors.push(`${rec.refNo || rec.customerName}: ${msg}`);
+    // ONE request, not one per row.
+    //
+    // This used to loop the rows and POST each invoice on its own. A Tally
+    // export is hundreds of invoices and the API throttles at 120 requests a
+    // minute, so a real file was cut off partway: the ledger half written, the
+    // remainder reported as individual failures, and nothing recorded in the
+    // import history. The endpoint validates every row first and writes them in
+    // one transaction, so the file either lands or it does not — and the rows
+    // it could not take come back with their line number and the reason.
+    try {
+      if (parsedRecords.length > MAX_ROWS) {
+        throw new Error(
+          `That file has ${parsedRecords.length} invoices. Import up to ${MAX_ROWS} at a time.`,
+        );
       }
+      const job = await apiFetch<ImportJobResult>("/imports/payments", {
+        method: "POST",
+        body: JSON.stringify({
+          rows: parsedRecords.map((r, i) => ({
+            line: i + 2, // 1-based, and the header is line 1
+            refNo: r.refNo || null,
+            customerName: r.customerName,
+            invoiceDate: r.invoiceDate || null,
+            amount: r.amount,
+            received: r.received || null,
+            payZone: r.payZone,
+            delayReason: r.delayReason || null,
+          })),
+          onDuplicate: "skip",
+        }),
+      });
+      void invalidateAfter(qc, "payments", "imports");
+      setResults({
+        success: job.created + job.updated,
+        failed: job.errors.length,
+        errors: job.errors.map((e) => `Row ${e.line} — ${e.name}: ${e.reason}`),
+        skipped: job.skipped,
+      });
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "That file could not be imported.";
+      setResults({ success: 0, failed: parsedRecords.length, errors: [msg], skipped: 0 });
     }
 
     setImporting(false);
-    setResults({ success, failed: parsedRecords.length - success, errors });
-    if (errors.length === 0) onClose();
+    // The result panel stays on screen either way: a run that skipped rows or
+    // rejected a few has something the person needs to read before it closes.
   };
 
   return (
@@ -313,6 +356,11 @@ export function ImportPaymentsModal({
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="text-muted">Created:</div>
               <div className="font-bold text-brand text-right tabular-nums">{results.success}</div>
+              {/* A reference the ledger already holds is not a failure — the
+                  import skipped it on purpose, and saying so is the difference
+                  between "your file worked" and "your file half worked". */}
+              <div className="text-muted">Already on the ledger:</div>
+              <div className="font-bold text-muted text-right tabular-nums">{results.skipped}</div>
               <div className="text-muted">Failed:</div>
               <div className={`font-bold text-right tabular-nums ${results.failed > 0 ? "text-red" : "text-ink"}`}>
                 {results.failed}

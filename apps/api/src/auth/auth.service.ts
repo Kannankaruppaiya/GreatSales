@@ -646,7 +646,14 @@ export class AuthService {
       },
     );
     const refreshToken = await this.jwt.signAsync(
-      { sub: userId, tid: tenantId, typ: 'refresh', jti, fid: familyId, cli: client },
+      {
+        sub: userId,
+        tid: tenantId,
+        typ: 'refresh',
+        jti,
+        fid: familyId,
+        cli: client,
+      },
       {
         secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
         expiresIn: refreshTtl as unknown as number,

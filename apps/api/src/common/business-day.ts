@@ -38,8 +38,10 @@ export function businessToday(now: Date = new Date()): string {
 }
 
 /** Check whether a given YYYY-MM-DD date string is strictly before today in the business timezone. */
-export function isOverdueBusinessDay(dateString: string, now: Date = new Date()): boolean {
+export function isOverdueBusinessDay(
+  dateString: string,
+  now: Date = new Date(),
+): boolean {
   if (!dateString) return false;
   return dateString < businessToday(now);
 }
-

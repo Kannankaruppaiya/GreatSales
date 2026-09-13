@@ -1,6 +1,11 @@
 import { useMemo, useState } from "react";
 import { Plus, Target, Trash2 } from "lucide-react";
 import { Button, Dialog, Input, Select, Textarea } from "@/components/ui";
+import {
+  ContactsEditor,
+  contactsPayload,
+  startingContacts,
+} from "@/components/ContactsEditor";
 import { DateField } from "@/components/DateField";
 import { ConfirmActionModal } from "@/components/modals/ConfirmActionModal";
 import { ApiError } from "@/lib/api";
@@ -8,7 +13,7 @@ import { INDUSTRIAL_AREAS } from "@/data/constants";
 import { useCreateLead } from "@/features/leads/queries";
 import { useIndustries } from "@/features/customers/queries";
 import { useProducts, flattenProducts } from "@/features/products/queries";
-import { useUsers, flattenUsers } from "@/features/users/queries";
+import { useUserDirectory } from "@/features/users/queries";
 import { useAuthRole, useAuthUser } from "@/store/auth";
 import {
   DEAL_STAGE_VALUES,
@@ -21,6 +26,7 @@ import {
   type CustomerTypeValue,
   type DivisionValue,
   type LeadProductInput,
+  type ContactInput,
 } from "@/features/leads/types";
 import { inr, lakhs } from "@/lib/format";
 
@@ -59,8 +65,8 @@ export function AddLeadModal({
   const industryOptions = Array.isArray(rawIndustries) ? rawIndustries : [];
 
   const needsUsersFetch = (salespeople === undefined || salespeople.length === 0) && !isSales;
-  const usersQuery = useUsers({}, { enabled: needsUsersFetch && open });
-  const allUsers = useMemo(() => flattenUsers(usersQuery.data), [usersQuery.data]);
+  const usersQuery = useUserDirectory({ enabled: needsUsersFetch && open });
+  const allUsers = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
   const fetchedSalespeople = useMemo(
     () =>
       allUsers
@@ -80,11 +86,7 @@ export function AddLeadModal({
   }, [catalog]);
 
   const [customerName, setCustomerName] = useState("");
-  const [contactName, setContactName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
-  const [sameAsMobile, setSameAsMobile] = useState(true);
-  const [email, setEmail] = useState("");
+  const [contacts, setContacts] = useState<ContactInput[]>(startingContacts);
   const [area, setArea] = useState<string>(INDUSTRIAL_AREAS[0]);
   const [customArea, setCustomArea] = useState("");
   const [address, setAddress] = useState("");
@@ -102,9 +104,11 @@ export function AddLeadModal({
     (LeadProductInput & { rowId: string })[]
   >([{ rowId: nextRowId(), productName: "", principalId: null, productId: null, qty: 1, unit: null, price: 0, value: 0 }]);
 
-  const selectedSalespersonId = isSales
-    ? authUser?.id || ""
-    : salespersonId || salespersonOptions[0]?.id || "";
+  // No fallback to "the first option in the list" — see
+  // CreateSalesOrderModal's reset effect for the incident this class of bug
+  // caused: a lead saved without the admin ever touching the field silently
+  // took on whoever sorted first alphabetically, active or not.
+  const selectedSalespersonId = isSales ? authUser?.id || "" : salespersonId;
 
   const handleAddProductRow = () => {
     setLeadProducts([
@@ -141,9 +145,7 @@ export function AddLeadModal({
 
   const isDirty = Boolean(
     customerName.trim() ||
-      contactName.trim() ||
-      phone.trim() ||
-      email.trim() ||
+      contacts.some((c) => c.name.trim() || c.phone?.trim() || c.email?.trim()) ||
       address.trim() ||
       subIndustry.trim() ||
       leadProducts.some((p) => p.productName.trim())
@@ -151,11 +153,7 @@ export function AddLeadModal({
 
   const resetForm = () => {
     setCustomerName("");
-    setContactName("");
-    setPhone("");
-    setWhatsapp("");
-    setSameAsMobile(true);
-    setEmail("");
+    setContacts(startingContacts());
     setArea(INDUSTRIAL_AREAS[0]);
     setCustomArea("");
     setAddress("");
@@ -209,11 +207,9 @@ export function AddLeadModal({
         subIndustry: subIndustry.trim() || null,
         area: effectiveArea,
         address: address.trim() || null,
-        contactName: contactName.trim() || null,
-        phone: phone.trim() || null,
-        whatsapp: sameAsMobile ? phone.trim() || null : whatsapp.trim() || null,
-        sameAsMobile,
-        email: email.trim() || null,
+        // Omitted entirely when nobody has been named — the schema refuses an
+        // empty list, and "no contact yet" is a real state for a cold enquiry.
+        ...(contactsPayload(contacts) ? { contacts: contactsPayload(contacts)! } : {}),
         nextFollowUp: null,
         expClose: expClose || null,
         products: products.length > 0 ? products : undefined,
@@ -280,85 +276,23 @@ export function AddLeadModal({
                 className="h-9"
               />
             </div>
-            <div>
-              <label
-                htmlFor="lead-contact-name"
-                className="text-xs font-semibold text-ink block mb-1.5"
-              >
-                Key Contact Person
-              </label>
-              <Input
-                id="lead-contact-name"
-                placeholder="e.g. Mr. Raja (Purchase Manager)"
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
-                disabled={create.isPending}
-                className="h-9"
-              />
-            </div>
           </div>
 
-          {/* Mobile, WhatsApp & Email */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label
-                htmlFor="lead-phone"
-                className="text-xs font-semibold text-ink block mb-1.5"
-              >
-                Mobile Number
-              </label>
-              <Input
-                id="lead-phone"
-                placeholder="+91 98400 12345"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                disabled={create.isPending}
-                className="h-9"
-              />
+          {/* The people at this account. A plant is worked through more than
+              one of them — the purchase manager signs the order, the plant head
+              decides the trial — and this form used to offer a single name. */}
+          <div>
+            <div className="mb-1.5 flex items-baseline justify-between gap-2">
+              <span className="text-xs font-semibold text-ink">Key Contact Persons</span>
+              <span className="text-2xs text-muted">
+                The primary is the one every list and the paperwork name.
+              </span>
             </div>
-            <div>
-              <label
-                htmlFor="lead-whatsapp"
-                className="text-xs font-semibold text-ink block mb-1.5"
-              >
-                WhatsApp Number
-              </label>
-              <Input
-                id="lead-whatsapp"
-                disabled={sameAsMobile || create.isPending}
-                placeholder="+91 98400 12345"
-                value={sameAsMobile ? phone : whatsapp}
-                onChange={(e) => setWhatsapp(e.target.value)}
-                className="h-9"
-              />
-              <label className="flex items-center gap-1.5 text-[11px] text-muted mt-1 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={sameAsMobile}
-                  onChange={(e) => setSameAsMobile(e.target.checked)}
-                  disabled={create.isPending}
-                  className="h-3 w-3 accent-brand"
-                />
-                Same as mobile
-              </label>
-            </div>
-            <div>
-              <label
-                htmlFor="lead-email"
-                className="text-xs font-semibold text-ink block mb-1.5"
-              >
-                Email Address
-              </label>
-              <Input
-                id="lead-email"
-                type="email"
-                placeholder="purchase@acme.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={create.isPending}
-                className="h-9"
-              />
-            </div>
+            <ContactsEditor
+              value={contacts}
+              onChange={setContacts}
+              disabled={create.isPending}
+            />
           </div>
 
           {/* Area, Tier, Type & Division */}
@@ -505,6 +439,7 @@ export function AddLeadModal({
                 onChange={(e) => setSalespersonId(e.target.value)}
                 disabled={create.isPending}
               >
+                <option value="">— Select salesperson —</option>
                 {salespersonOptions.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.name}

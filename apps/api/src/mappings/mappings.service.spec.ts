@@ -164,6 +164,59 @@ describe('MappingsService', () => {
       ).rejects.toMatchObject({ response: { code: 'MAPPING_NOT_FOUND' } });
     });
 
+    it('narrows to one principal, and to the mappings that cannot price', async () => {
+      const all = await service.list(admin, { limit: 100 });
+      expect(all.items.length).toBeGreaterThan(0);
+
+      const principalId = all.items[0].principalId;
+      const byPrincipal = await service.list(admin, {
+        limit: 100,
+        principalId,
+      });
+      expect(byPrincipal.items.length).toBeGreaterThan(0);
+      for (const m of byPrincipal.items)
+        expect(m.principalId).toBe(principalId);
+
+      // "Unpriced" means neither side can price it — no agreed override AND no
+      // catalog price behind it. Such a mapping projects at ZERO
+      // (projection-engine: projectionPrice ?? customPrice ?? basePrice ?? 0),
+      // which is why the page needs to be able to find them.
+      const unpriced = await service.list(admin, {
+        limit: 100,
+        unpriced: 'true',
+      });
+      for (const m of unpriced.items) {
+        expect(m.customPrice).toBeNull();
+        expect(m.basePrice).toBeNull();
+        expect(m.effectivePrice).toBeNull();
+      }
+      expect(unpriced.total).toBeLessThanOrEqual(all.total);
+    });
+
+    it('treats unpriced=false as "no filter", not as "on"', async () => {
+      // z.coerce.boolean() would have cast the string "false" to true and
+      // turned the filter ON — the opposite of what the caller asked for.
+      const off = await service.list(admin, { limit: 100, unpriced: 'false' });
+      const none = await service.list(admin, { limit: 100 });
+      expect(off.total).toBe(none.total);
+    });
+
+    it('keeps both narrowings when principal and unpriced are combined', async () => {
+      // Both reach through `product`. Spread as two keys the second silently
+      // replaces the first, and the principal would quietly stop applying.
+      const all = await service.list(admin, { limit: 100 });
+      const principalId = all.items[0].principalId;
+      const both = await service.list(admin, {
+        limit: 100,
+        principalId,
+        unpriced: 'true',
+      });
+      for (const m of both.items) {
+        expect(m.principalId).toBe(principalId);
+        expect(m.effectivePrice).toBeNull();
+      }
+    });
+
     it('refuses a sales user reassigning their own mapping away', async () => {
       const mine = await service.list(sales1, { limit: 1 });
       expect(mine.items.length).toBeGreaterThan(0);

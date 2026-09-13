@@ -18,6 +18,7 @@ import type {
   OrderCreate,
   OrderUpdate,
 } from "./types";
+import { invalidateAfter } from "@/lib/invalidate";
 
 const PAGE_SIZE = 50;
 
@@ -63,7 +64,7 @@ export function flattenOrders(data?: { pages: OrderListResponse[] }): OrderRow[]
 }
 
 export function onOrderMutationSuccess(qc: QueryClient) {
-  return qc.invalidateQueries({ queryKey: ["orders"] });
+  return invalidateAfter(qc, "orders");
 }
 
 export function useCreateOrder() {

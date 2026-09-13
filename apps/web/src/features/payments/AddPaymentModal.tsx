@@ -9,7 +9,8 @@ import {
   type PayZoneValue,
 } from "@/features/payments/types";
 import { useCreatePayment } from "@/features/payments/queries";
-import { useUsers, flattenUsers } from "@/features/users/queries";
+import { useUserDirectory } from "@/features/users/queries";
+import { today } from "@/lib/format";
 
 export interface PaymentFkOption {
   id: string;
@@ -35,10 +36,10 @@ export function AddPaymentModal({
   // "no salespersons". PaymentsPage passes its own rows-derived list, which
   // takes priority and skips this fetch entirely.
   const needsOwnFetch = salespeople === undefined;
-  const usersQuery = useUsers({}, { enabled: needsOwnFetch && open });
+  const usersQuery = useUserDirectory({ enabled: needsOwnFetch && open });
   const fetchedSalespeople = useMemo(
     () =>
-      flattenUsers(usersQuery.data)
+      (usersQuery.data ?? [])
         .filter((u) => u.roleName === "sales")
         .map((u) => ({ id: u.id, name: u.name })),
     [usersQuery.data],
@@ -48,7 +49,7 @@ export function AddPaymentModal({
 
   const [refNo, setRefNo] = useState("");
   const [customerName, setCustomerName] = useState("");
-  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
+  const [invoiceDate, setInvoiceDate] = useState(today());
   const [dueDate, setDueDate] = useState("");
   const [amount, setAmount] = useState<string>("");
   const [received, setReceived] = useState<string>("");
@@ -83,7 +84,7 @@ export function AddPaymentModal({
     setShowDiscardConfirm(false);
     setRefNo("");
     setCustomerName("");
-    setInvoiceDate(new Date().toISOString().slice(0, 10));
+    setInvoiceDate(today());
     setDueDate("");
     setAmount("");
     setReceived("");

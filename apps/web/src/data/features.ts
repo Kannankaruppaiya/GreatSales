@@ -157,7 +157,7 @@ export const FEATURES: Feature[] = [
     paletteDesc: "Customer × product mapping grid",
     icon: Link2,
     roles: ALL_ROLES,
-    globalFilters: ["owner"],
+    globalFilters: ["owner", "principal"],
   },
   {
     key: "users",

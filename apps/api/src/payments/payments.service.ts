@@ -4,30 +4,67 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type {
-  PaymentCreate,
-  PaymentListQuery,
-  PaymentListResponse,
-  PaymentRow,
-  PaymentUpdate,
-  RequestUser,
+import {
+  REMINDER_ORDINALS,
+  REMINDER_STAGES,
+  type PaymentCreate,
+  type PaymentListQuery,
+  type PaymentListResponse,
+  type PaymentRow,
+  type PaymentUpdate,
+  type ReminderStage,
+  type RequestUser,
 } from '@greatsales/shared';
 import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { agingDays, deriveStatus, pending } from './payment-engine';
+import { businessToday } from '../common/business-day';
+
+/**
+ * Marking a reminder sent is the only event on a payment that somebody other
+ * than its owner routinely causes. The stage list itself lives in the shared
+ * contract so both clients label the letters the same way.
+ */
+const STAGE_AT = {
+  mail1: 'mail1At',
+  mail2: 'mail2At',
+  mail3: 'mail3At',
+  mail4: 'mail4At',
+} as const satisfies Record<ReminderStage, keyof Prisma.PaymentUpdateInput>;
 
 /** Prisma include graph that carries everything a {@link PaymentRow} needs. */
-/**
- * The four reminder letters, in order. Marking one sent is the only event on a
- * payment that somebody other than its owner routinely causes.
- */
-const REMINDER_STAGES = ['mail1', 'mail2', 'mail3', 'mail4'] as const;
-
 const PAYMENT_INCLUDE = {
-  customer: true,
+  // The account comes with ITS owner: a receivable that names no salesperson
+  // is chased by whoever holds the customer — see {@link ownerWhere}.
+  customer: { include: { salesperson: true } },
   salesperson: true,
   followups: { orderBy: { date: 'asc' as const } },
 } satisfies Prisma.PaymentInclude;
+
+/**
+ * Who owns a receivable.
+ *
+ * `Payment.salespersonId` is optional and, on a real ledger, usually empty: an
+ * invoice is exported from the accounting system, which has no notion of a
+ * sales owner. The Promech import is exactly that — all 141 invoices arrived
+ * with the column blank while 140 of them point at a customer who does have an
+ * owner. Scoping on the column alone meant a salesperson opened the receivables
+ * page and saw nothing at all, the salesperson column read "—" on every row,
+ * the aging-by-salesperson report had one line called "Unassigned", and the
+ * only control that could have set an owner drew its options from the rows —
+ * so nothing could ever be assigned either.
+ *
+ * The collection follows the account. An explicit owner on the payment still
+ * wins where one is set; otherwise the customer's owner answers for it.
+ */
+function ownerWhere(ownerId: string): Prisma.PaymentWhereInput {
+  return {
+    OR: [
+      { salespersonId: ownerId },
+      { salespersonId: null, customer: { salespersonId: ownerId } },
+    ],
+  };
+}
 
 type PaymentWithGraph = Prisma.PaymentGetPayload<{
   include: typeof PAYMENT_INCLUDE;
@@ -38,6 +75,10 @@ function dec(v: Prisma.Decimal | null): number {
 }
 function ymd(d: Date | null): string | null {
   return d == null ? null : d.toISOString().slice(0, 10);
+}
+/** Full ISO instant — a reminder's date and time of day both matter. */
+function iso(d: Date | null): string | null {
+  return d == null ? null : d.toISOString();
 }
 
 /** Enrich + derive display values (pending/status/aging) as of `today`. */
@@ -50,8 +91,11 @@ function toRow(p: PaymentWithGraph, today: string): PaymentRow {
     refNo: p.refNo,
     customerId: p.customerId,
     customerName: p.customer?.name ?? p.customerName,
-    salespersonId: p.salespersonId,
-    salespersonName: p.salesperson?.name ?? null,
+    // Both follow the same rule as the scoping above, so a row the API hands a
+    // salesperson cannot come back labelled as somebody else's — or nobody's.
+    salespersonId: p.salespersonId ?? p.customer?.salespersonId ?? null,
+    salespersonName:
+      p.salesperson?.name ?? p.customer?.salesperson?.name ?? null,
     invoiceNo: p.invoiceNo,
     invoiceDate: ymd(p.invoiceDate),
     amount,
@@ -66,6 +110,10 @@ function toRow(p: PaymentWithGraph, today: string): PaymentRow {
     mail2: p.mail2,
     mail3: p.mail3,
     mail4: p.mail4,
+    mail1At: iso(p.mail1At),
+    mail2At: iso(p.mail2At),
+    mail3At: iso(p.mail3At),
+    mail4At: iso(p.mail4At),
     status: deriveStatus(amount, received, dueDate, today),
     followups: p.followups.map((f) => ({
       id: f.id,
@@ -89,7 +137,7 @@ export class PaymentsService {
   async list(
     user: RequestUser,
     query: PaymentListQuery,
-    today: string = new Date().toISOString().slice(0, 10),
+    today: string = businessToday(),
   ): Promise<PaymentListResponse> {
     const db = this.prisma.forTenant(user.tenantId);
     const ownerId = await this.resolveOwnerScope(db, user, query.ownerId);
@@ -99,7 +147,7 @@ export class PaymentsService {
     // filter here, and the top bar hides that control on this page.
     const where: Prisma.PaymentWhereInput = {
       deletedAt: null,
-      ...(ownerId ? { salespersonId: ownerId } : {}),
+      ...(ownerId ? ownerWhere(ownerId) : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.customerId ? { customerId: query.customerId } : {}),
       ...(query.search
@@ -148,7 +196,7 @@ export class PaymentsService {
     const salespersonId = (await this.isSalesOnly(db, user.roleId))
       ? user.userId
       : (body.salespersonId ?? null);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = businessToday();
     const received = body.received ?? 0;
     const dueDate = body.dueDate ?? null;
 
@@ -167,10 +215,16 @@ export class PaymentsService {
         payZone: body.payZone ?? null,
         delayReason: body.delayReason ?? null,
         nextFollowUp: body.nextFollowUp ? new Date(body.nextFollowUp) : null,
-        ...(body.mail1 !== undefined ? { mail1: body.mail1 } : {}),
-        ...(body.mail2 !== undefined ? { mail2: body.mail2 } : {}),
-        ...(body.mail3 !== undefined ? { mail3: body.mail3 } : {}),
-        ...(body.mail4 !== undefined ? { mail4: body.mail4 } : {}),
+        // A payment can be created with letters already sent (an import, or a
+        // collector catching the record up), and those get stamped too.
+        ...Object.fromEntries(
+          REMINDER_STAGES.filter((st) => body[st] !== undefined).flatMap(
+            (st) => [
+              [st, body[st]],
+              [STAGE_AT[st], body[st] ? new Date() : null],
+            ],
+          ),
+        ),
         ...(body.customerId
           ? { customer: { connect: { id: body.customerId } } }
           : {}),
@@ -191,7 +245,7 @@ export class PaymentsService {
   ): Promise<PaymentRow> {
     const db = this.prisma.forTenant(user.tenantId);
     const existing = await this.loadOwned(db, user, id);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = businessToday();
 
     const data: Prisma.PaymentUpdateInput = {};
     if (patch.amount !== undefined) data.amount = patch.amount;
@@ -209,10 +263,16 @@ export class PaymentsService {
       data.nextFollowUp = patch.nextFollowUp
         ? new Date(patch.nextFollowUp)
         : null;
-    if (patch.mail1 !== undefined) data.mail1 = patch.mail1;
-    if (patch.mail2 !== undefined) data.mail2 = patch.mail2;
-    if (patch.mail3 !== undefined) data.mail3 = patch.mail3;
-    if (patch.mail4 !== undefined) data.mail4 = patch.mail4;
+    // A reminder's timestamp is never sent by a client — it is stamped here
+    // when the flag beside it flips. A patch repeating `mail2: true` is not a
+    // second letter and must not move the date; undoing one clears it, because
+    // a date on an unsent letter is worse than no date at all.
+    for (const st of REMINDER_STAGES) {
+      const next = patch[st];
+      if (next === undefined || next === existing[st]) continue;
+      data[st] = next;
+      data[STAGE_AT[st]] = next ? new Date() : null;
+    }
     if ('customerId' in patch) {
       data.customer = patch.customerId
         ? { connect: { id: patch.customerId } }
@@ -244,6 +304,9 @@ export class PaymentsService {
     const sentStage = REMINDER_STAGES.find(
       (stage) => patch[stage] === true && existing[stage] === false,
     );
+    const ordinal = sentStage
+      ? REMINDER_ORDINALS[REMINDER_STAGES.indexOf(sentStage)]
+      : null;
     // A manual payment need not have an owner; then there is nobody to tell.
     if (sentStage && updated.salespersonId) {
       await this.notifications.notify({
@@ -251,7 +314,8 @@ export class PaymentsService {
         userId: updated.salespersonId,
         actorId: user.userId,
         type: 'PaymentReminder',
-        title: `${sentStage.toUpperCase()} sent for ${updated.invoiceNo ?? 'an invoice'}`,
+        // "MAIL2 sent" named a database column at a person. They send letters.
+        title: `${ordinal} reminder sent for ${updated.invoiceNo ?? 'an invoice'}`,
         body: updated.customer?.name ?? updated.customerName,
         entityType: 'Payment',
         entityId: updated.id,
@@ -286,6 +350,10 @@ export class PaymentsService {
       where: { id, deletedAt: null },
       select: {
         salespersonId: true,
+        // The account's owner, for the same reason the list scopes on it: the
+        // salesperson chasing an invoice is usually named on the customer
+        // rather than on the invoice.
+        customer: { select: { salespersonId: true } },
         amount: true,
         received: true,
         dueDate: true,
@@ -299,10 +367,9 @@ export class PaymentsService {
       },
     });
     if (!existing) throw new NotFoundException('Payment not found');
-    if (
-      (await this.isSalesOnly(db, user.roleId)) &&
-      existing.salespersonId !== user.userId
-    ) {
+    const owner =
+      existing.salespersonId ?? existing.customer?.salespersonId ?? null;
+    if ((await this.isSalesOnly(db, user.roleId)) && owner !== user.userId) {
       throw new ForbiddenException('Cannot modify another salesperson payment');
     }
     return existing;

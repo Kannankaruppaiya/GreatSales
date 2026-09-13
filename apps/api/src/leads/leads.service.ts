@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type {
+  ContactRow,
   LeadCreate,
   LeadListQuery,
   LeadListResponse,
@@ -14,6 +15,7 @@ import type {
 } from '@greatsales/shared';
 import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { contactWrites, contactsFor, primaryOf } from '../common/contacts';
 
 /**
  * Prisma include graph for a {@link LeadRow}. NOTE: `Lead.industryId` is a loose
@@ -34,7 +36,11 @@ function ymd(d: Date | null): string | null {
   return d == null ? null : d.toISOString().slice(0, 10);
 }
 
-function toRow(l: LeadWithGraph, industryName: string | null): LeadRow {
+function toRow(
+  l: LeadWithGraph,
+  industryName: string | null,
+  contacts: ContactRow[],
+): LeadRow {
   const products = l.products.map((p) => ({
     id: p.id,
     principalId: p.principalId,
@@ -55,17 +61,16 @@ function toRow(l: LeadWithGraph, industryName: string | null): LeadRow {
     salespersonId: l.salespersonId,
     salespersonName: l.salesperson.name,
     stage: l.stage,
-    leadStatus: l.leadStatus,
     industryId: l.industryId,
     industryName,
     subIndustry: l.subIndustry,
     area: l.area,
     address: l.address,
-    contactName: l.contactName,
-    phone: l.phone,
-    whatsapp: l.whatsapp,
-    sameAsMobile: l.sameAsMobile,
-    email: l.email,
+    contacts,
+    // Denormalised from the primary for the list cell, the dashboard drill-down
+    // and the mobile screens — derived here so the "which one is primary" rule
+    // lives in one place rather than in every surface that renders a lead.
+    ...primaryOf(contacts),
     nextFollowUp: ymd(l.nextFollowUp),
     expClose: ymd(l.expClose),
     stageUpdatedAt: l.stageUpdatedAt?.toISOString() ?? null,
@@ -122,9 +127,19 @@ export class LeadsService {
       db,
       page.map((l) => l.industryId),
     );
+    // One query for the whole page, not one per lead.
+    const contacts = await contactsFor(
+      db,
+      'Lead',
+      page.map((l) => l.id),
+    );
     return {
       items: page.map((l) =>
-        toRow(l, l.industryId ? (names.get(l.industryId) ?? null) : null),
+        toRow(
+          l,
+          l.industryId ? (names.get(l.industryId) ?? null) : null,
+          contacts.get(l.id) ?? [],
+        ),
       ),
       nextCursor: hasMore ? page[page.length - 1].id : null,
       total,
@@ -165,8 +180,17 @@ export class LeadsService {
       db,
       rows.map((l) => l.industryId),
     );
+    const contacts = await contactsFor(
+      db,
+      'Lead',
+      rows.map((l) => l.id),
+    );
     return rows.map((l) =>
-      toRow(l, l.industryId ? (names.get(l.industryId) ?? null) : null),
+      toRow(
+        l,
+        l.industryId ? (names.get(l.industryId) ?? null) : null,
+        contacts.get(l.id) ?? [],
+      ),
     );
   }
 
@@ -201,17 +225,9 @@ export class LeadsService {
         division: body.division ?? null,
         tier: body.tier ?? null,
         type: body.type ?? null,
-        leadStatus: body.leadStatus ?? null,
         subIndustry: body.subIndustry ?? null,
         area: body.area ?? null,
         address: body.address ?? null,
-        contactName: body.contactName ?? null,
-        phone: body.phone ?? null,
-        whatsapp: body.whatsapp ?? null,
-        ...(body.sameAsMobile !== undefined
-          ? { sameAsMobile: body.sameAsMobile }
-          : {}),
-        email: body.email ?? null,
         nextFollowUp: body.nextFollowUp ? new Date(body.nextFollowUp) : null,
         expClose: body.expClose ? new Date(body.expClose) : null,
         industryId: body.industryId ?? null,
@@ -234,6 +250,16 @@ export class LeadsService {
       },
       include: LEAD_INCLUDE,
     });
+
+    // Contacts are written after the lead, not nested inside it: `Contact` is
+    // polymorphic (entityType + entityId) rather than a relation, so there is
+    // no id to point at until the row exists.
+    if (body.contacts?.length) {
+      await db.contact.createMany({
+        data: contactWrites(user.tenantId, 'Lead', created.id, body.contacts),
+      });
+    }
+
     // Being handed a lead is not visible anywhere else: by the time the owner
     // opens the list it simply contains a row that was not there before.
     await this.notifications.notify({
@@ -247,7 +273,11 @@ export class LeadsService {
       entityId: created.id,
     });
 
-    return toRow(created, await this.oneIndustryName(db, created.industryId));
+    return toRow(
+      created,
+      await this.oneIndustryName(db, created.industryId),
+      (await contactsFor(db, 'Lead', [created.id])).get(created.id) ?? [],
+    );
   }
 
   /** Resolve a single (nullable) industry id to its name. */
@@ -271,7 +301,10 @@ export class LeadsService {
     // Read before the write: "who owned this a moment ago" is the only way to
     // tell a reassignment from a patch that happens to name the same person.
     const previousOwnerId = (
-      await db.lead.findFirst({ where: { id }, select: { salespersonId: true } })
+      await db.lead.findFirst({
+        where: { id },
+        select: { salespersonId: true },
+      })
     )?.salespersonId;
 
     const data: Prisma.LeadUpdateInput = {};
@@ -286,16 +319,9 @@ export class LeadsService {
     if ('division' in patch) data.division = patch.division ?? null;
     if ('tier' in patch) data.tier = patch.tier ?? null;
     if ('type' in patch) data.type = patch.type ?? null;
-    if ('leadStatus' in patch) data.leadStatus = patch.leadStatus ?? null;
     if ('subIndustry' in patch) data.subIndustry = patch.subIndustry ?? null;
     if ('area' in patch) data.area = patch.area ?? null;
     if ('address' in patch) data.address = patch.address ?? null;
-    if ('contactName' in patch) data.contactName = patch.contactName ?? null;
-    if ('phone' in patch) data.phone = patch.phone ?? null;
-    if ('whatsapp' in patch) data.whatsapp = patch.whatsapp ?? null;
-    if (patch.sameAsMobile !== undefined)
-      data.sameAsMobile = patch.sameAsMobile;
-    if ('email' in patch) data.email = patch.email ?? null;
     if ('nextFollowUp' in patch) {
       data.nextFollowUp = patch.nextFollowUp
         ? new Date(patch.nextFollowUp)
@@ -306,11 +332,44 @@ export class LeadsService {
     }
     if ('industryId' in patch) data.industryId = patch.industryId ?? null;
 
+    // Line items are REPLACED, not merged: they have no identity a client can
+    // address, and "these are the products now" is the only instruction that
+    // can express a line being taken off the deal. Sending no `products` key
+    // leaves them alone, so a patch that only moves the stage is unaffected.
+    if (patch.products !== undefined) {
+      data.products = {
+        deleteMany: {},
+        create: patch.products.map((p) => ({
+          productName: p.productName,
+          principalId: p.principalId ?? null,
+          productId: p.productId ?? null,
+          brand: p.brand ?? null,
+          qty: p.qty ?? null,
+          unit: p.unit ?? null,
+          price: p.price ?? null,
+          value: p.value ?? null,
+        })),
+      };
+    }
+
     const updated = await db.lead.update({
       where: { id },
       data,
       include: LEAD_INCLUDE,
     });
+
+    // Contacts are REPLACED for the same reason line items are: a contact has
+    // no identity a client can address, and "these are the contacts now" is the
+    // only instruction that can express somebody having left the account.
+    // Sending no `contacts` key leaves them alone.
+    if (patch.contacts !== undefined) {
+      await db.contact.deleteMany({
+        where: { entityType: 'Lead', entityId: id },
+      });
+      await db.contact.createMany({
+        data: contactWrites(user.tenantId, 'Lead', id, patch.contacts),
+      });
+    }
 
     if (
       patch.salespersonId !== undefined &&
@@ -327,7 +386,11 @@ export class LeadsService {
       });
     }
 
-    return toRow(updated, await this.oneIndustryName(db, updated.industryId));
+    return toRow(
+      updated,
+      await this.oneIndustryName(db, updated.industryId),
+      (await contactsFor(db, 'Lead', [updated.id])).get(updated.id) ?? [],
+    );
   }
 
   /** Soft-delete: set deletedAt so the row drops out of every list. */

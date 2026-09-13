@@ -90,7 +90,25 @@ export interface ProjectionLine {
   principalName: string;
   salespersonId: string;
   salespersonName: string;
+  /** Resolved per-unit price: `ownPrice ?? inheritedPrice ?? 0`. */
   price: number;
+  /**
+   * The price typed onto THIS line, or null when it has none of its own.
+   *
+   * `price` alone cannot drive an editable cell: a worksheet that shows the
+   * resolved figure in the input has no way to say "this line has no price of
+   * its own", so clearing the field would look identical to typing the catalog
+   * price, and a later repricing of the mapping would silently stop reaching
+   * the line.
+   */
+  ownPrice: number | null;
+  /**
+   * What the line would charge with no price of its own —
+   * `mapping.customPrice ?? product.basePrice`. The editable cell's
+   * placeholder, so an empty field reads as the agreed or catalog price rather
+   * than as a missing value.
+   */
+  inheritedPrice: number | null;
   committedQty: number;
   achievedQty: number;
   projValue: number;
@@ -102,6 +120,16 @@ export interface ProjectionLine {
   targetDate: string | null;
   salesOrderId: string | null;
   salesOrderStatus: string | null;
+  /**
+   * Remarks and follow-up entries logged against this line.
+   *
+   * Counts, not the rows: the worksheet shows them as badges on the Remarks and
+   * Follow-up log buttons — the POC's shape, and the thing that tells an
+   * operator which lines have been worked without opening each one. Loaded in
+   * two grouped queries per page, not per row.
+   */
+  remarkCount: number;
+  followUpCount: number;
 }
 
 export interface ProjectionSummary {
@@ -135,3 +163,48 @@ export const ProjectionUpdateSchema = z
     message: "At least one field must be provided",
   });
 export type ProjectionUpdate = z.infer<typeof ProjectionUpdateSchema>;
+
+/**
+ * POST /projections/roll-forward — open a month from the one before it.
+ *
+ * A recurring commitment recurs: the same customer buys the same product again
+ * next month, which is the premise the whole worksheet rests on. Until this
+ * existed there was no way to put a line into a month at all — the only rows
+ * that ever existed were the ones the import created, so every month after the
+ * imported one was permanently empty and nobody could commit to it.
+ *
+ * What carries, and why:
+ *   - only lines with a commitment, because a blank line is not a commitment;
+ *   - not Lost or Cancelled, because that business is gone;
+ *   - the quantity, since that is the recurring part;
+ *   - NOT the achievement, the status, the probability or the follow-up date —
+ *     last month's progress is not this month's, and carrying it would open a
+ *     month that claims work already done.
+ *
+ * A mapping that already has a row in the target month is left exactly as it
+ * is, so running this twice adds nothing the second time and can never
+ * overwrite a number somebody has already typed.
+ */
+export const ProjectionRollForwardSchema = z.object({
+  /** The month to fill. */
+  to: PeriodSchema,
+  /** Where to copy from. Defaults to the latest month before `to` that has lines. */
+  from: PeriodSchema.optional(),
+  /** Admin/management may roll one salesperson's book; sales is forced to self. */
+  ownerId: z.string().optional(),
+});
+export type ProjectionRollForward = z.infer<typeof ProjectionRollForwardSchema>;
+
+export interface ProjectionRollForwardResult {
+  /** The month actually copied from. */
+  from: string;
+  to: string;
+  /** Lines written into `to`. */
+  created: number;
+  /**
+   * Source lines deliberately left behind — uncommitted, dead, or already
+   * present in the target month. Reported so "created 12, skipped 40" can be
+   * read as an answer rather than a shortfall.
+   */
+  skipped: number;
+}

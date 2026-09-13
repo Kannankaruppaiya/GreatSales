@@ -27,7 +27,7 @@ test.describe("Customer lifecycle", () => {
     await loginAs(page, "admin");
     await page.goto(featureUrl("customers"));
 
-    await page.getByRole("button", { name: /\+ Add New Customer/i }).click();
+    await page.getByRole("button", { name: /Add Customer/i }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
 
@@ -58,7 +58,10 @@ test.describe("Customer lifecycle", () => {
     await page.getByRole("button", { name: "Edit", exact: true }).first().click();
     const editDialog = page.getByRole("dialog");
     await expect(editDialog).toBeVisible();
-    await editDialog.getByPlaceholder("Company name…").fill(renamed);
+    // By its label: this field has no placeholder, and asking for one that
+    // does not exist is a click that waits for ever rather than a failure that
+    // names the element.
+    await editDialog.getByLabel(/Customer Name/i).fill(renamed);
 
     const patch = page.waitForResponse(
       (r) => r.url().includes("/api/v1/customers/") && r.request().method() === "PATCH",

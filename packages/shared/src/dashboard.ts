@@ -2,6 +2,7 @@ import { z } from "zod";
 import { IsoDateSchema } from "./period-range";
 import type { LeadRow } from "./lead";
 import type { ProjectionLine } from "./projection";
+import type { EntityTypeValue } from "./enums";
 
 /**
  * Dashboard aggregate contract.
@@ -68,6 +69,9 @@ export interface DashboardKpis {
    * Counted against the tenant's business day, resolved server-side. Computing
    * "is this overdue" from a browser clock means two users in different
    * timezones see different numbers for the same data.
+   *
+   * Counts the `FollowUp` rows the Follow-ups page lists, and only those, so
+   * the tile and that page can never disagree.
    */
   followUpsDue: number;
   followUpsOverdue: number;
@@ -99,6 +103,36 @@ export interface DashboardBreakdown {
   target: number | null;
 }
 
+/**
+ * One follow-up still owed — a row of the `FollowUp` table, which is what this
+ * product means by the word.
+ *
+ * A follow-up points at the record it concerns through `entityType` and
+ * `entityId`; the Follow-ups page and the mobile screen both list this table
+ * and send you to that record's own surface. The `nextFollowUp` column a lead,
+ * a projection line or a payment carries is a date ON that record, shown on
+ * that record's page — not a follow-up, and deliberately not counted here.
+ * Counting those was how the dashboard came to read "8 overdue" above a
+ * Follow-ups page holding nothing.
+ */
+export interface DashboardFollowUp {
+  /** The `FollowUp` row's own id. */
+  id: string;
+  /** Which kind of record it hangs off, and therefore where "open" leads. */
+  entityType: EntityTypeValue;
+  entityId: string;
+  /** The row's title, or a stand-in when it was saved without one. */
+  title: string;
+  subtitle: string | null;
+  /** Whose desk it is on. */
+  ownerName: string | null;
+  /** Inclusive `YYYY-MM-DD`. */
+  dueDate: string;
+  /** Days late against the tenant's business day; 0 means it falls today. */
+  daysOverdue: number;
+  amount: number | null;
+}
+
 export interface DashboardCategorySlice {
   tier: string;
   committed: number;
@@ -128,4 +162,10 @@ export interface DashboardResponse {
   oralConfirmationTotal: number;
   /** Highest-value open projection lines. Capped at 10. */
   topOpenProjections: ProjectionLine[];
+  /**
+   * The rows behind `followUpsDue` + `followUpsOverdue`, most overdue first.
+   * Capped, like the other two row lists — the counts above are the whole
+   * truth, this is what the tile can show without a second request.
+   */
+  followUps: DashboardFollowUp[];
 }

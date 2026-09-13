@@ -129,6 +129,9 @@ JWT_REFRESH_SECRET=$(openssl rand -hex 32)
 CORS_ORIGIN=http://18.130.99.225
 SITE_ADDRESS=:80
 SENTRY_DSN=
+STORAGE_DRIVER=s3
+S3_BUCKET=greatsales-attachments-887793660359-euw2
+S3_REGION=eu-west-2
 ENVEOF
   chmod 600 .env
   echo "generated ${REMOTE}/.env"

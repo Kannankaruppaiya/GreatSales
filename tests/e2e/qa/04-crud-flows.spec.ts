@@ -6,6 +6,15 @@ import { apiToken, auth, featureUrl, loginAs, unique } from "../helpers/session"
  * real modal, its POST is asserted, the row is looked for on the page, and the
  * record is deleted through the API afterwards so the Promech dataset is
  * returned to the state the run found it in.
+ *
+ * Name buttons by the words on them and nothing else. Every test in this file
+ * once opened its modal with a name like `/\+ Add Invoice/` — but that "+" is
+ * a lucide icon, which contributes nothing to a button's accessible name, so
+ * the locator matched no button at all. Playwright has no default action
+ * timeout, so the click waited for an element that was never coming and the
+ * test died on its own 30s limit with no locator named in the failure. Five
+ * tests here failed that way, and the API they were meant to be exercising was
+ * working the whole time.
  */
 
 type Trash = { resource: string; id: string };
@@ -40,12 +49,16 @@ test.describe("Write paths", () => {
     await loginAs(page, "admin");
     await page.goto(featureUrl("leads"));
 
-    await page.getByRole("button", { name: /\+ Add New Sales Lead/i }).click();
+    await page.getByRole("button", { name: /Add New Sales Lead/i }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await dialog.getByPlaceholder(/Acme Precision Tools/i).fill(name);
-    await dialog.getByPlaceholder(/Mr. Raja/i).fill("QA Contact");
-    await dialog.getByPlaceholder(/\+91 98400 12345/i).first().fill("+91 90000 00001");
+    // A lead names its people in a contact list now, not four flat fields: the
+    // first card is the primary, and a designation has a column of its own
+    // instead of being crammed into the name in brackets.
+    await dialog.locator("#contact-name-0").fill("QA Contact");
+    await dialog.locator("#contact-designation-0").fill("Purchase Manager");
+    await dialog.locator("#contact-phone-0").fill("+91 90000 00001");
 
     await submitAndTrack(page, /Create Lead/i, "leads");
     await expect(dialog).not.toBeVisible({ timeout: 10000 });
@@ -59,7 +72,7 @@ test.describe("Write paths", () => {
     await loginAs(page, "admin");
     await page.goto(featureUrl("payments"));
 
-    await page.getByRole("button", { name: /\+ Add Invoice/i }).click();
+    await page.getByRole("button", { name: /Add Invoice/i }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await dialog.getByPlaceholder(/PMTPL\/1842/i).fill(ref);
@@ -74,6 +87,64 @@ test.describe("Write paths", () => {
     await expect(page.getByText(ref).first()).toBeVisible({ timeout: 15000 });
   });
 
+  test("payment: the reminder chase goes out in order, and comes back", async ({
+    page,
+    request,
+  }) => {
+    // Its own invoice, not a seeded one: this test writes reminder state, and
+    // the Promech rows are what every other assertion in the sweep reads.
+    const token = await apiToken(request, "admin");
+    const ref = unique("QACHASE").replace(/\s/g, "/");
+    const created = await request.post("/api/v1/payments", {
+      headers: auth(token),
+      data: { refNo: ref, customerName: "QA Chase Party", amount: 5000 },
+    });
+    expect(created.status()).toBe(201);
+    const payment = await created.json();
+    trash.push({ resource: "payments", id: payment.id });
+
+    await loginAs(page, "admin");
+    await page.goto(featureUrl("payments"));
+    await page.getByPlaceholder("Search party or ref no…").fill(ref);
+
+    const trigger = page.getByRole("button", { name: new RegExp(`Reminders for ${ref}`) });
+    await expect(trigger).toHaveText(/No reminder/);
+    await trigger.click();
+
+    // Only the first letter is on offer; the rest wait their turn.
+    const items = page.getByRole("menuitem");
+    await expect(items).toHaveCount(4);
+    await expect(items.nth(0)).toBeEnabled();
+    await expect(items.nth(1)).toBeDisabled();
+    await expect(items.nth(3)).toBeDisabled();
+
+    const sent = page.waitForResponse(
+      (r) => r.url().includes(`/payments/${payment.id}`) && r.request().method() === "PATCH",
+    );
+    await items.nth(0).click();
+    expect((await sent).status()).toBe(200);
+    await expect(trigger).toHaveText(/1st sent/);
+
+    // The API stamped the date; the client never sent one.
+    const after = await request.get(`/api/v1/payments?search=${encodeURIComponent(ref)}`, {
+      headers: auth(token),
+    });
+    const row = (await after.json()).items[0];
+    expect(row.mail1).toBe(true);
+    expect(row.mail1At).not.toBeNull();
+    expect(row.mail2At).toBeNull();
+
+    // And a letter marked in error can be taken back — the four chips this
+    // menu replaced had no way to unmark one.
+    await trigger.click();
+    const undone = page.waitForResponse(
+      (r) => r.url().includes(`/payments/${payment.id}`) && r.request().method() === "PATCH",
+    );
+    await page.getByRole("menuitem").nth(0).click();
+    expect((await undone).status()).toBe(200);
+    await expect(trigger).toHaveText(/No reminder/);
+  });
+
   test("product: add a catalog SKU and find it by search", async ({ page }) => {
     const name = unique("QA Grade Lubricant");
     await loginAs(page, "admin");
@@ -82,7 +153,7 @@ test.describe("Write paths", () => {
     await page.getByRole("button", { name: /Add Product/i }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
-    await dialog.getByPlaceholder(/Hysol MB 50/i).fill(name);
+    await dialog.getByPlaceholder(/Castrol Magnatec/i).fill(name);
 
     await submitAndTrack(page, /Add Product|Create Product|Save/i, "products");
     await expect(dialog).not.toBeVisible({ timeout: 10000 });
@@ -104,7 +175,7 @@ test.describe("Write paths", () => {
     await loginAs(page, "admin");
     await page.goto(featureUrl("followups"));
 
-    await page.getByRole("button", { name: /\+ Add follow-up/i }).click();
+    await page.getByRole("button", { name: /Add Follow-Up/i }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await dialog.getByPlaceholder(/cust_1, lead_2/i).fill(customer.id);
@@ -146,15 +217,25 @@ test.describe("Write paths", () => {
     await loginAs(page, "admin");
     await page.goto(featureUrl("orders"));
 
-    await page.getByRole("button", { name: /\+ Create Sales Order/i }).click();
+    await page.getByRole("button", { name: /Create Sales Order/i }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
 
-    // The form arrives prefilled (first customer, first product, qty 10), so the
-    // only required field a person must supply is the SO number — clearing it
-    // must block the submit.
+    // The form arrives EMPTY. It used to open on the first customer and the
+    // first product alphabetically — a choice nobody made, one click from
+    // raising a real order against whoever it landed on — and it also carried
+    // the account and SKU of the order raised before it, because the modal
+    // stays mounted while closed.
     const soNumber = dialog.getByPlaceholder("SO-1001");
     const submit = dialog.getByRole("button", { name: /Create Sales Order/i });
+    await expect(dialog.locator("#so-customer")).toHaveValue("");
+    await expect(dialog.locator("#so-product")).toHaveValue("");
+    await expect(submit, "an order with no account chosen must not be submittable").toBeDisabled();
+
+    await dialog.locator("#so-customer").selectOption({ index: 1 });
+    await dialog.locator("#so-product").selectOption({ index: 1 });
+    await dialog.locator("#so-salesperson").selectOption({ index: 1 });
+
     await soNumber.fill("");
     await expect(submit, "an order with no SO number must not be submittable").toBeDisabled();
 

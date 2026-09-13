@@ -62,6 +62,12 @@ const PASSWORD = arg('password', process.env.SMOKE_PASSWORD ?? 'admin');
  * enough ("principals" -> `PrincipalRow`, but "period-locks" -> `PeriodLockRow`)
  * that the check would spend its credibility on its own naming heuristics.
  */
+/** This month, `YYYY-MM`. A month written down is a month the calendar walks past. */
+const THIS_MONTH = (() => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+})();
+
 const CONTRACTS = [
   { path: 'customers?limit=1', type: 'CustomerRow' },
   { path: 'leads?limit=1', type: 'LeadRow' },
@@ -77,7 +83,7 @@ const CONTRACTS = [
   { path: 'teams', type: 'TeamRow' },
   { path: 'period-locks', type: 'PeriodLockRow' },
   { path: 'managements', type: 'ManagementRow' },
-  { path: 'targets?period=2026-06', type: 'SalesTargetRow' },
+  { path: `targets?period=${THIS_MONTH}`, type: 'SalesTargetRow' },
   { path: 'imports?limit=1', type: 'ImportJobRow' },
   // NOT /notifications. That inbox belongs to the signed-in user, and this
   // check signs in as the admin — who, by the rule the feature is built on,

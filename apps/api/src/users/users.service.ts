@@ -7,6 +7,7 @@ import type {
   UserListResponse,
   UserRow,
   UserUpdate,
+  UserDirectoryEntry,
   RequestUser,
 } from '@greatsales/shared';
 import { PrismaService } from '../prisma/prisma.service';
@@ -140,6 +141,28 @@ export class UsersService {
       nextCursor: hasMore ? page[page.length - 1].id : null,
       total,
     };
+  }
+
+  /**
+   * The tenant roster, for every authenticated member — not gated on
+   * `user.manage`. Carries only what a salesperson picker or an "assign to"
+   * dropdown needs; no email, manager, team, or audit fields, which is what
+   * keeps this safe to hand to roles that cannot manage users.
+   */
+  async directory(user: RequestUser): Promise<UserDirectoryEntry[]> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const rows = await db.user.findMany({
+      where: { deletedAt: null },
+      include: { role: true },
+      orderBy: { name: 'asc' },
+    });
+    return rows.map((u) => ({
+      id: u.id,
+      name: u.name,
+      roleId: u.roleId,
+      roleName: u.role.name,
+      active: u.active,
+    }));
   }
 
   /**

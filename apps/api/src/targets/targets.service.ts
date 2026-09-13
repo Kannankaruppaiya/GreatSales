@@ -117,10 +117,7 @@ export class TargetsService {
     };
   }
 
-  async upsert(
-    user: RequestUser,
-    body: TargetUpsert,
-  ): Promise<SalesTargetRow> {
+  async upsert(user: RequestUser, body: TargetUpsert): Promise<SalesTargetRow> {
     const db = this.prisma.forTenant(user.tenantId);
 
     // The target has to belong to somebody in this tenant. Without this check

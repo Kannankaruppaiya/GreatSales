@@ -8,5 +8,7 @@ import { PermissionsGuard } from '../common/permissions.guard';
   imports: [NotificationsModule],
   controllers: [PaymentsController],
   providers: [PaymentsService, PermissionsGuard],
+  // Exported for ExportModule — see CustomersModule's export for why.
+  exports: [PaymentsService],
 })
 export class PaymentsModule {}

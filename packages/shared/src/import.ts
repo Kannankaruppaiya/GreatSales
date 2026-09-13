@@ -68,6 +68,46 @@ export const ImportCustomersSchema = z.object({
 });
 export type ImportCustomers = z.infer<typeof ImportCustomersSchema>;
 
+/**
+ * Bulk receivables import.
+ *
+ * The Payments page has had an "Import Tally Excel" button since the feature
+ * was built, and it posted the file one invoice at a time: a POST per row, in
+ * a loop. A real Tally export is hundreds of invoices, the API throttles at 120
+ * requests a minute, and the loop has no idea that is happening — so the import
+ * ran until it was cut off, left the ledger half-written, reported the rest as
+ * individual failures, and recorded nothing at all in the import history. The
+ * customer import solved this the first time it was built; this is the same
+ * shape, and it exists so the payments one stops being the exception.
+ */
+export const ImportPaymentRowSchema = z.object({
+  /** 1-based line in the user's file, counting the header — echoed on failure. */
+  line: z.number().int().min(1),
+  /** The invoice reference. Blank is allowed; a duplicate of one already held is not. */
+  refNo: z.string().trim().max(120).nullish(),
+  /** Matched by NAME against the workspace's customers, as the export carries no ids. */
+  customerName: z.string().trim().min(1).max(200),
+  invoiceDate: z.string().trim().max(40).nullish(),
+  amount: z.number().nonnegative(),
+  received: z.number().nonnegative().nullish(),
+  payZone: z.string().trim().max(40).nullish(),
+  delayReason: z.string().trim().max(400).nullish(),
+});
+export type ImportPaymentRow = z.infer<typeof ImportPaymentRowSchema>;
+
+export const ImportPaymentsSchema = z.object({
+  rows: z.array(ImportPaymentRowSchema).min(1).max(IMPORT_MAX_ROWS),
+  /**
+   * What to do with a reference the ledger already holds.
+   *
+   * "skip" is the default and the safe one: a re-imported Tally export overlaps
+   * the last one almost completely, and creating the overlap again is how a
+   * receivables total doubles.
+   */
+  onDuplicate: z.enum(["skip", "update"]).default("skip"),
+});
+export type ImportPayments = z.infer<typeof ImportPaymentsSchema>;
+
 /** One row that did not import, and why. */
 export interface ImportRowError {
   line: number;
@@ -77,7 +117,7 @@ export interface ImportRowError {
 
 export interface ImportJobRow {
   id: string;
-  /** "customers" — the only kind so far. */
+  /** "customers" or "payments". */
   type: string;
   /** "completed" | "completed_with_errors" | "failed" */
   status: string;

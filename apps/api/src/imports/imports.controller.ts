@@ -3,8 +3,10 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   ImportCustomersSchema,
   ImportJobListQuerySchema,
+  ImportPaymentsSchema,
   type ImportCustomers,
   type ImportJobListQuery,
+  type ImportPayments,
   type RequestUser,
 } from '@greatsales/shared';
 import { ImportsService } from './imports.service';
@@ -49,5 +51,19 @@ export class ImportsController {
     @Body(new ZodValidationPipe(ImportCustomersSchema)) body: ImportCustomers,
   ) {
     return this.service.importCustomers(user, body);
+  }
+
+  /**
+   * `payment.write`, by the same argument as the customer route above: this is
+   * writing payments in bulk, and anyone who may add one invoice by hand may
+   * add a Tally export of them.
+   */
+  @Post('payments')
+  @RequirePermissions('payment.write')
+  importPayments(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(ImportPaymentsSchema)) body: ImportPayments,
+  ) {
+    return this.service.importPayments(user, body);
   }
 }

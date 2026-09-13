@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api';
 import { listParams, useCursorList } from './cursorList';
 import type { CustomerRow, CustomerListResponse, CustomerCreate, CustomerUpdate } from '@greatsales/shared';
+import { invalidateAfter } from '../invalidate';
 
 export type { CustomerRow, CustomerCreate, CustomerUpdate };
 
@@ -50,7 +51,7 @@ export function useCreateCustomer() {
   return useMutation({
     mutationFn: (body: CustomerCreate) =>
       apiFetch<CustomerRow>('/customers', { method: 'POST', body: JSON.stringify(body) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: customerKeys.all }),
+    onSuccess: () => invalidateAfter(qc, 'customers'),
   });
 }
 
@@ -59,7 +60,7 @@ export function useUpdateCustomer() {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: CustomerUpdate }) =>
       apiFetch<CustomerRow>(`/customers/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: customerKeys.all }),
+    onSuccess: () => invalidateAfter(qc, 'customers'),
   });
 }
 
@@ -67,6 +68,6 @@ export function useDeleteCustomer() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => apiFetch<void>(`/customers/${id}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: customerKeys.all }),
+    onSuccess: () => invalidateAfter(qc, 'customers'),
   });
 }

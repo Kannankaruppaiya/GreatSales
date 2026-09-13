@@ -1,5 +1,6 @@
 import {
   applyFilters,
+  inheritedPrice,
   resolvePrice,
   sortLines,
   summarize,
@@ -23,6 +24,8 @@ function row(over: Partial<EngineRow> = {}): EngineRow {
     targetDate: null,
     salesOrderId: null,
     salesOrderStatus: null,
+    remarkCount: 0,
+    followUpCount: 0,
     customerId: 'c1',
     customerName: 'Acme',
     contactName: null,
@@ -67,7 +70,49 @@ describe('resolvePrice', () => {
   });
 });
 
+describe('inheritedPrice', () => {
+  // The editable price cell's placeholder. It must IGNORE the line's own
+  // price: the point is to say what the line would charge without one, so a
+  // cleared field shows the figure the line is about to fall back to.
+  it('is the mapping price, whatever the line itself carries', () => {
+    expect(
+      inheritedPrice(
+        row({ projectionPrice: 100, customPrice: 90, basePrice: 80 }),
+      ),
+    ).toBe(90);
+  });
+
+  it('falls back to the catalog price', () => {
+    expect(
+      inheritedPrice(
+        row({ projectionPrice: 100, customPrice: null, basePrice: 80 }),
+      ),
+    ).toBe(80);
+  });
+
+  it('is null when there is nothing to inherit, so the cell shows no placeholder', () => {
+    expect(inheritedPrice(row({ projectionPrice: 100 }))).toBeNull();
+  });
+});
+
 describe('toLine', () => {
+  it('reports the own price and the inherited price separately', () => {
+    // Without both, the worksheet cannot tell "priced at 100 on this line"
+    // from "inheriting 100 from the mapping" — and clearing the cell would be
+    // indistinguishable from retyping the same number.
+    const own = toLine(
+      row({ projectionPrice: 100, customPrice: 90, basePrice: 80 }),
+    );
+    expect(own.price).toBe(100);
+    expect(own.ownPrice).toBe(100);
+    expect(own.inheritedPrice).toBe(90);
+
+    const inherited = toLine(row({ projectionPrice: null, customPrice: 90 }));
+    expect(inherited.price).toBe(90);
+    expect(inherited.ownPrice).toBeNull();
+    expect(inherited.inheritedPrice).toBe(90);
+  });
+
   it('computes projected value, achieved value and achievement percent', () => {
     const line = toLine(
       row({ projectionPrice: 10, committedQty: 5, achievedQty: 3 }),

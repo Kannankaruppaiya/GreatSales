@@ -77,4 +77,35 @@ describe('PermissionsGuard denies sales the users module', () => {
       guard.canActivate(ctxFor(handler, salesUser)),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  /**
+   * GET /users/directory carries no @RequirePermissions — deliberately, so
+   * mgmt and sales (neither holds user.manage) can still read the roster to
+   * populate a salesperson picker. This proves the guard's "no declared
+   * permissions → pass through" branch is what makes that route open,
+   * distinct from the 403 the route above gets for the SAME caller.
+   */
+  it('lets the same sales caller through a route with no declared permission', async () => {
+    const handler = () => {}; // no Reflect.defineMetadata — mirrors UsersController#directory
+
+    const prismaStub = {
+      forTenant: () => ({
+        role: {
+          findUnique: () =>
+            Promise.resolve({
+              id: 'role_sales_acme',
+              permissions: ROLE_PERMISSIONS.sales.map((key) => ({
+                permission: { key },
+              })),
+            }),
+        },
+      }),
+    };
+
+    const guard = new PermissionsGuard(new Reflector(), prismaStub as never);
+
+    await expect(guard.canActivate(ctxFor(handler, salesUser))).resolves.toBe(
+      true,
+    );
+  });
 });

@@ -132,4 +132,156 @@ describe('LeadsService (integration)', () => {
       service.update(admin('tenant_acme', 'acme'), created.id, { area: 'X' }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  describe('the line items a negotiation moves', () => {
+    it('replaces the products on an update, and re-totals the deal', async () => {
+      const created = await service.create(admin('tenant_acme', 'acme'), {
+        customerName: 'Line Item Co',
+        salespersonId: 'user_sales1_acme',
+        products: [
+          { productName: 'CUT 100', qty: 10, price: 100, value: 1000 },
+          { productName: 'AW 68', qty: 5, price: 200, value: 1000 },
+        ],
+      });
+      expect(created.totalValue).toBe(2000);
+
+      // The customer halves the order and agrees a better price on what is
+      // left. Before this was possible the only way to record it was to delete
+      // the lead and type it again, losing its remarks and its history.
+      const updated = await service.update(
+        admin('tenant_acme', 'acme'),
+        created.id,
+        {
+          products: [
+            { productName: 'CUT 100', qty: 5, price: 120, value: 600 },
+          ],
+        },
+      );
+      expect(updated.products).toHaveLength(1);
+      expect(updated.products[0].productName).toBe('CUT 100');
+      expect(updated.totalValue).toBe(600);
+    });
+
+    it('leaves the line items alone when the patch does not mention them', async () => {
+      const created = await service.create(admin('tenant_acme', 'acme'), {
+        customerName: 'Untouched Lines Co',
+        salespersonId: 'user_sales1_acme',
+        products: [
+          { productName: 'CUT 100', qty: 10, price: 100, value: 1000 },
+        ],
+      });
+      // A stage move must never rewrite a deal's value as a side effect.
+      const moved = await service.update(
+        admin('tenant_acme', 'acme'),
+        created.id,
+        {
+          stage: 'ProposalsAndPriceQuote',
+        },
+      );
+      expect(moved.products).toHaveLength(1);
+      expect(moved.totalValue).toBe(1000);
+    });
+
+    it('takes every scalar the detail form now offers', async () => {
+      const created = await service.create(admin('tenant_acme', 'acme'), {
+        customerName: 'Grade Me Co',
+        salespersonId: 'user_sales1_acme',
+      });
+      expect(created.tier).toBeNull();
+
+      const graded = await service.update(
+        admin('tenant_acme', 'acme'),
+        created.id,
+        {
+          tier: 'Platinum',
+          type: 'New',
+          division: 'LUB',
+          address: 'Plot 12, Ambattur',
+        },
+      );
+      expect(graded.tier).toBe('Platinum');
+      expect(graded.type).toBe('New');
+      expect(graded.division).toBe('LUB');
+      expect(graded.address).toBe('Plot 12, Ambattur');
+    });
+  });
+
+  describe('contacts', () => {
+    it('stores every contact and names the primary on the row', async () => {
+      const lead = await service.create(admin('tenant_acme', 'acme'), {
+        customerName: 'Two Contacts Ltd',
+        salespersonId: 'user_sales1_acme',
+        contacts: [
+          {
+            name: 'Mr. P. Subramanian',
+            designation: 'Plant Head',
+            phone: '+91 98400 11111',
+            sameAsMobile: true,
+            isPrimary: true,
+          },
+          {
+            name: 'Ms. R. Devi',
+            designation: 'Purchase Manager',
+            phone: '+91 98400 22222',
+            email: 'purchase@two.test',
+            sameAsMobile: false,
+            whatsapp: '+91 90000 00000',
+          },
+        ],
+      });
+
+      expect(lead.contacts).toHaveLength(2);
+      // Primary first — the order IS the contract, because every list cell
+      // and the printed paperwork read [0].
+      expect(lead.contacts[0].name).toBe('Mr. P. Subramanian');
+      expect(lead.contacts[0].designation).toBe('Plant Head');
+      // sameAsMobile mirrors the number rather than asking for it twice.
+      expect(lead.contacts[0].whatsapp).toBe('+91 98400 11111');
+      expect(lead.contacts[1].whatsapp).toBe('+91 90000 00000');
+      // The denormalised pair the list, dashboard and mobile read.
+      expect(lead.contactName).toBe('Mr. P. Subramanian');
+      expect(lead.phone).toBe('+91 98400 11111');
+    });
+
+    it('replaces the list, so somebody who has left is gone', async () => {
+      const lead = await service.create(admin('tenant_acme', 'acme'), {
+        customerName: 'Staff Turnover Co',
+        salespersonId: 'user_sales1_acme',
+        contacts: [
+          { name: 'Old Buyer', phone: '1', isPrimary: true },
+          { name: 'Second Person', phone: '2' },
+        ],
+      });
+      expect(lead.contacts).toHaveLength(2);
+
+      const after = await service.update(
+        admin('tenant_acme', 'acme'),
+        lead.id,
+        {
+          contacts: [{ name: 'New Buyer', phone: '3', isPrimary: true }],
+        },
+      );
+      expect(after.contacts).toHaveLength(1);
+      expect(after.contacts[0].name).toBe('New Buyer');
+      expect(after.contactName).toBe('New Buyer');
+    });
+
+    it('leaves the contacts alone when the patch does not mention them', async () => {
+      const lead = await service.create(admin('tenant_acme', 'acme'), {
+        customerName: 'Stage Move Co',
+        salespersonId: 'user_sales1_acme',
+        contacts: [{ name: 'Keep Me', phone: '9', isPrimary: true }],
+      });
+
+      const moved = await service.update(
+        admin('tenant_acme', 'acme'),
+        lead.id,
+        {
+          stage: 'NeedsAnalysis',
+        },
+      );
+      expect(moved.stage).toBe('NeedsAnalysis');
+      expect(moved.contacts.map((c) => c.name)).toEqual(['Keep Me']);
+    });
+  });
 });

@@ -41,14 +41,19 @@ test.describe("Multi-Month Projections & Analytics Verification", () => {
     await page.goto(URLS.projections);
     await page.waitForLoadState("networkidle");
 
-    const testMonths = [
-      { value: "2026-04", label: "Apr 2026" },
-      { value: "2026-06", label: "Jun 2026" },
-      { value: "2026-08", label: "Aug 2026" },
-      { value: "2026-09", label: "Sep 2026" },
-      { value: "2026-12", label: "Dec 2026" },
-      { value: "2027-03", label: "Mar 2027" },
-    ];
+    // The months the seed actually fills, counted back from today rather than
+    // written down. This was a list of six literals spanning Apr 2026 to Mar
+    // 2027, most of which never held a row — the spec was asserting that a
+    // table renders in months the dataset has nothing in.
+    const testMonths = Array.from({ length: 3 }, (_, i) => {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - (2 - i));
+      return {
+        value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+        label: d.toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+      };
+    });
 
     const monthSelect = page.locator("select").first();
 

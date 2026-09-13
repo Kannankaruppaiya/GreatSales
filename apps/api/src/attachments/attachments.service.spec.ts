@@ -175,9 +175,9 @@ describe('AttachmentsService (integration)', () => {
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
-    await expect(
-      attachments.download(sales2, saved.id),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(attachments.download(sales2, saved.id)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
 
     await expect(
       attachments.upload(

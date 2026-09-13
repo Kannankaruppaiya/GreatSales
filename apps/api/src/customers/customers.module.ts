@@ -10,5 +10,9 @@ import { PermissionsGuard } from '../common/permissions.guard';
   imports: [NotificationsModule, FeatureFlagsModule],
   controllers: [CustomersController, IndustriesController],
   providers: [CustomersService, PermissionsGuard],
+  // Exported for ExportModule: the tenant export composes this service
+  // rather than re-querying Customer directly, so it stays scoped and
+  // filtered exactly like the Customers page.
+  exports: [CustomersService],
 })
 export class CustomersModule {}

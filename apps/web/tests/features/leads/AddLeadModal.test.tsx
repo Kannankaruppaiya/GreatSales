@@ -85,6 +85,7 @@ describe("AddLeadModal enum payloads", () => {
       screen.getByPlaceholderText(/acme precision tools/i),
       "Regression Test Co",
     );
+    await userEvent.selectOptions(screen.getByLabelText(/assigned salesperson/i), "Test Sales");
 
     // Default is already "New Enquiries" (raw NewEnquiries, where label ==
     // raw) — explicitly change to "Negotiation / Oral Confirmation" (raw
@@ -112,6 +113,7 @@ describe("AddLeadModal enum payloads", () => {
       screen.getByPlaceholderText(/acme precision tools/i),
       "Unmodified Defaults Co",
     );
+    await userEvent.selectOptions(screen.getByLabelText(/assigned salesperson/i), "Test Sales");
     await userEvent.click(screen.getByRole("button", { name: /create lead/i }));
 
     const postCall = spy.mock.calls.find(([, init]) => init?.method === "POST");
@@ -120,5 +122,30 @@ describe("AddLeadModal enum payloads", () => {
     expect(body.stage).toBe("NewEnquiries");
     // totalValue must never be sent — it's server-computed from products.
     expect(body.totalValue).toBeUndefined();
+  });
+
+  it("blocks Create for admin/mgmt until a salesperson is explicitly chosen — no falling back to whoever sorts first", async () => {
+    // The bug this guards: selectedSalespersonId used to fall back to
+    // salespersonOptions[0]?.id, so an admin who never touched the field
+    // silently created a lead owned by whichever name sorted first
+    // alphabetically — active or not. The field is marked required; it must
+    // actually behave that way.
+    const spy = mockApiFetch();
+    renderModal();
+
+    await userEvent.type(
+      screen.getByPlaceholderText(/acme precision tools/i),
+      "No Owner Chosen Co",
+    );
+    expect(screen.getByRole("button", { name: /create lead/i })).toBeDisabled();
+
+    await userEvent.selectOptions(screen.getByLabelText(/assigned salesperson/i), "Test Sales");
+    expect(screen.getByRole("button", { name: /create lead/i })).toBeEnabled();
+
+    await userEvent.click(screen.getByRole("button", { name: /create lead/i }));
+    const postCall = spy.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(postCall).toBeTruthy();
+    const body = JSON.parse(postCall![1]!.body as string);
+    expect(body.salespersonId).toBe("u_sales1");
   });
 });

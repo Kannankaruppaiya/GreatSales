@@ -16,6 +16,7 @@ import type {
   PrincipalCreate,
   PrincipalUpdate,
 } from "./types";
+import { invalidateAfter } from "@/lib/invalidate";
 
 const PAGE_SIZE = 50;
 
@@ -55,8 +56,12 @@ export function flattenProducts(data?: { pages: ProductListResponse[] }): Produc
   return data?.pages.flatMap((pg) => pg.items) ?? [];
 }
 
+/**
+ * `basePrice` is a mapping's Catalog column and the price a projection line
+ * falls back to, so editing a product silently changes both.
+ */
 export function onProductMutationSuccess(qc: QueryClient) {
-  return qc.invalidateQueries({ queryKey: ["products"] });
+  return invalidateAfter(qc, "products");
 }
 
 export function useCreateProduct() {
@@ -64,10 +69,9 @@ export function useCreateProduct() {
   return useMutation({
     mutationFn: (body: ProductCreate) =>
       apiFetch<ProductRow>("/products", { method: "POST", body: JSON.stringify(body) }),
-    onSuccess: () => {
-      onProductMutationSuccess(qc);
-      qc.invalidateQueries({ queryKey: ["principals"] });
-    },
+    // `products` already carries `principals` (a principal row counts its
+    // products), so one call covers both.
+    onSuccess: () => onProductMutationSuccess(qc),
   });
 }
 
@@ -84,10 +88,9 @@ export function useDeleteProduct() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => apiFetch<void>(`/products/${id}`, { method: "DELETE" }),
-    onSuccess: () => {
-      onProductMutationSuccess(qc);
-      qc.invalidateQueries({ queryKey: ["principals"] });
-    },
+    // `products` already carries `principals` (a principal row counts its
+    // products), so one call covers both.
+    onSuccess: () => onProductMutationSuccess(qc),
   });
 }
 
@@ -113,8 +116,7 @@ export function useCreatePrincipal() {
     mutationFn: (body: PrincipalCreate) =>
       apiFetch<PrincipalRow>("/principals", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["principals"] });
-      qc.invalidateQueries({ queryKey: ["products"] });
+      invalidateAfter(qc, "principals");
     },
   });
 }
@@ -125,8 +127,7 @@ export function useUpdatePrincipal() {
     mutationFn: ({ id, patch }: { id: string; patch: PrincipalUpdate }) =>
       apiFetch<PrincipalRow>(`/principals/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["principals"] });
-      qc.invalidateQueries({ queryKey: ["products"] });
+      invalidateAfter(qc, "principals");
     },
   });
 }
@@ -136,8 +137,7 @@ export function useDeletePrincipal() {
   return useMutation({
     mutationFn: (id: string) => apiFetch<void>(`/principals/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["principals"] });
-      qc.invalidateQueries({ queryKey: ["products"] });
+      invalidateAfter(qc, "principals");
     },
   });
 }

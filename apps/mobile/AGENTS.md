@@ -24,6 +24,11 @@ Things worth knowing before writing code here:
   the cursor discarded, and search filtered those 100 in JS. Filters belong in the query.
 - **Screens that aggregate pass `autoFetchAll`** (kanban, report tabs, the follow-up
   buckets). Everything else follows the cursor on `onEndReached`.
+- **Mutations invalidate through `invalidateAfter`** (`src/gs/invalidate.ts`), not with a
+  hand-written list of `invalidateQueries` calls. The dashboard is assembled server-side
+  from projections, leads, targets and follow-ups, so a follow-up saved on a phone has to
+  refresh the phone's tiles too — it used to refresh only the follow-ups list. The graph
+  is `packages/shared/src/query-deps.ts`, shared with the web console.
 - **Reference data comes from the API**, not `gs/domain.ts`. Principals are
   `/principals`, industries are `/industries`. `AREAS` is still a local constant —
   see the gap below.

@@ -80,6 +80,20 @@ export class MappingsService {
       ...(ownerId ? { salespersonId: ownerId } : {}),
       ...(query.customerId ? { customerId: query.customerId } : {}),
       ...(query.productId ? { productId: query.productId } : {}),
+      // Both narrow through `product`, so they are merged into ONE key —
+      // spread as two, the second would silently replace the first and a
+      // principal+unpriced filter would quietly drop the principal.
+      ...(query.principalId || query.unpriced === 'true'
+        ? {
+            product: {
+              ...(query.principalId ? { principalId: query.principalId } : {}),
+              ...(query.unpriced === 'true' ? { basePrice: null } : {}),
+            },
+          }
+        : {}),
+      // Unpriced means neither side can price it: no agreed override here, and
+      // no catalog price behind it (the `product` clause above).
+      ...(query.unpriced === 'true' ? { customPrice: null } : {}),
       ...(query.search
         ? {
             OR: [
@@ -109,7 +123,16 @@ export class MappingsService {
       db.mapping.findMany({
         where,
         include: MAPPING_INCLUDE,
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        // By the customer whose book it is, then the product — the order
+        // somebody scanning this table reads in. It used to be insertion order
+        // (`createdAt desc`), which for a seeded book of 883 rows is no order
+        // at all. `id` last keeps the total order deterministic, which is what
+        // cursor pagination needs to not skip or repeat a row.
+        orderBy: [
+          { customer: { name: 'asc' } },
+          { product: { name: 'asc' } },
+          { id: 'asc' },
+        ],
         take: query.limit + 1,
         ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
       }),

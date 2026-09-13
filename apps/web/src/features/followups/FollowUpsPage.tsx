@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CalendarClock, CheckCircle2, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useAuthRole } from "@/store/auth";
 import { useUi } from "@/store/ui";
-import { inr } from "@/lib/format";
+import { daysFromToday, inr, today } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api";
 import { Button, Card } from "@/components/ui";
@@ -33,7 +33,7 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 
 function dueDateLabel(dueDate: string, todayStr: string): string {
   if (dueDate === todayStr) return "Today";
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const tomorrow = daysFromToday(1);
   if (dueDate === tomorrow) return "Tomorrow";
   const dt = new Date(dueDate + "T00:00:00");
   if (isNaN(dt.getTime())) return dueDate;
@@ -75,7 +75,7 @@ export default function FollowUpsPage() {
     return [...opts.entries()].map(([id, name]) => ({ id, name }));
   }, [rows]);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = today();
 
   // Bucket the fetched (already done: false) rows client-side by comparing
   // each row's dueDate to today.

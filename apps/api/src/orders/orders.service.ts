@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -14,7 +16,13 @@ import type {
 } from '@greatsales/shared';
 import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { computeTotal, lineTotal } from './order-engine';
+import { PeriodLocksService } from '../period-locks/period-locks.service';
+import {
+  canTransition,
+  computeTotal,
+  lineTotal,
+  type OrderStatusName,
+} from './order-engine';
 
 /** Prisma include graph that carries everything an {@link OrderRow} needs. */
 /**
@@ -49,9 +57,6 @@ type OrderWithGraph = Prisma.SalesOrderGetPayload<{
 function dec(v: Prisma.Decimal | null): number | null {
   return v == null ? null : v.toNumber();
 }
-function ymd(d: Date | null): string | null {
-  return d == null ? null : d.toISOString().slice(0, 10);
-}
 
 function toRow(o: OrderWithGraph): OrderRow {
   return {
@@ -71,7 +76,13 @@ function toRow(o: OrderWithGraph): OrderRow {
     advanceRef: o.advanceRef,
     deliveryMode: o.deliveryMode,
     deliveryAddress: o.deliveryAddress,
-    expectedDelivery: ymd(o.expectedDelivery),
+    // The full instant, not ymd(). A delivery promise is a moment — the create
+    // form collects a date AND a time for an urgent order — and truncating it
+    // to a date here threw the time away twice over: the SLA report compared
+    // the actual delivery against UTC midnight of the promised day, and the
+    // detail modal rendered that midnight back through a local-time formatter
+    // as "05:30 am" on every order.
+    expectedDelivery: o.expectedDelivery?.toISOString() ?? null,
     transporterName: o.transporterName,
     lrNumber: o.lrNumber,
     deliveryInstructions: o.deliveryInstructions,
@@ -131,8 +142,27 @@ export class OrdersService {
             },
           }
         : {}),
+      // Three fields, because the page's own search box offers three: "Search
+      // SO no., customer, or transporter". It matched the code alone, so
+      // typing a customer name — the thing anyone actually remembers about an
+      // order — returned an empty table. Same OR shape the payments list uses.
       ...(query.search
-        ? { code: { contains: query.search, mode: 'insensitive' } }
+        ? {
+            OR: [
+              { code: { contains: query.search, mode: 'insensitive' } },
+              {
+                customer: {
+                  name: { contains: query.search, mode: 'insensitive' },
+                },
+              },
+              {
+                transporterName: {
+                  contains: query.search,
+                  mode: 'insensitive',
+                },
+              },
+            ],
+          }
         : {}),
     };
 
@@ -166,45 +196,107 @@ export class OrdersService {
     const salespersonId = (await this.isSalesOnly(db, user.roleId))
       ? user.userId
       : body.salespersonId;
-    const status = body.status ?? 'Created';
+    // An order is born at the bottom of the ladder. Accepting any status here
+    // let a caller create one already delivered, with a one-entry trail and no
+    // acknowledgement or dispatch behind it — the same broken shape the
+    // transition guard on update() exists to prevent.
+    if (body.status && body.status !== 'Created') {
+      throw new BadRequestException(
+        'A new order starts at Created; advance it through the fulfilment stages instead',
+      );
+    }
+    const status = 'Created';
     const total = computeTotal(body.items);
 
-    const created = await db.salesOrder.create({
-      data: {
-        tenant: { connect: { id: user.tenantId } },
-        code: body.code,
-        customer: { connect: { id: body.customerId } },
-        salesperson: { connect: { id: salespersonId } },
-        createdBy: { connect: { id: user.userId } },
-        status,
-        total,
-        ...(body.date ? { date: new Date(body.date) } : {}),
-        ...(body.isUrgent !== undefined ? { isUrgent: body.isUrgent } : {}),
-        paymentTerms: body.paymentTerms ?? null,
-        advanceAmount: body.advanceAmount ?? null,
-        advanceRef: body.advanceRef ?? null,
-        deliveryMode: body.deliveryMode ?? null,
-        deliveryAddress: body.deliveryAddress ?? null,
-        expectedDelivery: body.expectedDelivery
-          ? new Date(body.expectedDelivery)
-          : null,
-        transporterName: body.transporterName ?? null,
-        lrNumber: body.lrNumber ?? null,
-        deliveryInstructions: body.deliveryInstructions ?? null,
-        items: {
-          create: body.items.map((i) => ({
-            product: { connect: { id: i.productId } },
-            qty: i.qty,
-            price: i.price,
-            unit: i.unit ?? null,
-          })),
-        },
-        statusHistory: {
-          create: [{ status, changedBy: { connect: { id: user.userId } } }],
-        },
+    // Read through the TENANT-SCOPED client, so a line belonging to another
+    // tenant reads as missing rather than as a foreign-key error.
+    const projection = body.projectionId
+      ? await db.projection.findFirst({
+          where: { id: body.projectionId, deletedAt: null },
+          select: {
+            id: true,
+            salesOrderId: true,
+            period: true,
+            salesOrder: { select: { status: true } },
+          },
+        })
+      : null;
+    if (body.projectionId) {
+      if (!projection) {
+        throw new NotFoundException('Projection not found');
+      }
+      // One order per line — but a CANCELLED order is not one. The worksheet
+      // already treats a cancelled link as no link and offers "Create SO"
+      // again, so reading the raw pointer here refused the very button the
+      // page was showing, and left the line unable to be removed either.
+      const liveOrder =
+        projection.salesOrderId != null &&
+        projection.salesOrder?.status !== 'Cancelled';
+      if (liveOrder) {
+        throw new ConflictException(
+          'This projection line has already been converted to a sales order',
+        );
+      }
+      if (await PeriodLocksService.isLocked(db, projection.period)) {
+        throw new ForbiddenException(
+          `${projection.period} is locked for reporting and cannot be edited`,
+        );
+      }
+    }
+
+    const created = await this.prisma.transactionForTenant(
+      user.tenantId,
+      async (tx) => {
+        const order = await tx.salesOrder.create({
+          data: {
+            tenant: { connect: { id: user.tenantId } },
+            code: body.code,
+            customer: { connect: { id: body.customerId } },
+            salesperson: { connect: { id: salespersonId } },
+            createdBy: { connect: { id: user.userId } },
+            status,
+            total,
+            ...(body.date ? { date: new Date(body.date) } : {}),
+            ...(body.isUrgent !== undefined ? { isUrgent: body.isUrgent } : {}),
+            paymentTerms: body.paymentTerms ?? null,
+            advanceAmount: body.advanceAmount ?? null,
+            advanceRef: body.advanceRef ?? null,
+            deliveryMode: body.deliveryMode ?? null,
+            deliveryAddress: body.deliveryAddress ?? null,
+            expectedDelivery: body.expectedDelivery
+              ? new Date(body.expectedDelivery)
+              : null,
+            transporterName: body.transporterName ?? null,
+            lrNumber: body.lrNumber ?? null,
+            deliveryInstructions: body.deliveryInstructions ?? null,
+            items: {
+              create: body.items.map((i) => ({
+                product: { connect: { id: i.productId } },
+                qty: i.qty,
+                price: i.price,
+                unit: i.unit ?? null,
+              })),
+            },
+            statusHistory: {
+              create: [{ status, changedBy: { connect: { id: user.userId } } }],
+            },
+          },
+          include: ORDER_INCLUDE,
+        });
+
+        // The link, in the same transaction as the order: a worksheet line that
+        // says "Order Placed" now has an order id behind it, and the line's
+        // delete guard has something real to refuse on.
+        if (projection) {
+          await tx.projection.update({
+            where: { id: projection.id },
+            data: { salesOrderId: order.id },
+          });
+        }
+
+        return order;
       },
-      include: ORDER_INCLUDE,
-    });
+    );
     return toRow(created);
   }
 
@@ -222,6 +314,30 @@ export class OrdersService {
     const existing = await this.loadOwned(db, user, id);
 
     const data: Prisma.SalesOrderUpdateInput = {};
+
+    // Line items, and the total that follows from them. Only while the order
+    // is a draft: once the warehouse has acknowledged it, the quantities are a
+    // commitment somebody is acting on, and silently rewriting them under a
+    // dispatch in progress is worse than refusing.
+    if (patch.items !== undefined) {
+      if (existing.status !== 'Created') {
+        throw new BadRequestException(
+          'Line items can only be changed while the order is still Created',
+        );
+      }
+      data.items = {
+        deleteMany: {},
+        create: patch.items.map((i) => ({
+          product: { connect: { id: i.productId } },
+          qty: i.qty,
+          price: i.price,
+          unit: i.unit ?? null,
+        })),
+      };
+      // Recomputed here, never taken from the client — same rule as create().
+      data.total = computeTotal(patch.items);
+    }
+    if (patch.date !== undefined) data.date = new Date(patch.date);
     if (patch.isUrgent !== undefined) data.isUrgent = patch.isUrgent;
     if ('paymentTerms' in patch) data.paymentTerms = patch.paymentTerms ?? null;
     if ('advanceAmount' in patch)
@@ -244,6 +360,17 @@ export class OrdersService {
     const statusChanged =
       patch.status !== undefined && patch.status !== existing.status;
     if (statusChanged) {
+      // The ladder is enforced HERE, not in the modal that happens to walk it.
+      if (
+        !canTransition(
+          existing.status as OrderStatusName,
+          patch.status as OrderStatusName,
+        )
+      ) {
+        throw new BadRequestException(
+          `An order cannot move from ${existing.status} to ${patch.status}`,
+        );
+      }
       data.status = patch.status;
       data.statusHistory = {
         create: [

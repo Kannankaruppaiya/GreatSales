@@ -62,6 +62,22 @@ describe('UsersService (integration)', () => {
     expect(res.items.some((u) => u.email.endsWith('@acme.test'))).toBe(false);
   });
 
+  it('directory() returns the minimal roster — no email, manager, or audit fields', async () => {
+    const rows = await service.directory(admin('tenant_acme', 'acme'));
+    const s1 = rows.find((u) => u.name === 'Acme Corp Sales One')!;
+    expect(s1).toBeDefined();
+    expect(s1.roleName).toBe('sales');
+    expect(s1).not.toHaveProperty('email');
+    expect(s1).not.toHaveProperty('managerId');
+    expect(s1).not.toHaveProperty('passwordHash');
+  });
+
+  it('directory() isolates tenants the same as list()', async () => {
+    const rows = await service.directory(admin('tenant_globex', 'globex'));
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((u) => !u.name.includes('Acme'))).toBe(true);
+  });
+
   it('creates a user and stores a real password hash (not plaintext)', async () => {
     const created = await service.create(admin('tenant_acme', 'acme'), {
       name: 'New Rep',

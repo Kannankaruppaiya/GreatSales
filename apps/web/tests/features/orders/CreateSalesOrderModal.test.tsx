@@ -31,12 +31,12 @@ function setRole(role: "admin" | "mgmt" | "sales", userId = "u_1") {
   });
 }
 
-function renderModal(salespersonOptions: OrderSalespersonOption[] = salespeople) {
+function renderModal(salespersonOptions: OrderSalespersonOption[] = salespeople, open = true) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
       <CreateSalesOrderModal
-        open
+        open={open}
         onClose={() => {}}
         customers={customers}
         products={products}
@@ -44,6 +44,21 @@ function renderModal(salespersonOptions: OrderSalespersonOption[] = salespeople)
       />
     </QueryClientProvider>,
   );
+}
+
+/**
+ * Pick the account, the SKU and (for a non-sales caller) the rep.
+ *
+ * The form deliberately starts with none of them chosen — see the reset effect
+ * in CreateSalesOrderModal — so every test that submits has to choose, the same
+ * way a person does.
+ */
+async function chooseCounterparty(withSalesperson = true) {
+  await userEvent.selectOptions(screen.getByLabelText(/customer/i), "cust_1");
+  await userEvent.selectOptions(screen.getByLabelText(/product sku/i), "prod_1");
+  if (withSalesperson) {
+    await userEvent.selectOptions(screen.getByLabelText(/salesperson/i), "u_sales1");
+  }
 }
 
 describe("CreateSalesOrderModal enum payloads", () => {
@@ -63,6 +78,7 @@ describe("CreateSalesOrderModal enum payloads", () => {
     renderModal([]);
 
     expect(screen.queryByText(/no salespersons yet/i)).toBeNull();
+    await chooseCounterparty(false);
     const saveBtn = screen.getByRole("button", { name: /create sales order/i });
     expect(saveBtn).toBeEnabled();
 
@@ -76,6 +92,7 @@ describe("CreateSalesOrderModal enum payloads", () => {
   it("submits the raw DB enum value for the selected delivery-mode label, not the label itself", async () => {
     const spy = vi.spyOn(api, "apiFetch").mockResolvedValue({ id: "ord_1" });
     renderModal();
+    await chooseCounterparty();
 
     // Default delivery mode is already "Transport (LR)" (raw TransportLR) —
     // explicitly change it to "Company Vehicle" (raw CompanyVehicle), a
@@ -102,6 +119,7 @@ describe("CreateSalesOrderModal enum payloads", () => {
   it("defaults to a valid raw delivery-mode value so an unmodified Create doesn't 400", async () => {
     const spy = vi.spyOn(api, "apiFetch").mockResolvedValue({ id: "ord_2" });
     renderModal();
+    await chooseCounterparty();
 
     await userEvent.click(screen.getByRole("button", { name: /create sales order/i }));
 
@@ -109,5 +127,44 @@ describe("CreateSalesOrderModal enum payloads", () => {
     expect(postCall).toBeTruthy();
     const body = JSON.parse(postCall![1]!.body as string);
     expect(body.deliveryMode).toBe("TransportLR");
+  });
+
+  it("opens with no account or SKU chosen, and will not submit until they are", async () => {
+    // "Create Order" from the dashboard carries no context. Pre-selecting the
+    // first customer alphabetically is not a choice anybody made, and this
+    // form is one click from raising a real order against whoever it lands on.
+    renderModal();
+
+    expect((screen.getByLabelText(/customer/i) as HTMLSelectElement).value).toBe("");
+    expect((screen.getByLabelText(/product sku/i) as HTMLSelectElement).value).toBe("");
+    expect(screen.getByRole("button", { name: /create sales order/i })).toBeDisabled();
+  });
+
+  it("does not carry the previous order's account and SKU into the next one", async () => {
+    // The modal stays mounted while closed — the Dialog just renders null — so
+    // its state used to survive a close and the next "Create Order" opened
+    // holding the account and product of the order raised before it.
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const props = { onClose: () => {}, customers, products, salespeople };
+    const { rerender } = render(
+      <QueryClientProvider client={qc}>
+        <CreateSalesOrderModal open {...props} />
+      </QueryClientProvider>,
+    );
+
+    await chooseCounterparty();
+    expect((screen.getByLabelText(/customer/i) as HTMLSelectElement).value).toBe("cust_1");
+
+    const reopen = (open: boolean) =>
+      rerender(
+        <QueryClientProvider client={qc}>
+          <CreateSalesOrderModal open={open} {...props} />
+        </QueryClientProvider>,
+      );
+    reopen(false);
+    reopen(true);
+
+    expect((screen.getByLabelText(/customer/i) as HTMLSelectElement).value).toBe("");
+    expect((screen.getByLabelText(/product sku/i) as HTMLSelectElement).value).toBe("");
   });
 });

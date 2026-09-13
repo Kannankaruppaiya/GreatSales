@@ -23,6 +23,7 @@ import {
   type OrderStatusValue,
   type OrderRow,
 } from "@/features/orders/types";
+import { useSelectedRow } from "@/lib/useSelectedRow";
 
 function fmtDur(ms: number | null): string {
   if (ms == null || isNaN(ms)) return "—";
@@ -49,6 +50,20 @@ function fmtDT(iso?: string | null): string {
   });
 }
 
+/**
+ * The LAST entry for a stage, not the first.
+ *
+ * An order can be stepped one rung back to undo a mis-click and then advanced
+ * again, which leaves two entries for the same stage. `find` would quote the
+ * mistaken one forever; the later entry is the one that happened.
+ */
+function lastAt(so: OrderRow, status: string): string | undefined {
+  for (let i = so.statusHistory.length - 1; i >= 0; i--) {
+    if (so.statusHistory[i].status === status) return so.statusHistory[i].at;
+  }
+  return undefined;
+}
+
 /** Raw-enum-keyed tone map for the status badge — mirrors data/constants.ts
  * soTone(), but keyed by the wire's raw OrderStatusValue instead of the old
  * mock's display-label strings (see features/orders/types.ts doc comment on
@@ -71,7 +86,17 @@ export default function OrdersPage() {
   const [ownerId, setOwnerId] = useState("ALL");
   const [tab, setTab] = useState<"list" | "report">("list");
   const [showCreateSo, setShowCreateSo] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<OrderRow | null>(null);
+  /**
+   * The open detail modal is addressed by ID, and its row is read back out of
+   * the list on every render.
+   *
+   * Holding the row object itself is the reason a save inside the modal used
+   * to need an F5: the mutation invalidated the list, the list refetched, and
+   * this state kept pointing at the snapshot taken when the row was clicked.
+   * Deriving it means the refetched row IS what the modal is handed, and a
+   * deleted row closes the modal by disappearing.
+   */
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [printOrder, setPrintOrder] = useState<OrderRow | null>(null);
 
   const effectiveOwner = ownerId !== "ALL" ? ownerId : globalOwnerFilter !== "ALL" ? globalOwnerFilter : undefined;
@@ -84,6 +109,7 @@ export default function OrdersPage() {
   };
   const q = useOrders(params);
   const orders = flattenOrders(q.data);
+  const selectedOrder = useSelectedRow(orders, selectedOrderId);
 
   // Salesperson filter options — no dedicated endpoint, derived from the
   // loaded rows (same pattern as PaymentsPage's salespersonOptions). Also
@@ -116,6 +142,12 @@ export default function OrdersPage() {
   // Fulfilment SLA metrics — pure grouping over the server's statusHistory
   // entries (raw OrderStatusValue keys); none of this recomputes total/
   // lineTotal, only timestamps already returned by the API.
+  //
+  // The clock starts at the order's own `date`, not at `createdAt`. Both
+  // columns say "Issued" and they are the same instant for an order typed the
+  // day it was placed — but `date` is the one the business set and the one the
+  // printed invoice carries, so back-dating an order used to leave the list,
+  // this report and the invoice each claiming a different issue date.
   const reportOrders = useMemo(() => orders.filter((o) => o.status !== "Cancelled"), [orders]);
 
   const durAck: number[] = [];
@@ -123,19 +155,25 @@ export default function OrdersPage() {
   const durTransit: number[] = [];
   const durTotal: number[] = [];
   const durRecv: number[] = [];
-  let delayedCount = 0;
+  // An order that is late and has NOT arrived is the worst kind, and the tile
+  // used to exclude exactly those: it only compared a delivery that had already
+  // happened against the promise, so an order three weeks past its date and
+  // still sitting at Created counted as nothing at all.
+  let deliveredLate = 0;
+  let stillOverdue = 0;
+  const now = Date.now();
 
   reportOrders.forEach((so) => {
-    const created = so.createdAt ? new Date(so.createdAt).getTime() : 0;
-    const ackEntry = so.statusHistory.find((h) => h.status === "Acknowledged");
-    const prepEntry = so.statusHistory.find((h) => h.status === "DeliveredFromWarehouse");
-    const delvEntry = so.statusHistory.find((h) => h.status === "DeliveredToCustomer");
-    const recvEntry = so.statusHistory.find((h) => h.status === "CustomerReceiptConfirmed");
+    const created = so.date ? new Date(so.date).getTime() : 0;
+    const ackAt = lastAt(so, "Acknowledged");
+    const prepAt = lastAt(so, "DeliveredFromWarehouse");
+    const delvAt = lastAt(so, "DeliveredToCustomer");
+    const recvAt = lastAt(so, "CustomerReceiptConfirmed");
 
-    const ackTime = ackEntry ? new Date(ackEntry.at).getTime() : 0;
-    const prepTime = prepEntry ? new Date(prepEntry.at).getTime() : 0;
-    const delvTime = delvEntry ? new Date(delvEntry.at).getTime() : 0;
-    const recvTime = recvEntry ? new Date(recvEntry.at).getTime() : 0;
+    const ackTime = ackAt ? new Date(ackAt).getTime() : 0;
+    const prepTime = prepAt ? new Date(prepAt).getTime() : 0;
+    const delvTime = delvAt ? new Date(delvAt).getTime() : 0;
+    const recvTime = recvAt ? new Date(recvAt).getTime() : 0;
 
     if (ackTime && created) durAck.push(ackTime - created);
     if (prepTime && ackTime) durPrep.push(prepTime - ackTime);
@@ -143,10 +181,14 @@ export default function OrdersPage() {
     if (delvTime && created) durTotal.push(delvTime - created);
     if (recvTime && delvTime) durRecv.push(recvTime - delvTime);
 
-    if (so.expectedDelivery && delvTime && delvTime > new Date(so.expectedDelivery).getTime()) {
-      delayedCount++;
+    const promised = so.expectedDelivery ? new Date(so.expectedDelivery).getTime() : 0;
+    if (promised) {
+      if (delvTime && delvTime > promised) deliveredLate++;
+      else if (!delvTime && promised < now) stillOverdue++;
     }
   });
+
+  const delayedCount = deliveredLate + stillOverdue;
 
   const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
 
@@ -244,11 +286,11 @@ export default function OrdersPage() {
                 emptyLabel="No sales orders yet. Click &ldquo;+ Create Sales Order&rdquo; to issue one."
               >
                 <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs whitespace-nowrap">
+                  <thead className="bg-surface-2 text-3xs font-extrabold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs whitespace-nowrap">
                     <tr>
-                      <th className="py-2.5 px-3">SO no.</th>
-                      <th className="py-2.5 px-3 min-w-[180px]">Customer</th>
-                      <th className="py-2.5 px-3 min-w-[180px]">Product SKU</th>
+                      <th className="py-2.5 px-3 whitespace-nowrap">SO no.</th>
+                      <th className="py-2.5 px-3 min-w-[220px]">Customer</th>
+                      <th className="py-2.5 px-3 min-w-[220px]">Product SKU</th>
                       <th className="py-2.5 px-3 text-right">Qty</th>
                       <th className="py-2.5 px-3 text-right font-bold text-ink">Value</th>
                       {role !== "sales" && (
@@ -256,7 +298,7 @@ export default function OrdersPage() {
                       )}
                       <th className="py-2.5 px-3">Issued</th>
                       <th className="py-2.5 px-3">Status</th>
-                      <th className="py-2.5 px-3 text-center">Actions</th>
+                      <th className="py-2.5 px-3 text-center whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line/60">
@@ -266,11 +308,25 @@ export default function OrdersPage() {
 
                       return (
                         <tr key={so.id} className="hover:bg-surface-2/70 transition-colors">
-                          <td className="py-2.5 px-3 font-bold text-ink tabular-nums">{so.code}</td>
-                          <td className="py-2.5 px-3 font-bold text-ink">{so.customerName}</td>
+                          {/* An SO code is one token. Left to wrap it broke at its hyphens into
+                              three lines — "SO-", "2026-", "0001" — and set the
+                              height of the whole row. */}
+                          <td className="py-2.5 px-3 font-bold text-ink tabular-nums whitespace-nowrap">
+                            {so.code}
+                          </td>
+                          <td className="py-2.5 px-3 font-bold text-ink">
+                            <span className="block max-w-[260px] truncate" title={so.customerName}>
+                              {so.customerName}
+                            </span>
+                          </td>
                           <td className="py-2.5 px-3 text-muted">
-                            {firstLine ? firstLine.productName : "—"}
-                            {so.items.length > 1 && ` (+${so.items.length - 1} more)`}
+                            <span
+                              className="block max-w-[260px] truncate"
+                              title={firstLine ? firstLine.productName : undefined}
+                            >
+                              {firstLine ? firstLine.productName : "—"}
+                              {so.items.length > 1 && ` (+${so.items.length - 1} more)`}
+                            </span>
                           </td>
                           <td className="py-2.5 px-3 text-right tabular-nums font-semibold">{totalQty}</td>
                           {/* total is server-computed — rendered as-is, never recomputed. */}
@@ -280,8 +336,8 @@ export default function OrdersPage() {
                           {role !== "sales" && (
                             <td className="py-2.5 px-3 text-muted">{so.salespersonName || "—"}</td>
                           )}
-                          <td className="py-2.5 px-3 text-muted text-[11px] tabular-nums">
-                            {fmtDT(so.createdAt)}
+                          <td className="py-2.5 px-3 text-muted text-2xs tabular-nums whitespace-nowrap">
+                            {fmtDT(so.date)}
                           </td>
                           <td className="py-2.5 px-3">
                             <StatusBadge
@@ -289,12 +345,14 @@ export default function OrdersPage() {
                               tone={orderTone(so.status)}
                             />
                           </td>
-                          <td className="py-2.5 px-3 text-center">
+                          {/* nowrap, or "View / Edit" breaks after the slash and the whole
+                              row grows a second line for it. */}
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => setSelectedOrder(so)}
-                                className="rounded-lg border border-line bg-surface px-2.5 py-1 text-xs font-bold text-ink hover:border-brand hover:text-brand transition-all cursor-pointer shadow-2xs"
+                                onClick={() => setSelectedOrderId(so.id)}
+                                className="whitespace-nowrap rounded-lg border border-line bg-surface px-2.5 py-1 text-xs font-bold text-ink hover:border-brand hover:text-brand transition-all cursor-pointer shadow-2xs"
                               >
                                 View / Edit
                               </button>
@@ -336,7 +394,7 @@ export default function OrdersPage() {
              this banner is the only state where the numbers are partial. */
           <div className="p-4 space-y-4">
             {reportStillLoading && (
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted">
+              <div className="flex items-center gap-1.5 text-2xs font-semibold text-muted">
                 <Loader2 className="h-3 w-3 animate-spin" />
                 Loading full report… ({orders.length} orders so far)
               </div>
@@ -345,19 +403,19 @@ export default function OrdersPage() {
             {/* 5 KPI Cards */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               <div className="rounded-xl border border-line bg-surface p-3 shadow-xs">
-                <div className="text-[10.5px] font-bold uppercase tracking-wider text-muted">Avg acknowledgement time</div>
+                <div className="text-3xs font-bold uppercase tracking-wider text-muted">Avg acknowledgement time</div>
                 <div className="text-lg font-black text-ink mt-1 tabular-nums">{fmtDur(avg(durAck))}</div>
               </div>
               <div className="rounded-xl border border-line bg-surface p-3 shadow-xs">
-                <div className="text-[10.5px] font-bold uppercase tracking-wider text-muted">Avg warehouse prep time</div>
+                <div className="text-3xs font-bold uppercase tracking-wider text-muted">Avg warehouse prep time</div>
                 <div className="text-lg font-black text-ink mt-1 tabular-nums">{fmtDur(avg(durPrep))}</div>
               </div>
               <div className="rounded-xl border border-line bg-surface p-3 shadow-xs">
-                <div className="text-[10.5px] font-bold uppercase tracking-wider text-muted">Avg transit time</div>
+                <div className="text-3xs font-bold uppercase tracking-wider text-muted">Avg transit time</div>
                 <div className="text-lg font-black text-ink mt-1 tabular-nums">{fmtDur(avg(durTransit))}</div>
               </div>
               <div className="rounded-xl border border-brand/40 bg-brand-soft p-3 shadow-xs">
-                <div className="text-[10.5px] font-bold uppercase tracking-wider text-brand-ink">Avg order → delivery</div>
+                <div className="text-3xs font-bold uppercase tracking-wider text-brand-ink">Avg order → delivery</div>
                 <div className="text-lg font-black text-brand-ink mt-1 tabular-nums">{fmtDur(avg(durTotal))}</div>
               </div>
               <div
@@ -366,11 +424,14 @@ export default function OrdersPage() {
                   delayedCount > 0 ? "border-red/40 bg-red-soft" : "border-line bg-surface"
                 )}
               >
-                <div className={cn("text-[10.5px] font-bold uppercase tracking-wider", delayedCount > 0 ? "text-red" : "text-muted")}>
-                  Delayed deliveries
+                <div className={cn("text-3xs font-bold uppercase tracking-wider", delayedCount > 0 ? "text-red" : "text-muted")}>
+                  Past the promise
                 </div>
                 <div className={cn("text-lg font-black mt-1 tabular-nums", delayedCount > 0 ? "text-red" : "text-ink")}>
                   {delayedCount}
+                </div>
+                <div className={cn("text-3xs font-semibold", delayedCount > 0 ? "text-red/80" : "text-muted")}>
+                  {deliveredLate} delivered late · {stillOverdue} still out
                 </div>
               </div>
             </div>
@@ -378,7 +439,7 @@ export default function OrdersPage() {
             {/* Fulfilment SLA Table */}
             <div className="overflow-x-auto border border-line rounded-xl">
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted border-b border-line whitespace-nowrap">
+                <thead className="bg-surface-2 text-3xs font-extrabold uppercase tracking-wider text-muted border-b border-line whitespace-nowrap">
                   <tr>
                     <th className="py-2.5 px-3">SO no.</th>
                     <th className="py-2.5 px-3">Customer</th>
@@ -404,53 +465,58 @@ export default function OrdersPage() {
                     </tr>
                   ) : (
                     reportOrders.map((so) => {
-                      const created = so.createdAt ? new Date(so.createdAt).getTime() : 0;
-                      const ackEntry = so.statusHistory.find((h) => h.status === "Acknowledged");
-                      const prepEntry = so.statusHistory.find((h) => h.status === "DeliveredFromWarehouse");
-                      const delvEntry = so.statusHistory.find((h) => h.status === "DeliveredToCustomer");
-                      const recvEntry = so.statusHistory.find((h) => h.status === "CustomerReceiptConfirmed");
+                      const created = so.date ? new Date(so.date).getTime() : 0;
+                      const ackAt = lastAt(so, "Acknowledged");
+                      const prepAt = lastAt(so, "DeliveredFromWarehouse");
+                      const delvAt = lastAt(so, "DeliveredToCustomer");
+                      const recvAt = lastAt(so, "CustomerReceiptConfirmed");
 
-                      const ackTime = ackEntry ? new Date(ackEntry.at).getTime() : 0;
-                      const prepTime = prepEntry ? new Date(prepEntry.at).getTime() : 0;
-                      const delvTime = delvEntry ? new Date(delvEntry.at).getTime() : 0;
-                      const recvTime = recvEntry ? new Date(recvEntry.at).getTime() : 0;
+                      const ackTime = ackAt ? new Date(ackAt).getTime() : 0;
+                      const prepTime = prepAt ? new Date(prepAt).getTime() : 0;
+                      const delvTime = delvAt ? new Date(delvAt).getTime() : 0;
+                      const recvTime = recvAt ? new Date(recvAt).getTime() : 0;
 
-                      const isDelayed =
-                        so.expectedDelivery &&
-                        delvTime &&
-                        delvTime > new Date(so.expectedDelivery).getTime();
+                      const promised = so.expectedDelivery
+                        ? new Date(so.expectedDelivery).getTime()
+                        : 0;
+                      const isDelayed = !!(promised && delvTime && delvTime > promised);
+                      const isOverdue = !!(promised && !delvTime && promised < now);
 
                       return (
                         <tr key={so.id} className="hover:bg-surface-2/60 transition-colors">
                           <td className="py-2 px-3 font-bold text-ink tabular-nums">{so.code}</td>
                           <td className="py-2 px-3 font-semibold text-ink">{so.customerName}</td>
-                          <td className="py-2 px-3 text-muted text-[11px] tabular-nums">{fmtDT(so.createdAt)}</td>
-                          <td className="py-2 px-3 text-muted text-[11px] tabular-nums">{fmtDT(ackEntry?.at)}</td>
+                          <td className="py-2 px-3 text-muted text-2xs tabular-nums whitespace-nowrap">{fmtDT(so.date)}</td>
+                          <td className="py-2 px-3 text-muted text-2xs tabular-nums whitespace-nowrap">{fmtDT(ackAt)}</td>
                           <td className="py-2 px-3 text-right tabular-nums text-muted">
                             {fmtDur(ackTime && created ? ackTime - created : null)}
                           </td>
-                          <td className="py-2 px-3 text-muted text-[11px] tabular-nums">{fmtDT(prepEntry?.at)}</td>
+                          <td className="py-2 px-3 text-muted text-2xs tabular-nums whitespace-nowrap">{fmtDT(prepAt)}</td>
                           <td className="py-2 px-3 text-right tabular-nums text-muted">
                             {fmtDur(prepTime && ackTime ? prepTime - ackTime : null)}
                           </td>
-                          <td className="py-2 px-3 text-muted text-[11px] tabular-nums">{fmtDT(delvEntry?.at)}</td>
+                          <td className="py-2 px-3 text-muted text-2xs tabular-nums whitespace-nowrap">{fmtDT(delvAt)}</td>
                           <td className="py-2 px-3 text-right tabular-nums text-muted">
                             {fmtDur(delvTime && prepTime ? delvTime - prepTime : null)}
                           </td>
                           <td className="py-2 px-3 text-right tabular-nums font-bold text-ink">
                             {fmtDur(delvTime && created ? delvTime - created : null)}
                           </td>
-                          <td className="py-2 px-3 text-muted text-[11px] tabular-nums">{fmtDT(recvEntry?.at)}</td>
+                          <td className="py-2 px-3 text-muted text-2xs tabular-nums whitespace-nowrap">{fmtDT(recvAt)}</td>
                           <td className="py-2 px-3 text-right tabular-nums text-muted">
                             {fmtDur(recvTime && delvTime ? recvTime - delvTime : null)}
                           </td>
                           <td className="py-2 px-3 text-center">
                             {isDelayed ? (
-                              <span className="rounded bg-red-soft text-red px-2 py-0.5 text-[10px] font-bold">
+                              <span className="rounded bg-red-soft text-red px-2 py-0.5 text-3xs font-bold">
                                 Delayed
                               </span>
+                            ) : isOverdue ? (
+                              <span className="rounded bg-red-soft text-red px-2 py-0.5 text-3xs font-bold">
+                                Overdue
+                              </span>
                             ) : delvTime ? (
-                              <span className="rounded bg-brand-soft text-brand-ink px-2 py-0.5 text-[10px] font-bold">
+                              <span className="rounded bg-brand-soft text-brand-ink px-2 py-0.5 text-3xs font-bold">
                                 On time
                               </span>
                             ) : (
@@ -480,7 +546,7 @@ export default function OrdersPage() {
       {selectedOrder && (
         <SalesOrderDetailModal
           open={!!selectedOrder}
-          onClose={() => setSelectedOrder(null)}
+          onClose={() => setSelectedOrderId(null)}
           order={selectedOrder}
         />
       )}

@@ -54,6 +54,10 @@ export const ERROR_CODES = [
   "WRONG_CURRENT_PASSWORD",
   /** An admin set this password; the user must replace it before continuing. */
   "PASSWORD_CHANGE_REQUIRED",
+
+  // --- Period locks ---------------------------------------------------------
+  /** The period this write targets is locked for reporting; refused for every role. */
+  "PERIOD_LOCKED",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

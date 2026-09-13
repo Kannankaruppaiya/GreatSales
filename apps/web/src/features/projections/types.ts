@@ -70,7 +70,19 @@ export interface ProjectionLine {
   principalName: string;
   salespersonId: string;
   salespersonName: string;
+  /** Resolved per-unit price: `ownPrice ?? inheritedPrice ?? 0`. */
   price: number;
+  /**
+   * The price typed onto THIS line, or null when it has none of its own. The
+   * editable price cell's VALUE — so clearing the field is distinguishable from
+   * typing the agreed price, and writes null to go back to inheriting.
+   */
+  ownPrice: number | null;
+  /**
+   * `mapping.customPrice ?? product.basePrice` — what the line charges with no
+   * price of its own. The price cell's PLACEHOLDER.
+   */
+  inheritedPrice: number | null;
   committedQty: number;
   achievedQty: number;
   projValue: number;
@@ -82,6 +94,16 @@ export interface ProjectionLine {
   targetDate: string | null;
   salesOrderId: string | null;
   salesOrderStatus: string | null;
+  /**
+   * Remarks and follow-up entries logged against this line.
+   *
+   * Counts, not the rows: the worksheet shows them as badges on the Remarks and
+   * Follow-up log buttons — the POC's shape, and the thing that tells an
+   * operator which lines have been worked without opening each one. Loaded in
+   * two grouped queries per page, not per row.
+   */
+  remarkCount: number;
+  followUpCount: number;
 }
 
 export interface ProjectionSummary {

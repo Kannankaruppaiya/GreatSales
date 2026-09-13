@@ -1,4 +1,10 @@
-import { computeTotal, lineTotal, type EngineItem } from './order-engine';
+import {
+  canTransition,
+  computeTotal,
+  lineTotal,
+  nextStatus,
+  type EngineItem,
+} from './order-engine';
 
 /**
  * Pure order arithmetic — no DB. Money is Decimal(14,2) in the store, so every
@@ -39,6 +45,54 @@ describe('order-engine', () => {
         { qty: 1, price: 0.2 },
       ];
       expect(computeTotal(items)).toBe(0.3);
+    });
+  });
+
+  describe('canTransition', () => {
+    it('allows exactly one rung forward', () => {
+      expect(canTransition('Created', 'Acknowledged')).toBe(true);
+      expect(
+        canTransition('DeliveredFromWarehouse', 'DeliveredToCustomer'),
+      ).toBe(true);
+    });
+
+    it('refuses a skip — a delivery cannot precede a dispatch', () => {
+      expect(canTransition('Created', 'CustomerReceiptConfirmed')).toBe(false);
+      expect(canTransition('Acknowledged', 'DeliveredToCustomer')).toBe(false);
+    });
+
+    it('allows one rung back as a correction, but no further', () => {
+      expect(
+        canTransition('DeliveredToCustomer', 'DeliveredFromWarehouse'),
+      ).toBe(true);
+      expect(canTransition('CustomerReceiptConfirmed', 'Acknowledged')).toBe(
+        false,
+      );
+    });
+
+    it('cancels from any live rung', () => {
+      expect(canTransition('Created', 'Cancelled')).toBe(true);
+      expect(canTransition('DeliveredToCustomer', 'Cancelled')).toBe(true);
+    });
+
+    it('never brings a cancelled order back to life', () => {
+      expect(canTransition('Cancelled', 'Created')).toBe(false);
+      expect(canTransition('Cancelled', 'Acknowledged')).toBe(false);
+    });
+
+    it('treats a no-op as nothing to do', () => {
+      expect(canTransition('Acknowledged', 'Acknowledged')).toBe(false);
+    });
+  });
+
+  describe('nextStatus', () => {
+    it('names the rung above', () => {
+      expect(nextStatus('Created')).toBe('Acknowledged');
+    });
+
+    it('is null at the top of the ladder and off it', () => {
+      expect(nextStatus('CustomerReceiptConfirmed')).toBeNull();
+      expect(nextStatus('Cancelled')).toBeNull();
     });
   });
 });

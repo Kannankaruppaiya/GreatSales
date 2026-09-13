@@ -7,6 +7,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, buildQuery } from "@/lib/api";
+import { invalidateAfter } from "@/lib/invalidate";
 /**
  * Mirrors the `@greatsales/shared` period-lock contracts; kept local so the
  * Vite build does not consume the CJS `shared` dist, same as every other
@@ -54,8 +55,7 @@ export function usePeriodLock(
 }
 
 function invalidate(qc: ReturnType<typeof useQueryClient>) {
-  void qc.invalidateQueries({ queryKey: ["period-locks"] });
-  void qc.invalidateQueries({ queryKey: ["projections"] });
+  void invalidateAfter(qc, "periodLocks");
 }
 
 export function useLockPeriod() {
@@ -66,7 +66,14 @@ export function useLockPeriod() {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    onSuccess: () => invalidate(qc),
+    // Refetch on FAILURE too, not just success. A lock/unlock can fail
+    // precisely because the cached state was wrong — another session (or,
+    // during testing, a direct API call) already changed it, so the 409/404
+    // the server sends back is proof the UI is stale. Invalidating only on
+    // success left the "Period is Locked" card frozen on the old answer
+    // forever after a failed attempt, alongside the error banner explaining
+    // why it failed — a visibly contradictory screen.
+    onSettled: () => invalidate(qc),
   });
 }
 
@@ -75,6 +82,6 @@ export function useUnlockPeriod() {
   return useMutation({
     mutationFn: (period: string) =>
       apiFetch<void>(`/period-locks/${period}`, { method: "DELETE" }),
-    onSuccess: () => invalidate(qc),
+    onSettled: () => invalidate(qc),
   });
 }

@@ -62,6 +62,19 @@ export interface UserCreate {
 
 export type UserUpdate = Partial<UserCreate>;
 
+/**
+ * GET /users/directory — the tenant roster, readable by any authenticated
+ * member regardless of `user.manage`. No email, manager, team, or audit
+ * fields: just enough to populate a salesperson/assignee picker.
+ */
+export interface UserDirectoryEntry {
+  id: string;
+  name: string;
+  roleId: string;
+  roleName: string;
+  active: boolean;
+}
+
 /* ── Roles ──────────────────────────────────────────────────────────────── */
 
 export interface RoleRow {

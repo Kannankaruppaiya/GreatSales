@@ -92,6 +92,13 @@ export class PeriodLocksService {
    * Whether a period is frozen. Called by ProjectionsService on every write —
    * the check belongs on the server because the Data page's toggle it replaced
    * was local React state that reset on reload.
+   *
+   * `db` is typed as `TenantPrisma` for convenience at call sites, but a
+   * caller running inside `transactionForTenant` should pass its `tx` cast to
+   * that type (see the comment on ProjectionsService.update) rather than a
+   * fresh `forTenant` client — the check and the write it guards must run on
+   * the SAME transaction, or a concurrent lock created between them would be
+   * invisible to this read and the write would go through anyway.
    */
   static async isLocked(db: TenantPrisma, period: string): Promise<boolean> {
     const lock = await db.periodLock.findFirst({

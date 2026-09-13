@@ -17,6 +17,7 @@ import type {
   LeadCreate,
   LeadUpdate,
 } from "./types";
+import { invalidateAfter } from "@/lib/invalidate";
 
 const PAGE_SIZE = 50;
 
@@ -61,8 +62,13 @@ export function flattenLeads(data?: { pages: LeadListResponse[] }): LeadRow[] {
   return data?.pages.flatMap((pg) => pg.items) ?? [];
 }
 
+/**
+ * The dashboard's committed new-sales value, its oral-confirmation list and
+ * its stage breakdown are all computed from leads, so a stage moved here moves
+ * numbers on a page this one does not own.
+ */
 export function onLeadMutationSuccess(qc: QueryClient) {
-  return qc.invalidateQueries({ queryKey: ["leads"] });
+  return invalidateAfter(qc, "leads");
 }
 
 export function useCreateLead() {

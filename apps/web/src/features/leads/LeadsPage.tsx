@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Kanban, LayoutList, Loader2, Plus, RefreshCw } from "lucide-react";
 import { useAuthRole } from "@/store/auth";
 import { useUi } from "@/store/ui";
-import { inr } from "@/lib/format";
+import { inr, longDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
 import { QueryBoundary } from "@/components/common/QueryBoundary";
@@ -15,8 +15,8 @@ import {
   DEAL_STAGE_LABELS,
   dealStageTone,
   type DealStageValue,
-  type LeadRow,
 } from "@/features/leads/types";
+import { useSelectedRow } from "@/lib/useSelectedRow";
 
 /**
  * Debounces a fast-changing value (e.g. search input) so downstream effects
@@ -43,7 +43,17 @@ export default function LeadsPage() {
   const [viewMode, setViewMode] = useState<"list" | "kanban">("kanban");
   const [ownerId, setOwnerId] = useState("ALL");
   const [showAddLead, setShowAddLead] = useState(false);
-  const [selectedLead, setSelectedLead] = useState<LeadRow | null>(null);
+  /**
+   * The open detail modal is addressed by ID, and its row is read back out of
+   * the list on every render.
+   *
+   * Holding the row object itself is the reason a save inside the modal used
+   * to need an F5: the mutation invalidated the list, the list refetched, and
+   * this state kept pointing at the snapshot taken when the row was clicked.
+   * Deriving it means the refetched row IS what the modal is handed, and a
+   * deleted row closes the modal by disappearing.
+   */
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
   const effectiveOwner = ownerId !== "ALL" ? ownerId : globalOwnerFilter !== "ALL" ? globalOwnerFilter : undefined;
 
@@ -55,6 +65,7 @@ export default function LeadsPage() {
   const q = useLeads(params);
   const update = useUpdateLead();
   const leads = flattenLeads(q.data);
+  const selectedLead = useSelectedRow(leads, selectedLeadId);
 
   // The Kanban board groups ALL leads by stage — a partially-loaded list
   // would show incomplete columns, so every page is fetched automatically
@@ -224,14 +235,14 @@ export default function LeadsPage() {
                       <td className="py-2.5 px-3">
                         <button
                           type="button"
-                          onClick={() => setSelectedLead(l)}
+                          onClick={() => setSelectedLeadId(l.id)}
                           className="font-bold text-ink hover:text-brand hover:underline cursor-pointer text-left block"
                         >
                           {l.customerName}
                         </button>
                       </td>
                       <td className="py-2.5 px-3 text-muted">{l.contactName || "—"}</td>
-                      <td className="py-2.5 px-3 text-muted tabular-nums">{l.phone || l.whatsapp || "—"}</td>
+                      <td className="py-2.5 px-3 text-muted tabular-nums">{l.phone || "—"}</td>
                       <td className="py-2.5 px-3 text-muted">
                         {l.industryName || "—"}
                         {l.subIndustry ? ` · ${l.subIndustry}` : ""}
@@ -248,7 +259,9 @@ export default function LeadsPage() {
                       <td className="py-2.5 px-3 text-right tabular-nums font-bold text-ink">
                         {l.totalValue > 0 ? inr(l.totalValue) : "—"}
                       </td>
-                      <td className="py-2.5 px-3 tabular-nums text-muted">{l.nextFollowUp || "—"}</td>
+                      <td className="py-2.5 px-3 tabular-nums text-muted whitespace-nowrap">
+                        {longDate(l.nextFollowUp)}
+                      </td>
                       <td className="py-2.5 px-3 tabular-nums text-muted">{l.expClose || "—"}</td>
                       {role !== "sales" && (
                         <td className="py-2.5 px-3 text-muted">{l.salespersonName}</td>
@@ -256,7 +269,7 @@ export default function LeadsPage() {
                       <td className="py-2.5 px-3 text-center">
                         <button
                           type="button"
-                          onClick={() => setSelectedLead(l)}
+                          onClick={() => setSelectedLeadId(l.id)}
                           className="rounded-lg border border-line bg-surface px-2.5 py-1 text-xs font-bold text-ink hover:border-brand hover:text-brand transition-all cursor-pointer shadow-2xs"
                         >
                           Open
@@ -303,7 +316,7 @@ export default function LeadsPage() {
                               key={l.id}
                               draggable={!isReadOnly}
                               onDragStart={(e) => handleDragStart(e, l.id)}
-                              onClick={() => setSelectedLead(l)}
+                              onClick={() => setSelectedLeadId(l.id)}
                               className="rounded-xl border border-line bg-surface p-3 shadow-2xs hover:border-brand/60 hover:shadow-xs transition-all cursor-pointer space-y-1.5 group"
                             >
                               <div className="font-bold text-xs text-ink leading-snug group-hover:text-brand transition-colors">
@@ -353,7 +366,7 @@ export default function LeadsPage() {
       {selectedLead && (
         <LeadDetailModal
           open={!!selectedLead}
-          onClose={() => setSelectedLead(null)}
+          onClose={() => setSelectedLeadId(null)}
           lead={selectedLead}
         />
       )}

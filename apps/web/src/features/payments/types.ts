@@ -12,6 +12,17 @@
  * entity; this task does not wire a create-followup-from-payment flow).
  */
 
+/**
+ * The reminder letters, in the order a collector sends them. The chase is a
+ * sequence, not four independent switches — mirrors REMINDER_STAGES in
+ * packages/shared/src/payment.ts.
+ */
+export const REMINDER_STAGES = ["mail1", "mail2", "mail3", "mail4"] as const;
+export type ReminderStage = (typeof REMINDER_STAGES)[number];
+
+/** "1st", "2nd", "3rd", "4th" — for labelling a stage to a person. */
+export const REMINDER_ORDINALS = ["1st", "2nd", "3rd", "4th"] as const;
+
 export interface PaymentFollowupRow {
   id: string;
   date: string;
@@ -40,6 +51,16 @@ export interface PaymentRow {
   mail2: boolean;
   mail3: boolean;
   mail4: boolean;
+  /**
+   * When each letter went out, ISO-8601, or null. Read-only — the API stamps
+   * it when the flag beside it flips, so it is absent from PaymentUpdate. Null
+   * against a flag that is true means the letter predates the column: sent on a
+   * date nobody recorded, which is not the same as not sent.
+   */
+  mail1At: string | null;
+  mail2At: string | null;
+  mail3At: string | null;
+  mail4At: string | null;
   status: string;
   followups: PaymentFollowupRow[];
   createdAt: string;

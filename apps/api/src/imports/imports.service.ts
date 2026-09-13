@@ -1,13 +1,21 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, type CustomerCategory, type PaymentTerms } from '@prisma/client';
-import type {
-  ImportCustomerRow,
-  ImportCustomers,
-  ImportJobListQuery,
-  ImportJobRow,
-  ImportRowError,
-  RequestUser,
+import {
+  Prisma,
+  type CustomerCategory,
+  type PaymentTerms,
+} from '@prisma/client';
+import {
+  PAY_ZONE_VALUES,
+  type ImportCustomerRow,
+  type ImportCustomers,
+  type ImportJobListQuery,
+  type ImportJobRow,
+  type ImportPayments,
+  type ImportRowError,
+  type RequestUser,
 } from '@greatsales/shared';
+import { agingDays, deriveStatus, pending } from '../payments/payment-engine';
+import { businessToday } from '../common/business-day';
 import { PrismaService } from '../prisma/prisma.service';
 import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
 
@@ -46,7 +54,8 @@ const PAYMENT_TERMS: Record<string, PaymentTerms> = {
   advancepayment: 'AdvancePayment',
 };
 
-const PAYMENT_TERM_SPELLINGS = 'Immediate, Credit 15, Credit 30, Credit 45, COD, Advance 50%, Advance';
+const PAYMENT_TERM_SPELLINGS =
+  'Immediate, Credit 15, Credit 30, Credit 45, COD, Advance 50%, Advance';
 
 /**
  * Bulk customer import.
@@ -194,7 +203,7 @@ export class ImportsService {
     // re-running a half-written import is how duplicates get made.
     await this.prisma.transactionForTenant(user.tenantId, async (tx) => {
       for (const { row, salespersonId, category, terms } of toCreate) {
-        await tx.customer.create({
+        const customer = await tx.customer.create({
           data: {
             tenantId: user.tenantId,
             name: row.name,
@@ -202,22 +211,24 @@ export class ImportsService {
             area: row.area ?? null,
             category: category ?? null,
             paymentTerms: terms ?? null,
-            ...(row.contactName || row.phone || row.email
-              ? {
-                  contacts: {
-                    create: [
-                      {
-                        name: row.contactName ?? row.name,
-                        phone: row.phone ?? null,
-                        email: row.email ?? null,
-                        isPrimary: true,
-                      },
-                    ],
-                  },
-                }
-              : {}),
           },
         });
+        // `Contact` is polymorphic, so it is written after the customer rather
+        // than nested inside it — there is no id to point at until then.
+        if (row.contactName || row.phone || row.email) {
+          await tx.contact.create({
+            data: {
+              tenantId: user.tenantId,
+              entityType: 'Customer',
+              entityId: customer.id,
+              name: row.contactName ?? row.name,
+              phone: row.phone ?? null,
+              whatsapp: row.phone ?? null,
+              email: row.email ?? null,
+              isPrimary: true,
+            },
+          });
+        }
       }
 
       for (const { row, id, category, terms } of toUpdate) {
@@ -250,6 +261,192 @@ export class ImportsService {
     });
     return toRow(job);
   }
+
+  /**
+   * Bulk receivables import — the same shape as {@link importCustomers}, and
+   * for the same reason.
+   *
+   * The page used to POST one invoice per row in a loop. A Tally export is
+   * hundreds of invoices and the API throttles at 120 requests a minute, so a
+   * real file was cut off partway through with the ledger half written and no
+   * record that it had happened. One request, one transaction, one job row.
+   */
+  async importPayments(
+    user: RequestUser,
+    body: ImportPayments,
+  ): Promise<ImportJobRow> {
+    await this.features.assertEnabled(user.tenantId, 'bulk-import');
+    const db = this.prisma.forTenant(user.tenantId);
+    const today = businessToday();
+
+    // Two lookups, not two per row.
+    const [customers, existing] = await Promise.all([
+      db.customer.findMany({
+        where: { deletedAt: null },
+        select: { id: true, name: true },
+      }),
+      db.payment.findMany({
+        where: { deletedAt: null, refNo: { not: null } },
+        select: { id: true, refNo: true },
+      }),
+    ]);
+    const customerByName = new Map(
+      customers.map((c) => [c.name.trim().toLowerCase(), c.id]),
+    );
+    const paymentByRef = new Map(
+      existing.map((p) => [(p.refNo as string).trim().toLowerCase(), p.id]),
+    );
+
+    const errors: ImportRowError[] = [];
+    type Parsed = {
+      line: number;
+      refNo: string | null;
+      customerName: string;
+      customerId: string | null;
+      invoiceDate: Date | null;
+      amount: number;
+      received: number;
+      payZone: (typeof PAY_ZONE_VALUES)[number] | null;
+      delayReason: string | null;
+    };
+    const toCreate: Parsed[] = [];
+    const toUpdate: (Parsed & { id: string })[] = [];
+    let skipped = 0;
+
+    // A reference repeated INSIDE the file is its own kind of duplicate: the
+    // ledger has not seen it yet, so the map above cannot catch it.
+    const seenInFile = new Set<string>();
+
+    for (const row of body.rows) {
+      const ref = row.refNo?.trim() ?? '';
+      const key = ref.toLowerCase();
+
+      if (ref && seenInFile.has(key)) {
+        errors.push({
+          line: row.line,
+          name: ref,
+          reason: 'This reference appears more than once in the file.',
+        });
+        continue;
+      }
+      if (ref) seenInFile.add(key);
+
+      const zone = row.payZone
+        ? PAY_ZONE_VALUES.find(
+            (z) => z.toLowerCase() === row.payZone!.trim().toLowerCase(),
+          )
+        : undefined;
+      if (row.payZone && !zone) {
+        errors.push({
+          line: row.line,
+          name: ref || row.customerName,
+          reason: `Unknown zone "${row.payZone}". Use one of: ${PAY_ZONE_VALUES.join(', ')}.`,
+        });
+        continue;
+      }
+
+      const invoiceDate = row.invoiceDate ? new Date(row.invoiceDate) : null;
+      if (invoiceDate && Number.isNaN(invoiceDate.getTime())) {
+        errors.push({
+          line: row.line,
+          name: ref || row.customerName,
+          reason: `"${row.invoiceDate}" is not a date the importer can read.`,
+        });
+        continue;
+      }
+
+      const parsed: Parsed = {
+        line: row.line,
+        refNo: ref || null,
+        customerName: row.customerName,
+        // Matched by name, and left unlinked when no account matches rather
+        // than rejected: an invoice for a party not yet on the master is still
+        // money owed, and the row carries the name for a person to reconcile.
+        customerId:
+          customerByName.get(row.customerName.trim().toLowerCase()) ?? null,
+        invoiceDate,
+        amount: row.amount,
+        received: row.received ?? 0,
+        payZone: zone ?? null,
+        delayReason: row.delayReason?.trim() || null,
+      };
+
+      const already = ref ? paymentByRef.get(key) : undefined;
+      if (already) {
+        if (body.onDuplicate === 'skip') {
+          skipped++;
+          continue;
+        }
+        toUpdate.push({ ...parsed, id: already });
+        continue;
+      }
+      toCreate.push(parsed);
+    }
+
+    await this.prisma.transactionForTenant(user.tenantId, async (tx) => {
+      for (const r of toCreate) {
+        const dueDate = r.invoiceDate
+          ? new Date(r.invoiceDate.getTime() + 30 * 86_400_000)
+          : null;
+        await tx.payment.create({
+          data: {
+            tenantId: user.tenantId,
+            refNo: r.refNo,
+            customerId: r.customerId,
+            customerName: r.customerName,
+            invoiceNo: r.refNo,
+            invoiceDate: r.invoiceDate,
+            dueDate,
+            amount: r.amount,
+            received: r.received,
+            pending: pending(r.amount, r.received),
+            agingDays: agingDays(
+              dueDate ? dueDate.toISOString().slice(0, 10) : null,
+              today,
+            ),
+            payZone: r.payZone,
+            delayReason: r.delayReason,
+            status: deriveStatus(
+              r.amount,
+              r.received,
+              dueDate ? dueDate.toISOString().slice(0, 10) : null,
+              today,
+            ),
+          },
+        });
+      }
+
+      for (const r of toUpdate) {
+        // Only what the sheet carries. A column the export omits must never
+        // blank the value already stored.
+        await tx.payment.update({
+          where: { id: r.id },
+          data: {
+            amount: r.amount,
+            received: r.received,
+            pending: pending(r.amount, r.received),
+            ...(r.payZone ? { payZone: r.payZone } : {}),
+            ...(r.delayReason ? { delayReason: r.delayReason } : {}),
+          },
+        });
+      }
+    });
+
+    const job = await db.importJob.create({
+      data: {
+        tenantId: user.tenantId,
+        type: 'payments',
+        status: errors.length ? 'completed_with_errors' : 'completed',
+        total: body.rows.length,
+        created: toCreate.length,
+        updated: toUpdate.length,
+        skipped,
+        errors: errors as unknown as Prisma.InputJsonValue,
+        createdById: user.userId,
+      },
+    });
+    return toRow(job);
+  }
 }
 
 function toRow(j: {
@@ -271,7 +468,9 @@ function toRow(j: {
     created: j.created,
     updated: j.updated,
     skipped: j.skipped,
-    errors: Array.isArray(j.errors) ? (j.errors as unknown as ImportRowError[]) : [],
+    errors: Array.isArray(j.errors)
+      ? (j.errors as unknown as ImportRowError[])
+      : [],
     createdAt: j.createdAt.toISOString(),
   };
 }

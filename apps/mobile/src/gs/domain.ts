@@ -252,6 +252,17 @@ export interface Customer {
   outstanding: number;
   division: string;
 }
+export interface LeadContact {
+  id: string;
+  name: string;
+  designation: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  sameAsMobile: boolean;
+  email: string | null;
+  isPrimary: boolean;
+}
+
 export interface Projection {
   id: string;
   customerId?: string;
@@ -274,10 +285,11 @@ export interface Lead {
   subIndustry?: string;
   area: string;
   address?: string;
+  /** Everyone at this account, primary first. */
+  contacts?: LeadContact[];
+  /** The primary's name and number, derived by the API for list rows. */
   contactName: string;
   phone: string;
-  whatsapp?: string;
-  sameAsMobile?: boolean;
   stage: DealStage;
   value: number;
   nextFollowUp: string | null;

@@ -79,7 +79,9 @@ export async function assertParentVisible(
   entityType: EntityTypeValue,
   entityId: string,
 ): Promise<void> {
-  const ownerId = (await isSalesOnly(db, user.roleId)) ? user.userId : undefined;
+  const ownerId = (await isSalesOnly(db, user.roleId))
+    ? user.userId
+    : undefined;
   const owned = ownerId ? { salespersonId: ownerId } : {};
 
   const found = await (async () => {

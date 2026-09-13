@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PaymentDetailModal } from "@/features/payments/PaymentDetailModal";
 import { useAuth } from "@/store/auth";
@@ -28,6 +29,10 @@ function makePayment(overrides: Partial<PaymentRow> = {}): PaymentRow {
     mail2: false,
     mail3: false,
     mail4: false,
+    mail1At: null,
+    mail2At: null,
+    mail3At: null,
+    mail4At: null,
     status: "Pending",
     followups: [],
     createdAt: "2026-07-01T00:00:00.000Z",
@@ -70,23 +75,29 @@ describe("PaymentDetailModal write gate", () => {
   // this canEdit must NOT be `role !== "mgmt"`. Mutation-proof: reverting
   // canEdit to `role !== "mgmt"` makes this test fail (verified in the fix
   // report).
-  it("hides Save and disables reminder chips for sales", () => {
+  it("hides Save and offers no reminder to send for sales", async () => {
     setRole("sales");
     renderModal();
 
     expect(screen.queryByRole("button", { name: /save changes/i })).toBeNull();
-    for (let i = 1; i <= 4; i++) {
-      expect(screen.getByRole("button", { name: `Reminder ${i}` })).toBeDisabled();
-    }
+    // The chase still reads — where it has got to is worth knowing even when
+    // you cannot move it — but nothing in the menu can be acted on.
+    await userEvent.click(screen.getByRole("button", { name: /Reminders for/i }));
+    screen.getAllByRole("menuitem").forEach((item) => expect(item).toBeDisabled());
     // Salesperson/zone fields render as read-only text, not editable Selects.
     expect(screen.queryByLabelText(/salesperson allocation/i)).toBeNull();
   });
 
-  it("shows an enabled Save button and editable fields for admin", () => {
+  it("shows an enabled Save button and the next reminder for admin", async () => {
     setRole("admin");
     renderModal();
 
     expect(screen.getByRole("button", { name: /save changes/i })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Reminder 1" })).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: /Reminders for/i }));
+    // Nothing has gone yet, so the 1st is the one on offer and the rest wait.
+    const items = screen.getAllByRole("menuitem");
+    expect(items[0]).toBeEnabled();
+    expect(items[1]).toBeDisabled();
+    expect(screen.getByText("Mark sent")).toBeInTheDocument();
   });
 });

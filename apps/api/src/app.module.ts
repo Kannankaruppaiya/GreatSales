@@ -27,6 +27,7 @@ import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { ImportsModule } from './imports/imports.module';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { ManagementsModule } from './managements/managements.module';
+import { ExportModule } from './export/export.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { ManagementsModule } from './managements/managements.module';
     ImportsModule,
     AttachmentsModule,
     ManagementsModule,
+    ExportModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

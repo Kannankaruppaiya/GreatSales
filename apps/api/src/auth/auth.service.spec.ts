@@ -41,7 +41,13 @@ describe('AuthService', () => {
 
   /** Fresh login helper — most tests need a live session to work from. */
   const signIn = (email = ADMIN_EMAIL, tenantId = ACME, password = PASSWORD) =>
-    auth.login({ tenantId, email, password, tokenDelivery: 'cookie' as const, client: 'web' as const });
+    auth.login({
+      tenantId,
+      email,
+      password,
+      tokenDelivery: 'cookie' as const,
+      client: 'web' as const,
+    });
 
   beforeAll(async () => {
     reseedTestDatabase();
@@ -149,7 +155,7 @@ describe('AuthService', () => {
           email: ADMIN_EMAIL,
           password: PASSWORD,
           tokenDelivery: 'cookie',
-        client: 'web' as const,
+          client: 'web' as const,
         },
         { ip: '203.0.113.9' },
       );
@@ -171,7 +177,11 @@ describe('AuthService', () => {
       password: string;
     }) => {
       await expect(
-        auth.login({ ...input, tokenDelivery: 'cookie', client: 'web' as const }),
+        auth.login({
+          ...input,
+          tokenDelivery: 'cookie',
+          client: 'web' as const,
+        }),
       ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
     };
 
@@ -283,7 +293,7 @@ describe('AuthService', () => {
             email,
             password: 'definitely-not-the-password',
             tokenDelivery: 'cookie',
-        client: 'web' as const,
+            client: 'web' as const,
           })
           .catch(() => undefined);
         samples.push(Number(process.hrtime.bigint() - t0) / 1e6);
@@ -310,7 +320,7 @@ describe('AuthService', () => {
           email: SALES1_EMAIL,
           password: 'wrong',
           tokenDelivery: 'cookie',
-        client: 'web' as const,
+          client: 'web' as const,
         })
         .catch((e: unknown) => e);
 
@@ -891,20 +901,23 @@ describe('AuthService', () => {
       expect(session.accessToken).toBeTruthy();
     });
 
-    it('answers a wrong password identically whichever client asks, so the '
-      + 'refusal above cannot be used to find out who the admins are', async () => {
-      await expect(loginFrom('mobile', ADMIN_EMAIL, 'wrong')).rejects.toThrow(
-        new UnauthorizedException('Invalid credentials'),
-      );
-      await expect(loginFrom('web', ADMIN_EMAIL, 'wrong')).rejects.toThrow(
-        new UnauthorizedException('Invalid credentials'),
-      );
-    });
+    it(
+      'answers a wrong password identically whichever client asks, so the ' +
+        'refusal above cannot be used to find out who the admins are',
+      async () => {
+        await expect(loginFrom('mobile', ADMIN_EMAIL, 'wrong')).rejects.toThrow(
+          new UnauthorizedException('Invalid credentials'),
+        );
+        await expect(loginFrom('web', ADMIN_EMAIL, 'wrong')).rejects.toThrow(
+          new UnauthorizedException('Invalid credentials'),
+        );
+      },
+    );
 
     it('will not let a mobile session be rotated into a wider one', async () => {
       const session = await loginFrom('mobile', SALES1_EMAIL);
       const rotated = await auth.refresh(session.refreshTokenValue);
-      const claims = jwt.decode(rotated.refreshTokenValue) as { cli?: string };
+      const claims = jwt.decode(rotated.refreshTokenValue);
       expect(claims.cli).toBe('mobile');
     });
   });
@@ -941,6 +954,4 @@ describe('AuthService', () => {
         ForbiddenException,
       ));
   });
-
-
 });

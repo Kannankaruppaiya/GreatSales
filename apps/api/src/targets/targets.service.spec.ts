@@ -129,7 +129,10 @@ describe('TargetsService (integration)', () => {
     // one of them contributes only that one.
     const wholeYear = await targets.totalFor(
       admin(ACME, 'acme'),
-      Array.from({ length: 12 }, (_, i) => `2026-${String(i + 1).padStart(2, '0')}`),
+      Array.from(
+        { length: 12 },
+        (_, i) => `2026-${String(i + 1).padStart(2, '0')}`,
+      ),
     );
     expect(wholeYear.total).toBe(500000);
 

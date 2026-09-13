@@ -2,14 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { FileSpreadsheet, LayoutList, Loader2, Plus, RefreshCw, Upload, X } from "lucide-react";
 import { useAuthRole } from "@/store/auth";
 import { useUi } from "@/store/ui";
-import { inr, lakhs } from "@/lib/format";
+import { inr, lakhs, longDate, today } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api";
 import { Button, Card } from "@/components/ui";
+import { StatusBadge, PayZoneBadge } from "@/components/StatusBadge";
+import { payTone } from "@/data/constants";
 import { QueryBoundary } from "@/components/common/QueryBoundary";
 import { AddPaymentModal } from "@/features/payments/AddPaymentModal";
 import { ImportPaymentsModal } from "@/features/payments/ImportPaymentsModal";
 import { PaymentDetailModal } from "@/features/payments/PaymentDetailModal";
+import { ReminderMenu } from "@/features/payments/ReminderMenu";
 import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
 import {
   usePayments,
@@ -17,6 +20,7 @@ import {
   useDeletePayment,
   flattenPayments,
 } from "@/features/payments/queries";
+import { useFollowUps, flattenFollowUps } from "@/features/followups/queries";
 import {
   PAY_ZONE_VALUES,
   PAY_ZONE_LABELS,
@@ -24,7 +28,9 @@ import {
   PAYMENT_STATUS_LABELS,
   type PayZoneValue,
   type PaymentRow,
+  type ReminderStage,
 } from "@/features/payments/types";
+import { useSelectedRow } from "@/lib/useSelectedRow";
 
 /**
  * Debounces a fast-changing value (e.g. search input) so downstream effects
@@ -91,7 +97,17 @@ export default function PaymentsPage() {
 
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [showImportExcel, setShowImportExcel] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<PaymentRow | null>(null);
+  /**
+   * The open detail modal is addressed by ID, and its row is read back out of
+   * the list on every render.
+   *
+   * Holding the row object itself is the reason a save inside the modal used
+   * to need an F5: the mutation invalidated the list, the list refetched, and
+   * this state kept pointing at the snapshot taken when the row was clicked.
+   * Deriving it means the refetched row IS what the modal is handed, and a
+   * deleted row closes the modal by disappearing.
+   */
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [selectedDrawerCustId, setSelectedDrawerCustId] = useState<string | null>(null);
 
   const effectiveOwner = ownerId !== "ALL" ? ownerId : globalOwnerFilter !== "ALL" ? globalOwnerFilter : undefined;
@@ -105,6 +121,7 @@ export default function PaymentsPage() {
   const update = useUpdatePayment();
   const del = useDeletePayment();
   const rows = flattenPayments(q.data);
+  const selectedPayment = useSelectedRow(rows, selectedPaymentId);
 
   // Auto-fetch every page before computing KPI/report aggregates below, so
   // "Total pending" etc. reflect the full filtered ledger rather than just
@@ -163,8 +180,20 @@ export default function PaymentsPage() {
   const over90Total = rows
     .filter((r) => r.agingDays != null && r.agingDays > 90)
     .reduce((s, r) => s + r.pending, 0);
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const fuTodayCount = rows.filter((r) => r.nextFollowUp && r.nextFollowUp <= todayStr).length;
+  // The follow-ups on these invoices, counted from the same rows the Follow-ups
+  // page lists and the dashboard tile counts.
+  //
+  // It used to count `Payment.nextFollowUp` instead — a different field, on a
+  // different model, that nothing in the product ever writes except this page's
+  // own detail modal. The tile therefore read 0 on a ledger with real follow-ups
+  // outstanding, while a tile with the same words on the dashboard read the true
+  // number. One label cannot mean two things; a follow-up in this product is a
+  // `FollowUp` row.
+  const fuQuery = useFollowUps({ entityType: "Payment", done: false, ownerId: effectiveOwner });
+  const todayStr = today();
+  const fuTodayCount = flattenFollowUps(fuQuery.data).filter(
+    (f) => f.dueDate <= todayStr,
+  ).length;
 
   const buckets = ["0-30", "31-60", "61-90", "91-120", "121-150", "150+"];
   const zoneList = [...PAY_ZONE_VALUES, "Unassigned"];
@@ -202,8 +231,12 @@ export default function PaymentsPage() {
   });
   const orgRows = Object.entries(byOrg).sort((a, b) => b[1].pending - a[1].pending);
 
-  const toggleMail = (p: PaymentRow, mk: "mail1" | "mail2" | "mail3" | "mail4") => {
-    update.mutate({ id: p.id, patch: { [mk]: !p[mk] } });
+  // The menu decides which letter is next and whether it is going out or
+  // being taken back; this only sends the flag. The date beside it is the
+  // API's to stamp — a client that sent its own could date a letter to any
+  // day it liked.
+  const setReminder = (p: PaymentRow, stage: ReminderStage, next: boolean) => {
+    update.mutate({ id: p.id, patch: { [stage]: next } });
   };
 
   const handleDelete = (p: PaymentRow) => {
@@ -375,11 +408,11 @@ export default function PaymentsPage() {
                 emptyLabel="No invoices match this filter."
               >
                 <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs whitespace-nowrap">
+                  <thead className="bg-surface-2 text-3xs font-extrabold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs whitespace-nowrap">
                     <tr>
                       <th className="py-2.5 px-3">Ref no.</th>
                       <th className="py-2.5 px-3">Date</th>
-                      <th className="py-2.5 px-3 min-w-[210px]">Party</th>
+                      <th className="py-2.5 px-3 min-w-[250px]">Party</th>
                       <th className="py-2.5 px-3 text-right">Aging</th>
                       <th className="py-2.5 px-3 text-right">Amount</th>
                       <th className="py-2.5 px-3 text-right font-bold text-ink">Pending</th>
@@ -400,35 +433,57 @@ export default function PaymentsPage() {
 
                       return (
                         <tr key={p.id} className="hover:bg-surface-2/70 transition-colors">
-                          <td className="py-2.5 px-3 font-bold text-ink tabular-nums">
+                          <td className="py-2.5 px-3 font-bold text-ink tabular-nums whitespace-nowrap">
                             <button
                               type="button"
-                              onClick={() => setSelectedPayment(p)}
+                              onClick={() => setSelectedPaymentId(p.id)}
                               className="hover:text-brand hover:underline cursor-pointer"
                             >
                               {p.refNo || "—"}
                             </button>
                           </td>
-                          <td className="py-2.5 px-3 text-muted tabular-nums">{p.invoiceDate || "—"}</td>
+                          <td className="py-2.5 px-3 text-muted tabular-nums whitespace-nowrap">
+                            {longDate(p.invoiceDate)}
+                          </td>
+                          {/* One line, always. A wrapped party name was the last thing
+                              making the rows different heights — and a column of
+                              44px and 53px rows is what reads as unfinished.
+                              Long names ellipsize with the full text on hover. */}
                           <td className="py-2.5 px-3">
                             {p.customerId ? (
                               <button
                                 type="button"
                                 onClick={() => setSelectedDrawerCustId(p.customerId)}
-                                className="font-bold text-ink hover:text-brand hover:underline cursor-pointer text-left block"
+                                title={p.customerName || undefined}
+                                className="block max-w-[290px] truncate text-left font-bold text-ink hover:text-brand hover:underline cursor-pointer"
                               >
                                 {p.customerName || "—"}
                               </button>
                             ) : (
-                              <span className="font-bold text-ink">{p.customerName || "—"}</span>
+                              <span
+                                title={p.customerName || undefined}
+                                className="block max-w-[290px] truncate font-bold text-ink"
+                              >
+                                {p.customerName || "—"}
+                              </span>
                             )}
                           </td>
 
                           {/* Aging badge — server-supplied agingDays, rendered as-is */}
-                          <td className="py-2.5 px-3 text-right">
-                            <span className={cn("rounded-lg px-2 py-0.5 text-[11px] font-bold tabular-nums", toneCls)}>
-                              {p.agingDays != null ? `${p.agingDays}d · ${bucket}` : "—"}
-                            </span>
+                          <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                            {p.agingDays != null ? (
+                              <span
+                                className={cn(
+                                  "inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-2xs tabular-nums",
+                                  toneCls,
+                                )}
+                              >
+                                <span className="font-bold">{p.agingDays}d</span>
+                                <span className="opacity-60">{bucket}</span>
+                              </span>
+                            ) : (
+                              <span className="text-muted">—</span>
+                            )}
                           </td>
 
                           <td className="py-2.5 px-3 text-right tabular-nums text-muted">{inr(p.amount)}</td>
@@ -442,45 +497,24 @@ export default function PaymentsPage() {
 
                           {/* Status — server-computed, rendered as-is */}
                           <td className="py-2.5 px-3">
-                            <span className="rounded px-2 py-0.5 text-[10.5px] font-bold bg-surface-2 text-ink border border-line">
-                              {statusLabel}
-                            </span>
+                            <StatusBadge label={statusLabel} tone={payTone(statusLabel)} />
                           </td>
 
-                          <td className="py-2.5 px-3 text-muted text-xs">{p.salespersonName || "—"}</td>
+                          <td className="py-2.5 px-3 text-muted text-xs whitespace-nowrap">
+                            {p.salespersonName || "—"}
+                          </td>
 
                           <td className="py-2.5 px-3">
-                            <span
-                              className={cn(
-                                "rounded px-2 py-0.5 text-[11px] font-bold border",
-                                ZONE_CLASSES[p.payZone || "Unassigned"]
-                              )}
-                            >
-                              {p.payZone ? PAY_ZONE_LABELS[p.payZone as PayZoneValue] : "Unassigned"}
-                            </span>
+                            <PayZoneBadge zone={p.payZone || "Unassigned"} />
                           </td>
 
-                          {/* 4 Mail Reminder chips */}
+                          {/* The reminder chase — one control, not four chips. */}
                           <td className="py-2.5 px-3 text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              {(["mail1", "mail2", "mail3", "mail4"] as const).map((mk, mi) => (
-                                <button
-                                  key={mk}
-                                  type="button"
-                                  disabled={!canEdit}
-                                  onClick={() => toggleMail(p, mk)}
-                                  title={`Reminder ${mi + 1} sent`}
-                                  className={cn(
-                                    "w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold border transition-all cursor-pointer",
-                                    p[mk]
-                                      ? "bg-brand text-white border-brand shadow-2xs"
-                                      : "bg-surface text-muted border-line hover:border-muted"
-                                  )}
-                                >
-                                  {mi + 1}
-                                </button>
-                              ))}
-                            </div>
+                            <ReminderMenu
+                              payment={p}
+                              canEdit={canEdit}
+                              onToggle={(stage, next) => setReminder(p, stage, next)}
+                            />
                           </td>
 
                           {/* Admin-only delete action */}
@@ -550,7 +584,7 @@ export default function PaymentsPage() {
               <div className="text-xs font-bold uppercase tracking-wider text-muted mb-2">Salesperson-wise aging (₹)</div>
               <div className="overflow-x-auto border border-line rounded-xl">
                 <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted border-b border-line whitespace-nowrap">
+                  <thead className="bg-surface-2 text-3xs font-extrabold uppercase tracking-wider text-muted border-b border-line whitespace-nowrap">
                     <tr>
                       <th className="py-2.5 px-3">Salesperson</th>
                       {buckets.map((b) => (
@@ -592,7 +626,7 @@ export default function PaymentsPage() {
               <div className="text-xs font-bold uppercase tracking-wider text-muted mb-2">Organization-wise pending</div>
               <div className="overflow-x-auto border border-line rounded-xl">
                 <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted border-b border-line whitespace-nowrap">
+                  <thead className="bg-surface-2 text-3xs font-extrabold uppercase tracking-wider text-muted border-b border-line whitespace-nowrap">
                     <tr>
                       <th className="py-2.5 px-3">Party</th>
                       <th className="py-2.5 px-3 text-right">Invoices</th>
@@ -620,7 +654,7 @@ export default function PaymentsPage() {
                                 <span
                                   key={z}
                                   className={cn(
-                                    "rounded px-1.5 py-0.2 text-[10px] font-bold border",
+                                    "rounded px-1.5 py-0.5 text-3xs font-bold border",
                                     ZONE_CLASSES[z || "Unassigned"]
                                   )}
                                 >
@@ -663,7 +697,7 @@ export default function PaymentsPage() {
         <PaymentDetailModal
           key={selectedPayment.id}
           open={!!selectedPayment}
-          onClose={() => setSelectedPayment(null)}
+          onClose={() => setSelectedPaymentId(null)}
           payment={selectedPayment}
           salespeople={salespersonOptions}
         />

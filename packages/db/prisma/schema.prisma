@@ -85,13 +85,6 @@ enum DeliveryMode {
   HandDelivery
 }
 
-enum LeadStatus {
-  Platinum
-  Gold
-  Silver
-  Bronze
-}
-
 enum PayZone {
   RedZone
   YellowZone
@@ -185,6 +178,7 @@ model Tenant {
   followUps     FollowUp[]
   activities    Activity[]
   remarks       Remark[]
+  contacts      Contact[]
   notifications Notification[]
   attachments   Attachment[]
   auditLogs     AuditLog[]
@@ -396,7 +390,6 @@ model Customer {
   salesperson      User              @relation(fields: [salespersonId], references: [id])
   collector        User?             @relation("CustomerCollector", fields: [collectorId], references: [id])
   locationPinnedBy User?             @relation("CustomerLocationPinnedBy", fields: [locationPinnedById], references: [id])
-  contacts         CustomerContact[]
   mappings         Mapping[]
   salesOrders      SalesOrder[]
   payments         Payment[]
@@ -408,23 +401,42 @@ model Customer {
   @@index([deletedAt])
 }
 
-model CustomerContact {
-  id           String   @id @default(cuid())
-  customerId   String
+// A named human at an account, attached to whatever record names them.
+//
+// This replaces `CustomerContact`, which held the same nine columns for
+// customers alone while a Lead carried a single contact flattened into five
+// columns of its own — two encodings of "who do I call" that could not be read
+// or written together. An account has a purchase manager AND a plant head, and
+// a deal is worked through both.
+//
+// Polymorphic on EntityType, the way `Remark` and `Attachment` already attach
+// to any record. The repo made this call once before: `LeadActivity` was folded
+// into `Remark` in 20260910090000 rather than kept as a parallel table.
+//
+// `phone` is the mobile number — the only one either surface ever asked for —
+// and `sameAsMobile` mirrors it into `whatsapp` the way the lead form does.
+// `isPrimary` marks the one contact a list row and the printed paperwork name;
+// `sortOrder` fixes the rest in the order somebody put them in.
+model Contact {
+  id           String     @id @default(cuid())
+  tenantId     String
+  entityType   EntityType
+  entityId     String
   name         String
   designation  String?
   phone        String?
-  mobile       String?
   whatsapp     String?
-  sameAsMobile Boolean  @default(true)
+  sameAsMobile Boolean    @default(true)
   email        String?
-  isPrimary    Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isPrimary    Boolean    @default(false)
+  sortOrder    Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
-  customer Customer @relation(fields: [customerId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  @@index([customerId])
+  @@index([tenantId])
+  @@index([entityType, entityId])
 }
 
 // ============================================================
@@ -548,20 +560,19 @@ model Lead {
   tenantId       String
   customerName   String // "name" on the frontend
   division       Division?
+  // How the account is graded. `Customer.category` grades an existing account
+  // with the same enum, so a lead that converts keeps its grade rather than
+  // being re-typed under a different name.
   tier           CustomerCategory? // Platinum | Gold | Silver | Brass
   type           CustomerType? // Existing | New
   salespersonId  String
   stage          DealStage         @default(NewEnquiries)
-  leadStatus     LeadStatus?
   industryId     String?
   subIndustry    String?
   area           String?
   address        String?
-  contactName    String?
-  phone          String?
-  whatsapp       String?
-  sameAsMobile   Boolean           @default(true)
-  email          String?
+  // The people at this account live in `Contact` (entityType = Lead). They used
+  // to be five columns here, which is why a deal could name exactly one of them.
   nextFollowUp   DateTime?
   expClose       DateTime? // expected close date
   stageUpdatedAt DateTime?
@@ -692,10 +703,18 @@ model Payment {
   payZone       PayZone?
   delayReason   String?
   nextFollowUp  DateTime?
+  // The reminder chase, as four letters sent in order. The boolean says a
+  // letter went out; the timestamp beside it says when, and is stamped by the
+  // API when the flag flips — a collector deciding whether to send the next
+  // one needs to know the last one left three days ago, not just that it left.
   mail1         Boolean       @default(false)
   mail2         Boolean       @default(false)
   mail3         Boolean       @default(false)
   mail4         Boolean       @default(false)
+  mail1At       DateTime?
+  mail2At       DateTime?
+  mail3At       DateTime?
+  mail4At       DateTime?
   status        PaymentStatus @default(Pending)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt

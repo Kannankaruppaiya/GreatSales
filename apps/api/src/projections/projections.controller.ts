@@ -1,17 +1,22 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   ProjectionListQuerySchema,
+  ProjectionRollForwardSchema,
   ProjectionUpdateSchema,
   type ProjectionListQuery,
+  type ProjectionRollForward,
   type ProjectionUpdate,
   type RequestUser,
 } from '@greatsales/shared';
@@ -39,6 +44,23 @@ export class ProjectionsController {
   }
 
   /** Inline cell edit on one projection line. */
+  /**
+   * Open a month by carrying the previous month's commitments into it.
+   *
+   * `projection.write`, the same key an inline cell edit needs: this writes
+   * projection rows and nothing else, and a role that may type a number into
+   * the worksheet may also start the month it goes in.
+   */
+  @Post('roll-forward')
+  @RequirePermissions('projection.write')
+  rollForward(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(ProjectionRollForwardSchema))
+    body: ProjectionRollForward,
+  ) {
+    return this.service.rollForward(user, body);
+  }
+
   @Patch(':id')
   @RequirePermissions('projection.write')
   update(
@@ -47,5 +69,13 @@ export class ProjectionsController {
     @Body(new ZodValidationPipe(ProjectionUpdateSchema)) body: ProjectionUpdate,
   ) {
     return this.service.update(user, id, body);
+  }
+
+  /** Drop a line from a month. Soft: the row leaves the worksheet, not the record. */
+  @Delete(':id')
+  @HttpCode(204)
+  @RequirePermissions('projection.write')
+  remove(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.service.remove(user, id);
   }
 }

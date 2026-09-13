@@ -146,7 +146,7 @@ export class AttachmentsService {
       // cannot be downloaded, which is worse than the upload plainly failing.
       await db.attachment.delete({ where: { id: created.id } }).catch(() => {});
       this.logger.error(
-        `Storing ${key} failed: ${err instanceof Error ? err.message : err}`,
+        `Storing ${key} failed: ${err instanceof Error ? err.message : String(err)}`,
       );
       throw new BadRequestException(
         'That file could not be stored. Please try again.',

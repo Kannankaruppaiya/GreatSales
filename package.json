@@ -29,6 +29,7 @@
     "db:restore": "pnpm --filter @greatsales/db db:restore",
     "db:export-excel": "pnpm --filter @greatsales/db db:export-excel",
     "db:provision": "pnpm --filter @greatsales/db db:provision",
+    "share": "node scripts/share.mjs",
     "box": "node scripts/box.mjs",
     "deploy:aws": "node scripts/deploy-aws.mjs",
     "icons": "node scripts/make-icons.mjs",

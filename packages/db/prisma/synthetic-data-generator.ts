@@ -158,7 +158,7 @@ async function main() {
   await prisma.projection.deleteMany({ where: { tenantId: TENANT_ID } });
   await prisma.salesTarget.deleteMany({ where: { tenantId: TENANT_ID } });
   await prisma.mapping.deleteMany({ where: { tenantId: TENANT_ID } });
-  await prisma.customerContact.deleteMany({});
+  await prisma.contact.deleteMany({});
   await prisma.customer.deleteMany({ where: { tenantId: TENANT_ID } });
   console.log("✓ Successfully wiped old non-product operational data.");
 
@@ -443,6 +443,23 @@ async function main() {
 
   // 9. Generate 75 Multi-Month Payments & Receivables
   console.log("\n--- Generating 75 Multi-Month Payments & Receivables ---");
+  /**
+   * The first `n` reminder letters, sent on the collections desk's schedule:
+   * 30 days after the invoice, then every fortnight. Returned as the flag and
+   * date pair the Payment model holds, so a seeded chase is always a prefix —
+   * never a third letter with no first.
+   */
+  const remindersSent = (n: number, invoiceDate: Date) =>
+    Object.fromEntries(
+      [0, 1, 2, 3].flatMap((i) => [
+        [`mail${i + 1}`, i < n],
+        [
+          `mail${i + 1}At`,
+          i < n ? new Date(invoiceDate.getTime() + (30 + i * 15) * 86_400_000) : null,
+        ],
+      ]),
+    );
+
   const payStatuses: PaymentStatus[] = ["Paid", "PartiallyPaid", "Pending", "Overdue"];
   let paymentCount = 0;
   for (let i = 0; i < 75; i++) {
@@ -475,8 +492,11 @@ async function main() {
         agingDays,
         payZone,
         status,
-        mail1: i % 2 === 0,
-        mail2: i % 3 === 0,
+        // The chase is a sequence, so the letters sent are a prefix of it:
+        // `mail1: i % 2, mail2: i % 3` produced invoices whose second letter
+        // had gone but not their first, which is a state no collections desk
+        // can reach and which the UI now (correctly) refuses to create.
+        ...remindersSent(i % 4, new Date(`${period}-04T10:00:00Z`)),
         followups: {
           create: [
             {

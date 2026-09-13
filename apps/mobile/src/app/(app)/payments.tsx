@@ -12,7 +12,12 @@ import { usePayments, useCreatePayment, useUpdatePayment, useDeletePayment, type
 import { DeleteButton } from '@/gs/DeleteButton';
 import { inr, lakhs, shortDate, agingDays, agingBucket, zoneTone } from '@/gs/domain';
 import { SearchIcon, WalletIcon, CloseIcon, PaperPlaneIcon } from '@/gs/icons';
-import { PAY_ZONE_VALUES, type PayZoneValue } from '@greatsales/shared';
+import {
+  PAY_ZONE_VALUES,
+  REMINDER_ORDINALS,
+  REMINDER_STAGES,
+  type PayZoneValue,
+} from '@greatsales/shared';
 
 const ZONE_OPTIONS = ['ALL', ...PAY_ZONE_VALUES, 'Unassigned'] as const;
 
@@ -220,6 +225,24 @@ export default function Payments() {
  * so you cannot see which one turned green. Sending the next reminder is now
  * one swipe, and the row says in words how far the chase has got.
  */
+/**
+ * How far the reminder chase has got on one invoice.
+ *
+ * Counting the flags that are true was wrong wherever the sequence has a gap:
+ * an invoice with the 1st and 3rd letters marked counts two, which named the
+ * 3rd as the next one to send when it had already gone. The last one sent and
+ * the next one to send are two different questions, so both are answered by
+ * position, never by a count.
+ */
+function chase(p: PaymentRow) {
+  let last = -1;
+  REMINDER_STAGES.forEach((st, i) => {
+    if (p[st]) last = i;
+  });
+  const next = REMINDER_STAGES.findIndex((st) => !p[st]);
+  return { last, next };
+}
+
 function InvoiceRow({ p, onPress }: { p: PaymentRow; onPress: () => void }) {
   const updatePayment = useUpdatePayment();
   const d = agingDays(p.dueDate || p.invoiceDate) ?? 0;
@@ -229,9 +252,8 @@ function InvoiceRow({ p, onPress }: { p: PaymentRow; onPress: () => void }) {
     zone === 'RedZone' || zone === 'Blacklist' ? 'danger' : zone === 'YellowZone' ? 'amber' : 'none';
 
   // How far the reminder chase has got, as a phrase rather than four buttons.
-  const stages = [p.mail1, p.mail2, p.mail3, p.mail4];
-  const sent = stages.filter(Boolean).length;
-  const nextStage = (['mail1', 'mail2', 'mail3', 'mail4'] as const)[sent];
+  const { last, next } = chase(p);
+  const nextStage = next < 0 ? null : REMINDER_STAGES[next];
 
   const ref = p.refNo || p.invoiceNo;
 
@@ -243,14 +265,14 @@ function InvoiceRow({ p, onPress }: { p: PaymentRow; onPress: () => void }) {
       subtitle={[ref ? `Ref ${ref}` : null, d > 0 ? `${d}d overdue` : null]
         .filter(Boolean)
         .join(' · ')}
-      meta={sent > 0 ? `M${sent} sent` : 'No reminder'}
+      meta={last >= 0 ? `${REMINDER_ORDINALS[last]} reminder sent` : 'No reminder'}
       tone={tone}
       onPress={onPress}
       actions={
         nextStage
           ? [
               {
-                label: `Send M${sent + 1}`,
+                label: `Send ${REMINDER_ORDINALS[next]}`,
                 tone: 'brand',
                 onPress: () => updatePayment.mutate({ id: p.id, patch: { [nextStage]: true } }),
                 icon: (col, sz) => <PaperPlaneIcon size={sz} color={col} />,
@@ -267,6 +289,9 @@ function PayDetail({ p }: { p: PaymentRow }) {
   const [next, setNext] = useState(p.nextFollowUp || '');
   const [reason, setReason] = useState(p.delayReason || '');
   const d = agingDays(p.dueDate || p.invoiceDate) ?? 0;
+  // `next` is taken by the follow-up date field above, so the chase's two
+  // positions are named for what they are.
+  const { last: lastSent, next: nextToSend } = chase(p);
 
   return (
     <View className="gap-4">
@@ -303,29 +328,55 @@ function PayDetail({ p }: { p: PaymentRow }) {
         </Pressable>
       </View>
 
-      {/* Reminder Mails 1–4 Toggles */}
-      <View className="gap-2 border-t border-line pt-3">
+      {/* The reminder chase, as a list of four letters with the dates they
+          went out. Only the next one and the last one respond to a tap: the
+          3rd letter before the 1st is a mistake, not an escalation, and it
+          notifies the collector either way. Same rule as the web dropdown. */}
+      <View className="gap-1.5 border-t border-line pt-3">
         <Text className="text-[11px] font-extrabold text-ink2 uppercase tracking-wide">
-          Reminder Mails Sent (1–4)
+          Payment Reminders
         </Text>
-        <View className="flex-row items-center gap-2">
-          {(['mail1', 'mail2', 'mail3', 'mail4'] as const).map((k, i) => {
-            const on = !!p[k];
-            return (
-              <Pressable
-                key={k}
-                onPress={() => updatePayment.mutate({ id: p.id, patch: { [k]: !on } })}
-                className={`flex-1 py-2.5 rounded-xl items-center justify-center border ${
+        {REMINDER_STAGES.map((k, i) => {
+          const on = !!p[k];
+          const at = p[`${k}At` as const];
+          const isNext = !on && i === nextToSend;
+          const isUndo = on && i === lastSent;
+          const actionable = isNext || isUndo;
+          return (
+            <Pressable
+              key={k}
+              disabled={!actionable || updatePayment.isPending}
+              onPress={() => updatePayment.mutate({ id: p.id, patch: { [k]: !on } })}
+              className={`flex-row items-center gap-2.5 rounded-xl border px-3 py-2.5 ${
+                on ? 'bg-brand-soft border-brand/30' : 'bg-surface border-line'
+              } ${actionable ? '' : 'opacity-60'}`}
+            >
+              <View
+                className={`h-5 w-5 rounded items-center justify-center border ${
                   on ? 'bg-brand border-brand' : 'bg-surface border-line'
                 }`}
               >
-                <Text className={`text-xs font-black ${on ? 'text-white' : 'text-muted'}`}>
-                  Mail {i + 1}: {on ? 'Yes' : 'No'}
+                <Text className={`text-[10px] font-black ${on ? 'text-white' : 'text-muted'}`}>
+                  {on ? '✓' : i + 1}
                 </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+              </View>
+              <View className="flex-1">
+                <Text className="text-xs font-black text-ink">
+                  {REMINDER_ORDINALS[i]} reminder
+                </Text>
+                {/* A letter marked sent before the date column existed carries
+                    no date; inventing one would read as fact. */}
+                <Text className="text-[10.5px] text-muted">
+                  {on ? (at ? `Sent ${shortDate(at)}` : 'Sent') : 'Not sent'}
+                </Text>
+              </View>
+              {isNext && (
+                <Text className="text-[10.5px] font-black uppercase text-brand">Mark sent</Text>
+              )}
+              {isUndo && <Text className="text-[10.5px] font-black text-muted">Undo</Text>}
+            </Pressable>
+          );
+        })}
       </View>
 
       {/* Next Follow-up Date */}

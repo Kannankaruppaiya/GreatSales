@@ -83,6 +83,10 @@ services:
       # Passed through only when set. An empty value is not "no Sentry", it is
       # an invalid URL, and the env contract rejects it.
       SENTRY_DSN: ${SENTRY_DSN:-}
+      # Production requires S3 storage for attachments.
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-s3}
+      S3_BUCKET: ${S3_BUCKET:-greatsales-attachments-887793660359-euw2}
+      S3_REGION: ${S3_REGION:-eu-west-2}
     depends_on:
       postgres:
         condition: service_healthy

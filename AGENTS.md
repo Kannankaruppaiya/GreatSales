@@ -24,6 +24,8 @@ pnpm design                                            # static: design-token dr
 pnpm verify                                            # wiring + design + smoke + API unit + web unit suites
 pnpm test:e2e:qa                                       # browser QA sweep: pages, RBAC, CRUD, API contract
 pnpm test:e2e                                          # the whole Playwright suite (adds the older page specs)
+pnpm share                                             # this machine's app on a public HTTPS link, for a demo
+pnpm icons                                             # redraw every favicon and app icon from the brand mark
 ```
 
 - **A question about the application is answered by `pnpm facts`, not by reading the repository.**
@@ -46,6 +48,11 @@ pnpm test:e2e                                          # the whole Playwright su
   `apps/web/src/data/features.ts` — declare a feature there and the sweep covers it next run.
 - **The API e2e suites (`pnpm --filter api test:e2e`) reseed the same Postgres** and destroy the
   Promech data. Re-run `db:seed:promech` afterwards.
+- **Give the API a moment after a reseed.** `db:seed:promech` TRUNCATEs every table while the
+  server is still holding connections to them, so the first requests after it can come back 500 —
+  including `/auth/login`, which makes an unrelated test suite fail at its first step with
+  nothing to do with the code. Wait for `curl localhost:3001/api/v1/health` to answer 200 before
+  starting a run.
 - **Check what the API on :3001 is actually running before you trust a probe.** A server started
   as `node apps/api/dist/main` serves the last *build*, not the working tree, so a source change
   you just made is invisible and a green probe proves nothing about it. `netstat -ano | grep :3001`
@@ -54,6 +61,18 @@ pnpm test:e2e                                          # the whole Playwright su
 - `pnpm wiring` needs no running server: it reads the Nest controllers and greps web + mobile for
   the calls, so it answers "which endpoint has no client?" while `pnpm smoke` answers "does the
   endpoint actually work?". Run both; neither replaces the other.
+- **Showing the app to somebody who is not on this machine is `pnpm share`, and nothing else.**
+  It builds the console, serves `dist/` and proxies `/api` to :3001 from ONE port, then opens a
+  Cloudflare quick tunnel (no account, no signup) and prints the `https://….trycloudflare.com`
+  link. One origin is the whole point: the refresh token is an httpOnly `SameSite=Lax` cookie, so
+  two tunnels — one per port — would log every visitor out at the first token rotation. It serves
+  the production build rather than the dev server because Vite rejects a hostname it was not
+  started with, its HMR socket cannot be told the tunnel's port, and `src/lib/config.ts` blanks
+  the demo login prefill in a production build, which is what keeps `admin` / `admin` from
+  arriving pre-typed on a public page. The link is password-gated by default (`--open` removes
+  the gate, `--password X` sets it); the gate is a Basic prompt that trades itself for a cookie,
+  because the console sends its own `Authorization: Bearer` on every API call and a header-only
+  gate would reject them all. The hostname is new every run and dies with the process.
 - Neither script drives a browser. For that, load each feature under
   `/managements/:managementId/<feature key>` (keys live in `apps/web/src/data/features.ts`) and
   watch for a non-200 in the network log.

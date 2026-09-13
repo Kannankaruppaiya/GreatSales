@@ -61,7 +61,9 @@ describe('NotificationsService (integration)', () => {
   });
 
   it('starts empty and counts nothing', async () => {
-    expect(await notifications.list(asSales1, { limit: 30, unreadOnly: false })).toEqual({
+    expect(
+      await notifications.list(asSales1, { limit: 30, unreadOnly: false }),
+    ).toEqual({
       items: [],
       unread: 0,
     });
@@ -73,7 +75,10 @@ describe('NotificationsService (integration)', () => {
       salespersonId: SALES_1,
     });
 
-    const inbox = await notifications.list(asSales1, { limit: 30, unreadOnly: false });
+    const inbox = await notifications.list(asSales1, {
+      limit: 30,
+      unreadOnly: false,
+    });
     expect(inbox.unread).toBe(1);
     expect(inbox.items[0]).toMatchObject({
       type: 'LeadAssigned',
@@ -92,7 +97,10 @@ describe('NotificationsService (integration)', () => {
       customerName: 'Self Serve Ltd',
       salespersonId: SALES_1,
     });
-    expect((await notifications.list(asSales1, { limit: 30, unreadOnly: false })).unread).toBe(0);
+    expect(
+      (await notifications.list(asSales1, { limit: 30, unreadOnly: false }))
+        .unread,
+    ).toBe(0);
   });
 
   it('notifies on reassignment, and only the person receiving it', async () => {
@@ -113,7 +121,10 @@ describe('NotificationsService (integration)', () => {
 
     // The person who lost it is not told twice about a lead they no longer
     // have; the one row they got was the original assignment, already read.
-    expect((await notifications.list(asSales1, { limit: 30, unreadOnly: false })).unread).toBe(0);
+    expect(
+      (await notifications.list(asSales1, { limit: 30, unreadOnly: false }))
+        .unread,
+    ).toBe(0);
   });
 
   it('does not repeat itself when a patch names the same owner', async () => {
@@ -124,21 +135,33 @@ describe('NotificationsService (integration)', () => {
     await notifications.markAllRead(asSales1);
 
     await leads.update(admin, lead.id, { salespersonId: SALES_1 });
-    expect((await notifications.list(asSales1, { limit: 30, unreadOnly: false })).unread).toBe(0);
+    expect(
+      (await notifications.list(asSales1, { limit: 30, unreadOnly: false }))
+        .unread,
+    ).toBe(0);
   });
 
   it('marks one read, and marks the rest read in a single call', async () => {
     for (const name of ['One Ltd', 'Two Ltd', 'Three Ltd']) {
       await leads.create(admin, { customerName: name, salespersonId: SALES_1 });
     }
-    const inbox = await notifications.list(asSales1, { limit: 30, unreadOnly: false });
+    const inbox = await notifications.list(asSales1, {
+      limit: 30,
+      unreadOnly: false,
+    });
     expect(inbox.unread).toBe(3);
 
     await notifications.markRead(asSales1, inbox.items[0].id);
-    expect((await notifications.list(asSales1, { limit: 30, unreadOnly: false })).unread).toBe(2);
+    expect(
+      (await notifications.list(asSales1, { limit: 30, unreadOnly: false }))
+        .unread,
+    ).toBe(2);
 
     expect(await notifications.markAllRead(asSales1)).toEqual({ read: 2 });
-    expect((await notifications.list(asSales1, { limit: 30, unreadOnly: false })).unread).toBe(0);
+    expect(
+      (await notifications.list(asSales1, { limit: 30, unreadOnly: false }))
+        .unread,
+    ).toBe(0);
   });
 
   it('refuses to mark somebody else’s notification read', async () => {
@@ -146,7 +169,10 @@ describe('NotificationsService (integration)', () => {
       customerName: 'Not Yours Ltd',
       salespersonId: SALES_1,
     });
-    const inbox = await notifications.list(asSales1, { limit: 30, unreadOnly: false });
+    const inbox = await notifications.list(asSales1, {
+      limit: 30,
+      unreadOnly: false,
+    });
 
     // Not "forbidden" — the row does not exist as far as this caller is
     // concerned, and saying otherwise would confirm it exists.
@@ -159,9 +185,18 @@ describe('NotificationsService (integration)', () => {
   });
 
   it('filters to unread while still counting the whole inbox', async () => {
-    await leads.create(admin, { customerName: 'A Ltd', salespersonId: SALES_1 });
-    await leads.create(admin, { customerName: 'B Ltd', salespersonId: SALES_1 });
-    const inbox = await notifications.list(asSales1, { limit: 30, unreadOnly: false });
+    await leads.create(admin, {
+      customerName: 'A Ltd',
+      salespersonId: SALES_1,
+    });
+    await leads.create(admin, {
+      customerName: 'B Ltd',
+      salespersonId: SALES_1,
+    });
+    const inbox = await notifications.list(asSales1, {
+      limit: 30,
+      unreadOnly: false,
+    });
     await notifications.markRead(asSales1, inbox.items[0].id);
 
     const unread = await notifications.list(asSales1, {

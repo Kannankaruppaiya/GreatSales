@@ -5,6 +5,7 @@ import { DateField } from "@/components/DateField";
 import { ApiError } from "@/lib/api";
 import { useCreateFollowUp, useUpdateFollowUp } from "@/features/followups/queries";
 import { ENTITY_TYPE_VALUES, type EntityTypeValue, type FollowUpRow } from "@/features/followups/types";
+import { today } from "@/lib/format";
 
 /**
  * Create/edit modal for the FollowUp entity resource. `entityType` is a raw
@@ -23,10 +24,18 @@ export function FollowUpModal({
   open,
   onClose,
   followUp,
+  defaults,
 }: {
   open: boolean;
   onClose: () => void;
   followUp?: FollowUpRow;
+  /**
+   * What a NEW follow-up starts as when the modal is opened from the record it
+   * is about — the invoice, the deal — rather than from the Follow-ups page.
+   * Opened from a record, the entity is already known, and asking the person to
+   * retype an id they cannot see is how a panel stops being used.
+   */
+  defaults?: { entityType?: EntityTypeValue; entityId?: string; title?: string; subtitle?: string };
 }) {
   const isEdit = !!followUp;
   const create = useCreateFollowUp();
@@ -34,14 +43,14 @@ export function FollowUpModal({
   const mutation = isEdit ? update : create;
 
   const [entityType, setEntityType] = useState<EntityTypeValue>(
-    followUp?.entityType ?? ENTITY_TYPE_VALUES[0],
+    followUp?.entityType ?? defaults?.entityType ?? ENTITY_TYPE_VALUES[0],
   );
-  const [entityId, setEntityId] = useState(followUp?.entityId ?? "");
+  const [entityId, setEntityId] = useState(followUp?.entityId ?? defaults?.entityId ?? "");
   const [dueDate, setDueDate] = useState(
-    followUp?.dueDate ?? new Date().toISOString().slice(0, 10),
+    followUp?.dueDate ?? today(),
   );
-  const [title, setTitle] = useState(followUp?.title ?? "");
-  const [subtitle, setSubtitle] = useState(followUp?.subtitle ?? "");
+  const [title, setTitle] = useState(followUp?.title ?? defaults?.title ?? "");
+  const [subtitle, setSubtitle] = useState(followUp?.subtitle ?? defaults?.subtitle ?? "");
   const [amount, setAmount] = useState(followUp?.amount != null ? String(followUp.amount) : "");
   const [note, setNote] = useState(followUp?.note ?? "");
   const [done, setDone] = useState(followUp?.done ?? false);

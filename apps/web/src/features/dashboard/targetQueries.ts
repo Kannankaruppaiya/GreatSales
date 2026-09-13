@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SalesTargetRow, TargetUpsert } from "@/features/dashboard/types";
 import { apiFetch, buildQuery } from "@/lib/api";
+import { invalidateAfter } from "@/lib/invalidate";
 
 /**
  * Monthly sales targets.
@@ -26,10 +27,7 @@ export function useTargets(period: string, enabled = true) {
 
 function useInvalidateTargets() {
   const qc = useQueryClient();
-  return () => {
-    void qc.invalidateQueries({ queryKey: targetKeys.all });
-    void qc.invalidateQueries({ queryKey: ["dashboard"] });
-  };
+  return () => invalidateAfter(qc, "targets");
 }
 
 export function useSetTarget() {

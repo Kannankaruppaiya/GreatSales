@@ -18,17 +18,25 @@ function makeLead(overrides: Partial<LeadRow> = {}): LeadRow {
     salespersonId: "u_sales1",
     salespersonName: "Test Sales",
     stage: "NewEnquiries",
-    leadStatus: null,
     industryId: null,
     industryName: null,
     subIndustry: null,
     area: "Ambattur",
     address: null,
+    contacts: [
+      {
+        id: "ct_1",
+        name: "Mr. Raja",
+        designation: "Purchase Manager",
+        phone: "+91 98400 12345",
+        whatsapp: "+91 98400 12345",
+        sameAsMobile: true,
+        email: null,
+        isPrimary: true,
+      },
+    ],
     contactName: "Mr. Raja",
     phone: "+91 98400 12345",
-    whatsapp: null,
-    sameAsMobile: true,
-    email: null,
     nextFollowUp: null,
     expClose: null,
     stageUpdatedAt: null,
@@ -66,6 +74,34 @@ function renderModal(lead: LeadRow) {
   );
 }
 
+
+/**
+ * Answer each request by PATH.
+ *
+ * The modal reads the workspace's users, industries, principals and product
+ * catalogue to fill its pickers, and a single `mockResolvedValue` handed the
+ * lead object to all of them — `flattenUsers` on a lead threw, the modal never
+ * rendered, and the failure read as "Save Changes is missing" rather than
+ * "your mock is wrong".
+ */
+function mockApi(onWrite?: (path: string, init?: RequestInit) => unknown) {
+  return vi.spyOn(api, "apiFetch").mockImplementation((path, init) => {
+    const url = String(path);
+    if (init?.method && init.method !== "GET") {
+      return Promise.resolve(onWrite?.(url, init) ?? {});
+    }
+    if (url.startsWith("/principals")) return Promise.resolve({ items: [] });
+    if (url.startsWith("/industries")) return Promise.resolve([]);
+    // The directory route (a plain array) must be checked before the
+    // /users prefix below (the paginated {items, nextCursor} shape) — the
+    // component reads /users/directory now, not the cursor-paginated list.
+    if (url.startsWith("/users/directory")) return Promise.resolve([]);
+    if (url.startsWith("/users") || url.startsWith("/products"))
+      return Promise.resolve({ items: [], nextCursor: null });
+    return Promise.resolve({ items: [], nextCursor: null });
+  });
+}
+
 describe("LeadDetailModal Kanban stage change", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -79,7 +115,7 @@ describe("LeadDetailModal Kanban stage change", () => {
     // a Kanban card drop onto that column would (both paths call
     // useUpdateLead().mutate({ id, patch: { stage } }) with the raw value).
     const lead = makeLead({ stage: "NewEnquiries" });
-    const spy = vi.spyOn(api, "apiFetch").mockResolvedValue({ ...lead, stage: "NegotiationOralConfirmation" });
+    const spy = mockApi(() => ({ ...lead, stage: "NegotiationOralConfirmation" }));
     renderModal(lead);
 
     const stageSelect = screen.getByDisplayValue("New Enquiries");
@@ -98,13 +134,15 @@ describe("LeadDetailModal Kanban stage change", () => {
     // packages/shared/src/enums.ts) — sending the display label
     // ("Negotiation / Oral Confirmation") would 400.
     expect(body.stage).toBe("NegotiationOralConfirmation");
-    // products is never part of LeadUpdate this cycle (create-only).
+    // Only what changed goes: the line items were not touched, so the patch
+    // must not carry a `products` key — sending one REPLACES them, and a stage
+    // move that silently rewrote a deal's value would be a bad day.
     expect(body.products).toBeUndefined();
   });
 
   it("does not PATCH when no field changed", async () => {
     const lead = makeLead({ stage: "NewEnquiries" });
-    const spy = vi.spyOn(api, "apiFetch").mockResolvedValue(lead);
+    const spy = mockApi(() => lead);
     renderModal(lead);
 
     await userEvent.click(screen.getByRole("button", { name: /save changes/i }));

@@ -11,6 +11,7 @@ import type {
   MappingCreate,
   MappingUpdate,
 } from "./types";
+import { invalidateAfter } from "@/lib/invalidate";
 
 const PAGE_SIZE = 50;
 
@@ -19,6 +20,9 @@ export interface MappingParams {
   customerId?: string;
   productId?: string;
   ownerId?: string;
+  principalId?: string;
+  /** Only mappings with neither an agreed nor a catalog price behind them. */
+  unpriced?: boolean;
 }
 
 export const mappingKeys = {
@@ -32,6 +36,10 @@ export function mappingsQueryFn(p: MappingParams, cursor: string | undefined) {
       customerId: p.customerId,
       productId: p.productId,
       ownerId: p.ownerId,
+      principalId: p.principalId,
+      // Sent only when ON. The server reads the literal "true" and nothing
+      // else, so an absent key and "false" mean the same thing.
+      unpriced: p.unpriced ? "true" : undefined,
       cursor,
       limit: String(PAGE_SIZE),
     })}`,
@@ -58,13 +66,11 @@ export function flattenMappings(data?: {
 }
 
 /**
- * Mappings feed the projections worksheet, so a write here changes what F6
- * shows. Invalidating projections too keeps the two from disagreeing until the
- * next reload.
+ * Mappings feed the projections worksheet, which in turn feeds the dashboard,
+ * so a write here changes what two other pages show.
  */
 export function onMappingMutationSuccess(qc: QueryClient) {
-  qc.invalidateQueries({ queryKey: ["mappings"] });
-  return qc.invalidateQueries({ queryKey: ["projections"] });
+  return invalidateAfter(qc, "mappings");
 }
 
 export function useCreateMapping() {

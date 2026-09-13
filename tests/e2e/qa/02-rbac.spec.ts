@@ -65,6 +65,54 @@ test.describe("RBAC — sidebar, route guard and API agree", () => {
     }
   });
 
+  test("a salesperson reads their own sales target and nobody else's", async ({ request }) => {
+    // The dashboard has always shown a salesperson their own target figure —
+    // it reads under `projection.read`, which sales holds. The targets list
+    // read under `report.view`, which sales does not, so the same fact was
+    // published in one place and 403'd in the other, and the sales branch of
+    // the service's owner scoping could not be reached over HTTP at all.
+    const salesToken = await apiToken(request, "sales");
+    const me = JSON.parse(
+      Buffer.from(salesToken.split(".")[1], "base64").toString("utf8"),
+    ).sub as string;
+
+    const mine = await request.get("/api/v1/targets", { headers: auth(salesToken) });
+    expect(mine.status()).toBe(200);
+    const rows = await mine.json();
+    for (const r of rows) {
+      expect(r.salespersonId, `target for ${r.salespersonName} leaked to sales`).toBe(me);
+    }
+
+    // Asking for somebody else by name does not widen it — the server decides.
+    const adminToken = await apiToken(request, "admin");
+    const all = await request.get("/api/v1/targets", { headers: auth(adminToken) });
+    const other = (await all.json()).find(
+      (r: { salespersonId: string }) => r.salespersonId !== me,
+    );
+    if (other) {
+      const asked = await request.get(
+        `/api/v1/targets?salespersonId=${other.salespersonId}`,
+        { headers: auth(salesToken) },
+      );
+      expect(asked.status()).toBe(200);
+      for (const r of await asked.json()) expect(r.salespersonId).toBe(me);
+    }
+  });
+
+  test("a salesperson still cannot SET a target", async ({ request }) => {
+    const token = await apiToken(request, "sales");
+    const me = JSON.parse(
+      Buffer.from(token.split(".")[1], "base64").toString("utf8"),
+    ).sub as string;
+    const res = await request.put("/api/v1/targets", {
+      headers: auth(token),
+      data: { salespersonId: me, period: "2026-01", targetValue: 1 },
+    });
+    // Lowering the number you are measured against is `target.manage`, and
+    // sales does not hold it — not even for their own row.
+    expect([401, 403], `got ${res.status()}`).toContain(res.status());
+  });
+
   test("sales token is refused on an admin-only write endpoint", async ({ request }) => {
     const token = await apiToken(request, "sales");
     const res = await request.post("/api/v1/products", {

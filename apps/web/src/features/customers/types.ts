@@ -5,6 +5,8 @@
  * source of truth — keep this in sync with packages/shared/src/customer.ts.
  */
 
+import type { ContactRow } from "@/features/leads/types";
+
 export type DivisionValue = "LUB" | "WES";
 
 /** One row of the global industry catalogue (`GET /industries`). */
@@ -32,6 +34,8 @@ export interface CustomerRow {
   salespersonName: string;
   collectorId: string | null;
   collectorName: string | null;
+  /** Everyone at this account, primary first. Mirrors LeadRow's `contacts`. */
+  contacts: ContactRow[];
   primaryContactName: string | null;
   primaryContactPhone: string | null;
   latitude: number | null;
@@ -77,9 +81,36 @@ export interface CustomerCreate {
   latitude?: number | null;
   longitude?: number | null;
   locationAccuracyM?: number | null;
+  /**
+   * Products to map to the new account, created in the SAME transaction as the
+   * customer. A recurring-sales account with no mapping can never appear on the
+   * projections worksheet, so onboarding both together is the only way the
+   * account is usable when the form closes.
+   */
+  mappings?: CustomerMappingSeed[];
+  /**
+   * `YYYY-MM`. When set, a blank projection line opens for each mapping in that
+   * month. Sent by the worksheet, which has a month in view; omitted by the
+   * customers page, which does not.
+   */
+  period?: string;
 }
 
-export type CustomerUpdate = Partial<CustomerCreate>;
+/** One customer x product pairing to create alongside the account. */
+export interface CustomerMappingSeed {
+  productId: string;
+  /** Agreed price for this account, or null to use the catalog price. */
+  customPrice?: number | null;
+}
+
+/**
+ * A PATCH edits the account's own fields only. `mappings` and `period` are
+ * create-time onboarding inputs — mappings are edited through /mappings and a
+ * projection line through /projections, each with its own rules.
+ */
+export type CustomerUpdate = Partial<
+  Omit<CustomerCreate, "mappings" | "period">
+>;
 
 /**
  * `paymentTerms` / `payZone` are raw DB enum strings on the wire (see

@@ -250,3 +250,14 @@ export function zoneTone(z: string): Tone {
   return "neutral";
 }
 
+/**
+ * Colour band for an invoice's payment status. Keyed on the display label, the
+ * same convention as the tone helpers above, so the payments table can hand
+ * `StatusBadge` a tone instead of hand-rolling its own badge classes.
+ */
+export function payTone(s: string): Tone {
+  if (s === "Paid") return "won";
+  if (s === "Partially Paid") return "hot";
+  if (s === "Overdue") return "lost";
+  return "open";
+}

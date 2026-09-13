@@ -98,7 +98,9 @@ describe('ImportsService (integration)', () => {
 
   it('refuses a row whose salesperson is not in the workspace', async () => {
     const job = await imports.importCustomers(admin, {
-      rows: [row({ name: 'Ghost Owner Ltd', salespersonName: 'Nobody At All' })],
+      rows: [
+        row({ name: 'Ghost Owner Ltd', salespersonName: 'Nobody At All' }),
+      ],
       onDuplicate: 'skip',
     });
     expect(job.created).toBe(0);
@@ -206,5 +208,90 @@ describe('ImportsService (integration)', () => {
         }),
       ).rejects.toBeInstanceOf(ForbiddenException);
     }
+  });
+
+  describe('receivables', () => {
+    /**
+     * The whole reason this endpoint exists: the page used to POST one invoice
+     * per row in a loop, and the API throttles at 120 requests a minute — so a
+     * real Tally export was cut off partway with the ledger half written. One
+     * request, one transaction.
+     */
+    const invoice = (over: Record<string, unknown> = {}) => ({
+      line: 2,
+      refNo: 'IMP-001',
+      customerName: 'Acme Corp Customer One',
+      invoiceDate: '2026-09-01',
+      amount: 5000,
+      received: 1000,
+      payZone: 'RedZone',
+      delayReason: null,
+      ...over,
+    });
+
+    it('takes a file bigger than the per-minute request limit in one call', async () => {
+      const rows = Array.from({ length: 150 }, (_, i) =>
+        invoice({ line: i + 2, refNo: `IMP-BULK-${i}` }),
+      );
+      const job = await imports.importPayments(admin, {
+        rows,
+        onDuplicate: 'skip',
+      });
+      expect(job.type).toBe('payments');
+      expect(job.created).toBe(150);
+      expect(job.status).toBe('completed');
+    });
+
+    it('links each invoice to the account it names, so it inherits an owner', async () => {
+      await imports.importPayments(admin, {
+        rows: [invoice({ refNo: 'IMP-LINKED' })],
+        onDuplicate: 'skip',
+      });
+      const row = await prisma
+        .forTenant('tenant_acme')
+        .payment.findFirst({ where: { refNo: 'IMP-LINKED' } });
+      expect(row?.customerId).toBe('cust_1_acme');
+      // Derived, not taken from the sheet: the sheet has neither.
+      expect(row?.pending?.toString()).toBe('4000');
+      expect(row?.dueDate).not.toBeNull();
+    });
+
+    it('skips a reference the ledger already holds rather than duplicating it', async () => {
+      const first = await imports.importPayments(admin, {
+        rows: [invoice({ refNo: 'IMP-DUP' })],
+        onDuplicate: 'skip',
+      });
+      expect(first.created).toBe(1);
+      const again = await imports.importPayments(admin, {
+        rows: [invoice({ refNo: 'IMP-DUP', amount: 9999 })],
+        onDuplicate: 'skip',
+      });
+      expect(again.created).toBe(0);
+      expect(again.skipped).toBe(1);
+    });
+
+    it('returns a bad row with its line and reason instead of refusing the file', async () => {
+      const job = await imports.importPayments(admin, {
+        rows: [
+          invoice({ line: 2, refNo: 'IMP-GOOD' }),
+          invoice({ line: 3, refNo: 'IMP-BADZONE', payZone: 'PurpleZone' }),
+        ],
+        onDuplicate: 'skip',
+      });
+      expect(job.created).toBe(1);
+      expect(job.status).toBe('completed_with_errors');
+      expect(job.errors).toHaveLength(1);
+      expect(job.errors[0].line).toBe(3);
+      expect(job.errors[0].reason).toContain('PurpleZone');
+    });
+
+    it('records the run, so the history says what happened', async () => {
+      await imports.importPayments(admin, {
+        rows: [invoice({ refNo: 'IMP-HISTORY' })],
+        onDuplicate: 'skip',
+      });
+      const jobs = await imports.list(admin, { limit: 10 });
+      expect(jobs.some((j) => j.type === 'payments')).toBe(true);
+    });
   });
 });

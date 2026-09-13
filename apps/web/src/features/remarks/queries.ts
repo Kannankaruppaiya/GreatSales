@@ -2,10 +2,13 @@
  * react-query hooks for entity remarks (the activity-note timeline).
  *
  * Keyed by (entityType, entityId) so two open drawers do not share a cache
- * entry, and a post invalidates only the timeline it belongs to.
+ * entry. A post goes through `invalidateAfter` rather than invalidating just
+ * that timeline: the projections worksheet prints the remark count on every
+ * line, so a note is stale data on a page the note was not posted from.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, buildQuery } from "@/lib/api";
+import { invalidateAfter } from "@/lib/invalidate";
 import type {
   RemarkCreate,
   RemarkEntityType,
@@ -54,12 +57,9 @@ export function useCreateRemark() {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    onSuccess: (_row, body) =>
-      qc.invalidateQueries({
-        queryKey: remarkKey({
-          entityType: body.entityType,
-          entityId: body.entityId,
-        }),
-      }),
+    // Through the graph, not a hand-rolled call: the remark count is printed
+    // on the projections worksheet, so a note makes more than its own thread
+    // stale. See STALE_AFTER.remarks.
+    onSuccess: () => invalidateAfter(qc, "remarks"),
   });
 }

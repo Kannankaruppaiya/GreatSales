@@ -15,7 +15,14 @@ import {
   type PayZoneValue,
 } from "@/features/customers/types";
 import { useCreateCustomer, useIndustries } from "@/features/customers/queries";
-import { useUsers, flattenUsers } from "@/features/users/queries";
+import {
+  CustomerProductMappings,
+  draftsToSeeds,
+  duplicateProductIndex,
+  emptyDraft,
+  type MappingDraft,
+} from "@/features/customers/CustomerProductMappings";
+import { useUserDirectory } from "@/features/users/queries";
 import { useAuthRole, useAuthUser } from "@/store/auth";
 
 export interface CustomerFkOption {
@@ -31,12 +38,26 @@ export function AddCustomerModal({
   salespeople,
   collectors,
   industries,
+  period,
+  requireMapping = false,
 }: {
   open: boolean;
   onClose: () => void;
   salespeople?: CustomerFkOption[];
   collectors?: CustomerFkOption[];
   industries?: CustomerFkOption[];
+  /**
+   * The worksheet month this account is being added from. When set, a blank
+   * projection line is opened for each mapped product in that month, so the
+   * new customer shows up on the worksheet the operator is looking at instead
+   * of in a month they have to go and find.
+   */
+  period?: string;
+  /**
+   * Opened from the projections worksheet, where a customer with no mapped
+   * product would be invisible — so at least one product row is required.
+   */
+  requireMapping?: boolean;
 }) {
   const canPinLocation = useFeature("customer-location");
   const create = useCreateCustomer();
@@ -52,8 +73,8 @@ export function AddCustomerModal({
   const industryOptions = Array.isArray(rawIndustries) ? rawIndustries : [];
 
   const needsUsersFetch = salespeople === undefined && !isSales;
-  const usersQuery = useUsers({}, { enabled: needsUsersFetch && open });
-  const allUsers = useMemo(() => flattenUsers(usersQuery.data), [usersQuery.data]);
+  const usersQuery = useUserDirectory({ enabled: needsUsersFetch && open });
+  const allUsers = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
 
   const fetchedSalespeople = useMemo(
     () =>
@@ -90,11 +111,14 @@ export function AddCustomerModal({
   const [collectorId, setCollectorId] = useState("");
   const [outstanding, setOutstanding] = useState<string>("");
   const [pin, setPin] = useState<Pin | null>(null);
+  const [mappingRows, setMappingRows] = useState<MappingDraft[]>([emptyDraft()]);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
-  const selectedSalespersonId = isSales
-    ? authUser?.id || ""
-    : salespersonId || salespersonOptions[0]?.id || "";
+  // No fallback to "the first option in the list" — see
+  // CreateSalesOrderModal's reset effect for the incident this class of bug
+  // caused: a customer saved without the admin ever touching the field
+  // silently took on whoever sorted first alphabetically, active or not.
+  const selectedSalespersonId = isSales ? authUser?.id || "" : salespersonId;
 
   const isDirty = Boolean(
     name.trim() ||
@@ -104,7 +128,8 @@ export function AddCustomerModal({
       outstanding.trim() ||
       pin !== null ||
       subIndustry.trim() ||
-      (area === "Other" && customArea.trim())
+      (area === "Other" && customArea.trim()) ||
+      mappingRows.some((r) => r.productId || r.price.trim())
   );
 
   const resetForm = () => {
@@ -124,6 +149,7 @@ export function AddCustomerModal({
     setPayZone("GreenZone");
     setCollectorId("");
     setOutstanding("");
+    setMappingRows([emptyDraft()]);
     setShowDiscardConfirm(false);
   };
 
@@ -142,9 +168,14 @@ export function AddCustomerModal({
     onClose();
   };
 
+  const mappingSeeds = draftsToSeeds(mappingRows);
+  const hasDuplicateProduct = duplicateProductIndex(mappingRows) != null;
+  const mappingsOk =
+    !hasDuplicateProduct && (!requireMapping || mappingSeeds.length > 0);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !selectedSalespersonId) return;
+    if (!name.trim() || !selectedSalespersonId || !mappingsOk) return;
 
     const effectiveArea = area === "Other" ? (customArea.trim() || "Other") : area;
 
@@ -169,6 +200,11 @@ export function AddCustomerModal({
         latitude: pin?.latitude ?? null,
         longitude: pin?.longitude ?? null,
         locationAccuracyM: pin?.locationAccuracyM ?? null,
+        // The account, its contact, its product mappings and the worksheet
+        // lines for them are ONE request — the server commits them together,
+        // so a failure cannot leave a customer nobody can project against.
+        ...(mappingSeeds.length > 0 ? { mappings: mappingSeeds } : {}),
+        ...(period && mappingSeeds.length > 0 ? { period } : {}),
       });
 
       resetForm();
@@ -205,7 +241,9 @@ export function AddCustomerModal({
             <Button
               size="sm"
               onClick={handleSubmit}
-              disabled={!name.trim() || !selectedSalespersonId || create.isPending}
+              disabled={
+                !name.trim() || !selectedSalespersonId || !mappingsOk || create.isPending
+              }
             >
               {create.isPending ? "Creating…" : "Create Customer"}
             </Button>
@@ -589,6 +627,29 @@ export function AddCustomerModal({
               </div>
             )}
           </div>
+
+          {/* The products this account buys. Without at least one mapping a
+              customer cannot appear on the projections worksheet at all, which
+              is why the worksheet's own button requires one. */}
+          <CustomerProductMappings
+            rows={mappingRows}
+            onChange={setMappingRows}
+            disabled={create.isPending}
+            enabled={open}
+            error={
+              requireMapping && mappingSeeds.length === 0
+                ? "Map at least one sub product — a customer with none cannot be projected against."
+                : undefined
+            }
+          />
+
+          {period && mappingSeeds.length > 0 && (
+            <p className="text-2xs text-muted">
+              {mappingSeeds.length} blank line
+              {mappingSeeds.length === 1 ? "" : "s"} will open in {period} for this
+              account — enter the projected quantity on the worksheet.
+            </p>
+          )}
 
           {create.isError && (
             <p role="alert" className="text-[11.5px] font-medium text-red animate-in fade-in-50">

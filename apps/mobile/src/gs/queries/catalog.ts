@@ -10,6 +10,7 @@ import type {
 } from '@greatsales/shared';
 import { apiFetch } from '../api';
 import { listParams, useCursorList } from './cursorList';
+import { invalidateAfter } from '../invalidate';
 
 export type { PrincipalRow, ProductRow, MappingRow, MappingCreate, MappingUpdate, IndustryRow };
 
@@ -100,10 +101,7 @@ export function useCreateMapping() {
         method: 'POST',
         body: JSON.stringify(body),
       }),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['mappings'] });
-      void qc.invalidateQueries({ queryKey: ['projections'] });
-    },
+    onSuccess: () => invalidateAfter(qc, 'mappings'),
   });
 }
 
@@ -123,10 +121,7 @@ export function useUpdateMapping() {
         method: 'PATCH',
         body: JSON.stringify(body),
       }),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['mappings'] });
-      void qc.invalidateQueries({ queryKey: ['projections'] });
-    },
+    onSuccess: () => invalidateAfter(qc, 'mappings'),
   });
 }
 
@@ -143,9 +138,6 @@ export function useDeleteMapping() {
   return useMutation({
     mutationFn: (id: string) =>
       apiFetch<void>(`/mappings/${id}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['mappings'] });
-      void qc.invalidateQueries({ queryKey: ['projections'] });
-    },
+    onSuccess: () => invalidateAfter(qc, 'mappings'),
   });
 }

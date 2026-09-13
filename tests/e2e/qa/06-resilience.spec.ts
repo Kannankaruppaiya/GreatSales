@@ -96,7 +96,7 @@ test.describe("Resilience & session", () => {
     });
 
     await page.goto(featureUrl("customers"));
-    await page.getByRole("button", { name: /\+ Add New Customer/i }).click();
+    await page.getByRole("button", { name: /Add Customer/i }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByPlaceholder(/Anand Automotive/i).fill(name);
 
@@ -186,10 +186,14 @@ test.describe("Resilience & session", () => {
     await expect(palette).not.toBeVisible({ timeout: 10000 });
   });
 
-  test("an unknown top-level route renders the Not Found page", async ({ page }) => {
+  test("an unknown top-level route tells an anonymous visitor nothing", async ({ page }) => {
     await page.goto("/definitely-not-a-route");
-    // Anonymous: the catch-all is behind ProtectedRoute, so it lands on login.
-    await page.waitForURL(/\/login/, { timeout: 10000 });
-    await expect(page.locator("#login-email")).toBeVisible();
+    // The catch-all sits behind ProtectedRoute, and a path with no role segment
+    // has no door to send anyone to. It used to be asserted that this lands on
+    // /login; there is deliberately no shared sign-in page any more — offering
+    // one would put every portal a click from the administrator's — so the app
+    // says so in place, without moving and without naming the four addresses.
+    await expect(page.getByText(/not a sign-in address/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.locator("#login-email")).toHaveCount(0);
   });
 });

@@ -24,6 +24,8 @@ const LINE = {
   salespersonId: "u2",
   salespersonName: "Megala",
   price: 160,
+  ownPrice: null,
+  inheritedPrice: 160,
   committedQty: 10,
   achievedQty: 4,
   projValue: 1600,
@@ -35,6 +37,8 @@ const LINE = {
   targetDate: null,
   salesOrderId: null,
   salesOrderStatus: null,
+  remarkCount: 0,
+  followUpCount: 0,
 };
 
 const RESPONSE: ProjectionListResponse = {

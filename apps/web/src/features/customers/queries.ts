@@ -18,6 +18,7 @@ import type {
   CustomerUpdate,
   IndustryRow,
 } from "./types";
+import { invalidateAfter } from "@/lib/invalidate";
 
 const PAGE_SIZE = 50;
 
@@ -76,8 +77,13 @@ export function flattenCustomers(data?: { pages: CustomerListResponse[] }): Cust
   return data?.pages.flatMap((pg) => pg.items) ?? [];
 }
 
+/**
+ * A customer's name and owner are copied onto its mappings, projections,
+ * orders and payments, so renaming or reassigning one leaves four other lists
+ * printing the old value.
+ */
 export function onCustomerMutationSuccess(qc: QueryClient) {
-  return qc.invalidateQueries({ queryKey: ["customers"] });
+  return invalidateAfter(qc, "customers");
 }
 
 /**

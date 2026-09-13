@@ -16,7 +16,7 @@ import { resolveRange } from "@/data/periodRange";
 import { useAuth } from "@/store/auth";
 import { useManagements } from "@/features/management/queries";
 import { useDashboard } from "@/features/dashboard/queries";
-import { useUsers, flattenUsers } from "@/features/users/queries";
+import { useUserDirectory } from "@/features/users/queries";
 import { featurePath } from "@/data/features";
 import { useRolePath } from "@/lib/rolePath";
 import { inr, lakhs, pct } from "@/lib/format";
@@ -66,7 +66,7 @@ export default function ManagementHomePage() {
   const dashQ = useDashboard(resolveRange("month", `${month}-01`), {
     enabled: !!accessToken,
   });
-  const usersQ = useUsers();
+  const usersQ = useUserDirectory();
 
   const kpis = dashQ.data?.kpis;
   const bySalesperson = dashQ.data?.bySalesperson ?? [];
@@ -76,7 +76,7 @@ export default function ManagementHomePage() {
   // salesperson with nothing booked this month has no row in `bySalesperson`
   // and must still be listed, at zero, or the page quietly hides the people
   // whose numbers most need looking at.
-  const reps = flattenUsers(usersQ.data).filter((u) =>
+  const reps = (usersQ.data ?? []).filter((u) =>
     u.roleName?.toLowerCase().includes("sales"),
   );
   const byId = new Map(bySalesperson.map((b) => [b.id, b]));

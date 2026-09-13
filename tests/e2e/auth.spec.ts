@@ -1,8 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { MGMT_ID } from "./fixtures/test-data";
 
 test.describe("Authentication & Route Protection", () => {
   test("unauthenticated visitor is redirected from protected route to /login", async ({ page }) => {
-    await page.goto("/managements/greatsales-industrial-corp/dashboard");
+    await page.goto(`/managements/${MGMT_ID}/dashboard`);
     await page.waitForURL(/\/login/, { timeout: 10000 });
     await expect(page.locator("#login-email")).toBeVisible();
   });

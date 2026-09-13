@@ -38,6 +38,30 @@ const baseEnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
 
   /**
+   * IANA zone the business day is resolved in — the answer to "is this
+   * overdue?" for follow-ups, projections and receivables aging.
+   *
+   * Declared here because it is validated here: a typo used to be impossible to
+   * notice, since an unrecognised zone makes Intl fall back to UTC and every
+   * date then reads a day early for the first five and a half hours of an IST
+   * morning. Refusing to boot is the only version of that failure anyone sees.
+   */
+  BUSINESS_TIMEZONE: z
+    .string()
+    .default('Asia/Kolkata')
+    .refine(
+      (tz) => {
+        try {
+          new Intl.DateTimeFormat('en-CA', { timeZone: tz });
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { message: 'must be an IANA time zone, e.g. Asia/Kolkata' },
+    ),
+
+  /**
    * Runtime connection = greatsales_app, the RLS-BOUND role. This must never
    * be an owner/superuser URL: such a role silently bypasses every RLS
    * policy and the API would serve cross-tenant data. PrismaService refuses

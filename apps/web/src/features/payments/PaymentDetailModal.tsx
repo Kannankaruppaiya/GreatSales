@@ -1,13 +1,20 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Dialog, Input, Select } from "@/components/ui";
 import { DateField } from "@/components/DateField";
 import { ApiError } from "@/lib/api";
 import { inr } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import { useAuthRole } from "@/store/auth";
 import { useUpdatePayment } from "@/features/payments/queries";
 import { RemarksPanel } from "@/features/remarks/RemarksPanel";
 import { AttachmentsPanel } from "@/features/attachments/AttachmentsPanel";
+import { ReminderMenu } from "@/features/payments/ReminderMenu";
+import { FollowUpModal } from "@/features/followups/FollowUpModal";
+import {
+  useFollowUps,
+  useUpdateFollowUp,
+  flattenFollowUps,
+} from "@/features/followups/queries";
+import { shortDate } from "@/lib/format";
 import {
   PAY_ZONE_VALUES,
   PAY_ZONE_LABELS,
@@ -15,6 +22,7 @@ import {
   type PayZoneValue,
   type PaymentRow,
   type PaymentUpdate,
+  type ReminderStage,
 } from "@/features/payments/types";
 import type { PaymentFkOption } from "@/features/payments/AddPaymentModal";
 
@@ -32,20 +40,46 @@ export function PaymentDetailModal({
   const update = useUpdatePayment();
   const role = useAuthRole();
 
-  if (!payment) return null;
-
   // Kept in lockstep with PaymentsPage's canEdit gate — see the comment
   // there. Payments writes require `payment.write`, which `sales` does not
   // hold, so (unlike sibling detail modals) this is NOT `role !== "mgmt"`.
   const canEdit = role === "admin" || role === "super_admin";
-  const statusLabel = PAYMENT_STATUS_LABELS[payment.status as keyof typeof PAYMENT_STATUS_LABELS] ?? payment.status;
 
   const [payZone, setPayZone] = useState<PayZoneValue>(
-    (payment.payZone as PayZoneValue) || "GreenZone",
+    (payment?.payZone as PayZoneValue) || "GreenZone",
   );
-  const [salespersonId, setSalespersonId] = useState(payment.salespersonId || "");
-  const [delayReason, setDelayReason] = useState(payment.delayReason || "");
-  const [nextFollowUp, setNextFollowUp] = useState(payment.nextFollowUp || "");
+  const [salespersonId, setSalespersonId] = useState(payment?.salespersonId || "");
+  const [delayReason, setDelayReason] = useState(payment?.delayReason || "");
+  const [nextFollowUp, setNextFollowUp] = useState(payment?.nextFollowUp || "");
+
+  // All hooks above must run on every render regardless of `payment`, so
+  // this component never returns early before them (Rules of Hooks). The
+  // caller currently remounts via `key={payment.id}` when switching between
+  // invoices, but this effect keeps local state in sync even if that ever
+  // changes — reopening the same instance for a different payment (or a
+  // fresh fetch of the same one) must not keep the previous invoice's
+  // edited-but-unsaved values on screen.
+  useEffect(() => {
+    if (!payment) return;
+    setPayZone((payment.payZone as PayZoneValue) || "GreenZone");
+    setSalespersonId(payment.salespersonId || "");
+    setDelayReason(payment.delayReason || "");
+    setNextFollowUp(payment.nextFollowUp || "");
+  }, [payment]);
+
+  // The real follow-ups for this invoice — the same rows the Follow-ups page
+  // lists and the dashboard tile counts.
+  const fuQuery = useFollowUps({ entityType: "Payment" }, { enabled: !!payment && open });
+  const markDone = useUpdateFollowUp();
+  const [showAddFollowUp, setShowAddFollowUp] = useState(false);
+
+  if (!payment) return null;
+
+  const statusLabel = PAYMENT_STATUS_LABELS[payment.status as keyof typeof PAYMENT_STATUS_LABELS] ?? payment.status;
+
+  const invoiceFollowUps = flattenFollowUps(fuQuery.data).filter(
+    (f) => f.entityId === payment.id,
+  );
 
   const handleSave = async () => {
     const patch: Partial<PaymentUpdate> = {};
@@ -67,8 +101,8 @@ export function PaymentDetailModal({
     }
   };
 
-  const toggleMail = (mk: "mail1" | "mail2" | "mail3" | "mail4") => {
-    update.mutate({ id: payment.id, patch: { [mk]: !payment[mk] } });
+  const setReminder = (stage: ReminderStage, next: boolean) => {
+    update.mutate({ id: payment.id, patch: { [stage]: next } });
   };
 
   return (
@@ -212,52 +246,66 @@ export function PaymentDetailModal({
           </div>
         </div>
 
-        {/* 4 Email Reminder Chips — each toggle PATCHes immediately */}
+        {/* The reminder chase. Same control as the table's Reminders column,
+            so the two surfaces cannot disagree about what is next. */}
         <div className="rounded-xl border border-line bg-surface p-3 space-y-2">
           <div className="text-xs font-bold text-ink uppercase tracking-wider">
             Email Payment Reminders Sent
           </div>
-          <div className="flex items-center gap-2">
-            {(["mail1", "mail2", "mail3", "mail4"] as const).map((mk, mi) => (
-              <button
-                key={mk}
-                type="button"
-                disabled={!canEdit || update.isPending}
-                onClick={() => toggleMail(mk)}
-                className={cn(
-                  "flex-1 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer",
-                  payment[mk]
-                    ? "bg-brand text-white border-brand shadow-2xs"
-                    : "bg-surface-2 text-muted border-line hover:border-muted"
-                )}
-              >
-                Reminder {mi + 1}
-              </button>
-            ))}
-          </div>
+          <ReminderMenu
+            payment={payment}
+            canEdit={canEdit}
+            disabled={update.isPending}
+            variant="block"
+            onToggle={setReminder}
+          />
         </div>
 
-        {/* Follow-up log — read-only here (nested on the payment row; the
-            FollowUps API is the write path, out of scope for this task). */}
+        {/* The follow-ups on this invoice.
+            
+            This panel used to read `payment.followups` — the nested
+            `PaymentFollowup` rows — and offer no way to add one. Nothing in the
+            product writes that table: not the app, not the seed, not the
+            import. So the panel said "No follow-ups logged yet." to every user
+            of every workspace, for ever, while the Follow-ups feature held the
+            real rows a few clicks away. It reads and writes those now. */}
         <div className="rounded-xl border border-line bg-surface p-3.5 space-y-2.5">
-          <span className="text-xs font-bold text-ink uppercase tracking-wider block">
-            Follow-up Log ({payment.followups.length})
-          </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-ink uppercase tracking-wider">
+              Follow-ups ({invoiceFollowUps.length})
+            </span>
+            {canEdit && (
+              <Button size="sm" variant="secondary" onClick={() => setShowAddFollowUp(true)}>
+                Add follow-up
+              </Button>
+            )}
+          </div>
 
           <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
-            {payment.followups.length === 0 ? (
-              <p className="text-[11px] text-muted">No follow-ups logged yet.</p>
+            {invoiceFollowUps.length === 0 ? (
+              <p className="text-2xs text-muted">No follow-ups on this invoice yet.</p>
             ) : (
-              payment.followups.map((f) => (
+              invoiceFollowUps.map((f) => (
                 <div
                   key={f.id}
                   className="rounded-lg border border-line bg-surface-2/60 p-2 text-xs text-ink space-y-0.5"
                 >
-                  <div className="flex items-center justify-between text-[10.5px] text-muted">
-                    <span className="font-semibold">{f.date}</span>
-                    {f.nextFollowupDate && <span>Next: {f.nextFollowupDate}</span>}
+                  <div className="flex items-center justify-between gap-2 text-3xs text-muted">
+                    <span className="font-semibold">Due {shortDate(f.dueDate)}</span>
+                    {canEdit && !f.done && (
+                      <button
+                        type="button"
+                        onClick={() => markDone.mutate({ id: f.id, patch: { done: true } })}
+                        disabled={markDone.isPending}
+                        className="font-bold uppercase tracking-wider text-brand hover:underline cursor-pointer disabled:opacity-50"
+                      >
+                        Mark done
+                      </button>
+                    )}
+                    {f.done && <span className="font-bold uppercase tracking-wider">Done</span>}
                   </div>
-                  <div>{f.note}</div>
+                  <div className="font-semibold">{f.title || "Follow-up"}</div>
+                  {f.note && <div className="text-2xs text-muted">{f.note}</div>}
                 </div>
               ))
             )}
@@ -284,6 +332,21 @@ export function PaymentDetailModal({
           canWrite={canEdit}
         />
       </div>
+
+      {/* Opened from the invoice, so the entity it is about is already known —
+          the person never has to find and paste a payment id. */}
+      {showAddFollowUp && (
+        <FollowUpModal
+          open={showAddFollowUp}
+          onClose={() => setShowAddFollowUp(false)}
+          defaults={{
+            entityType: "Payment",
+            entityId: payment.id,
+            title: `Collect on ${payment.refNo || payment.invoiceNo || "this invoice"}`,
+            subtitle: payment.customerName ?? undefined,
+          }}
+        />
+      )}
     </Dialog>
   );
 }

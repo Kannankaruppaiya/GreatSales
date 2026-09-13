@@ -10,7 +10,7 @@ import { EditCustomerModal } from "@/features/customers/EditCustomerModal";
 import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
 import { ReassignCustomersModal } from "@/features/customers/ReassignCustomersModal";
 import { useCustomers, flattenCustomers, useIndustries } from "@/features/customers/queries";
-import { useUsers, flattenUsers } from "@/features/users/queries";
+import { useUserDirectory } from "@/features/users/queries";
 import { CUSTOMER_TIERS, INDUSTRIAL_AREAS } from "@/data/constants";
 import type { CustomerRow } from "@/features/customers/types";
 
@@ -76,12 +76,12 @@ export default function CustomersPage() {
   //
   //   area      → INDUSTRIAL_AREAS, the same list Add/Edit Customer writes from
   //   industry  → GET /industries, the global catalogue
-  //   owner     → GET /users, not "owners seen so far"
+  //   owner     → GET /users/directory, not "owners seen so far"
   //   category  → CUSTOMER_TIERS, a fixed enum
   const industriesQ = useIndustries();
   const industryOptions = industriesQ.data ?? [];
-  const usersQ = useUsers();
-  const salespersonOptions = flattenUsers(usersQ.data).filter((u) =>
+  const usersQ = useUserDirectory();
+  const salespersonOptions = (usersQ.data ?? []).filter((u) =>
     u.roleName?.toLowerCase().includes("sales"),
   );
 
@@ -195,11 +195,11 @@ export default function CustomersPage() {
             emptyLabel="No customer accounts found matching search."
           >
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-surface-2 text-[10.5px] font-extrabold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs whitespace-nowrap">
+              <thead className="bg-surface-2 text-3xs font-extrabold uppercase tracking-wider text-muted sticky top-0 z-10 border-b border-line shadow-2xs whitespace-nowrap">
                 <tr>
                   <th className="py-2.5 px-3 min-w-[220px]">Customer</th>
                   <th className="py-2.5 px-3">Area / Location</th>
-                  <th className="py-2.5 px-3">Industry Sector</th>
+                  <th className="py-2.5 px-3 min-w-[170px]">Industry Sector</th>
                   <th className="py-2.5 px-3 min-w-[180px]">Key Contact</th>
                   <th className="py-2.5 px-3">Category</th>
                   <th className="py-2.5 px-3">Payment terms</th>
@@ -211,11 +211,14 @@ export default function CustomersPage() {
               <tbody className="divide-y divide-line/60">
                 {customers.map((c) => (
                   <tr key={c.id} className="hover:bg-surface-2/70 transition-colors">
+                    {/* A company name is not prose — broken across two lines it reads
+                        as a different, shorter company. One line, full text on hover. */}
                     <td className="py-2.5 px-3">
                       <button
                         type="button"
                         onClick={() => setSelectedDrawerCustomer(c)}
-                        className="font-bold text-ink hover:text-brand hover:underline cursor-pointer text-left block"
+                        title={c.name}
+                        className="block max-w-[260px] truncate text-left font-bold text-ink hover:text-brand hover:underline cursor-pointer"
                       >
                         {c.name}
                       </button>
@@ -223,7 +226,9 @@ export default function CustomersPage() {
                     <td className="py-2.5 px-3 text-xs font-medium text-ink">
                       {c.area || "—"}
                     </td>
-                    <td className="py-2.5 px-3 text-xs font-medium text-ink">
+                    {/* A sector is a label, not a sentence. In a 124px column almost
+                        every one of them wrapped. */}
+                    <td className="py-2.5 px-3 text-xs font-medium text-ink whitespace-nowrap">
                       {c.industryName || "General"}
                     </td>
                     <td className="py-2.5 px-3 text-muted">

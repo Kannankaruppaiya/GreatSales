@@ -261,7 +261,7 @@ function LeadDetail({ l, onUpdate }: { l: LeadRow; onUpdate: (patch: LeadUpdate)
       <View className="flex-row flex-wrap gap-y-3 bg-surface3/60 rounded-xl p-3">
         <Info label="Industry" value={`${l.industryName ?? ''}${l.subIndustry ? ` · ${l.subIndustry}` : ''}`} />
         <Info label="Area & Address" value={`${l.area ?? ''}${l.address ? `, ${l.address}` : ''}`} />
-        <Info label="Phone / WhatsApp" value={`${l.phone ?? ''}${l.whatsapp && l.whatsapp !== l.phone ? ` / ${l.whatsapp}` : ''}`} />
+        <Info label="Phone / WhatsApp" value={l.phone ?? '—'} />
         <Info label="Pipeline Value" value={inr(l.totalValue)} strong />
       </View>
 
@@ -340,10 +340,22 @@ function AddLeadForm({ salespersonId, onCreate, onDone }: {
       await onCreate({
         customerName: name.trim(),
         salespersonId,
-        contactName: contact.trim() || null,
-        phone: phone.trim() || null,
-        whatsapp: sameAsMobile ? phone.trim() || null : wa.trim() || null,
-        sameAsMobile,
+        // One primary contact from this form. The web console edits the full
+        // list; a phone capturing a new enquiry names the person in front of
+        // them, and the rest are added later.
+        ...(contact.trim() || phone.trim()
+          ? {
+              contacts: [
+                {
+                  name: contact.trim() || 'Contact',
+                  phone: phone.trim() || null,
+                  whatsapp: sameAsMobile ? phone.trim() || null : wa.trim() || null,
+                  sameAsMobile,
+                  isPrimary: true,
+                },
+              ],
+            }
+          : {}),
         address: address.trim() || null,
         area: area || null,
         industryId: industryId || null,

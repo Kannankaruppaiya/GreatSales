@@ -70,8 +70,17 @@ export function DivisionBadge({ division, className }: { division?: Division | s
   );
 }
 
+/**
+ * Accepts either the DB enum value (`"YellowZone"`) or the display label
+ * (`"Yellow Zone"`). The payments table holds the enum and the aging reports
+ * hold labels, and before this the table hand-rolled its own square badge
+ * rather than reach for this one — which is how "Yellow Zone" ended up
+ * wrapping onto two lines and making every row in the column a different
+ * height.
+ */
 export function PayZoneBadge({ zone, className }: { zone?: PayZone | string; className?: string }) {
   if (!zone) return <span className="text-xs text-muted">—</span>;
+  const label = String(zone).replace(/([a-z])([A-Z])/g, "$1 $2");
   const map: Record<string, string> = {
     "Green Zone": "bg-brand-soft text-brand-ink border-brand/25",
     "Yellow Zone": "bg-amber-soft text-amber border-amber/30",
@@ -81,12 +90,12 @@ export function PayZoneBadge({ zone, className }: { zone?: PayZone | string; cla
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-tight",
-        map[zone] ?? "bg-surface-2 text-muted border-line",
+        "inline-flex items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-tight",
+        map[label] ?? "bg-surface-2 text-muted border-line",
         className,
       )}
     >
-      {zone}
+      {label}
     </span>
   );
 }

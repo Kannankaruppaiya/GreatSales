@@ -20,12 +20,15 @@ import type {
   FollowUpUpdate,
   EntityTypeValue,
 } from "./types";
+import { invalidateAfter } from "@/lib/invalidate";
 
 const PAGE_SIZE = 50;
 
 export interface FollowUpParams {
   search?: string;
   entityType?: EntityTypeValue;
+  /** One specific record's follow-ups. Only meaningful with `entityType`. */
+  entityId?: string;
   done?: boolean;
   ownerId?: string;
 }
@@ -39,6 +42,7 @@ export function followUpsQueryFn(p: FollowUpParams, cursor: string | undefined) 
     `/followups${buildQuery({
       search: p.search,
       entityType: p.entityType,
+      entityId: p.entityId,
       // `done` is a boolean filter but buildQuery only accepts strings —
       // stringify it here so `done: false` still reaches the URL instead of
       // silently vanishing (buildQuery only drops undefined/"" values, but a
@@ -68,8 +72,13 @@ export function flattenFollowUps(data?: { pages: FollowUpListResponse[] }): Foll
   return data?.pages.flatMap((pg) => pg.items) ?? [];
 }
 
+/**
+ * The dashboard's outstanding-follow-ups count and its list come from this
+ * table (dashboard.service.ts -> `followUps.outstanding`), so a follow-up
+ * saved from a tile has to refresh the tile as well as this page.
+ */
 export function onFollowUpMutationSuccess(qc: QueryClient) {
-  return qc.invalidateQueries({ queryKey: ["followups"] });
+  return invalidateAfter(qc, "followups");
 }
 
 export function useCreateFollowUp() {

@@ -27,12 +27,63 @@ function setRole(role: "admin" | "mgmt" | "sales", userId = "u_1") {
   });
 }
 
-function renderModal(options: CustomerFkOption[] = salespeople) {
+function renderModal(
+  options: CustomerFkOption[] = salespeople,
+  extra: { period?: string; requireMapping?: boolean } = {},
+) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <AddCustomerModal open onClose={() => {}} salespeople={options} />
+      <AddCustomerModal open onClose={() => {}} salespeople={options} {...extra} />
     </QueryClientProvider>,
+  );
+}
+
+/**
+ * A catalogue for the principal / sub-product pickers.
+ *
+ * Routed by path rather than a single blanket `mockResolvedValue`: the product
+ * repeater reads `/principals` as `{ items }` and `/products` as a cursor page,
+ * and a mock that answers both with the same object is exactly how an empty
+ * picker passes a test.
+ */
+function mockCatalogue(postResponse: unknown = { id: "cust_x" }) {
+  return vi.spyOn(api, "apiFetch").mockImplementation((async (
+    path: string,
+    init?: RequestInit,
+  ) => {
+    if (init?.method === "POST") return postResponse;
+    if (path.startsWith("/principals")) {
+      return { items: [{ id: "prin_1", name: "BALMEROL" }] };
+    }
+    if (path.startsWith("/products")) {
+      return {
+        items: [
+          {
+            id: "prod_1",
+            name: "BALMEROL EP 140",
+            sku: "EP140",
+            principalId: "prin_1",
+            principalName: "BALMEROL",
+            basePrice: 140,
+          },
+        ],
+        nextCursor: null,
+        total: 1,
+      };
+    }
+    return { items: [], nextCursor: null, total: 0 };
+  }) as unknown as typeof api.apiFetch);
+}
+
+async function pickFirstProduct() {
+  await userEvent.selectOptions(
+    await screen.findByLabelText(/principal for product row 1/i),
+    "prin_1",
+  );
+  await userEvent.selectOptions(
+    screen.getByLabelText(/sub product for product row 1/i),
+    "prod_1",
   );
 }
 
@@ -79,6 +130,7 @@ describe("AddCustomerModal enum payloads", () => {
       screen.getByPlaceholderText(/anand automotive/i),
       "Regression Test Co",
     );
+    await userEvent.selectOptions(screen.getByLabelText(/^salesperson/i), "Test Sales");
 
     // Default is already "30 Days Credit" / "Green Zone" (raw Credit30 /
     // GreenZone) — explicitly change both away from the default so this test
@@ -109,6 +161,7 @@ describe("AddCustomerModal enum payloads", () => {
       screen.getByPlaceholderText(/anand automotive/i),
       "Unmodified Defaults Co",
     );
+    await userEvent.selectOptions(screen.getByLabelText(/^salesperson/i), "Test Sales");
     await userEvent.click(screen.getByRole("button", { name: /create customer/i }));
 
     const postCall = spy.mock.calls.find(([, init]) => init?.method === "POST");
@@ -116,5 +169,140 @@ describe("AddCustomerModal enum payloads", () => {
     const body = JSON.parse(postCall![1]!.body as string);
     expect(body.paymentTerms).toBe("Credit30");
     expect(body.payZone).toBe("GreenZone");
+  });
+
+  it("blocks Create for admin/mgmt until a salesperson is explicitly chosen — no falling back to whoever sorts first", async () => {
+    // The bug this guards: selectedSalespersonId used to fall back to
+    // salespersonOptions[0]?.id, so an admin who never touched the field
+    // silently created a customer owned by whichever name sorted first
+    // alphabetically — active or not. The field is marked required; it must
+    // actually behave that way.
+    const spy = vi.spyOn(api, "apiFetch").mockResolvedValue({ id: "cust_4" });
+    renderModal();
+
+    await userEvent.type(
+      screen.getByPlaceholderText(/anand automotive/i),
+      "No Owner Chosen Co",
+    );
+    expect(screen.getByRole("button", { name: /create customer/i })).toBeDisabled();
+
+    await userEvent.selectOptions(screen.getByLabelText(/^salesperson/i), "Test Sales");
+    expect(screen.getByRole("button", { name: /create customer/i })).toBeEnabled();
+
+    await userEvent.click(screen.getByRole("button", { name: /create customer/i }));
+    const postCall = spy.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(postCall).toBeTruthy();
+    const body = JSON.parse(postCall![1]!.body as string);
+    expect(body.salespersonId).toBe("u_sales1");
+  });
+});
+
+describe("AddCustomerModal product onboarding", () => {
+  beforeEach(() => vi.restoreAllMocks());
+  afterEach(() => useAuth.setState({ accessToken: null, user: null }));
+
+  it("sends the mapped products and the worksheet month in ONE request", async () => {
+    // The point of the whole feature: account, contact, mappings and the blank
+    // worksheet lines are one POST, so there is no window in which a customer
+    // exists that nothing can be projected against.
+    const spy = mockCatalogue();
+    renderModal(salespeople, { period: "2026-09", requireMapping: true });
+
+    await userEvent.type(
+      screen.getByPlaceholderText(/anand automotive/i),
+      "Onboarded With Products",
+    );
+    await userEvent.selectOptions(screen.getByLabelText(/^salesperson/i), "Test Sales");
+    await pickFirstProduct();
+    await userEvent.type(
+      screen.getByLabelText(/agreed price for product row 1/i),
+      "123.5",
+    );
+    await userEvent.click(screen.getByRole("button", { name: /create customer/i }));
+
+    const postCall = spy.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(postCall).toBeTruthy();
+    const body = JSON.parse(postCall![1]!.body as string);
+    expect(body.mappings).toEqual([{ productId: "prod_1", customPrice: 123.5 }]);
+    expect(body.period).toBe("2026-09");
+  });
+
+  it("leaves the price null so the catalog price applies", async () => {
+    const spy = mockCatalogue();
+    renderModal(salespeople, { period: "2026-09", requireMapping: true });
+
+    await userEvent.type(
+      screen.getByPlaceholderText(/anand automotive/i),
+      "Catalog Priced Co",
+    );
+    await userEvent.selectOptions(screen.getByLabelText(/^salesperson/i), "Test Sales");
+    await pickFirstProduct();
+    await userEvent.click(screen.getByRole("button", { name: /create customer/i }));
+
+    const body = JSON.parse(
+      spy.mock.calls.find(([, init]) => init?.method === "POST")![1]!.body as string,
+    );
+    expect(body.mappings).toEqual([{ productId: "prod_1", customPrice: null }]);
+  });
+
+  it("blocks Create from the worksheet until a product is mapped", async () => {
+    // From the projections page a customer with no mapping is invisible — there
+    // is no line to show — so the form must not let one be created there.
+    mockCatalogue();
+    renderModal(salespeople, { period: "2026-09", requireMapping: true });
+
+    await userEvent.type(
+      screen.getByPlaceholderText(/anand automotive/i),
+      "No Products Yet Co",
+    );
+    await userEvent.selectOptions(screen.getByLabelText(/^salesperson/i), "Test Sales");
+    expect(screen.getByRole("button", { name: /create customer/i })).toBeDisabled();
+    expect(screen.getByText(/map at least one sub product/i)).toBeInTheDocument();
+
+    await pickFirstProduct();
+    expect(screen.getByRole("button", { name: /create customer/i })).toBeEnabled();
+  });
+
+  it("omits mappings and period entirely when no product is picked", async () => {
+    // The customers page has no month in view, so it must keep posting the
+    // plain customer body it always did.
+    const spy = mockCatalogue();
+    renderModal();
+
+    await userEvent.type(
+      screen.getByPlaceholderText(/anand automotive/i),
+      "Plain Customer Co",
+    );
+    await userEvent.selectOptions(screen.getByLabelText(/^salesperson/i), "Test Sales");
+    await userEvent.click(screen.getByRole("button", { name: /create customer/i }));
+
+    const body = JSON.parse(
+      spy.mock.calls.find(([, init]) => init?.method === "POST")![1]!.body as string,
+    );
+    expect(body.mappings).toBeUndefined();
+    expect(body.period).toBeUndefined();
+  });
+
+  it("refuses to submit the same sub product twice", async () => {
+    mockCatalogue();
+    renderModal(salespeople, { period: "2026-09", requireMapping: true });
+
+    await userEvent.type(
+      screen.getByPlaceholderText(/anand automotive/i),
+      "Duplicate Product Co",
+    );
+    await pickFirstProduct();
+    await userEvent.click(screen.getByRole("button", { name: /add product/i }));
+    await userEvent.selectOptions(
+      screen.getByLabelText(/principal for product row 2/i),
+      "prin_1",
+    );
+    await userEvent.selectOptions(
+      screen.getByLabelText(/sub product for product row 2/i),
+      "prod_1",
+    );
+
+    expect(screen.getByText(/same sub product is mapped twice/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /create customer/i })).toBeDisabled();
   });
 });

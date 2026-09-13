@@ -20,7 +20,7 @@ import { useCreateOrder } from "@/features/orders/queries";
 import { DELIVERY_MODE_VALUES, DELIVERY_MODE_LABELS, type DeliveryModeValue } from "@/features/orders/types";
 import { useCustomers, flattenCustomers } from "@/features/customers/queries";
 import { useProducts, flattenProducts } from "@/features/products/queries";
-import { useUsers, flattenUsers } from "@/features/users/queries";
+import { useUserDirectory } from "@/features/users/queries";
 import { useAuthRole, useAuthUser } from "@/store/auth";
 
 export interface OrderCustomerOption {
@@ -80,7 +80,7 @@ export function CreateSalesOrderModal({
   const needsOwnSalespeopleFetch = salespeople === undefined && !isSales;
   const customersQuery = useCustomers({}, { enabled: needsOwnFetch && open });
   const productsQuery = useProducts({}, { enabled: needsOwnFetch && open });
-  const usersQuery = useUsers({}, { enabled: needsOwnSalespeopleFetch && open });
+  const usersQuery = useUserDirectory({ enabled: needsOwnSalespeopleFetch && open });
 
   const fetchedCustomers = useMemo(
     () =>
@@ -106,7 +106,7 @@ export function CreateSalesOrderModal({
   );
   const fetchedSalespeople = useMemo(
     () =>
-      flattenUsers(usersQuery.data)
+      (usersQuery.data ?? [])
         .filter((u) => u.roleName === "sales")
         .map((u) => ({ id: u.id, name: u.name })),
     [usersQuery.data],
@@ -119,14 +119,14 @@ export function CreateSalesOrderModal({
   const salespeopleLoading = needsOwnSalespeopleFetch && usersQuery.isLoading;
 
   const [code, setCode] = useState(defaultCode);
-  const [customerId, setCustomerId] = useState(initialCustomerId || customerOptions[0]?.id || "");
-  const [salespersonId, setSalespersonId] = useState(
-    isSales ? authUser?.id || "" : salespersonOptions[0]?.id || "",
-  );
-  const [productId, setProductId] = useState(initialProductId || productOptions[0]?.id || "");
+  // Nothing falls back to "the first option in the list" — see the reset
+  // effect below for why that was the whole bug.
+  const [customerId, setCustomerId] = useState(initialCustomerId ?? "");
+  const [salespersonId, setSalespersonId] = useState(isSales ? authUser?.id || "" : "");
+  const [productId, setProductId] = useState(initialProductId ?? "");
   const [qty, setQty] = useState<number>(initialQty || 10);
   const selectedProduct = productOptions.find((p) => p.id === productId);
-  const [price, setPrice] = useState<number>(initialPrice ?? selectedProduct?.price ?? 100);
+  const [price, setPrice] = useState<number>(initialPrice ?? 0);
 
   const customer = customerOptions.find((c) => c.id === customerId);
 
@@ -134,29 +134,57 @@ export function CreateSalesOrderModal({
   const [deliveryMode, setDeliveryMode] = useState<DeliveryModeValue>("TransportLR");
   const [paymentTerms, setPaymentTerms] = useState<string>("");
   const [isUrgent, setIsUrgent] = useState(false);
-  const [urgentDateTime, setUrgentDateTime] = useState("");
+  const [expectedDelivery, setExpectedDelivery] = useState("");
   const [remarks, setRemarks] = useState("");
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
-  // Sync initial props
+  /**
+   * A blank form, every time the dialog OPENS.
+   *
+   * This component stays mounted whether or not the dialog is showing — the
+   * Dialog renders null when closed — so its state survived a close, and
+   * `handleForceClose` reset eight fields while leaving the customer, product,
+   * salesperson and price behind. Opening "Create Order" from the dashboard
+   * therefore arrived carrying the account and SKU of the order raised before
+   * it, already selected and one click from being raised again.
+   *
+   * Seeded from the props, so an order started from a projection still arrives
+   * with that projection's customer and product filled in. A plain "Create
+   * Order" has no such context and arrives empty.
+   */
   useEffect(() => {
-    if (initialCustomerId) setCustomerId(initialCustomerId);
-    if (initialProductId) setProductId(initialProductId);
-    if (initialQty != null) setQty(initialQty);
-    if (initialPrice != null) setPrice(initialPrice);
-  }, [initialCustomerId, initialProductId, initialQty, initialPrice, open]);
+    if (!open) return;
+    setCode(defaultCode());
+    setCustomerId(initialCustomerId ?? "");
+    setProductId(initialProductId ?? "");
+    setSalespersonId(isSales ? authUser?.id || "" : "");
+    setQty(initialQty || 10);
+    setPrice(initialPrice ?? 0);
+    setDeliveryAddress("");
+    setDeliveryMode("TransportLR");
+    setPaymentTerms("");
+    setIsUrgent(false);
+    setExpectedDelivery("");
+    setRemarks("");
+    setShowDiscardConfirm(false);
+    // Deliberately keyed on `open` alone: this is "the dialog just opened",
+    // not "a prop changed while the user was typing into it".
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
+  /**
+   * A product handed down as a prop brings its price with it.
+   *
+   * The select's own onChange does this for a hand-picked product; this covers
+   * the projection route, where the option list may still be loading when the
+   * dialog opens. It cannot fight a typed price, because neither `productId`
+   * nor the option list changes when somebody edits the rate.
+   */
   useEffect(() => {
-    if (!customerId && customerOptions.length > 0) setCustomerId(customerOptions[0].id);
-  }, [customerOptions, customerId]);
-  useEffect(() => {
-    if (!productId && productOptions.length > 0) setProductId(productOptions[0].id);
-  }, [productOptions, productId]);
-  useEffect(() => {
-    if (!isSales && !salespersonId && salespersonOptions.length > 0) {
-      setSalespersonId(salespersonOptions[0].id);
-    }
-  }, [salespersonOptions, salespersonId, isSales]);
+    if (!open || !productId || initialPrice != null) return;
+    const p = productOptions.find((x) => x.id === productId);
+    if (p?.price != null) setPrice(p.price);
+  }, [open, productId, productOptions, initialPrice]);
 
   useEffect(() => {
     if (customer) {
@@ -187,10 +215,13 @@ export function CreateSalesOrderModal({
   };
 
   const isDirty =
+    customerId !== (initialCustomerId ?? "") ||
+    productId !== (initialProductId ?? "") ||
     deliveryAddress.trim() !== "" ||
     paymentTerms.trim() !== "" ||
     remarks.trim() !== "" ||
     isUrgent ||
+    expectedDelivery !== "" ||
     qty !== (initialQty || 10);
 
   const handleAttemptClose = () => {
@@ -209,7 +240,7 @@ export function CreateSalesOrderModal({
     setDeliveryMode("TransportLR");
     setPaymentTerms("");
     setIsUrgent(false);
-    setUrgentDateTime("");
+    setExpectedDelivery("");
     setRemarks("");
     onClose();
   };
@@ -235,8 +266,17 @@ export function CreateSalesOrderModal({
         paymentTerms: paymentTerms.trim() || null,
         deliveryMode,
         deliveryAddress: deliveryAddress.trim() || null,
-        expectedDelivery: isUrgent ? urgentDateTime || null : null,
+        // Sent for every order, not only urgent ones. It used to be discarded
+        // unless the urgent toggle was on, which left the Fulfilment SLA
+        // report's "Delayed / On time" verdict with no input at all on a
+        // standard order — the overwhelming majority of them.
+        expectedDelivery: expectedDelivery || null,
         deliveryInstructions: remarks.trim() || null,
+        // The projection line this order came from, when it came from one.
+        // Until this was sent the prop only changed the dialog's title: the
+        // order was created with nothing tying it back, and the worksheet's
+        // sales-order column had no id to show.
+        ...(fromProjectionId ? { projectionId: fromProjectionId } : {}),
       });
 
       handleForceClose();
@@ -335,6 +375,7 @@ export function CreateSalesOrderModal({
                     selectClassName="h-9 font-medium"
                     disabled={create.isPending}
                   >
+                    <option value="">— Choose a salesperson —</option>
                     {salespersonOptions.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name}
@@ -369,6 +410,11 @@ export function CreateSalesOrderModal({
                     selectClassName="h-9 font-medium"
                     disabled={create.isPending}
                   >
+                    {/* No pre-selected account. The first customer
+                        alphabetically is not a choice anybody made, and this
+                        form is one click from raising a real order against
+                        whoever it lands on. */}
+                    <option value="">— Choose a customer —</option>
                     {customerOptions.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
@@ -405,6 +451,7 @@ export function CreateSalesOrderModal({
                     selectClassName="h-9 font-medium"
                     disabled={create.isPending}
                   >
+                    <option value="">— Choose a product —</option>
                     {productOptions.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name} {p.principalName ? `· ${p.principalName}` : ""} {p.price != null ? `(₹${p.price}/${p.unit || "unit"})` : ""}
@@ -537,29 +584,49 @@ export function CreateSalesOrderModal({
               </div>
             </div>
 
-            {/* Urgent Alert Banner & Expected Date */}
-            {isUrgent && (
-              <div className="rounded-lg border border-amber/50 bg-amber-soft/80 p-3 space-y-2 animate-in fade-in-50 duration-150">
+            {/* The delivery commitment — asked for on EVERY order, because it
+                is the only thing the Fulfilment SLA report can judge a
+                delivery against. Behind the urgent toggle it was collected on
+                a small minority of orders and the report's "Delayed / On time"
+                column had nothing to work with on the rest. Urgent keeps the
+                banner and makes it required; standard asks for it plainly. */}
+            <div
+              className={cn(
+                "rounded-lg p-3 space-y-2",
+                isUrgent
+                  ? "border border-amber/50 bg-amber-soft/80 animate-in fade-in-50 duration-150"
+                  : "border border-line bg-surface-2/50"
+              )}
+            >
+              {isUrgent && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-amber flex items-center gap-1">
                     <Zap className="h-3.5 w-3.5 fill-amber" /> Time-Sensitive Delivery Commitment
                   </span>
                   <span className="text-[10px] font-semibold text-amber/80 uppercase tracking-wider">High Priority</span>
                 </div>
-                <div>
-                  <label htmlFor="so-urgent-datetime" className="text-xs font-semibold text-ink block mb-1">
-                    Expected Delivery Date & Time <span className="text-red">*</span>
-                  </label>
-                  <DateTimeField
-                    id="so-urgent-datetime"
-                    label="Expected delivery"
-                    value={urgentDateTime}
-                    onChange={setUrgentDateTime}
-                    required={isUrgent}
-                  />
-                </div>
+              )}
+              <div>
+                <label htmlFor="so-expected-delivery" className="text-xs font-semibold text-ink block mb-1">
+                  Expected Delivery Date &amp; Time{" "}
+                  {isUrgent ? <span className="text-red">*</span> : (
+                    <span className="font-normal text-muted">(optional)</span>
+                  )}
+                </label>
+                <DateTimeField
+                  id="so-expected-delivery"
+                  label="Expected delivery"
+                  value={expectedDelivery}
+                  onChange={setExpectedDelivery}
+                  required={isUrgent}
+                />
+                {!isUrgent && (
+                  <p className="mt-1 text-3xs text-muted">
+                    Drives the Delayed / On&nbsp;time verdict on the Fulfilment SLA report.
+                  </p>
+                )}
               </div>
-            )}
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>

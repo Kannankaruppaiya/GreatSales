@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api';
 import { listParams, useCursorList } from './cursorList';
 import type { LeadRow, LeadListResponse, LeadCreate, LeadUpdate } from '@greatsales/shared';
+import { invalidateAfter } from '../invalidate';
 
 export type { LeadRow, LeadCreate, LeadUpdate };
 
@@ -34,7 +35,7 @@ export function useCreateLead() {
   return useMutation({
     mutationFn: (body: LeadCreate) =>
       apiFetch<LeadRow>('/leads', { method: 'POST', body: JSON.stringify(body) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: leadKeys.all }),
+    onSuccess: () => invalidateAfter(qc, 'leads'),
   });
 }
 
@@ -43,7 +44,7 @@ export function useUpdateLead() {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: LeadUpdate }) =>
       apiFetch<LeadRow>(`/leads/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: leadKeys.all }),
+    onSuccess: () => invalidateAfter(qc, 'leads'),
   });
 }
 
@@ -51,6 +52,6 @@ export function useDeleteLead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => apiFetch<void>(`/leads/${id}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: leadKeys.all }),
+    onSuccess: () => invalidateAfter(qc, 'leads'),
   });
 }

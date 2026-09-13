@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api';
 import { listParams, useCursorList } from './cursorList';
 import type { PaymentRow, PaymentListResponse, PaymentCreate, PaymentUpdate } from '@greatsales/shared';
+import { invalidateAfter } from '../invalidate';
 
 export type { PaymentRow, PaymentCreate, PaymentUpdate };
 
@@ -30,7 +31,7 @@ export function useCreatePayment() {
   return useMutation({
     mutationFn: (body: PaymentCreate) =>
       apiFetch<PaymentRow>('/payments', { method: 'POST', body: JSON.stringify(body) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: paymentKeys.all }),
+    onSuccess: () => invalidateAfter(qc, 'payments'),
   });
 }
 
@@ -42,7 +43,7 @@ export function useUpdatePayment() {
         method: 'PATCH',
         body: JSON.stringify(patch),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: paymentKeys.all }),
+    onSuccess: () => invalidateAfter(qc, 'payments'),
   });
 }
 
@@ -50,6 +51,6 @@ export function useDeletePayment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => apiFetch<void>(`/payments/${id}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: paymentKeys.all }),
+    onSuccess: () => invalidateAfter(qc, 'payments'),
   });
 }

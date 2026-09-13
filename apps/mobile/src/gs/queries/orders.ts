@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api';
 import { listParams, useCursorList } from './cursorList';
 import type { OrderRow, OrderListResponse, OrderCreate, OrderUpdate } from '@greatsales/shared';
+import { invalidateAfter } from '../invalidate';
 
 export type { OrderRow, OrderCreate, OrderUpdate };
 
@@ -30,7 +31,7 @@ export function useCreateOrder() {
   return useMutation({
     mutationFn: (body: OrderCreate) =>
       apiFetch<OrderRow>('/orders', { method: 'POST', body: JSON.stringify(body) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: orderKeys.all }),
+    onSuccess: () => invalidateAfter(qc, 'orders'),
   });
 }
 
@@ -39,7 +40,7 @@ export function useUpdateOrder() {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: OrderUpdate }) =>
       apiFetch<OrderRow>(`/orders/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: orderKeys.all }),
+    onSuccess: () => invalidateAfter(qc, 'orders'),
   });
 }
 
@@ -47,6 +48,6 @@ export function useDeleteOrder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => apiFetch<void>(`/orders/${id}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: orderKeys.all }),
+    onSuccess: () => invalidateAfter(qc, 'orders'),
   });
 }

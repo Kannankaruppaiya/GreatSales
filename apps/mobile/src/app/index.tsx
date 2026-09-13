@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { C } from '@/gs/theme';
 import { login, useSessionStatus } from '@/gs/auth';
 import { ApiError } from '@/gs/api';
+import { BrandMark } from '@/gs/BrandMark';
 
 export default function Login() {
   const status = useSessionStatus();
@@ -69,9 +70,7 @@ export default function Login() {
         <View className="w-full max-w-[420px] gap-6">
           {/* Brand Header */}
           <View className="flex-row items-center gap-3.5 px-1">
-            <View className="w-12 h-12 rounded-xl bg-emerald-500 items-center justify-center shadow-lg shadow-emerald-900/40">
-              <Text className="text-white font-black text-xl">GS</Text>
-            </View>
+            <BrandMark size={48} />
             <View>
               <Text className="text-white text-2xl font-black tracking-tight">GreatSales</Text>
               <Text className="text-emerald-300 text-xs font-semibold mt-0.5">Field Sales · Salesperson</Text>

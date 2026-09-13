@@ -33,6 +33,21 @@ numbers, it needs an endpoint.
 decides. Every role-gated route must also be denied by the API; assume a user will paste
 the URL directly.
 
+**A write invalidates more than its own query family, and the list is written down.**
+The dashboard is assembled server-side from projections, leads, targets and follow-ups; a
+mapping row carries the product's catalog price; a customer's name is copied onto mappings,
+projections, orders and payments. So a mutation that invalidates only its own root leaves
+another page showing the old number until someone presses F5 — which is what every mutation
+here used to do. The graph lives in `packages/shared/src/query-deps.ts` (mirrored at
+`src/lib/invalidate.ts`, with `tests/lib/invalidate.test.ts` failing if the two drift), and
+every mutation goes through `invalidateAfter(qc, …)`. Add a dependency there, not a second
+`invalidateQueries` at a call site.
+
+**A detail modal is addressed by ID, never by the row object.** Pages hold
+`selectedOrderId` and read the row back out of the list with `useSelectedRow`. Holding the
+row itself is the other half of the same bug: the list refetches, the state keeps pointing
+at the snapshot taken on click, and the modal shows its own save as having done nothing.
+
 **Tenant id belongs in every query key.** Without it, switching tenant can serve the
 previous tenant's cached data. Logout must clear the whole query cache.
 

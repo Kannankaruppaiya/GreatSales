@@ -45,6 +45,18 @@ export class UsersController {
   }
 
   /**
+   * The tenant roster — every authenticated member, not just `user.manage`
+   * holders. Declared BEFORE `:id` below for the same reason `:id` is
+   * declared after the bare list: Nest matches in declaration order, and a
+   * `:id` route placed first would swallow `/users/directory` as a lookup for
+   * a user literally named "directory".
+   */
+  @Get('directory')
+  directory(@CurrentUser() user: RequestUser) {
+    return this.service.directory(user);
+  }
+
+  /**
    * One user by id.
    *
    * Declared AFTER the bare @Get() above: Nest matches in declaration order,

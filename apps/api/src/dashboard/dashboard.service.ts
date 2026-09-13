@@ -2,8 +2,10 @@ import { Injectable } from '@nestjs/common';
 import {
   monthsInRange,
   type DashboardBreakdown,
+  type DashboardFollowUp,
   type DashboardQuery,
   type DashboardResponse,
+  type FollowUpRow,
   type LeadRow,
   type ProjectionLine,
   type RequestUser,
@@ -11,6 +13,8 @@ import {
 import { ProjectionsService } from '../projections/projections.service';
 import { LeadsService } from '../leads/leads.service';
 import { TargetsService } from '../targets/targets.service';
+import { FollowUpsService } from '../followups/followups.service';
+import { businessToday } from '../common/business-day';
 
 /**
  * Lead stages that no longer count toward committed new-sales value. Everything
@@ -39,6 +43,14 @@ const TIERS = ['Platinum', 'Gold', 'Silver', 'Brass'] as const;
 const ORAL_STAGE = 'NegotiationOralConfirmation';
 const ORAL_CAP = 20;
 const TOP_PROJECTIONS = 10;
+/** How many outstanding follow-ups the card's list carries. The COUNT is whole. */
+const FOLLOWUP_CAP = 50;
+
+/** Whole days from `day` to `today`, both `YYYY-MM-DD`. Negative in the future. */
+function daysBetween(day: string, today: string): number {
+  const ms = Date.parse(`${today}T00:00:00Z`) - Date.parse(`${day}T00:00:00Z`);
+  return Math.round(ms / 86_400_000);
+}
 
 @Injectable()
 export class DashboardService {
@@ -46,6 +58,7 @@ export class DashboardService {
     private readonly projections: ProjectionsService,
     private readonly leads: LeadsService,
     private readonly targets: TargetsService,
+    private readonly followUps: FollowUpsService,
   ) {}
 
   /**
@@ -63,18 +76,29 @@ export class DashboardService {
     // recurring commitment IS a month and there is no Tuesday's worth of one.
     const months = monthsInRange(query.from, query.to);
 
-    const [{ lines, summary }, leadRows, targets] = await Promise.all([
-      // lineFilter 'all': the dashboard summarises the whole worksheet, not
-      // whatever subset the user last filtered the projections page to.
-      this.projections.forPeriods(user, months, {
-        ownerId: query.ownerId,
-        lineFilter: 'all',
-      }),
-      this.leads.allInScope(user, query.ownerId),
-      // Scoped by the same rules as everything else on this page: a sales user
-      // gets their own target regardless of the ownerId they asked for.
-      this.targets.totalFor(user, months, query.ownerId),
-    ]);
+    // "Today" is resolved once, here, and handed to everything that needs it.
+    // Asking the clock twice inside one response is how a request that spans
+    // midnight reports the same follow-up as both due and overdue — and it is
+    // the BUSINESS's day, not UTC's, which is a different date for the five and
+    // a half hours after midnight here.
+    const today = businessToday();
+
+    const [{ lines, summary }, leadRows, targets, followUps] =
+      await Promise.all([
+        // lineFilter 'all': the dashboard summarises the whole worksheet, not
+        // whatever subset the user last filtered the projections page to.
+        this.projections.forPeriods(user, months, {
+          ownerId: query.ownerId,
+          lineFilter: 'all',
+        }),
+        this.leads.allInScope(user, query.ownerId),
+        // Scoped by the same rules as everything else on this page: a sales
+        // user gets their own target regardless of the ownerId they asked for.
+        this.targets.totalFor(user, months, query.ownerId),
+        // The follow-up list itself, from the service that owns it — the same
+        // rows the Follow-ups page shows, scoped by the same rules.
+        this.followUps.outstanding(user, query.ownerId, today),
+      ]);
 
     /**
      * New sales, scoped to the WINDOW.
@@ -101,7 +125,8 @@ export class DashboardService {
       (l) => !DEAD_STAGES.has(l.stage) && inWindow(l.createdAt),
     );
     const wonLeads = leadRows.filter(
-      (l) => l.stage === 'ClosedWon' && inWindow(l.stageUpdatedAt ?? l.updatedAt),
+      (l) =>
+        l.stage === 'ClosedWon' && inWindow(l.stageUpdatedAt ?? l.updatedAt),
     );
 
     const newSalesCommitted = sum(raisedLeads, (l) => l.totalValue);
@@ -112,7 +137,7 @@ export class DashboardService {
     const totalCommitted = recurringCommitted + newSalesCommitted;
     const totalAchieved = recurringAchieved + newSalesAchieved;
 
-    const { due, overdue } = this.countFollowUps(lines, leadRows);
+    const { due, overdue, items } = this.countFollowUps(followUps, today);
 
     return {
       from: query.from,
@@ -148,6 +173,7 @@ export class DashboardService {
         .slice(0, ORAL_CAP),
       oralConfirmationTotal: leadRows.filter((l) => l.stage === ORAL_STAGE)
         .length,
+      followUps: items.slice(0, FOLLOWUP_CAP),
       topOpenProjections: lines
         .filter(
           (p) => p.committedQty > 0 && !CLOSED_PROJ_STATUSES.has(p.status),
@@ -160,32 +186,49 @@ export class DashboardService {
   /**
    * Due = falls on the tenant's business day. Overdue = before it.
    *
-   * "Today" is resolved HERE, once, rather than from a browser clock — two
-   * users in different timezones must not see different overdue counts for the
-   * same rows. Both sources store the date as `YYYY-MM-DD`, so a string
-   * comparison is the correct one and needs no parsing.
+   * "Today" is resolved by the caller, once, rather than from a browser clock —
+   * two users in different timezones must not see different overdue counts for
+   * the same rows.
+   *
+   * A follow-up in this product is a `FollowUp` row pointing at a record, which
+   * is what the Follow-ups page and the mobile screen both list. This used to
+   * count the `nextFollowUp` DATE COLUMNS on leads and recurring lines instead,
+   * so the tile could read "8 overdue" while that page held nothing and a
+   * follow-up created on it moved no number here. Those columns are dates on
+   * their own records, shown on their own pages, and are not counted.
    */
   private countFollowUps(
-    lines: ProjectionLine[],
-    leadRows: LeadRow[],
-  ): { due: number; overdue: number } {
-    const today = new Date().toISOString().slice(0, 10);
+    rows: FollowUpRow[],
+    today: string,
+  ): { due: number; overdue: number; items: DashboardFollowUp[] } {
     let due = 0;
     let overdue = 0;
+    const items: DashboardFollowUp[] = [];
 
-    const tally = (date: string | null, closed: boolean) => {
-      if (closed || !date) return;
-      if (date < today) overdue++;
-      else if (date === today) due++;
-    };
+    for (const f of rows) {
+      const day = f.dueDate.slice(0, 10);
+      // The service returned nothing later than today, but the boundary is
+      // cheap to restate and the alternative is a silent miscount.
+      if (day > today) continue;
+      if (day < today) overdue++;
+      else due++;
+      items.push({
+        id: f.id,
+        entityType: f.entityType,
+        entityId: f.entityId,
+        title: f.title ?? f.subtitle ?? `${f.entityType} follow-up`,
+        subtitle: f.title ? f.subtitle : null,
+        ownerName: f.salespersonName,
+        dueDate: day,
+        daysOverdue: daysBetween(day, today),
+        amount: f.amount,
+      });
+    }
 
-    for (const p of lines) {
-      tally(p.nextFollowUp, CLOSED_PROJ_STATUSES.has(p.status));
-    }
-    for (const l of leadRows) {
-      tally(l.nextFollowUp, CLOSED_LEAD_STAGES.has(l.stage));
-    }
-    return { due, overdue };
+    items.sort(
+      (a, b) => b.daysOverdue - a.daysOverdue || a.title.localeCompare(b.title),
+    );
+    return { due, overdue, items };
   }
 
   /**

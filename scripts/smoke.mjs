@@ -28,6 +28,12 @@ const EMAIL = arg('email', process.env.SMOKE_EMAIL ?? 'admin@greatsales.local');
 const PASSWORD = arg('password', process.env.SMOKE_PASSWORD ?? 'admin');
 
 /** feature key -> the read endpoint that page depends on. */
+/** This month, `YYYY-MM`. A month written down is a month the calendar walks past. */
+const THIS_MONTH = (() => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+})();
+
 const CHECKS = [
   ['health', 'health'],
   ['health', 'health/ready'],
@@ -49,7 +55,7 @@ const CHECKS = [
   ['data', 'period-locks'],
   ['customers', 'industries'],
   ['management', 'managements'],
-  ['targets', 'targets?period=2026-06'],
+  ['targets', `targets?period=${THIS_MONTH}`],
   // The signed-in user's own inbox. Empty for the admin this signs in as, by
   // design — nobody is notified of what they did themselves — so this proves
   // the route answers, not that anything is in it.

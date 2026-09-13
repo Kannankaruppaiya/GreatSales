@@ -37,7 +37,9 @@ import {
 } from "@greatsales/shared";
 import {
   PrismaClient,
+  type CustomerCategory,
   type DealStage,
+  type DeliveryMode,
   type Division,
   type OrderStatus,
   type PayZone,
@@ -48,7 +50,34 @@ const prisma = new PrismaClient();
 
 const TENANT_ID = "tenant_promech";
 const TENANT_NAME = "Promech Industrial Sales";
-const PERIOD = "2026-06"; // the only projection month the POC carries
+/**
+ * The worksheet months, counted back from the day the seed runs.
+ *
+ * This was the literal `"2026-06"` — "the only projection month the POC
+ * carries" — and a month written down is a month the calendar walks past. By
+ * September the worksheet opened on an empty table, roll forward had nothing to
+ * carry into the current month, every achievement figure on the dashboard read
+ * zero, and the only way to see a line at all was to know to go back to June.
+ *
+ * So the export's commitment book is THIS month's, and two closed months sit
+ * behind it. That gives the page the three things it could not show before: a
+ * current month with rows in it, a previous month for roll forward to carry
+ * from, and achievement that is not uniformly zero.
+ */
+const WORKSHEET_MONTHS = 3;
+const PERIODS = (() => {
+  const now = new Date();
+  const out: string[] = [];
+  for (let back = WORKSHEET_MONTHS - 1; back >= 0; back--) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - back, 1));
+    out.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
+  }
+  return out;
+})();
+/** The open month — the one the app lands on. */
+const PERIOD = PERIODS[PERIODS.length - 1];
+/** Whose desk the seeded follow-ups land on. A real salesperson in the export. */
+const FOLLOWUP_OWNER = "Megala";
 
 // argon2id hashes of the POC's demo passwords (dev only).
 const PW_ADMIN =
@@ -192,6 +221,54 @@ const ORDER_STATUS: Record<string, OrderStatus> = {
   Cancelled: "Cancelled",
 };
 
+/**
+ * The fulfilment ladder, in the order an order climbs it.
+ *
+ * The map above places each of the POC's four labels on its nearest rung, which
+ * is right for the order's CURRENT status and wrong for its history: mapped
+ * one-to-one, `DeliveryPartnerAssigned` and `DeliveredToCustomer` ended up with
+ * no rows anywhere in the workspace. The Fulfilment SLA report measures transit
+ * time and order→delivery off exactly those two, so two of its five figures
+ * were structurally blank, its Delivered column was empty on every row, and an
+ * order could show a customer receipt for a delivery that was never recorded.
+ *
+ * An order that has reached a rung has passed every rung below it, so the trail
+ * is walked rather than mapped — see the sales-order block below.
+ */
+const ORDER_LADDER = [
+  "Created",
+  "Acknowledged",
+  "DeliveryPartnerAssigned",
+  "DeliveredFromWarehouse",
+  "DeliveredToCustomer",
+  "CustomerReceiptConfirmed",
+] as const satisfies readonly OrderStatus[];
+
+/**
+ * How long each rung takes, as `[minimum hours, spread]`.
+ *
+ * Chosen so the generated trail is arguable rather than uniform: an
+ * acknowledgement lands within a working day, a warehouse picks overnight, and
+ * transit is the long, variable leg — which is what makes the report's transit
+ * column worth looking at. Rung 0 is the order itself and takes no time.
+ */
+const RUNG_HOURS: readonly [number, number][] = [
+  [0, 0],
+  [5, 22],
+  [6, 17],
+  [10, 26],
+  [22, 80],
+  [5, 29],
+];
+
+const TRANSPORTERS = ["VRL Logistics", "TCI Express", "Safexpress", "Gati KWE"];
+const ORDER_DELIVERY_MODES: DeliveryMode[] = [
+  "TransportLR",
+  "Courier",
+  "CompanyVehicle",
+  "TransportLR",
+];
+
 /** Normalize a company name so payment parties can be matched to customers. */
 const normName = (s: string) =>
   s
@@ -210,8 +287,8 @@ async function reset() {
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE
     "TenantFeatureFlag","FeatureFlag","PlatformAuditLog","PlatformUser",
     "OrderStatusHistory","SalesOrderItem","SalesOrder","PaymentFollowup","Payment",
-    "LeadProduct","Lead","Projection","SalesTarget","Mapping",
-    "Product","Principal","CustomerContact","Customer","FollowUp","Activity",
+    "Contact","LeadProduct","Lead","Projection","SalesTarget","Mapping",
+    "Product","Principal","Customer","FollowUp","Activity",
     "Notification","Attachment","AuditLog","ImportJob","RolePermission","Role",
     "Permission","Industry","User","Team","Tenant"
     RESTART IDENTITY CASCADE`);
@@ -428,6 +505,16 @@ async function main() {
       mail2: yn(r.mail2),
       mail3: yn(r.mail3),
       mail4: yn(r.mail4),
+      // DERIVED: the Promech receivables sheet records whether each reminder
+      // letter went out but not when, and the date is what the next decision
+      // turns on. A letter that is marked sent is dated on the schedule the
+      // collections desk actually works to — 30 days after the invoice, then
+      // every fortnight — so the dropdown has a real cadence to show. A letter
+      // that never went stays null.
+      mail1At: yn(r.mail1) ? addDays(day(r.date), 30) : null,
+      mail2At: yn(r.mail2) ? addDays(day(r.date), 45) : null,
+      mail3At: yn(r.mail3) ? addDays(day(r.date), 60) : null,
+      mail4At: yn(r.mail4) ? addDays(day(r.date), 75) : null,
       status,
     };
   });
@@ -501,23 +588,213 @@ async function main() {
     })),
   });
 
+  // DERIVED: the export carries one month of commitments and no achievement at
+  // all, so a worksheet seeded straight from it shows the same flat book in
+  // every month and 0% achieved everywhere — which is what a rolled-forward
+  // month looked like too, since a roll copies the commitment and resets the
+  // achievement. The quantities below are the export's; what is invented here
+  // is the history: the two closed months behind the open one carry a slightly
+  // smaller book (the account grew) and an achievement against it, so the
+  // trend, the achievement percentage and the status mix have somewhere real to
+  // come from.
+  //
+  // Deterministic on the row's position and the month, never on Math.random —
+  // two runs of the seed must produce the same database, or a test that passes
+  // today fails tomorrow for no reason anyone can find.
+  const spread = (i: number, k: number) => (i * 37 + k * 101) % 100;
+  const dayOfMonth = new Date().getUTCDate();
+
   await prisma.projection.createMany({
-    data: PM.juneProj.map((j) => ({
-      tenantId: TENANT_ID,
-      mappingId: "map_" + j.m,
-      period: PERIOD,
-      committedQty: String(j.q),
-      achievedQty: "0",
-      price: dec(j.price),
-      status: "ProjectionCreated" as const,
-    })),
+    data: PERIODS.flatMap((period, k) => {
+      const monthsBack = PERIODS.length - 1 - k;
+      const isOpen = monthsBack === 0;
+      return PM.juneProj.map((j, i) => {
+        const roll = spread(i, k);
+        // The book grows, so an earlier month committed a little less.
+        const committed = Math.max(1, Math.round(j.q * (1 - 0.06 * monthsBack)));
+        // A closed month landed somewhere around its commitment; one line in
+        // twelve went nowhere. The open month is only as far through as the
+        // calendar is.
+        const lost = roll < 8;
+        const ratio = lost ? 0 : 0.7 + (roll % 45) / 100;
+        const achieved = isOpen
+          ? Math.round(committed * ratio * Math.min(1, dayOfMonth / 28))
+          : Math.round(committed * ratio);
+        const status = isOpen
+          ? roll < 15
+            ? ("FollowUpPending" as const)
+            : roll < 30
+              ? ("POReceived" as const)
+              : ("ProjectionCreated" as const)
+          : lost
+            ? ("Lost" as const)
+            : achieved >= committed
+              ? ("Completed" as const)
+              : ("PartiallyConfirmed" as const);
+        return {
+          tenantId: TENANT_ID,
+          mappingId: "map_" + j.m,
+          period,
+          committedQty: String(committed),
+          achievedQty: String(achieved),
+          price: dec(j.price),
+          status,
+          // A handful of open lines are waiting on somebody, so the
+          // worksheet's "Needs follow-up" filter has rows to find.
+          nextFollowUp:
+            isOpen && roll < 15 ? addDays(new Date(), (roll % 7) - 3) : null,
+        };
+      });
+    }),
   });
+
+  // ---- monthly sales targets ---------------------------------------------
+  // The SalesTarget table has existed since the first migration and the Promech
+  // seed only ever truncated it, so the workspace had zero rows: the dashboard
+  // read "SET A TARGET" on every month, `kpis.target` came back null, and the
+  // per-salesperson chart had no bar to measure against. A feature that is
+  // wired end to end but has nothing in it is indistinguishable from one that
+  // is broken — which is exactly how it looked.
+  //
+  // DERIVED from the same commitments the projections above were built from, so
+  // the achievement percentages land in an arguable band instead of being 0% or
+  // 900%. A target is set ABOVE the book a salesperson has already committed —
+  // that is what makes it a target — by a deterministic 10–34%, and rounded to
+  // the nearest thousand so it reads like a number a manager chose rather than
+  // an arithmetic artifact.
+  const spOfMapping = new Map(PM.maps.map((m) => [m.id, m.sp]));
+  const targetRows: {
+    tenantId: string;
+    salespersonId: string;
+    period: string;
+    targetValue: string;
+  }[] = [];
+
+  PERIODS.forEach((period, k) => {
+    const monthsBack = PERIODS.length - 1 - k;
+    const committedByPerson = new Map<string, number>();
+    PM.juneProj.forEach((j) => {
+      const sp = spOfMapping.get(j.m);
+      if (!sp) return;
+      const committed = Math.max(1, Math.round(j.q * (1 - 0.06 * monthsBack)));
+      committedByPerson.set(
+        sp,
+        (committedByPerson.get(sp) ?? 0) + committed * (j.price ?? 0),
+      );
+    });
+
+    [...committedByPerson.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([sp, committedValue], i) => {
+        const id = uid(sp);
+        if (!id || committedValue <= 0) return;
+        const factor = 1.1 + (spread(i, k) % 25) / 100;
+        const value = Math.round((committedValue * factor) / 1000) * 1000;
+        targetRows.push({
+          tenantId: TENANT_ID,
+          salespersonId: id,
+          period,
+          targetValue: value.toFixed(2),
+        });
+      });
+  });
+
+  await prisma.salesTarget.createMany({ data: targetRows });
 
   // ---- leads -------------------------------------------------------------
   const productByName = new Map(PM.products.map((p) => [p.name.trim().toUpperCase(), p]));
-  for (const l of PM.leads) {
+  const brandNames = new Set(PM.products.map((p) => p.brand.trim().toUpperCase()));
+
+  /**
+   * Match a lead's free-text product against the catalogue.
+   *
+   * A salesperson writing up an enquiry names the product the way it is said
+   * out loud — "IPOL HYDROPAC AW 68" — while the catalogue holds it as
+   * "HYDROPAC AW 68", with the brand in its own column. An exact-name match
+   * therefore failed on half the pipeline, and a lead whose product did not
+   * match carries no principal at all: selecting a brand in the topbar filter
+   * silently hid it, so the filter under-reported its own pipeline.
+   *
+   * So: try the name as written, then again with a leading brand stripped. The
+   * brand is only stripped when it IS one of the catalogue's brands, which is
+   * why this cannot turn "SYNTHETIC CUT 100" into "CUT 100".
+   */
+  const matchProduct = (raw: string) => {
+    const name = raw.trim().toUpperCase();
+    const exact = productByName.get(name);
+    if (exact) return exact;
+    for (const brand of brandNames) {
+      if (name.startsWith(brand + ' ')) {
+        const found = productByName.get(name.slice(brand.length + 1).trim());
+        if (found) return found;
+      }
+    }
+    return undefined;
+  };
+
+  /**
+   * The principal a lead's product belongs to, even when the product itself is
+   * not on the catalogue.
+   *
+   * Three of the ten leads name a product the workspace does not stock yet —
+   * which is exactly what a new enquiry often is. The brand is still knowable
+   * from the first word, and a lead the filter can find is worth more than a
+   * lead that is technically unlinked.
+   */
+  const brandInName = (raw: string) => {
+    const name = raw.trim().toUpperCase();
+    for (const brand of brandNames) {
+      if (name === brand || name.startsWith(brand + ' ')) return brand;
+    }
+    return undefined;
+  };
+  /**
+   * When each lead was raised, counted back from the day the seed runs.
+   *
+   * The export stamps every lead with a fixed epoch — they all land in one
+   * month, and that month recedes. The dashboard scopes NEW SALES COMMITTED to
+   * the leads RAISED inside the reporting window, so once the calendar moved
+   * past that month the whole new-sales half of the dashboard read ₹0 on the
+   * default view, and every month that passed made it more wrong. The
+   * projections had the same flaw and were fixed the same way.
+   *
+   * The ten leads are spread over the last eight weeks, newest first, so the
+   * current month always holds several freshly raised deals and the month
+   * before it holds the rest.
+   */
+  const leadRaisedAt = (i: number) => addDays(new Date(), -(i * 6 + 2));
+
+  /**
+   * DERIVED: the export carries neither a tier nor an expected close date.
+   *
+   * Both columns are on the list page and neither could ever show anything —
+   * and until the detail form learned to edit them there was no way to fill one
+   * in either. The grade follows the size of the deal, which is how a desk
+   * actually grades an enquiry; the expected close follows the stage, because a
+   * deal at oral confirmation is closer than one at first enquiry.
+   */
+  const TIER_BY_VALUE: [number, CustomerCategory][] = [
+    [1_000_000, "Platinum"],
+    [500_000, "Gold"],
+    [200_000, "Silver"],
+    [0, "Brass"],
+  ];
+  const DAYS_TO_CLOSE: Record<string, number> = {
+    NewEnquiries: 75,
+    NeedsAnalysis: 60,
+    TrialsAndSampleTests: 45,
+    ProposalsAndPriceQuote: 30,
+    NegotiationOralConfirmation: 15,
+  };
+
+  for (const [i, l] of PM.leads.entries()) {
     const stage = STAGE[l.stage];
     if (!stage) throw new Error(`Unmapped lead stage "${l.stage}" on ${l.id}`);
+
+    const raisedAt = leadRaisedAt(i);
+    const dealValue = l.q != null && l.expPrice != null ? l.q * l.expPrice : 0;
+    const tier = TIER_BY_VALUE.find(([floor]) => dealValue >= floor)![1];
+    const closed = stage === "ClosedWon" || stage === "ClosedLost";
 
     await prisma.lead.create({
       data: {
@@ -526,31 +803,72 @@ async function main() {
         customerName: l.customerName,
         salespersonId: uid(l.sp)!,
         stage,
+        tier,
         industryId: l.industry ? "ind_" + slug(l.industry) : null,
         area: l.industrialArea || null,
-        contactName: l.contactName || null,
-        phone: l.mobile || null,
-        nextFollowUp: l.nextFollowUpDate ? day(l.nextFollowUpDate) : null,
-        // DERIVED: the POC records the last stage change only in `history`;
-        // its most recent entry is the stage's timestamp.
-        stageUpdatedAt: l.history?.length
-          ? new Date(Math.max(...l.history.map((h) => h.timestamp)))
-          : null,
-        createdAt: l.createdAt ? new Date(l.createdAt) : undefined,
+        // A follow-up date three months in the past is not a follow-up date.
+        // The open deals are chased around now; a closed one is not chased.
+        nextFollowUp: closed ? null : addDays(new Date(), (i % 9) - 3),
+        // A won or lost deal has no expected close still to come.
+        expClose: closed
+          ? null
+          : addDays(raisedAt, DAYS_TO_CLOSE[stage] ?? 45),
+        // DERIVED: the POC records the last stage change only in `history`, and
+        // those timestamps move with the export rather than with the clock.
+        //
+        // A deal that has CLOSED is dated recently, because the dashboard reads
+        // "new sales achieved" off the day a lead reached ClosedWon — dating
+        // every close two days after the enquiry meant no deal was ever won in
+        // the month being reported on, and that tile read ₹0 beside a pipeline
+        // with won business in it. An open deal simply moved shortly after it
+        // was raised.
+        stageUpdatedAt: closed
+          ? addDays(new Date(), -((i % 3) * 7 + 3))
+          : addDays(raisedAt, 2),
+        createdAt: raisedAt,
       },
     });
 
+    // DERIVED: the export writes the designation INSIDE the name, because the
+    // POC had nowhere else to put it — "Mr. P. Subramanian (Plant Head)". Now
+    // that a contact has a designation column, the parenthetical goes where it
+    // belongs instead of being read as part of somebody's name.
+    //
+    // One contact per lead is all the export carries. The product takes up to
+    // ten; a second person at a plant is added in the app, not invented here.
+    if (l.contactName || l.mobile) {
+      const named = (l.contactName || "").trim();
+      const split = /^(.*?)\s*\(([^)]+)\)\s*$/.exec(named);
+      await prisma.contact.create({
+        data: {
+          tenantId: TENANT_ID,
+          entityType: "Lead",
+          entityId: "lead_" + slug(l.id),
+          name: (split ? split[1] : named) || "Contact",
+          designation: split ? split[2] : null,
+          phone: l.mobile || null,
+          whatsapp: l.mobile || null,
+          sameAsMobile: true,
+          isPrimary: true,
+          sortOrder: 0,
+        },
+      });
+    }
+
     if (l.productName) {
-      // The POC lead carries a free-text product name; link it to the catalog
-      // when the name matches exactly, otherwise keep the text only.
-      const match = productByName.get(l.productName.trim().toUpperCase());
+      // The POC lead carries a free-text product name. Link it to the catalogue
+      // where the name resolves, and to the PRINCIPAL wherever the brand can be
+      // read off the name — a lead nobody stocks yet still belongs to a brand,
+      // and the topbar filter is only honest if it can find it.
+      const match = matchProduct(l.productName);
+      const brandName = match?.brand ?? brandInName(l.productName);
       await prisma.leadProduct.create({
         data: {
           leadId: "lead_" + slug(l.id),
           productId: match ? "prod_" + match.id : null,
-          principalId: match ? "prin_" + slug(match.brand) : null,
+          principalId: brandName ? "prin_" + slug(brandName) : null,
           productName: l.productName,
-          brand: match?.brand ?? null,
+          brand: brandName ?? null,
           qty: dec(l.q),
           price: dec(l.expPrice),
           // DERIVED: the POC shows qty × expected price as the lead value.
@@ -595,10 +913,85 @@ async function main() {
   });
 
   // ---- sales orders ------------------------------------------------------
+  // DERIVED dates and a walked trail. The export pins every order to a fixed
+  // epoch and every delivery promise to a date string two months EARLIER than
+  // the order that made it — so the commitment fell before the order, and the
+  // whole fulfilment report aged out of relevance a month after any given
+  // seed. Orders are spread back over the last five weeks from the clock, each
+  // promise is made forward of its own order, and the status trail climbs every
+  // rung the order has reached (see ORDER_LADDER).
+  const areaOf = new Map(PM.customers.map((c) => [c.id, c.area]));
+  const nameOf = new Map(PM.customers.map((c) => [c.id, c.name]));
+
+  let orderIdx = 0;
   for (const o of PM.salesOrders) {
     const status = ORDER_STATUS[o.status];
     if (!status) throw new Error(`Unmapped order status "${o.status}" on ${o.id}`);
     const orderId = "so_" + slug(o.id);
+    const i = orderIdx++;
+
+    /** Deterministic, so two seed runs on the same day produce the same trail. */
+    const jitter = (rung: number, span: number) =>
+      span === 0 ? 0 : (i * 37 + rung * 101) % span;
+
+    // Raised during a working day rather than at whatever time the seed
+    // happened to run — an order stamped 02:36 am reads as a glitch, and the
+    // durations hanging off it inherit that.
+    const raisedAt = addDays(new Date(), -(i * 4 + 5));
+    raisedAt.setUTCHours(4 + (i % 6), 30, 0, 0);
+
+    // How far up the ladder this order has climbed. Cancelled is a terminal
+    // side-branch rather than a rung, so it keeps whatever trail it had.
+    const reached = (ORDER_LADDER as readonly string[]).indexOf(status);
+
+    // The export's own notes, kept on the rungs they describe — a synthesized
+    // rung gets a line of its own rather than borrowing someone else's.
+    const exported = new Map<number, { note: string | null; user: string | null }>();
+    for (const h of o.history ?? []) {
+      const mapped = ORDER_STATUS[h.toStatus];
+      const rung = mapped ? (ORDER_LADDER as readonly string[]).indexOf(mapped) : -1;
+      if (rung >= 0) exported.set(rung, { note: h.note || null, user: h.user || null });
+    }
+
+    const transporter = TRANSPORTERS[i % TRANSPORTERS.length];
+    const lrNumber = `LR-${String(70_000 + i * 137)}`;
+
+    const trail: { status: OrderStatus; at: Date; note: string | null; by: string }[] = [];
+    let at = raisedAt;
+    for (let rung = 0; rung <= reached; rung++) {
+      const [min, span] = RUNG_HOURS[rung];
+      at = new Date(at.getTime() + (min + jitter(rung, span)) * 3_600_000);
+      const fromExport = exported.get(rung);
+      const synthesized =
+        rung === 2
+          ? `Transporter assigned: ${transporter} (${lrNumber}).`
+          : rung === 4
+            ? "Consignment handed over at the customer's gate."
+            : null;
+      trail.push({
+        status: ORDER_LADDER[rung],
+        at,
+        note: fromExport?.note ?? synthesized,
+        by: (fromExport?.user && uid(fromExport.user)) || uid(o.sp)!,
+      });
+    }
+
+    // A promise made forward of the order, at the close of a working day, so
+    // the SLA verdict compares two real instants rather than UTC midnight.
+    //
+    // One standard lead time for every order, which is how a company quotes
+    // one — and tight enough that the long, variable transit leg decides who
+    // misses it rather than a generous window absorbing everyone. That matters:
+    // a fulfilment report whose delay counter can only ever read zero is
+    // indistinguishable from one that is broken, which is how this dataset
+    // read before. No order is singled out; the trail decides.
+    const promised = addDays(raisedAt, 4);
+    promised.setUTCHours(12, 0, 0, 0);
+
+    const lineSum =
+      Math.round(
+        (o.items.reduce((s, it) => s + it.qty * it.unitPrice, 0) + Number.EPSILON) * 100,
+      ) / 100;
 
     await prisma.salesOrder.create({
       data: {
@@ -607,14 +1000,37 @@ async function main() {
         code: o.id,
         customerId: "cust_" + o.customerId,
         salespersonId: uid(o.sp)!,
-        date: o.createdAt ? new Date(o.createdAt) : new Date(),
+        date: raisedAt,
         status,
-        // The POC's grandTotal is subtotal − discount + tax; this column is the
-        // order's payable value, so grandTotal is the right source.
-        total: dec(o.grandTotal)!,
+        // The sum of THIS ORDER'S OWN LINES, which is the rule order-engine's
+        // computeTotal enforces for every order the app raises.
+        //
+        // The export's grandTotal (subtotal − discount + tax) used to go here,
+        // and this schema has columns for neither discount nor tax — so `total`
+        // meant one thing on a seeded order and another on a created one. On
+        // SO-2026-0004 that was ₹1,12,100 stored against ₹95,000 of line items,
+        // and the printed invoice then added 18% GST to a figure that already
+        // carried it. Opening the new line editor and saving would have
+        // "changed" the order's value by 15% without a single line moving.
+        total: dec(lineSum)!,
         paymentTerms: o.paymentTerms || null,
-        expectedDelivery: o.deliveryDate ? day(o.deliveryDate) : null,
-        createdAt: o.createdAt ? new Date(o.createdAt) : undefined,
+        expectedDelivery: promised,
+        // DERIVED: the export carries none of these, so every order in the
+        // workspace read "Standard / —" on the dispatch card and the order
+        // search had no transporter to match.
+        deliveryMode: ORDER_DELIVERY_MODES[i % ORDER_DELIVERY_MODES.length],
+        // "Others" is the dataset's catch-all area — a real value for
+        // segmentation, and nonsense as the second line of a delivery address.
+        deliveryAddress: [
+          nameOf.get(o.customerId),
+          areaOf.get(o.customerId) === "Others" ? null : areaOf.get(o.customerId),
+        ]
+          .filter(Boolean)
+          .join(", ") || null,
+        transporterName: reached >= 2 ? transporter : null,
+        lrNumber: reached >= 3 ? lrNumber : null,
+        isUrgent: i % 3 === 0,
+        createdAt: raisedAt,
       },
     });
 
@@ -628,20 +1044,119 @@ async function main() {
       })),
     });
 
-    if (o.history?.length) {
+    if (trail.length) {
       await prisma.orderStatusHistory.createMany({
-        data: o.history
-          .filter((h) => ORDER_STATUS[h.toStatus])
-          .map((h) => ({
-            orderId,
-            status: ORDER_STATUS[h.toStatus],
-            note: h.note || null,
-            changedById: (h.user && uid(h.user)) || uid(o.sp)!,
-            at: new Date(h.timestamp),
-          })),
+        data: trail.map((t) => ({
+          orderId,
+          status: t.status,
+          note: t.note,
+          changedById: t.by,
+          at: t.at,
+        })),
       });
     }
   }
+
+  // ---- follow-ups --------------------------------------------------------
+  // The POC export is customers, payments, projections, leads and orders. It
+  // carries no follow-ups, because a follow-up is something a salesperson makes
+  // in the app rather than a column in a spreadsheet — so the feature shipped
+  // with nothing to show: the Follow-ups page empty, the dashboard tile at
+  // zero, and neither state distinguishable from a fault.
+  //
+  // A handful on ONE salesperson's desk, each against a record that person
+  // actually owns, so the sales login has real work to open and the tile has
+  // something to count. Two are already late, one falls today and one is still
+  // ahead — which is also the tile's own boundary: it counts what is owed by
+  // today, so it shows three of these four while the page lists all four.
+  //
+  // Every date is an offset from the day the seed runs, never a literal. A
+  // fixed date reads as "three days late" this week and "four hundred days
+  // late" next year, and a dataset that rots is worse than one that is empty.
+  const fuOwner = uid(FOLLOWUP_OWNER);
+  if (!fuOwner) throw new Error(`No salesperson named "${FOLLOWUP_OWNER}" in the dataset`);
+  const noon = new Date();
+  noon.setUTCHours(11, 0, 0, 0);
+
+  const [fuLead, fuPayment, fuCustomer, fuProjection] = await Promise.all([
+    prisma.lead.findFirst({ where: { salespersonId: fuOwner }, orderBy: { id: "asc" } }),
+    // Their customer's unpaid invoice, not merely one stamped with their id:
+    // the POC export leaves Payment.salespersonId unset on this dataset, and a
+    // collection follows the account rather than the column anyway.
+    prisma.payment.findFirst({
+      where: {
+        status: { not: "Paid" },
+        OR: [{ salespersonId: fuOwner }, { customer: { salespersonId: fuOwner } }],
+      },
+      orderBy: { id: "asc" },
+    }),
+    prisma.customer.findFirst({ where: { salespersonId: fuOwner }, orderBy: { id: "asc" } }),
+    prisma.projection.findFirst({
+      where: { mapping: { salespersonId: fuOwner } },
+      include: { mapping: { include: { customer: true, product: true } } },
+      orderBy: { id: "asc" },
+    }),
+  ]);
+
+  const followUps = [
+    fuLead && {
+      id: "fu_lead",
+      entityType: "Lead" as const,
+      entityId: fuLead.id,
+      title: `Chase the quotation — ${fuLead.customerName}`,
+      subtitle: "Sample despatched, no response since",
+      amount: null,
+      dueDate: addDays(noon, -6),
+    },
+    fuPayment && {
+      id: "fu_payment",
+      entityType: "Payment" as const,
+      entityId: fuPayment.id,
+      title: `Collect on invoice ${fuPayment.invoiceNo ?? fuPayment.refNo ?? ""}`.trim(),
+      subtitle: fuPayment.customerName,
+      amount: dec(Number(fuPayment.amount) - Number(fuPayment.received)),
+      dueDate: addDays(noon, -2),
+    },
+    fuCustomer && {
+      id: "fu_customer",
+      entityType: "Customer" as const,
+      entityId: fuCustomer.id,
+      title: `Site visit — ${fuCustomer.name}`,
+      subtitle: "Half-yearly review of consumption",
+      amount: null,
+      dueDate: noon,
+    },
+    fuProjection && {
+      id: "fu_projection",
+      entityType: "Projection" as const,
+      entityId: fuProjection.id,
+      title: `Confirm the PO — ${fuProjection.mapping.product.name}`,
+      subtitle: `${fuProjection.mapping.customer.name} · ${PERIOD}`,
+      amount: dec(Number(fuProjection.committedQty) * Number(fuProjection.price)),
+      dueDate: addDays(noon, 3),
+    },
+  ].filter((f): f is NonNullable<typeof f> => !!f);
+
+  if (followUps.length < 4)
+    throw new Error(
+      `Only ${followUps.length} of 4 follow-up targets found for ${FOLLOWUP_OWNER} — the dataset moved`,
+    );
+
+  await prisma.followUp.createMany({
+    data: followUps.map((f) => ({
+      id: f.id,
+      tenantId: TENANT_ID,
+      entityType: f.entityType,
+      entityId: f.entityId,
+      salespersonId: fuOwner,
+      title: f.title,
+      subtitle: f.subtitle,
+      amount: f.amount,
+      dueDate: f.dueDate,
+      done: false,
+      note: null,
+    })),
+  });
 
   const counts = {
     tenants: await prisma.tenant.count(),
@@ -652,13 +1167,17 @@ async function main() {
     customers: await prisma.customer.count(),
     mappings: await prisma.mapping.count(),
     projections: await prisma.projection.count(),
+    projectionMonths: PERIODS.join(", "),
+    salesTargets: await prisma.salesTarget.count(),
     payments: await prisma.payment.count(),
     paymentsLinkedToCustomer: await prisma.payment.count({ where: { customerId: { not: null } } }),
     leads: await prisma.lead.count(),
     leadProducts: await prisma.leadProduct.count(),
+    leadContacts: await prisma.contact.count({ where: { entityType: "Lead" } }),
     leadRemarks: await prisma.remark.count({ where: { entityType: "Lead" } }),
     salesOrders: await prisma.salesOrder.count(),
     salesOrderItems: await prisma.salesOrderItem.count(),
+    followUps: await prisma.followUp.count(),
     platformUsers: await prisma.platformUser.count(),
   };
   console.log("✅ Seed complete:", counts);

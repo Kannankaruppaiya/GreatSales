@@ -94,5 +94,4 @@ export class RemarksService {
     });
     return toRow(created);
   }
-
 }

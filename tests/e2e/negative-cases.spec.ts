@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { MGMT_ID } from "./fixtures/test-data";
 import { loginAsAdmin } from "./helpers/auth";
 
 test.describe("Frontend Negative & Error Resilience Edge Cases", () => {
@@ -7,7 +8,7 @@ test.describe("Frontend Negative & Error Resilience Edge Cases", () => {
   }) => {
     await loginAsAdmin(page);
 
-    await page.goto("/managements/greatsales-industrial-corp/customers");
+    await page.goto(`/managements/${MGMT_ID}/customers`);
     await expect(page.locator("h1")).toContainText(/Customer/i);
 
     // Open "Add New Customer" modal
@@ -55,7 +56,7 @@ test.describe("Frontend Negative & Error Resilience Edge Cases", () => {
       });
     });
 
-    await page.goto("/managements/greatsales-industrial-corp/customers");
+    await page.goto(`/managements/${MGMT_ID}/customers`);
 
     // Header and layout must remain intact and visible
     await expect(page.locator("h1")).toContainText(/Customer Master Directory/i);
@@ -73,7 +74,7 @@ test.describe("Frontend Negative & Error Resilience Edge Cases", () => {
     const context = await browser.newContext();
     const page = await context.newPage();
 
-    await page.goto("/managements/greatsales-industrial-corp/customers");
+    await page.goto(`/managements/${MGMT_ID}/customers`);
 
     // Must be redirected to login
     await page.waitForURL(/\/login/, { timeout: 10000 });

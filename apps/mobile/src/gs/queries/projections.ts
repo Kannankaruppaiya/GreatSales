@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, buildQuery } from '../api';
 import type { ProjectionLine, ProjectionListResponse, ProjectionUpdate } from '@greatsales/shared';
+import { invalidateAfter } from '../invalidate';
 
 export type { ProjectionLine, ProjectionUpdate };
 
@@ -35,6 +36,6 @@ export function useUpdateProjection() {
         method: 'PATCH',
         body: JSON.stringify(patch),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: projectionKeys.all }),
+    onSuccess: () => invalidateAfter(qc, 'projections'),
   });
 }

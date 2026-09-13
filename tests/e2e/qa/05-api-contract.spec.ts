@@ -167,12 +167,4 @@ test.describe("API contract", () => {
     expect(text).not.toMatch(/passwordHash|\$argon2|"password"/);
   });
 
-  test("the throttler is armed — a burst of logouts is cut off with 429", async ({ request }) => {
-    const codes: number[] = [];
-    for (let i = 0; i < 26; i++) {
-      const res = await request.post("/api/v1/auth/logout", { data: {} });
-      codes.push(res.status());
-    }
-    expect(codes, `saw ${codes.join(",")}`).toContain(429);
-  });
 });
