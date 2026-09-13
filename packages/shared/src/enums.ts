@@ -74,6 +74,28 @@ export const ORDER_STATUS_VALUES = [
 export type OrderStatusValue = (typeof ORDER_STATUS_VALUES)[number];
 export const OrderStatusSchema = z.enum(ORDER_STATUS_VALUES);
 
+/**
+ * How the GST on a sales order is arrived at.
+ *
+ * `None` is an explicit zero — an exempt or export order — not "not filled in".
+ * `Percentage` computes the tax from `taxRate`. `Amount` takes a figure the
+ * user enters, for the case where an accounts department has already fixed the
+ * GST on a reconciled invoice and the order has to match it to the rupee.
+ *
+ * Line prices are GST-EXCLUSIVE in this product: the tax is added on top of the
+ * line sum, never extracted from it. See the migration for the dataset evidence.
+ */
+export const TAX_MODE_VALUES = ["None", "Percentage", "Amount"] as const;
+export type TaxModeValue = (typeof TAX_MODE_VALUES)[number];
+export const TaxModeSchema = z.enum(TAX_MODE_VALUES);
+
+/** How each mode is named to a person. */
+export const TAX_MODE_LABELS: Record<TaxModeValue, string> = {
+  None: "No GST",
+  Percentage: "GST by percentage",
+  Amount: "GST by amount",
+};
+
 export const DELIVERY_MODE_VALUES = [
   "TransportLR",
   "Courier",

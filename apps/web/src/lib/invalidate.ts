@@ -58,7 +58,24 @@ export const STALE_AFTER: Record<WriteTarget, readonly string[]> = {
   ],
   /** The dashboard's committed new-sales value and its oral-confirmation list. */
   leads: ["leads", "dashboard"],
-  orders: ["orders"],
+  /**
+   * An order raised from a projection writes `Projection.salesOrderId` in the
+   * same transaction, and `ProjectionLine` carries `salesOrderId`/
+   * `salesOrderStatus` — so the worksheet's sales-order column, and its refusal
+   * to delete a converted line, both go stale on an order write. Cancelling an
+   * order does the same in reverse: the line offers "Create SO" again.
+   *
+   * NOT the dashboard. It is composed from projections, leads, targets and
+   * follow-ups (dashboard.service.ts), and none of its figures reads an order
+   * — naming it here would refetch four services to change nothing.
+   */
+  orders: ["orders", "projections"],
+  /**
+   * Its own family, and nothing else. `Customer.outstanding` is an entered
+   * opening balance rather than a derived receivables position (see
+   * customers.service.ts), the dashboard reads no payment, and Customer 360's
+   * payments block IS this family filtered by customer.
+   */
   payments: ["payments"],
   /** Feeds the KPI row, the top-open list and the achievement percentages. */
   projections: ["projections", "dashboard"],

@@ -261,10 +261,19 @@ export function SalesOrderDetailModal({
   const isCancelled = liveOrder.status === "Cancelled";
   const commitment = commitmentOf(liveOrder);
 
-  // total/lineTotal are server-computed (see features/orders/types.ts) —
-  // rendered exactly as received, never recomputed.
+  // subtotal/taxAmount/total/lineTotal are server-computed (see
+  // features/orders/types.ts) — rendered exactly as received, never recomputed.
+  // `total` is the GRAND total; the GST behind it is named rather than left
+  // implied, because an order with GST and one without are a fifth apart and
+  // the card used to show one figure for both.
   const totalVal = liveOrder.total;
   const totalQty = liveOrder.items.reduce((s, l) => s + l.qty, 0);
+  const gstNote =
+    liveOrder.taxMode === "Percentage"
+      ? `${inr(liveOrder.subtotal)} + ${liveOrder.taxRate ?? 0}% GST`
+      : liveOrder.taxMode === "Amount"
+        ? `${inr(liveOrder.subtotal)} + ${inr(liveOrder.taxAmount)} GST`
+        : "No GST";
 
   const currentIdx = TIMELINE_STATUSES.indexOf(liveOrder.status as (typeof TIMELINE_STATUSES)[number]);
   const nextStatus: OrderStatusValue | null =
@@ -374,7 +383,24 @@ export function SalesOrderDetailModal({
     });
   };
 
-  const draftTotal = lines.reduce((s, r) => s + (Number(r.qty) || 0) * (Number(r.price) || 0), 0);
+  /**
+   * What the server will compute for these lines, under the GST treatment the
+   * order ALREADY carries — the line editor does not change the tax mode, so
+   * previewing a bare line sum here made every edit look like it knocked the
+   * GST off the order.
+   */
+  const draftSubtotalPaise = lines.reduce(
+    (s, r) => s + Math.round((Number(r.qty) || 0) * (Number(r.price) || 0) * 100),
+    0,
+  );
+  const draftTaxPaise =
+    liveOrder.taxMode === "Percentage"
+      ? Math.round((draftSubtotalPaise * (liveOrder.taxRate ?? 0)) / 100)
+      : liveOrder.taxMode === "Amount"
+        ? Math.round(liveOrder.taxAmount * 100)
+        : 0;
+  const draftSubtotal = draftSubtotalPaise / 100;
+  const draftTotal = (draftSubtotalPaise + draftTaxPaise) / 100;
   const linesChanged =
     JSON.stringify(liveOrder.items.map((i) => [i.productId, i.qty, i.price])) !==
     JSON.stringify(lines.map((r) => [r.productId, Number(r.qty) || 0, Number(r.price) || 0]));
@@ -498,6 +524,7 @@ export function SalesOrderDetailModal({
           <div className="rounded-xl border border-brand/40 bg-brand-soft p-2.5">
             <div className={cn(cardLabel, "text-brand-ink")}>Order value</div>
             <div className="mt-0.5 text-sm font-bold tabular-nums text-brand-ink">{inr(totalVal)}</div>
+            <div className="truncate text-2xs text-brand-ink/80">{gstNote}</div>
             <div className="text-2xs text-brand-ink/80">{totalQty} units ordered</div>
           </div>
         </div>
@@ -752,15 +779,34 @@ export function SalesOrderDetailModal({
                 </div>
               ))}
 
-              <div className="flex items-center justify-between rounded-lg bg-surface-2 px-3 py-2.5">
-                <span className="text-2xs font-bold uppercase tracking-wider text-muted">
-                  {linesChanged ? "New order value (unsaved)" : "Order value"}
-                </span>
-                <span className="text-sm font-bold tabular-nums text-brand">{inr(draftTotal)}</span>
+              <div className="rounded-lg bg-surface-2 px-3 py-2.5 space-y-1">
+                <div className="flex items-center justify-between text-2xs text-muted">
+                  <span>Subtotal</span>
+                  <span className="font-semibold tabular-nums text-ink">{inr(draftSubtotal)}</span>
+                </div>
+                <div className="flex items-center justify-between text-2xs text-muted">
+                  <span>
+                    {liveOrder.taxMode === "Percentage"
+                      ? `GST (${liveOrder.taxRate ?? 0}%)`
+                      : liveOrder.taxMode === "Amount"
+                        ? "GST (entered)"
+                        : "GST (none)"}
+                  </span>
+                  <span className="font-semibold tabular-nums text-ink">
+                    {inr(draftTaxPaise / 100)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-t border-line pt-1">
+                  <span className="text-2xs font-bold uppercase tracking-wider text-muted">
+                    {linesChanged ? "New order value (unsaved)" : "Order value"}
+                  </span>
+                  <span className="text-sm font-bold tabular-nums text-brand">{inr(draftTotal)}</span>
+                </div>
               </div>
               <p className="text-3xs text-muted">
-                The total is recomputed by the server from these lines. Quantities lock once the
-                order is acknowledged — the warehouse is acting on them by then.
+                The total is recomputed by the server from these lines, under this order's own GST
+                treatment. Quantities lock once the order is acknowledged — the warehouse is
+                acting on them by then.
               </p>
             </div>
           ) : (

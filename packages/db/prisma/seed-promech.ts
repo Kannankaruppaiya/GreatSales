@@ -171,6 +171,15 @@ const PM = loadDataset<{
   salesOrders: PmOrder[];
 }>("promech-data.json", __dirname);
 
+/**
+ * The GST rate every order in the Promech export carries — `tax` is 18% of the
+ * net subtotal on all six of them, which is also what establishes that a line
+ * price in this dataset is GST-EXCLUSIVE. It is this dataset's rate, not a rule:
+ * `SalesOrder.taxMode`/`taxRate` exist precisely so an order can carry another
+ * one, or none.
+ */
+const PROMECH_GST_RATE = 18;
+
 // Permission catalog (global, tenant-agnostic keys).
 
 
@@ -992,6 +1001,7 @@ async function main() {
       Math.round(
         (o.items.reduce((s, it) => s + it.qty * it.unitPrice, 0) + Number.EPSILON) * 100,
       ) / 100;
+    const gst = Math.round(lineSum * PROMECH_GST_RATE) / 100;
 
     await prisma.salesOrder.create({
       data: {
@@ -1002,17 +1012,27 @@ async function main() {
         salespersonId: uid(o.sp)!,
         date: raisedAt,
         status,
-        // The sum of THIS ORDER'S OWN LINES, which is the rule order-engine's
-        // computeTotal enforces for every order the app raises.
+        // The three money columns, derived from THIS ORDER'S OWN LINES by the
+        // same rule `computeOrderTotals` enforces for every order the app
+        // raises: subtotal is the line sum, GST is added on top, total is
+        // their sum.
         //
-        // The export's grandTotal (subtotal − discount + tax) used to go here,
-        // and this schema has columns for neither discount nor tax — so `total`
-        // meant one thing on a seeded order and another on a created one. On
-        // SO-2026-0004 that was ₹1,12,100 stored against ₹95,000 of line items,
-        // and the printed invoice then added 18% GST to a figure that already
-        // carried it. Opening the new line editor and saving would have
-        // "changed" the order's value by 15% without a single line moving.
-        total: dec(lineSum)!,
+        // The export's grandTotal used to go into `total` alone, on a schema
+        // with no tax column at all — so `total` meant one thing on a seeded
+        // order and another on a created one. On SO-2026-0004 that was
+        // ₹1,12,100 stored against ₹95,000 of line items, and the printed
+        // invoice then added 18% GST to a figure that already carried it.
+        //
+        // Every order in the export carries tax at 18% of its net subtotal, so
+        // that is the mode and rate they are seeded with. The export's
+        // `discount` still has nowhere to go — the schema has no discount
+        // column — so these subtotals are the gross line sums and can sit a
+        // little above the export's own net figures.
+        subtotal: dec(lineSum)!,
+        taxMode: "Percentage",
+        taxRate: dec(PROMECH_GST_RATE)!,
+        taxAmount: dec(gst)!,
+        total: dec(lineSum + gst)!,
         paymentTerms: o.paymentTerms || null,
         expectedDelivery: promised,
         // DERIVED: the export carries none of these, so every order in the

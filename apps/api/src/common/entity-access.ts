@@ -124,3 +124,36 @@ export async function assertParentVisible(
     );
   }
 }
+
+/**
+ * A sales-role caller may not hand a record to anybody else.
+ *
+ * Every owned resource loads the row and refuses one the caller does not own,
+ * which proves who owns it NOW and says nothing about who owns it after the
+ * patch. `salespersonId` was writable on customers, leads and payments alike,
+ * so owning a record was enough to push it onto a colleague — and with it the
+ * overdue invoice, the cold lead or the account, off the pusher's own aging
+ * and pipeline reports. No console offers that; three direct PATCHes did.
+ *
+ * Reassignment stays available to admin, which is the role the bulk
+ * ReassignCustomers flow already runs as; management holds no write permission
+ * at all (see ROLE_PERMISSIONS). So this narrows exactly one role, and it
+ * lives here rather than in each service because a rule copied three times is
+ * a rule that will be changed in one of them.
+ *
+ * `requestedOwnerId` is `undefined` when the patch does not name an owner,
+ * which is the ordinary case and always allowed.
+ */
+export function assertOwnerNotTransferred(
+  salesOnly: boolean,
+  user: RequestUser,
+  requestedOwnerId: string | null | undefined,
+  noun: string,
+): void {
+  if (!salesOnly || requestedOwnerId === undefined) return;
+  if (requestedOwnerId !== user.userId) {
+    throw new ForbiddenException(
+      `Only an administrator can reassign a ${noun} to another salesperson`,
+    );
+  }
+}

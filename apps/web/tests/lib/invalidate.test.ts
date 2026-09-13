@@ -73,8 +73,18 @@ describe("invalidateAfter", () => {
   it("does not refetch unrelated families", () => {
     // Orders and payments appear nowhere in the dashboard payload, so an
     // order saved on the dashboard must not cost the page a second request.
-    expect(STALE_AFTER.orders).toEqual(["orders"]);
+    expect(STALE_AFTER.orders).not.toContain("dashboard");
     expect(STALE_AFTER.payments).toEqual(["payments"]);
+  });
+
+  /**
+   * An order raised from a projection writes `Projection.salesOrderId` in the
+   * same transaction, and `ProjectionLine` carries that id and the order's
+   * status. Invalidating only "orders" left the worksheet's sales-order column
+   * showing a line as unconverted with its order already raised behind it.
+   */
+  it("refreshes the projections worksheet after an order write", () => {
+    expect(STALE_AFTER.orders).toContain("projections");
   });
 
   /**

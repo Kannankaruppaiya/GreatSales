@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -17,7 +18,18 @@ import {
 } from '@greatsales/shared';
 import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { agingDays, deriveStatus, pending } from './payment-engine';
+import {
+  agingDays,
+  deriveStatus,
+  pending,
+  reminderSequenceError,
+  reminderUpdateError,
+  type ReminderFlags,
+} from './payment-engine';
+import {
+  assertOwnerNotTransferred,
+  assertParentVisible,
+} from '../common/entity-access';
 import { businessToday } from '../common/business-day';
 
 /**
@@ -200,6 +212,15 @@ export class PaymentsService {
     const received = body.received ?? 0;
     const dueDate = body.dueDate ?? null;
 
+    // A record can arrive with letters already behind it — an import, or a
+    // collector catching the row up — but not with a gap in them. See
+    // `reminderSequenceError`.
+    const openingChase = Object.fromEntries(
+      REMINDER_STAGES.map((st) => [st, body[st] ?? false]),
+    ) as ReminderFlags;
+    const gap = reminderSequenceError(openingChase);
+    if (gap) throw new BadRequestException(gap);
+
     const created = await db.payment.create({
       data: {
         tenant: { connect: { id: user.tenantId } },
@@ -246,6 +267,43 @@ export class PaymentsService {
     const db = this.prisma.forTenant(user.tenantId);
     const existing = await this.loadOwned(db, user, id);
     const today = businessToday();
+    const salesOnly = await this.isSalesOnly(db, user.roleId);
+
+    // Who a receivable belongs to, and which account it sits against, are not
+    // fields a salesperson edits. `loadOwned` above proves they own the row
+    // TODAY; without this, owning it was enough to hand it to somebody else or
+    // move it onto an account that is not theirs — either of which takes an
+    // overdue invoice out of their own aging report and off their book. The
+    // console never offered it; a direct PATCH did.
+    assertOwnerNotTransferred(
+      salesOnly,
+      user,
+      // `null` here means "detach the owner", which is a transfer to nobody.
+      'salespersonId' in patch ? (patch.salespersonId ?? null) : undefined,
+      'payment',
+    );
+    if (salesOnly && 'customerId' in patch) {
+      if (!patch.customerId) {
+        throw new ForbiddenException(
+          'Only an administrator can detach a payment from its customer',
+        );
+      }
+      // Their own book only — the same reachability rule remarks and
+      // attachments already use, rather than a second implementation of it.
+      await assertParentVisible(db, user, 'Customer', patch.customerId);
+    }
+
+    // The chase, before any of it is written. Both rules live in the engine so
+    // the console's menu and the API cannot disagree about what a valid
+    // sequence is.
+    const currentChase = Object.fromEntries(
+      REMINDER_STAGES.map((st) => [st, existing[st]]),
+    ) as ReminderFlags;
+    const nextChase = Object.fromEntries(
+      REMINDER_STAGES.map((st) => [st, patch[st] ?? existing[st]]),
+    ) as ReminderFlags;
+    const chaseProblem = reminderUpdateError(currentChase, nextChase);
+    if (chaseProblem) throw new BadRequestException(chaseProblem);
 
     const data: Prisma.PaymentUpdateInput = {};
     if (patch.amount !== undefined) data.amount = patch.amount;

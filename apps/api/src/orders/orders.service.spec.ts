@@ -1,6 +1,7 @@
 import '../load-env'; // authoritative greatsales_app DATABASE_URL (RLS-bound)
 import { reseedTestDatabase } from '../test-support/reseed';
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
@@ -376,5 +377,236 @@ describe('OrdersService (integration)', () => {
         isUrgent: true,
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  /**
+   * The three GST modes, end to end: what the client sends, what the service
+   * derives, and what comes back on the row.
+   *
+   * The dialog used to hard-code 18% into a preview and send no tax field at
+   * all, so a user was shown ₹11,800 and the database stored ₹10,000. These
+   * assert the money the API actually persists, which is the figure every
+   * list, invoice and export then prints.
+   */
+  describe('GST', () => {
+    const lines = [{ productId: 'prod_a_acme', qty: 10, price: 1000 }];
+
+    it('charges no tax at all when the mode is None', async () => {
+      const o = await service.create(admin('tenant_acme', 'acme'), {
+        code: 'SO-GST-NONE',
+        customerId: 'cust_1_acme',
+        salespersonId: 'user_sales1_acme',
+        items: lines,
+        taxMode: 'None',
+      });
+      expect(o.subtotal).toBe(10_000);
+      expect(o.taxAmount).toBe(0);
+      expect(o.taxRate).toBeNull();
+      expect(o.total).toBe(10_000);
+    });
+
+    it('defaults to no tax when the client names no mode', async () => {
+      const o = await service.create(admin('tenant_acme', 'acme'), {
+        code: 'SO-GST-DEFAULT',
+        customerId: 'cust_1_acme',
+        salespersonId: 'user_sales1_acme',
+        items: lines,
+      });
+      expect(o.taxMode).toBe('None');
+      expect(o.total).toBe(10_000);
+    });
+
+    it('computes the tax from a percentage, whatever the percentage is', async () => {
+      const at18 = await service.create(admin('tenant_acme', 'acme'), {
+        code: 'SO-GST-PCT-18',
+        customerId: 'cust_1_acme',
+        salespersonId: 'user_sales1_acme',
+        items: lines,
+        taxMode: 'Percentage',
+        taxRate: 18,
+      });
+      expect(at18).toMatchObject({
+        subtotal: 10_000,
+        taxRate: 18,
+        taxAmount: 1800,
+        total: 11_800,
+      });
+
+      // Nothing is fixed at 18 — that is one dataset's rate, not a rule.
+      const at5 = await service.create(admin('tenant_acme', 'acme'), {
+        code: 'SO-GST-PCT-5',
+        customerId: 'cust_1_acme',
+        salespersonId: 'user_sales1_acme',
+        items: lines,
+        taxMode: 'Percentage',
+        taxRate: 5,
+      });
+      expect(at5.taxAmount).toBe(500);
+      expect(at5.total).toBe(10_500);
+    });
+
+    it('takes an entered GST figure verbatim', async () => {
+      const o = await service.create(admin('tenant_acme', 'acme'), {
+        code: 'SO-GST-AMT',
+        customerId: 'cust_1_acme',
+        salespersonId: 'user_sales1_acme',
+        items: lines,
+        taxMode: 'Amount',
+        taxAmount: 1500,
+      });
+      expect(o).toMatchObject({
+        subtotal: 10_000,
+        taxRate: null,
+        taxAmount: 1500,
+        total: 11_500,
+      });
+    });
+
+    it('refuses a percentage mode with no percentage, or one out of range', async () => {
+      const body = {
+        customerId: 'cust_1_acme',
+        salespersonId: 'user_sales1_acme',
+        items: lines,
+        taxMode: 'Percentage' as const,
+      };
+      await expect(
+        service.create(admin('tenant_acme', 'acme'), {
+          ...body,
+          code: 'SO-GST-BAD-1',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        service.create(admin('tenant_acme', 'acme'), {
+          ...body,
+          code: 'SO-GST-BAD-2',
+          taxRate: 150,
+        }),
+      ).rejects.toThrow(/between 0 and 100/);
+    });
+
+    it('refuses an amount mode with no amount', async () => {
+      await expect(
+        service.create(admin('tenant_acme', 'acme'), {
+          code: 'SO-GST-BAD-3',
+          customerId: 'cust_1_acme',
+          salespersonId: 'user_sales1_acme',
+          items: lines,
+          taxMode: 'Amount',
+        }),
+      ).rejects.toThrow(/amount is required/i);
+    });
+
+    it('ignores a total the client tries to send', async () => {
+      const o = await service.create(admin('tenant_acme', 'acme'), {
+        code: 'SO-GST-CLIENT-TOTAL',
+        customerId: 'cust_1_acme',
+        salespersonId: 'user_sales1_acme',
+        items: lines,
+        taxMode: 'Percentage',
+        taxRate: 18,
+        // Not on OrderCreate at all; this is the shape a hostile caller would
+        // POST, and the service must derive its own figures regardless.
+        ...({ total: 1, subtotal: 1, grandTotal: 1 } as object),
+      });
+      expect(o.total).toBe(11_800);
+      expect(o.subtotal).toBe(10_000);
+    });
+
+    it('reprices from the stored lines when only the rate is patched', async () => {
+      const created = await service.create(admin('tenant_acme', 'acme'), {
+        code: 'SO-GST-REPRICE',
+        customerId: 'cust_1_acme',
+        salespersonId: 'user_sales1_acme',
+        items: lines,
+        taxMode: 'Percentage',
+        taxRate: 18,
+      });
+      expect(created.total).toBe(11_800);
+
+      const corrected = await service.update(
+        admin('tenant_acme', 'acme'),
+        created.id,
+        { taxRate: 12 },
+      );
+      expect(corrected.subtotal).toBe(10_000);
+      expect(corrected.taxAmount).toBe(1200);
+      expect(corrected.total).toBe(11_200);
+
+      const untaxed = await service.update(
+        admin('tenant_acme', 'acme'),
+        created.id,
+        { taxMode: 'None' },
+      );
+      expect(untaxed.taxAmount).toBe(0);
+      expect(untaxed.total).toBe(10_000);
+    });
+
+    it('keeps the tax treatment when only the lines are replaced', async () => {
+      const created = await service.create(admin('tenant_acme', 'acme'), {
+        code: 'SO-GST-RELINE',
+        customerId: 'cust_1_acme',
+        salespersonId: 'user_sales1_acme',
+        items: lines,
+        taxMode: 'Percentage',
+        taxRate: 18,
+      });
+
+      const edited = await service.update(
+        admin('tenant_acme', 'acme'),
+        created.id,
+        { items: [{ productId: 'prod_a_acme', qty: 20, price: 1000 }] },
+      );
+      expect(edited.subtotal).toBe(20_000);
+      expect(edited.taxRate).toBe(18);
+      expect(edited.taxAmount).toBe(3600);
+      expect(edited.total).toBe(23_600);
+    });
+  });
+
+  it('raises exactly one order when two requests convert the same line at once', async () => {
+    // The guard used to be a read outside the transaction, so both callers saw
+    // `salesOrderId` null, both passed it, and both wrote an order — the
+    // customer committed twice for one projected line. The link is now a
+    // compare-and-set inside the transaction, so Postgres picks the winner.
+    const db = prisma.forTenant('tenant_acme');
+    // Its own unconverted line, in a month no other test touches.
+    const line = await db.projection.create({
+      data: {
+        tenantId: 'tenant_acme',
+        mappingId: 'map_1_acme',
+        period: '2026-11',
+        committedQty: '100',
+        price: '100.00',
+      },
+    });
+    expect(line.salesOrderId).toBeNull();
+
+    const attempt = (code: string) =>
+      service.create(admin('tenant_acme', 'acme'), {
+        code,
+        customerId: 'cust_1_acme',
+        salespersonId: 'user_sales1_acme',
+        items: [{ productId: 'prod_a_acme', qty: 1, price: 100 }],
+        projectionId: line.id,
+      });
+
+    const results = await Promise.allSettled([
+      attempt('SO-RACE-A'),
+      attempt('SO-RACE-B'),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1);
+
+    // And the loser left nothing behind: its order rolled back with it.
+    const written = await db.salesOrder.findMany({
+      where: { code: { in: ['SO-RACE-A', 'SO-RACE-B'] } },
+      select: { id: true },
+    });
+    expect(written).toHaveLength(1);
+
+    const after = await db.projection.findUniqueOrThrow({
+      where: { id: line.id },
+    });
+    expect(after.salesOrderId).toBe(written[0].id);
   });
 });

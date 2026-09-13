@@ -17,7 +17,14 @@ import { inr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ConfirmActionModal } from "@/components/modals/ConfirmActionModal";
 import { useCreateOrder } from "@/features/orders/queries";
-import { DELIVERY_MODE_VALUES, DELIVERY_MODE_LABELS, type DeliveryModeValue } from "@/features/orders/types";
+import {
+  DELIVERY_MODE_VALUES,
+  DELIVERY_MODE_LABELS,
+  TAX_MODE_LABELS,
+  TAX_MODE_VALUES,
+  type DeliveryModeValue,
+  type TaxModeValue,
+} from "@/features/orders/types";
 import { useCustomers, flattenCustomers } from "@/features/customers/queries";
 import { useProducts, flattenProducts } from "@/features/products/queries";
 import { useUserDirectory } from "@/features/users/queries";
@@ -130,6 +137,21 @@ export function CreateSalesOrderModal({
 
   const customer = customerOptions.find((c) => c.id === customerId);
 
+  /**
+   * The GST treatment, chosen per order.
+   *
+   * This dialog used to hard-code 18% into a preview and send nothing: the
+   * footer read "Order Total ₹11,800 (incl. 18% GST)" while the API stored
+   * ₹10,000, because the schema had no tax column and the request carried no
+   * tax field. Three modes, because all three are real — a rate, a figure an
+   * accounts department has already fixed on a reconciled invoice, and an
+   * exempt order that carries none. 18% is a PREFILL of the rate box, not a
+   * rule; the server validates whichever figure the chosen mode needs.
+   */
+  const [taxMode, setTaxMode] = useState<TaxModeValue>("Percentage");
+  const [taxRate, setTaxRate] = useState<number>(18);
+  const [taxAmountInput, setTaxAmountInput] = useState<number>(0);
+
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryMode, setDeliveryMode] = useState<DeliveryModeValue>("TransportLR");
   const [paymentTerms, setPaymentTerms] = useState<string>("");
@@ -160,6 +182,9 @@ export function CreateSalesOrderModal({
     setSalespersonId(isSales ? authUser?.id || "" : "");
     setQty(initialQty || 10);
     setPrice(initialPrice ?? 0);
+    setTaxMode("Percentage");
+    setTaxRate(18);
+    setTaxAmountInput(0);
     setDeliveryAddress("");
     setDeliveryMode("TransportLR");
     setPaymentTerms("");
@@ -197,11 +222,24 @@ export function CreateSalesOrderModal({
     }
   }, [customer?.id, customer?.paymentTerms, customer?.area, customer?.name, paymentTerms, deliveryAddress]);
 
-  // Calculate financials
-  const subtotal = Math.max(0, (qty || 0) * (price || 0));
-  const gstRate = 0.18;
-  const gstAmount = subtotal * gstRate;
+  /**
+   * A PREVIEW of what the server will compute, never a figure that is sent.
+   * It mirrors `computeOrderTotals` in apps/api/src/orders/order-engine.ts —
+   * paise arithmetic, tax added on top of a GST-exclusive line sum — so the
+   * number in the footer is the number that lands in the database.
+   */
+  const subtotalPaise = Math.round((qty || 0) * (price || 0) * 100);
+  const gstPaise =
+    taxMode === "Percentage"
+      ? Math.round((subtotalPaise * (taxRate || 0)) / 100)
+      : taxMode === "Amount"
+        ? Math.round((taxAmountInput || 0) * 100)
+        : 0;
+  const subtotal = Math.max(0, subtotalPaise / 100);
+  const gstAmount = gstPaise / 100;
   const grandTotal = subtotal + gstAmount;
+  const gstLabel =
+    taxMode === "Percentage" ? `GST (${taxRate || 0}%)` : taxMode === "Amount" ? "GST (entered)" : "GST";
   const unitName = selectedProduct?.unit || "Units";
 
   const handleUseCustomerAddress = () => {
@@ -262,6 +300,12 @@ export function CreateSalesOrderModal({
             unit: selectedProduct?.unit ?? undefined,
           },
         ],
+        // The inputs, not the preview: the server derives subtotal, GST and
+        // total from these and its own line items, and ignores any total a
+        // client might send.
+        taxMode,
+        taxRate: taxMode === "Percentage" ? taxRate : null,
+        taxAmount: taxMode === "Amount" ? taxAmountInput : null,
         isUrgent,
         paymentTerms: paymentTerms.trim() || null,
         deliveryMode,
@@ -304,7 +348,13 @@ export function CreateSalesOrderModal({
               <span className="text-base font-extrabold text-brand tabular-nums">
                 {inr(grandTotal)}
               </span>
-              <span className="text-[10px] text-muted">(incl. 18% GST)</span>
+              <span className="text-3xs text-muted">
+                {taxMode === "None"
+                  ? "(no GST)"
+                  : taxMode === "Percentage"
+                    ? `(incl. ${taxRate || 0}% GST)`
+                    : "(incl. GST)"}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -536,14 +586,102 @@ export function CreateSalesOrderModal({
                   <span className="font-semibold text-ink tabular-nums">{inr(subtotal)}</span>
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-muted mt-0.5">
-                  <span>GST (18%)</span>
+                  <span>{gstLabel}</span>
                   <span className="font-semibold text-ink tabular-nums">{inr(gstAmount)}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs font-extrabold text-brand-ink pt-1.5 mt-1 border-t border-brand/20">
-                  <span>Gross Total</span>
+                  <span>Grand Total</span>
                   <span className="text-sm tabular-nums text-brand">{inr(grandTotal)}</span>
                 </div>
               </div>
+            </div>
+
+            {/* GST treatment. Prices in this product are GST-EXCLUSIVE, so
+                whatever is chosen here is added on top of the subtotal above
+                — which is what the server does with the same inputs. */}
+            <div className="rounded-lg border border-line bg-surface-2/50 p-2.5 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-2xs font-bold uppercase tracking-wider text-muted">
+                  GST Treatment
+                </span>
+                <div className="flex items-center gap-1 rounded-lg bg-surface p-0.5 border border-line">
+                  {TAX_MODE_VALUES.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setTaxMode(m)}
+                      aria-pressed={taxMode === m}
+                      className={cn(
+                        "rounded-md px-2 py-1 text-2xs font-semibold transition-all cursor-pointer",
+                        taxMode === m
+                          ? "bg-brand text-white shadow-2xs"
+                          : "text-muted hover:text-ink",
+                      )}
+                    >
+                      {TAX_MODE_LABELS[m]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {taxMode === "Percentage" && (
+                <div className="flex items-center gap-2">
+                  <label htmlFor="so-gst-rate" className="text-xs font-semibold text-ink">
+                    GST rate (%)
+                  </label>
+                  <div className="relative w-28">
+                    <Input
+                      id="so-gst-rate"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={taxRate}
+                      onChange={(e) => setTaxRate(Number(e.target.value))}
+                      className="font-bold tabular-nums pr-6 h-9"
+                      disabled={create.isPending}
+                    />
+                    <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold text-muted">
+                      %
+                    </span>
+                  </div>
+                  <span className="text-3xs text-muted">
+                    Added on top of the subtotal. 18% is only a starting value.
+                  </span>
+                </div>
+              )}
+
+              {taxMode === "Amount" && (
+                <div className="flex items-center gap-2">
+                  <label htmlFor="so-gst-amount" className="text-xs font-semibold text-ink">
+                    GST amount (₹)
+                  </label>
+                  <div className="relative w-36">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted">
+                      ₹
+                    </span>
+                    <Input
+                      id="so-gst-amount"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={taxAmountInput}
+                      onChange={(e) => setTaxAmountInput(Number(e.target.value))}
+                      className="font-bold tabular-nums pl-7 h-9"
+                      disabled={create.isPending}
+                    />
+                  </div>
+                  <span className="text-3xs text-muted">
+                    For matching a GST figure an invoice already fixes.
+                  </span>
+                </div>
+              )}
+
+              {taxMode === "None" && (
+                <p className="text-3xs text-muted">
+                  This order carries no GST — the grand total is the subtotal.
+                </p>
+              )}
             </div>
           </div>
 

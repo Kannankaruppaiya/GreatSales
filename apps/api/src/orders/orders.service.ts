@@ -19,9 +19,12 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PeriodLocksService } from '../period-locks/period-locks.service';
 import {
   canTransition,
-  computeTotal,
+  computeOrderTotals,
   lineTotal,
+  validateTaxSpec,
   type OrderStatusName,
+  type OrderTotals,
+  type TaxSpec,
 } from './order-engine';
 
 /** Prisma include graph that carries everything an {@link OrderRow} needs. */
@@ -69,6 +72,10 @@ function toRow(o: OrderWithGraph): OrderRow {
     createdById: o.createdById,
     date: o.date.toISOString(),
     status: o.status,
+    subtotal: dec(o.subtotal) ?? 0,
+    taxMode: o.taxMode,
+    taxRate: dec(o.taxRate),
+    taxAmount: dec(o.taxAmount) ?? 0,
     total: dec(o.total) ?? 0,
     isUrgent: o.isUrgent,
     paymentTerms: o.paymentTerms,
@@ -187,9 +194,17 @@ export class OrdersService {
   }
 
   /**
-   * Create an order with its line items. `total` is computed server-side from
-   * the items (never trusted from the client), and an initial status-history
-   * entry is recorded. Salespeople always own what they create.
+   * Create an order with its line items. Every money figure is computed
+   * server-side from the items and the tax mode (never trusted from the
+   * client), and an initial status-history entry is recorded. Salespeople
+   * always own what they create.
+   *
+   * The projection guard, the period-lock check, the order and the link all
+   * run inside ONE transaction. They used to be four separate round trips, so
+   * two requests converting the same worksheet line at once both read
+   * `salesOrderId` as null, both passed the already-converted check, and both
+   * raised an order — leaving the customer committed twice and the line
+   * pointing at whichever order happened to write its id last.
    */
   async create(user: RequestUser, body: OrderCreate): Promise<OrderRow> {
     const db = this.prisma.forTenant(user.tenantId);
@@ -206,47 +221,58 @@ export class OrdersService {
       );
     }
     const status = 'Created';
-    const total = computeTotal(body.items);
-
-    // Read through the TENANT-SCOPED client, so a line belonging to another
-    // tenant reads as missing rather than as a foreign-key error.
-    const projection = body.projectionId
-      ? await db.projection.findFirst({
-          where: { id: body.projectionId, deletedAt: null },
-          select: {
-            id: true,
-            salesOrderId: true,
-            period: true,
-            salesOrder: { select: { status: true } },
-          },
-        })
-      : null;
-    if (body.projectionId) {
-      if (!projection) {
-        throw new NotFoundException('Projection not found');
-      }
-      // One order per line — but a CANCELLED order is not one. The worksheet
-      // already treats a cancelled link as no link and offers "Create SO"
-      // again, so reading the raw pointer here refused the very button the
-      // page was showing, and left the line unable to be removed either.
-      const liveOrder =
-        projection.salesOrderId != null &&
-        projection.salesOrder?.status !== 'Cancelled';
-      if (liveOrder) {
-        throw new ConflictException(
-          'This projection line has already been converted to a sales order',
-        );
-      }
-      if (await PeriodLocksService.isLocked(db, projection.period)) {
-        throw new ForbiddenException(
-          `${projection.period} is locked for reporting and cannot be edited`,
-        );
-      }
-    }
+    const totals = this.totalsFor(body.items, {
+      mode: body.taxMode ?? 'None',
+      rate: body.taxRate,
+      amount: body.taxAmount,
+    });
 
     const created = await this.prisma.transactionForTenant(
       user.tenantId,
       async (tx) => {
+        // Read through the transaction's own client, so a line belonging to
+        // another tenant reads as missing rather than as a foreign-key error,
+        // and so the guard below is on the same connection as the write.
+        const projection = body.projectionId
+          ? await tx.projection.findFirst({
+              where: { id: body.projectionId, deletedAt: null },
+              select: {
+                id: true,
+                salesOrderId: true,
+                period: true,
+                salesOrder: { select: { status: true } },
+              },
+            })
+          : null;
+        if (body.projectionId) {
+          if (!projection) {
+            throw new NotFoundException('Projection not found');
+          }
+          // One order per line — but a CANCELLED order is not one. The
+          // worksheet already treats a cancelled link as no link and offers
+          // "Create SO" again, so reading the raw pointer here refused the
+          // very button the page was showing, and left the line unable to be
+          // removed either.
+          const liveOrder =
+            projection.salesOrderId != null &&
+            projection.salesOrder?.status !== 'Cancelled';
+          if (liveOrder) {
+            throw new ConflictException(
+              'This projection line has already been converted to a sales order',
+            );
+          }
+          if (
+            await PeriodLocksService.isLocked(
+              tx as unknown as TenantPrisma,
+              projection.period,
+            )
+          ) {
+            throw new ForbiddenException(
+              `${projection.period} is locked for reporting and cannot be edited`,
+            );
+          }
+        }
+
         const order = await tx.salesOrder.create({
           data: {
             tenant: { connect: { id: user.tenantId } },
@@ -255,7 +281,7 @@ export class OrdersService {
             salesperson: { connect: { id: salespersonId } },
             createdBy: { connect: { id: user.userId } },
             status,
-            total,
+            ...totals,
             ...(body.date ? { date: new Date(body.date) } : {}),
             ...(body.isUrgent !== undefined ? { isUrgent: body.isUrgent } : {}),
             paymentTerms: body.paymentTerms ?? null,
@@ -287,11 +313,23 @@ export class OrdersService {
         // The link, in the same transaction as the order: a worksheet line that
         // says "Order Placed" now has an order id behind it, and the line's
         // delete guard has something real to refuse on.
+        //
+        // Written as a compare-and-set against the pointer this transaction
+        // READ, not a plain update. A second converter racing this one blocks
+        // on the row lock, re-evaluates the WHERE against the committed value,
+        // matches nothing, and rolls its own order back — the invariant is
+        // held by Postgres rather than by the order the two requests happened
+        // to arrive in. No advisory lock and no retry loop.
         if (projection) {
-          await tx.projection.update({
-            where: { id: projection.id },
+          const linked = await tx.projection.updateMany({
+            where: { id: projection.id, salesOrderId: projection.salesOrderId },
             data: { salesOrderId: order.id },
           });
+          if (linked.count === 0) {
+            throw new ConflictException(
+              'This projection line has already been converted to a sales order',
+            );
+          }
         }
 
         return order;
@@ -315,7 +353,7 @@ export class OrdersService {
 
     const data: Prisma.SalesOrderUpdateInput = {};
 
-    // Line items, and the total that follows from them. Only while the order
+    // Line items, and the money that follows from them. Only while the order
     // is a draft: once the warehouse has acknowledged it, the quantities are a
     // commitment somebody is acting on, and silently rewriting them under a
     // dispatch in progress is worse than refusing.
@@ -334,8 +372,27 @@ export class OrdersService {
           unit: i.unit ?? null,
         })),
       };
-      // Recomputed here, never taken from the client — same rule as create().
-      data.total = computeTotal(patch.items);
+    }
+
+    // The three money columns move together or not at all, and they are
+    // re-derived from whichever lines the order will HAVE once this patch
+    // lands — the new ones if it carries them, otherwise the stored ones. A
+    // patch that only corrects the GST rate therefore reprices the order
+    // without needing the lines restated, and one that only replaces the lines
+    // keeps the tax treatment the order was raised under.
+    const taxTouched =
+      'taxMode' in patch || 'taxRate' in patch || 'taxAmount' in patch;
+    if (patch.items !== undefined || taxTouched) {
+      const items = patch.items ?? existing.items;
+      Object.assign(
+        data,
+        this.totalsFor(items, {
+          mode: patch.taxMode ?? existing.taxMode,
+          rate: 'taxRate' in patch ? patch.taxRate : dec(existing.taxRate),
+          amount:
+            'taxAmount' in patch ? patch.taxAmount : dec(existing.taxAmount),
+        }),
+      );
     }
     if (patch.date !== undefined) data.date = new Date(patch.date);
     if (patch.isUrgent !== undefined) data.isUrgent = patch.isUrgent;
@@ -424,15 +481,34 @@ export class OrdersService {
     });
   }
 
-  /** Loads a live order and enforces sales-only ownership; else throws. */
+  /**
+   * Loads a live order and enforces sales-only ownership; else throws.
+   *
+   * It carries the stored tax spec and line items back with it, because a
+   * patch that touches only one of the two still has to reprice the order from
+   * both — see the money block in `update`.
+   */
   private async loadOwned(
     db: TenantPrisma,
     user: RequestUser,
     id: string,
-  ): Promise<{ status: OrderWithGraph['status'] }> {
+  ): Promise<{
+    status: OrderWithGraph['status'];
+    taxMode: OrderWithGraph['taxMode'];
+    taxRate: Prisma.Decimal | null;
+    taxAmount: Prisma.Decimal | null;
+    items: { qty: number; price: number }[];
+  }> {
     const existing = await db.salesOrder.findFirst({
       where: { id, deletedAt: null },
-      select: { salespersonId: true, status: true },
+      select: {
+        salespersonId: true,
+        status: true,
+        taxMode: true,
+        taxRate: true,
+        taxAmount: true,
+        items: { select: { qty: true, price: true } },
+      },
     });
     if (!existing) throw new NotFoundException('Order not found');
     if (
@@ -441,7 +517,33 @@ export class OrdersService {
     ) {
       throw new ForbiddenException('Cannot modify another salesperson order');
     }
-    return { status: existing.status };
+    return {
+      status: existing.status,
+      taxMode: existing.taxMode,
+      taxRate: existing.taxRate,
+      taxAmount: existing.taxAmount,
+      items: existing.items.map((i) => ({
+        qty: i.qty.toNumber(),
+        price: i.price.toNumber(),
+      })),
+    };
+  }
+
+  /**
+   * The order's money, validated and derived in one place.
+   *
+   * Both `create` and `update` go through here, so there is exactly one
+   * implementation of what an order is worth — the arithmetic in the engine,
+   * and the refusal of a spec that names a mode without the figure that mode
+   * needs.
+   */
+  private totalsFor(
+    items: { qty: number; price: number }[],
+    tax: TaxSpec,
+  ): OrderTotals {
+    const problem = validateTaxSpec(tax);
+    if (problem) throw new BadRequestException(problem);
+    return computeOrderTotals(items, tax);
   }
 
   private async resolveOwnerScope(

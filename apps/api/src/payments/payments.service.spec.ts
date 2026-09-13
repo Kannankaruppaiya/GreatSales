@@ -1,6 +1,10 @@
 import '../load-env'; // authoritative greatsales_app DATABASE_URL (RLS-bound)
 import { reseedTestDatabase } from '../test-support/reseed';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import type { RequestUser } from '@greatsales/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaymentsService } from './payments.service';
@@ -320,6 +324,192 @@ describe('PaymentsService (integration)', () => {
       });
       expect(created.mail1At).not.toBeNull();
       expect(created.mail2At).toBeNull();
+    });
+
+    /**
+     * The sequence, enforced where it counts.
+     *
+     * `ReminderMenu` in the console offers exactly one actionable letter, so
+     * none of this was reachable through the UI — and none of it was checked
+     * by the API either. A direct PATCH could mark the third letter sent on an
+     * invoice that had never had a first, stamp its date, and notify the
+     * collector about a letter nobody wrote.
+     */
+    describe('is a sequence, not four switches', () => {
+      const chased = () =>
+        service.create(admin('tenant_acme', 'acme'), {
+          amount: 1000,
+          refNo: `PAY-SEQ-${Math.random().toString(36).slice(2, 8)}`,
+        });
+
+      it('refuses the second letter before the first', async () => {
+        const p = await chased();
+        await expect(
+          service.update(admin('tenant_acme', 'acme'), p.id, { mail2: true }),
+        ).rejects.toBeInstanceOf(BadRequestException);
+      });
+
+      it('refuses the third letter after only the first', async () => {
+        const p = await chased();
+        await service.update(admin('tenant_acme', 'acme'), p.id, {
+          mail1: true,
+        });
+        await expect(
+          service.update(admin('tenant_acme', 'acme'), p.id, { mail3: true }),
+        ).rejects.toThrow(/in order/i);
+      });
+
+      it('accepts the letters one at a time, in order, all four', async () => {
+        const p = await chased();
+        let row = p;
+        for (const stage of ['mail1', 'mail2', 'mail3', 'mail4'] as const) {
+          row = await service.update(admin('tenant_acme', 'acme'), row.id, {
+            [stage]: true,
+          });
+        }
+        expect([row.mail1, row.mail2, row.mail3, row.mail4]).toEqual([
+          true,
+          true,
+          true,
+          true,
+        ]);
+      });
+
+      it('refuses two letters in one patch — a letter sent is an event', async () => {
+        const p = await chased();
+        await expect(
+          service.update(admin('tenant_acme', 'acme'), p.id, {
+            mail1: true,
+            mail2: true,
+          }),
+        ).rejects.toThrow(/one reminder can be marked at a time/i);
+      });
+
+      it('takes back the most recent letter, but never one underneath it', async () => {
+        const p = await chased();
+        await service.update(admin('tenant_acme', 'acme'), p.id, {
+          mail1: true,
+        });
+        await service.update(admin('tenant_acme', 'acme'), p.id, {
+          mail2: true,
+        });
+
+        // The one underneath would leave the chase with a hole in it.
+        await expect(
+          service.update(admin('tenant_acme', 'acme'), p.id, { mail1: false }),
+        ).rejects.toBeInstanceOf(BadRequestException);
+
+        const undone = await service.update(
+          admin('tenant_acme', 'acme'),
+          p.id,
+          { mail2: false },
+        );
+        expect(undone.mail2).toBe(false);
+        expect(undone.mail2At).toBeNull();
+        expect(undone.mail1).toBe(true);
+      });
+
+      it('refuses a new payment whose opening chase has a gap in it', async () => {
+        await expect(
+          service.create(admin('tenant_acme', 'acme'), {
+            amount: 100,
+            refNo: 'PAY-SEQ-GAP',
+            mail1: false,
+            mail3: true,
+          }),
+        ).rejects.toBeInstanceOf(BadRequestException);
+      });
+
+      it('still lets an import arrive with several letters already behind it', async () => {
+        const imported = await service.create(admin('tenant_acme', 'acme'), {
+          amount: 100,
+          refNo: 'PAY-SEQ-IMPORT',
+          mail1: true,
+          mail2: true,
+        });
+        expect(imported.mail2).toBe(true);
+        expect(imported.mail3).toBe(false);
+      });
+    });
+  });
+
+  /**
+   * Ownership, which `loadOwned` proves at the START of a patch and said
+   * nothing about at the end of one.
+   *
+   * A salesperson owning a receivable was enough to push it onto a colleague,
+   * or onto an account that is not theirs — either of which takes an overdue
+   * invoice out of their own aging report. The console offers neither; a
+   * direct PATCH offered both.
+   */
+  describe('a salesperson cannot give a receivable away', () => {
+    const mine = () =>
+      service.create(sales('tenant_acme', 'acme', 1), {
+        amount: 2000,
+        refNo: `PAY-OWN-${Math.random().toString(36).slice(2, 8)}`,
+        customerId: 'cust_1_acme',
+      });
+
+    it('refuses to hand it to another salesperson', async () => {
+      const p = await mine();
+      await expect(
+        service.update(sales('tenant_acme', 'acme', 1), p.id, {
+          salespersonId: 'user_sales2_acme',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('refuses to strip the owner off it', async () => {
+      const p = await mine();
+      await expect(
+        service.update(sales('tenant_acme', 'acme', 1), p.id, {
+          salespersonId: null,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('refuses to move it onto an account it cannot reach', async () => {
+      // An account belonging to the OTHER rep. Moving a receivable there is
+      // how an overdue invoice leaves one book and lands on another's.
+      const theirs = await prisma.forTenant('tenant_acme').customer.create({
+        data: {
+          tenantId: 'tenant_acme',
+          name: 'Acme Corp Customer Two',
+          salespersonId: 'user_sales2_acme',
+        },
+      });
+      const p = await mine();
+      await expect(
+        service.update(sales('tenant_acme', 'acme', 1), p.id, {
+          customerId: theirs.id,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('refuses to detach it from its account altogether', async () => {
+      const p = await mine();
+      await expect(
+        service.update(sales('tenant_acme', 'acme', 1), p.id, {
+          customerId: null,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('still lets them keep the owner they already have', async () => {
+      const p = await mine();
+      const same = await service.update(sales('tenant_acme', 'acme', 1), p.id, {
+        salespersonId: 'user_sales1_acme',
+        delayReason: 'Awaiting PO copy',
+      });
+      expect(same.delayReason).toBe('Awaiting PO copy');
+    });
+
+    it('lets an administrator do the reassignment', async () => {
+      const p = await mine();
+      const moved = await service.update(admin('tenant_acme', 'acme'), p.id, {
+        salespersonId: 'user_sales2_acme',
+      });
+      expect(moved.salespersonId).toBe('user_sales2_acme');
     });
   });
 

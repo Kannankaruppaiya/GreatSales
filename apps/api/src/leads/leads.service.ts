@@ -15,6 +15,7 @@ import type {
 } from '@greatsales/shared';
 import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { assertOwnerNotTransferred } from '../common/entity-access';
 import { contactWrites, contactsFor, primaryOf } from '../common/contacts';
 
 /**
@@ -297,6 +298,12 @@ export class LeadsService {
   ): Promise<LeadRow> {
     const db = this.prisma.forTenant(user.tenantId);
     await this.assertOwned(db, user, id);
+    assertOwnerNotTransferred(
+      await this.isSalesOnly(db, user.roleId),
+      user,
+      patch.salespersonId,
+      'lead',
+    );
 
     // Read before the write: "who owned this a moment ago" is the only way to
     // tell a reassignment from a patch that happens to name the same person.

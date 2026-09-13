@@ -260,7 +260,11 @@ async function seedTenant(k: string, name: string, region: string, accountManage
   const order = await prisma.salesOrder.create({
     data: {
       tenantId: t, code: `SO-${k.toUpperCase()}-001`, customerId: `cust_1_${k}`, salespersonId: `user_sales1_${k}`,
-      createdById: `user_sales1_${k}`, status: OrderStatus.Acknowledged, total: "100000.00",
+      createdById: `user_sales1_${k}`, status: OrderStatus.Acknowledged,
+      // No GST on the fixture: subtotal IS the total, which is what taxMode
+      // None means. Leaving subtotal at its 0 default would have made the row
+      // say the order is worth a lakh and its lines are worth nothing.
+      subtotal: "100000.00", taxMode: "None", taxAmount: "0.00", total: "100000.00",
       items: { create: [{ productId: `prod_a_${k}`, qty: "1000", price: "100.00", unit: "kg" }] },
       statusHistory: { create: [{ status: OrderStatus.Acknowledged, changedById: `user_sales1_${k}` }] },
     },

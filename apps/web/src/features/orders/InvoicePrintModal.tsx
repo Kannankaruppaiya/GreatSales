@@ -5,13 +5,15 @@ import type { OrderRow } from "@/features/orders/types";
 import { DELIVERY_MODE_LABELS, type DeliveryModeValue } from "@/features/orders/types";
 
 /**
- * Reads the fetched OrderRow as-is — `total` (order-engine's `computeTotal`,
- * a pre-tax sum of qty×price — see apps/api/src/orders/order-engine.ts) and
- * `items[].lineTotal` are server-computed and printed exactly as received,
- * never recomputed from qty/price. GST is a display-only 18% markup added on
- * top of that server total, matching the same convention CreateSalesOrderModal
- * previews at order-creation time (subtotal + 18% GST = grand total) — the
- * order contract itself carries no GST field.
+ * Reads the fetched OrderRow as-is. `subtotal`, `taxAmount`, `total` and
+ * `items[].lineTotal` are all server-computed (apps/api/src/orders/order-engine.ts)
+ * and printed exactly as received.
+ *
+ * Nothing here calculates tax. This modal used to add a display-only 18% on top
+ * of the stored total, which was wrong in both directions at once: an order
+ * raised with no GST printed 18% it never carried, and one raised WITH GST
+ * — once the schema gained the columns — would have printed it twice. The
+ * order carries its own GST now, and an invoice prints what the order says.
  */
 export function InvoicePrintModal({
   open,
@@ -24,9 +26,15 @@ export function InvoicePrintModal({
 }) {
   if (!order) return null;
 
-  const subTotal = order.total;
-  const gstValue = Math.round(subTotal * 0.18);
-  const grandTotal = subTotal + gstValue;
+  const subTotal = order.subtotal;
+  const gstValue = order.taxAmount;
+  const grandTotal = order.total;
+  const gstLabel =
+    order.taxMode === "Percentage"
+      ? `GST @ ${order.taxRate ?? 0}%:`
+      : order.taxMode === "Amount"
+        ? "GST:"
+        : "GST (not applicable):";
 
   const handlePrint = () => {
     window.print();
@@ -121,7 +129,7 @@ export function InvoicePrintModal({
               <td className="py-1.5 px-3 text-right tabular-nums font-bold">{inr(subTotal)}</td>
             </tr>
             <tr>
-              <td colSpan={4} className="py-1.5 px-3 text-right font-semibold text-slate-600">GST @ 18%:</td>
+              <td colSpan={4} className="py-1.5 px-3 text-right font-semibold text-slate-600">{gstLabel}</td>
               <td className="py-1.5 px-3 text-right tabular-nums font-semibold text-slate-700">{inr(gstValue)}</td>
             </tr>
             <tr className="border-t border-slate-300">

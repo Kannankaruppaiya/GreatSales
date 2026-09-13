@@ -3,16 +3,42 @@ import { CursorSchema, type CursorPage } from "./pagination";
 import {
   DeliveryModeSchema,
   OrderStatusSchema,
+  TaxModeSchema,
   type DeliveryModeValue,
   type OrderStatusValue,
+  type TaxModeValue,
 } from "./enums";
 
 /**
  * Sales-order contracts, shared by the API and web. An order carries line items
- * and a status-history trail. `total` is derived from the items (never trusted
- * from the client) — see the order-engine. Money/qty are plain numbers on the
- * wire (Prisma Decimal → number in the service).
+ * and a status-history trail.
+ *
+ * `subtotal`, `taxAmount` and `total` are all derived server-side from the line
+ * items and the tax mode — see the order-engine. A client sends the INPUTS
+ * (items, taxMode, and whichever of taxRate/taxAmount the mode needs) and never
+ * a total; whatever it shows before saving is a preview of the same arithmetic.
+ * `total` is the GRAND total, tax included, and is the figure every list,
+ * invoice and export prints.
+ *
+ * Money/qty are plain numbers on the wire (Prisma Decimal → number in the
+ * service).
  */
+
+/**
+ * The GST fields, shared by create and update so the two cannot drift.
+ *
+ * Ranges only. Which field a mode REQUIRES is checked in the order-engine
+ * (`validateTaxSpec`), because a PATCH may change the rate without restating
+ * the mode — the effective mode is only known once the stored order is read,
+ * so a zod refinement here could only ever guess at it.
+ */
+const TaxInputShape = {
+  taxMode: TaxModeSchema.optional(),
+  /** Percent, 0–100, at most two decimals. Used when taxMode is Percentage. */
+  taxRate: z.number().min(0).max(100).nullable().optional(),
+  /** Rupees. Used when taxMode is Amount; ignored in the other two modes. */
+  taxAmount: z.number().nonnegative().nullable().optional(),
+};
 
 export const OrderItemInputSchema = z.object({
   productId: z.string().min(1),
@@ -64,6 +90,13 @@ export interface OrderRow {
   createdById: string | null;
   date: string;
   status: OrderStatusValue;
+  /** Sum of the line items, before GST. */
+  subtotal: number;
+  taxMode: TaxModeValue;
+  /** The percentage charged, when taxMode is Percentage; null otherwise. */
+  taxRate: number | null;
+  taxAmount: number;
+  /** subtotal + taxAmount. The order's value, GST included. */
   total: number;
   isUrgent: boolean;
   paymentTerms: string | null;
@@ -85,12 +118,16 @@ export interface OrderRow {
 
 export type OrderListResponse = CursorPage<OrderRow>;
 
-/** POST /orders body. `total` is computed server-side from `items`. */
+/**
+ * POST /orders body. Every money figure on the order is computed server-side
+ * from `items` and the tax fields; none of them is accepted from here.
+ */
 export const OrderCreateSchema = z.object({
   code: z.string().min(1).max(60),
   customerId: z.string().min(1),
   salespersonId: z.string().min(1),
   items: z.array(OrderItemInputSchema).min(1),
+  ...TaxInputShape,
   status: OrderStatusSchema.optional(),
   date: z.string().optional(),
   isUrgent: z.boolean().optional(),
@@ -134,6 +171,12 @@ export const OrderUpdateSchema = z
      * its number, its status trail, its remarks and its attachments with it.
      */
     items: z.array(OrderItemInputSchema).min(1).optional(),
+    /**
+     * The GST on the order. Changing any of these re-derives subtotal, tax and
+     * total from the order's CURRENT line items, so correcting a rate does not
+     * require restating the lines.
+     */
+    ...TaxInputShape,
     /** The business issue date, which the printed invoice and the SLA clock both use. */
     date: z.string().optional(),
     status: OrderStatusSchema.optional(),

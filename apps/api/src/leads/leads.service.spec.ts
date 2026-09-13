@@ -284,4 +284,35 @@ describe('LeadsService (integration)', () => {
       expect(moved.contacts.map((c) => c.name)).toEqual(['Keep Me']);
     });
   });
+
+  /**
+   * The same rule as payments and leads: owning a record proves who owns it
+   * NOW, and `salespersonId` was writable on the patch that follows — so a rep
+   * could push an account onto a colleague and out of their own book. Admin
+   * still reassigns, which is what the bulk reassign flow runs as.
+   */
+  describe('a salesperson cannot give a lead away', () => {
+    it('refuses a patch that names another salesperson', async () => {
+      const own = await service.create(sales('tenant_acme', 'acme', 1), {
+        customerName: 'Reassign Guard Lead',
+        salespersonId: 'user_sales1_acme',
+      });
+      await expect(
+        service.update(sales('tenant_acme', 'acme', 1), own.id, {
+          salespersonId: 'user_sales2_acme',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('lets an administrator reassign it', async () => {
+      const own = await service.create(admin('tenant_acme', 'acme'), {
+        customerName: 'Reassign Allowed Lead',
+        salespersonId: 'user_sales1_acme',
+      });
+      const moved = await service.update(admin('tenant_acme', 'acme'), own.id, {
+        salespersonId: 'user_sales2_acme',
+      });
+      expect(moved.salespersonId).toBe('user_sales2_acme');
+    });
+  });
 });

@@ -22,6 +22,7 @@ import {
   type TenantTx,
 } from '../prisma/prisma.service';
 import { PeriodLocksService } from '../period-locks/period-locks.service';
+import { assertOwnerNotTransferred } from '../common/entity-access';
 import { contactWrites, contactsFor, primaryOf } from '../common/contacts';
 import { NotificationsService } from '../notifications/notifications.service';
 import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
@@ -323,6 +324,12 @@ export class CustomersService {
   ): Promise<CustomerRow> {
     const db = this.prisma.forTenant(user.tenantId);
     await this.assertOwned(db, user, id);
+    assertOwnerNotTransferred(
+      await this.isSalesOnly(db, user.roleId),
+      user,
+      patch.salespersonId,
+      'customer',
+    );
 
     // Read before the write, so a patch that names the same owner is not
     // reported as a reassignment.

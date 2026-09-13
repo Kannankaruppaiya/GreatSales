@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --canvas: 248 250 252;
+  --surface: 255 255 255;
+  --surface-elevated: 255 255 255;
+  --surface2: 248 250 252;
+  --surface3: 241 245 249;
+  --surface-active: 226 232 240;
+
+  --ink: 15 23 42;
+  --ink2: 30 41 59;
+  --body: 51 65 85;
+  --muted: 100 116 139;
+  --faint: 148 163 184;
+
+  --line: 226 232 240;
+  --line-dark: 203 213 225;
+
+  --brand: 5 150 105;
+  --brand-light: 16 185 129;
+  --brand-hover: 4 120 87;
+  --brand-dark: 6 78 59;
+  --brand-soft: 236 253 245;
+  --brand-border: 167 243 208;
+  --brand-ink: 2 44 34;
+
+  --amber: 217 119 6;
+  --amber-dark: 180 83 9;
+  --amber-soft: 255 251 235;
+  --amber-border: 253 230 138;
+
+  --danger: 220 38 38;
+  --danger-dark: 153 27 27;
+  --danger-soft: 254 242 242;
+  --danger-border: 254 202 202;
+
+  --info: 37 99 235;
+  --info-dark: 30 64 175;
+  --info-soft: 239 246 255;
+  --info-border: 191 219 254;
+
+  --indigo: 79 70 229;
+  --indigo-dark: 55 48 163;
+  --indigo-soft: 238 242 255;
+  --indigo-border: 199 210 254;
+
+  --violet: 124 58 237;
+  --violet-dark: 91 33 182;
+  --violet-soft: 245 243 255;
+  --violet-border: 221 214 254;
+
+  --shadow-tint: 15 23 42;
+}
+
+.dark {
+  --canvas: 11 18 32;
+  --surface: 20 29 46;
+  --surface-elevated: 26 36 54;
+  --surface2: 26 36 54;
+  --surface3: 33 45 67;
+  --surface-active: 43 56 84;
+
+  --ink: 248 250 252;
+  --ink2: 226 232 240;
+  --body: 203 213 225;
+  --muted: 148 163 184;
+  --faint: 100 116 139;
+
+  --line: 38 50 75;
+  --line-dark: 59 74 107;
+
+  --brand: 16 185 129;
+  --brand-light: 52 211 153;
+  --brand-hover: 5 150 105;
+  --brand-dark: 167 243 208;
+  --brand-soft: 12 47 36;
+  --brand-border: 20 86 63;
+  --brand-ink: 209 250 229;
+
+  --amber: 245 158 11;
+  --amber-dark: 252 211 77;
+  --amber-soft: 43 31 8;
+  --amber-border: 107 74 16;
+
+  --danger: 239 68 68;
+  --danger-dark: 252 165 165;
+  --danger-soft: 45 18 20;
+  --danger-border: 115 28 32;
+
+  --info: 59 130 246;
+  --info-dark: 147 197 253;
+  --info-soft: 14 31 61;
+  --info-border: 30 64 135;
+
+  --indigo: 99 102 241;
+  --indigo-dark: 165 180 252;
+  --indigo-soft: 26 25 61;
+  --indigo-border: 55 48 135;
+
+  --violet: 139 92 246;
+  --violet-dark: 196 181 253;
+  --violet-soft: 35 20 61;
+  --violet-border: 76 29 149;
+
+  --shadow-tint: 0 0 0;
+}

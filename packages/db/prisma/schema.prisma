@@ -76,6 +76,23 @@ enum ProjStatus {
   Cancelled
 }
 
+// How the GST on a sales order is arrived at (SalesOrder.taxMode).
+//
+// The Promech export — the dataset this schema was built from — carries
+// `subtotal`, `tax` and `grandTotal` on every order, with `tax` equal to 18%
+// of the net subtotal on all of them. So a line price here is GST-EXCLUSIVE
+// and the tax is a figure added on top, not one already inside the rate.
+//
+// It is not always a percentage, though, which is why this is a mode rather
+// than a rate column: a reconciled invoice arrives with a rounded GST figure
+// the seller has to match to the rupee, and an exempt or export order carries
+// none at all. `None` means exactly zero, never "unspecified".
+enum TaxMode {
+  None
+  Percentage
+  Amount
+}
+
 // How goods move for a sales order (SalesOrder.deliveryMode).
 enum DeliveryMode {
   TransportLR // Transport (LR)
@@ -626,6 +643,17 @@ model SalesOrder {
   createdById          String? // who raised the order
   date                 DateTime      @default(now())
   status               OrderStatus   @default(Created)
+  // The three money columns, in the order they are derived. `subtotal` is the
+  // sum of the line items, `taxAmount` is the GST arrived at by `taxMode`, and
+  // `total` is their sum — the order's grand total, which is the one figure
+  // every list, invoice and export prints. All three are computed by the API
+  // from the line items and the tax mode; none is ever taken from a client.
+  subtotal             Decimal       @default(0) @db.Decimal(14, 2)
+  taxMode              TaxMode       @default(None)
+  // The percentage, when taxMode is Percentage — kept so a reprint can show
+  // "GST @ 18%" rather than a bare figure. Null in the other two modes.
+  taxRate              Decimal?      @db.Decimal(5, 2)
+  taxAmount            Decimal       @default(0) @db.Decimal(14, 2)
   total                Decimal       @default(0) @db.Decimal(14, 2)
   isUrgent             Boolean       @default(false)
   paymentTerms         String?
