@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { TENANT, URLS, SEEDED_CREDENTIALS, SEEDED_PERIOD } from "./fixtures/test-data";
+import { pickMonth } from "./helpers/month-picker";
 
 test.describe("Sales Operations & Analytics Suite (All 8 Surfaces)", () => {
   test.beforeEach(async ({ page }) => {
@@ -88,12 +89,13 @@ test.describe("Sales Operations & Analytics Suite (All 8 Surfaces)", () => {
     await page.goto(URLS.projections);
     await page.waitForLoadState("networkidle");
 
-    // Select authoritative seeded period (June 2026)
-    const monthSelect = page.getByLabel(/Filter by month|Month/i).or(page.locator("select").first());
-    if (await monthSelect.isVisible()) {
-      await monthSelect.selectOption(SEEDED_PERIOD);
-      await page.waitForTimeout(800);
-    }
+    // The authoritative seeded period, chosen from the calendar the month
+    // control now is. The old locator fell back to `locator("select").first()`,
+    // which on this page is the line filter — so the month was never actually
+    // being set and the assertions below ran against whatever month the page
+    // opened on.
+    await pickMonth(page, SEEDED_PERIOD, "Worksheet month");
+    await page.waitForLoadState("networkidle");
 
     // Verify worksheet table headers
     const table = page.locator("table");

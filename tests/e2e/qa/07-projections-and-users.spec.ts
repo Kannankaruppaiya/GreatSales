@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { apiToken, auth, featureUrl, loginAs, unique, watchErrors } from "../helpers/session";
+import { monthPicker, offeredMonths, pickMonth } from "../helpers/month-picker";
 
 /**
  * The two surfaces where a mistake costs the most: the projection worksheet
@@ -47,9 +48,18 @@ async function seededMonth(
   throw new Error("no month in the last six has any projections — is the seed loaded?");
 }
 
-/** The page's own month control. Not the topbar: this page declares no window. */
+/**
+ * The page's own month control. Not the topbar: this page declares no window.
+ *
+ * A calendar now, so choosing a month is `pickMonth` rather than
+ * `selectOption` — the control is a button over a grid and has no options to
+ * select.
+ */
+const WORKSHEET_MONTH = "Worksheet month";
 const monthSelect = (page: import("@playwright/test").Page) =>
-  page.getByLabel("Worksheet month");
+  monthPicker(page, WORKSHEET_MONTH);
+const chooseMonth = (page: import("@playwright/test").Page, period: string) =>
+  pickMonth(page, period, WORKSHEET_MONTH);
 
 /**
  * A far-future month with nothing in it, found by trying rather than assumed.
@@ -135,14 +145,18 @@ async function emptyMonth(
   token: string,
 ): Promise<string> {
   // Wait for the control before reading it. Reading straight after `goto` got
-  // an empty option list, and an empty list falls out of the loop below at the
+  // an empty list, and an empty list falls out of the loop below at the
   // "everything is full" error — which is the opposite of what had happened.
   await expect(monthSelect(page)).toBeVisible({ timeout: 20000 });
-  const options = await monthSelect(page).locator("option").all();
   const seeded = await seededMonth(request, token);
+  // The window runs a few months past today at most, so anything the picker
+  // will accept after the seeded month is in the seeded month's year or the
+  // one after it. Read from the grid rather than recomputed here, so this
+  // stays an assertion about what the UI allows.
+  const seededYear = Number(seeded.slice(0, 4));
   const periods = (
-    await Promise.all(options.map((o) => o.getAttribute("value")))
-  ).filter((v): v is string => !!v && v > seeded);
+    await offeredMonths(page, [seededYear, seededYear + 1], WORKSHEET_MONTH)
+  ).filter((v) => v > seeded);
   expect(periods.length, "the month picker offers nothing after the seeded month")
     .toBeGreaterThan(0);
 
@@ -166,7 +180,7 @@ async function openWorksheet(
   token: string,
 ) {
   await page.goto(featureUrl("projections"));
-  await monthSelect(page).selectOption(await seededMonth(request, token));
+  await chooseMonth(page, await seededMonth(request, token));
   await expect(page.locator(NUMBER_CELL).first()).toBeVisible({ timeout: 20000 });
 }
 
@@ -247,12 +261,12 @@ test.describe("Projection worksheet", () => {
     // by a roll-forward — including by another test in this file.
     const token = await apiToken(request, "admin");
     const empty = await emptyMonth(page, request, token);
-    await monthSelect(page).selectOption(empty);
+    await chooseMonth(page, empty);
     await expect(page.getByText(/No projection lines for this period/i)).toBeVisible({
       timeout: 20000,
     });
 
-    await monthSelect(page).selectOption(await seededMonth(request, token));
+    await chooseMonth(page, await seededMonth(request, token));
     await expect(page.locator(NUMBER_CELL).first()).toBeVisible({ timeout: 20000 });
   });
 
@@ -340,7 +354,7 @@ test.describe("Projection worksheet", () => {
     try {
       await loginAs(page, "admin");
       await page.goto(featureUrl("projections"));
-      await monthSelect(page).selectOption(await seededMonth(request, token));
+      await chooseMonth(page, await seededMonth(request, token));
 
       await expect(page.getByText(/is locked for reporting/i)).toBeVisible({ timeout: 20000 });
       await expect(page.locator(NUMBER_CELL).first()).toBeDisabled();
@@ -362,7 +376,7 @@ test.describe("Projection worksheet", () => {
     const period = await seededMonth(request, await apiToken(request, "admin"));
     await loginAs(page, "mgmt");
     await page.goto(featureUrl("projections"));
-    await monthSelect(page).selectOption(period);
+    await chooseMonth(page, period);
 
     await expect(page.locator(NUMBER_CELL).first()).toBeVisible({ timeout: 20000 });
     await expect(page.locator(NUMBER_CELL).first()).toBeDisabled();
@@ -433,7 +447,7 @@ test.describe("Projection worksheet", () => {
     expect(someone, "the month being rolled from has no lines").toBeTruthy();
     await page.getByLabel("Filter by salesperson").selectOption(someone);
 
-    await monthSelect(page).selectOption(target);
+    await chooseMonth(page, target);
     await expect(page.getByText(/No projection lines for this period/i)).toBeVisible({
       timeout: 20000,
     });
@@ -561,7 +575,7 @@ test.describe("Projection worksheet", () => {
       // the seeded worksheet and trusting Escape to cancel took a real line out
       // of the dataset, and every later test that needed a June row failed for
       // a reason that had nothing to do with it.
-      await monthSelect(page).selectOption(target);
+      await chooseMonth(page, target);
       await expect(page.locator(NUMBER_CELL).first()).toBeVisible({ timeout: 20000 });
       const remove = page.getByRole("button", { name: "Remove", exact: true }).first();
       await expect(remove).toBeVisible();

@@ -343,6 +343,7 @@ export default function DataPage() {
                 Period
               </label>
               <MonthSelect
+                id="lock-period"
                 value={lockPeriod}
                 onChange={setLockPeriod}
                 ariaLabel="Period to lock or unlock"
