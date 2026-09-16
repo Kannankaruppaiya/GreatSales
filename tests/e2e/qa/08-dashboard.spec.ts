@@ -444,12 +444,19 @@ test.describe("Admin dashboard — scope", () => {
     await expectTile(page, "Total committed", one.body.kpis.totalCommitted);
   });
 
-  test("management reads the dashboard without the buttons that write to it", async ({ page, request }) => {
-    await openDashboard(page, request, "mgmt");
-
-    await expect(page.getByRole("heading", { name: "Executive Overview" })).toBeVisible();
-    for (const label of [/New Sales Lead/i, /Add Customer/i, /Create Order/i]) {
-      await expect(page.getByRole("button", { name: label })).toHaveCount(0);
+  test("the dashboard writes nothing — no role gets a create button on it", async ({ page, request }) => {
+    // This used to be about management specifically: it read the workspace
+    // rather than adding to it, so the quick-action bar was hidden from it and
+    // drawn for everyone else. The bar is gone for every role now — each of
+    // those modals is opened from the page that owns the record — so the
+    // assertion holds for an administrator too, and it is worth keeping as the
+    // thing that fails if the bar is ever put back.
+    for (const role of ["admin", "mgmt"] as const) {
+      await openDashboard(page, request, role);
+      await expect(page.getByRole("heading", { name: "Executive Overview" })).toBeVisible();
+      for (const label of [/New Sales Lead/i, /Add Customer/i, /Create Order/i]) {
+        await expect(page.getByRole("button", { name: label })).toHaveCount(0);
+      }
     }
   });
 
@@ -610,12 +617,17 @@ test.describe("Admin dashboard — the drill-downs", () => {
     await expect(page.getByRole("heading", { name: "Executive Overview" })).toBeVisible();
   });
 
-  test("Targets opens the editor for the window on the button", async ({ page, request }) => {
+  test("the Total achieved tile opens the targets editor for the window", async ({ page, request }) => {
     const { body } = await openDashboard(page, request, "admin");
 
-    await page.getByRole("button", { name: /^Targets$/ }).click();
+    // It was a "Targets" button in the quick-action bar. That bar is gone, and
+    // this is now the only way into the editor — which is why it has to be
+    // there whether or not a target is already set. "Set a target" when there
+    // is none, "Edit target" when there is; a link that appeared only in the
+    // first case would have left an existing target impossible to change.
+    await page.getByRole("button", { name: /^(Set a target|Edit target)$/ }).click();
     // Named with the month it will write to, since a target is set per month
-    // and the button sits next to a window that may be a day or a year.
+    // and the tile answers for a window that may be a day or a year.
     const dialog = page.getByRole("dialog", { name: /^Targets — / });
     await expect(dialog).toBeVisible();
 

@@ -31,50 +31,11 @@ test.describe("Dashboard Page (Executive Overview)", () => {
     expect(count).toBeGreaterThanOrEqual(3);
   });
 
-  test("Scenario 1.3: interactive New Sales Lead modal opens, checks controls, and cancels", async ({ page }) => {
-    const addLeadBtn = page.getByRole("button", { name: /New Sales Lead/i });
-    await expect(addLeadBtn).toBeVisible();
-    await addLeadBtn.click();
-
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("heading", { name: /Add New Sales Lead|New Sales Deal/i }).first()).toBeVisible();
-
-    // Verify fields inside modal
-    await expect(dialog.locator("input, select, textarea").first()).toBeVisible();
-
-    // Dismiss modal cleanly
-    const cancelBtn = dialog.getByRole("button", { name: /Cancel|Discard/i });
-    await cancelBtn.click();
-    await expect(dialog).not.toBeVisible();
-  });
-
-  test("Scenario 1.4: interactive Add Customer modal opens, checks controls, and cancels", async ({ page }) => {
-    const addCustBtn = page.getByRole("button", { name: /Add Customer/i });
-    await expect(addCustBtn).toBeVisible();
-    await addCustBtn.click();
-
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("heading", { name: /Customer/i }).first()).toBeVisible();
-
-    // Dismiss modal
-    const cancelBtn = dialog.getByRole("button", { name: /Cancel|Discard/i });
-    await cancelBtn.click();
-    await expect(dialog).not.toBeVisible();
-  });
-
-  test("Scenario 1.5: interactive Create Order modal opens and cancels cleanly", async ({ page }) => {
-    const createOrderBtn = page.getByRole("button", { name: /Create Order/i });
-    await expect(createOrderBtn).toBeVisible();
-    await createOrderBtn.click();
-
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("heading", { name: /Order/i }).first()).toBeVisible();
-
-    const cancelBtn = dialog.getByRole("button", { name: /Cancel|Discard/i });
-    await cancelBtn.click();
-    await expect(dialog).not.toBeVisible();
-  });
+  /*
+   * Scenarios 1.3 – 1.5 opened the New Sales Lead, Add Customer and Create
+   * Order modals from the dashboard's quick-action bar. That bar was removed:
+   * all three modals are opened from the page that owns the record — Leads,
+   * Customers, Sales Orders — and those pages' own specs cover them, so this
+   * is coverage moved rather than coverage lost.
+   */
 });

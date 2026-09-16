@@ -1,22 +1,13 @@
 import { useState } from "react";
-import {
-  Building2,
-  Plus,
-  ShoppingCart,
-  Target,
-} from "lucide-react";
 import { periodLabel } from "@/data/months";
 import { usePeriodRange, useUi } from "@/store/ui";
 import { useAuth, useAuthRole, useHasPermission } from "@/store/auth";
 import { inr, lakhs, longDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { Button, Card } from "@/components/ui";
 import { CompareLegend, GroupedBars } from "@/components/charts";
+import { Card } from "@/components/ui";
 import { QueryBoundary } from "@/components/common/QueryBoundary";
 import { LeadDetailModal } from "@/features/leads/LeadDetailModal";
-import { AddLeadModal } from "@/features/leads/AddLeadModal";
-import { AddCustomerModal } from "@/features/customers/AddCustomerModal";
-import { CreateSalesOrderModal } from "@/features/orders/CreateSalesOrderModal";
 import type { LeadRow } from "@/features/leads/types";
 import { useDashboard } from "@/features/dashboard/queries";
 import { SetTargetsModal } from "@/features/dashboard/SetTargetsModal";
@@ -44,10 +35,6 @@ export default function DashboardPage() {
 
   const [selectedLead, setSelectedLead] = useState<LeadRow | null>(null);
 
-  // Quick action modal states
-  const [showAddLead, setShowAddLead] = useState(false);
-  const [showAddCustomer, setShowAddCustomer] = useState(false);
-  const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [showTargets, setShowTargets] = useState(false);
   const [showFollowUps, setShowFollowUps] = useState(false);
   // Presentation only — the API enforces the same key on PUT /targets.
@@ -100,53 +87,28 @@ export default function DashboardPage() {
   }));
   const oralDeals = dashQuery.data?.oralConfirmationDeals ?? [];
   const principalStats = dashQuery.data?.byPrincipal ?? [];
-  // The aggregate already names every salesperson in scope, so the quick-add
-  // modal gets its options without a second request.
-  const salespeopleOptions = (dashQuery.data?.bySalesperson ?? []).map((r: DashboardBreakdown) => ({
-    id: r.id,
-    name: r.name,
-  }));
   const categoryStats = dashQuery.data?.byCategory ?? [];
 
   return (
     <div className="space-y-5">
       {/*
-        Quick actions, and nothing else.
+        No banner, and no quick actions either.
 
-        This was a banner: an eyebrow reading "Commercial Sales Pulse", a
-        headline reading "Revenue Performance & Pipeline Tracker", and a line
-        of copy under it. All three said what the page is, to somebody already
-        standing on it who reached it by clicking "Dashboard" — and they cost
-        the top sixth of the screen, pushing the figures people come here for
-        below the fold. The buttons were the only part of it anyone used, so
-        they are what is left.
+        The banner went first — an eyebrow, a headline and a line of copy, all
+        telling somebody who had just clicked "Dashboard" what page they were
+        on, for the top sixth of the screen. The buttons that had sat beside it
+        followed: New Sales Lead, Add Customer and Create Order each open a
+        modal that the Leads, Customers and Sales Orders pages already open,
+        from a button on the page that owns the record. A second door to the
+        same room, on a page about neither.
 
-        Management gets no create buttons — it reads the workspace rather than
-        adding to it — but targets are precisely management's job, so that
-        button sits outside the block that hides the rest.
+        Targets had no other door, so it did not simply go: it moved into the
+        Total achieved tile, which is the number a target is about. See below —
+        the affordance there now covers a target that exists as well as one
+        that does not, which the "Set a target" link alone did not.
+
+        What is left is the figures, which is what anyone opens this page for.
       */}
-      {(role !== "mgmt" || canManageTargets) && (
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {role !== "mgmt" && (
-            <>
-              <Button size="sm" onClick={() => setShowAddLead(true)}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> New Sales Lead
-              </Button>
-              <Button size="sm" variant="secondary" onClick={() => setShowAddCustomer(true)}>
-                <Building2 className="h-3.5 w-3.5 mr-1" /> Add Customer
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setShowCreateOrder(true)}>
-                <ShoppingCart className="h-3.5 w-3.5 mr-1" /> Create Order
-              </Button>
-            </>
-          )}
-          {canManageTargets && (
-            <Button size="sm" variant="outline" onClick={() => setShowTargets(true)}>
-              <Target className="h-3.5 w-3.5 mr-1" /> Targets
-            </Button>
-          )}
-        </div>
-      )}
 
       <QueryBoundary
         isLoading={dashQuery.isLoading}
@@ -214,13 +176,17 @@ export default function DashboardPage() {
                       ? `${totalPct.toFixed(1)}% of committed`
                       : "—"}
               </div>
-              {!dashQuery.isLoading && target == null && canManageTargets && (
+              {/* The only way into the targets editor now that the button
+                  bar is gone, so it has to answer for BOTH states: a link that
+                  appeared only when no target was set would have left a target
+                  that exists impossible to change or clear. */}
+              {!dashQuery.isLoading && canManageTargets && (
                 <button
                   type="button"
                   onClick={() => setShowTargets(true)}
                   className="mt-1 text-3xs font-bold uppercase tracking-wider text-brand-ink/70 hover:text-brand-ink cursor-pointer"
                 >
-                  Set a target
+                  {target == null ? "Set a target" : "Edit target"}
                 </button>
               )}
             </div>
@@ -494,20 +460,6 @@ export default function DashboardPage() {
         have spent an afternoon working out why a drawer wired to a `null` that
         nothing assigns never appears.
       */}
-      <AddLeadModal
-        open={showAddLead}
-        onClose={() => setShowAddLead(false)}
-        salespeople={salespeopleOptions}
-        // No industries: this page no longer loads leads, and there is still
-        // no industries endpoint to ask (checklists/03-API.md C.3.12). The
-        // modal already handles an empty list ("No industries yet"), and
-        // refetching every lead to fill one dropdown is what this slice
-        // removed. The Leads page, which does load leads, still offers them.
-        industries={[]}
-      />
-      <AddCustomerModal open={showAddCustomer} onClose={() => setShowAddCustomer(false)} />
-      <CreateSalesOrderModal open={showCreateOrder} onClose={() => setShowCreateOrder(false)} />
-
       {showTargets && (
         <SetTargetsModal
           open

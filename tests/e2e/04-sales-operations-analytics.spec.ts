@@ -35,7 +35,7 @@ test.describe("Sales Operations & Analytics Suite (All 8 Surfaces)", () => {
     await expect(aside.getByRole("link", { name: /^Products$/ })).not.toBeVisible();
   });
 
-  test("Scenario 4.1: Dashboard page (KPI metrics, period selection, and quick modals)", async ({
+  test("Scenario 4.1: Dashboard page (KPI metrics and period selection)", async ({
     page,
   }) => {
     await page.goto(URLS.dashboard);
@@ -57,32 +57,9 @@ test.describe("Sales Operations & Analytics Suite (All 8 Surfaces)", () => {
     // Verify "My deals at Oral Confirmation" section
     await expect(page.getByText(/My deals at Oral Confirmation/i)).toBeVisible();
 
-    // Quick Action 1: New Sales Lead modal opens and cancels
-    const addLeadBtn = page.getByRole("button", { name: /New Sales Lead/i });
-    await expect(addLeadBtn).toBeVisible();
-    await addLeadBtn.click();
-    let dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole("button", { name: /Cancel|Discard/i }).click();
-    await expect(dialog).not.toBeVisible();
-
-    // Quick Action 2: Add Customer modal opens and cancels
-    const addCustBtn = page.getByRole("button", { name: /Add Customer/i });
-    await expect(addCustBtn).toBeVisible();
-    await addCustBtn.click();
-    dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole("button", { name: /Cancel|Discard/i }).click();
-    await expect(dialog).not.toBeVisible();
-
-    // Quick Action 3: Create Order modal opens and cancels
-    const createOrderBtn = page.getByRole("button", { name: /Create Order/i });
-    await expect(createOrderBtn).toBeVisible();
-    await createOrderBtn.click();
-    dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole("button", { name: /Cancel|Discard/i }).click();
-    await expect(dialog).not.toBeVisible();
+    // The quick-action bar — New Sales Lead, Add Customer, Create Order —
+    // was removed. Each of those modals is opened from the page that owns the
+    // record, and each of those pages tests its own.
   });
 
   test("Scenario 4.2: Recurring Projections worksheet (grid, period filter, and inline save)", async ({
