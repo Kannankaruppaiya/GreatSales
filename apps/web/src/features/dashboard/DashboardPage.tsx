@@ -4,7 +4,6 @@ import {
   Plus,
   ShoppingCart,
   Target,
-  TrendingUp,
 } from "lucide-react";
 import { periodLabel } from "@/data/months";
 import { usePeriodRange, useUi } from "@/store/ui";
@@ -15,23 +14,13 @@ import { Button, Card } from "@/components/ui";
 import { CompareLegend, GroupedBars } from "@/components/charts";
 import { QueryBoundary } from "@/components/common/QueryBoundary";
 import { LeadDetailModal } from "@/features/leads/LeadDetailModal";
-import { ProjectionFollowUpModal } from "@/features/projections/ProjectionFollowUpModal";
-import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
 import { AddLeadModal } from "@/features/leads/AddLeadModal";
 import { AddCustomerModal } from "@/features/customers/AddCustomerModal";
 import { CreateSalesOrderModal } from "@/features/orders/CreateSalesOrderModal";
-import { toast } from "@/store/toastStore";
-import { useUpdateProjection } from "@/features/projections/queries";
-import {
-  PROJ_STATUS_LABELS,
-  projStatusFromLabel,
-  type ProjectionLine,
-} from "@/features/projections/types";
 import type { LeadRow } from "@/features/leads/types";
 import { useDashboard } from "@/features/dashboard/queries";
 import { SetTargetsModal } from "@/features/dashboard/SetTargetsModal";
 import { FollowUpsDueModal } from "@/features/dashboard/FollowUpsDueModal";
-import { TopOpenProjectionsCard } from "@/features/dashboard/TopOpenProjectionsCard";
 import type { DashboardBreakdown } from "@/features/dashboard/types";
 
 // The stage/status lists that used to live here moved to the server with the
@@ -54,8 +43,6 @@ export default function DashboardPage() {
   const ownerId = ownerFilter === "ALL" ? undefined : ownerFilter;
 
   const [selectedLead, setSelectedLead] = useState<LeadRow | null>(null);
-  const [selectedFuProj, setSelectedFuProj] = useState<ProjectionLine | null>(null);
-  const [selectedDrawerCustId, setSelectedDrawerCustId] = useState<string | null>(null);
 
   // Quick action modal states
   const [showAddLead, setShowAddLead] = useState(false);
@@ -86,7 +73,6 @@ export default function DashboardPage() {
 
   // ONE request for the whole page scoped by period and topbar salesperson filter.
   const dashQuery = useDashboard(range, { ownerId, enabled });
-  const updateProjection = useUpdateProjection();
 
   const kpis = dashQuery.data?.kpis;
   const recurringCommitted = kpis?.recurringCommitted ?? 0;
@@ -113,7 +99,6 @@ export default function DashboardPage() {
     achieved: r.achieved,
   }));
   const oralDeals = dashQuery.data?.oralConfirmationDeals ?? [];
-  const topOpenProjections = dashQuery.data?.topOpenProjections ?? [];
   const principalStats = dashQuery.data?.byPrincipal ?? [];
   // The aggregate already names every salesperson in scope, so the quick-add
   // modal gets its options without a second request.
@@ -125,51 +110,43 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      {/* Enterprise Executive Banner with Quick Actions */}
-      <div className="rounded-2xl border border-line bg-gradient-to-r from-surface via-surface to-brand-soft/30 p-5 shadow-xs flex items-center justify-between gap-4 flex-wrap">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="grid h-6 w-6 place-items-center rounded-lg bg-brand text-white shadow-2xs">
-              <TrendingUp className="h-3.5 w-3.5" />
-            </span>
-            <span className="text-xs font-extrabold uppercase tracking-wider text-brand-ink">
-              Commercial Sales Pulse · {windowLabel}
-            </span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-black text-ink tracking-tight font-sans">
-            Revenue Performance & Pipeline Tracker
-          </h1>
-          <p className="text-xs text-muted">
-            Track commitments, actual realizations, hot deals, and overdue credit collections in real time.
-          </p>
-        </div>
+      {/*
+        Quick actions, and nothing else.
 
-        {/* Management gets no create buttons — it reads the workspace rather
-            than adding to it — but targets are precisely management's job, so
-            that button sits outside the block that hides the rest. */}
-        {(role !== "mgmt" || canManageTargets) && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {role !== "mgmt" && (
-              <>
-                <Button size="sm" onClick={() => setShowAddLead(true)}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> New Sales Lead
-                </Button>
-                <Button size="sm" variant="secondary" onClick={() => setShowAddCustomer(true)}>
-                  <Building2 className="h-3.5 w-3.5 mr-1" /> Add Customer
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowCreateOrder(true)}>
-                  <ShoppingCart className="h-3.5 w-3.5 mr-1" /> Create Order
-                </Button>
-              </>
-            )}
-            {canManageTargets && (
-              <Button size="sm" variant="outline" onClick={() => setShowTargets(true)}>
-                <Target className="h-3.5 w-3.5 mr-1" /> Targets
+        This was a banner: an eyebrow reading "Commercial Sales Pulse", a
+        headline reading "Revenue Performance & Pipeline Tracker", and a line
+        of copy under it. All three said what the page is, to somebody already
+        standing on it who reached it by clicking "Dashboard" — and they cost
+        the top sixth of the screen, pushing the figures people come here for
+        below the fold. The buttons were the only part of it anyone used, so
+        they are what is left.
+
+        Management gets no create buttons — it reads the workspace rather than
+        adding to it — but targets are precisely management's job, so that
+        button sits outside the block that hides the rest.
+      */}
+      {(role !== "mgmt" || canManageTargets) && (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {role !== "mgmt" && (
+            <>
+              <Button size="sm" onClick={() => setShowAddLead(true)}>
+                <Plus className="h-3.5 w-3.5 mr-1" /> New Sales Lead
               </Button>
-            )}
-          </div>
-        )}
-      </div>
+              <Button size="sm" variant="secondary" onClick={() => setShowAddCustomer(true)}>
+                <Building2 className="h-3.5 w-3.5 mr-1" /> Add Customer
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setShowCreateOrder(true)}>
+                <ShoppingCart className="h-3.5 w-3.5 mr-1" /> Create Order
+              </Button>
+            </>
+          )}
+          {canManageTargets && (
+            <Button size="sm" variant="outline" onClick={() => setShowTargets(true)}>
+              <Target className="h-3.5 w-3.5 mr-1" /> Targets
+            </Button>
+          )}
+        </div>
+      )}
 
       <QueryBoundary
         isLoading={dashQuery.isLoading}
@@ -352,13 +329,6 @@ export default function DashboardPage() {
                 </QueryBoundary>
               </Card>
 
-              {/* 2. Top open projections */}
-              <TopOpenProjectionsCard
-                rows={topOpenProjections}
-                windowLabel={windowLabel}
-                onCustomer={(id) => setSelectedDrawerCustId(id)}
-                onLogFollowUp={(p) => setSelectedFuProj(p)}
-              />
             </div>
           ) : (
             /* Admin & Management Dashboard Views */
@@ -377,18 +347,6 @@ export default function DashboardPage() {
                   </div>
                 </QueryBoundary>
               </Card>
-
-              {/* 2. Top open projections — the aggregate has always carried
-                  these for every role; only the sales branch rendered them, so
-                  an administrator was sent ten lines a page it never drew.
-                  Management reads the workspace rather than writing to it, so
-                  it gets the table and not the follow-up action. */}
-              <TopOpenProjectionsCard
-                rows={topOpenProjections}
-                windowLabel={windowLabel}
-                onCustomer={(id) => setSelectedDrawerCustId(id)}
-                onLogFollowUp={role === "mgmt" ? undefined : (p) => setSelectedFuProj(p)}
-              />
 
               {/* 3. Deals at Oral Confirmation */}
               <Card className="p-0 overflow-hidden shadow-xs border-line">
@@ -528,41 +486,14 @@ export default function DashboardPage() {
         />
       )}
 
-      {selectedFuProj && (
-        <ProjectionFollowUpModal
-          open={!!selectedFuProj}
-          onClose={() => setSelectedFuProj(null)}
-          title={`${selectedFuProj.customerName} · ${selectedFuProj.productName}`}
-          subtitle={`${selectedFuProj.principalName} · Proj ${selectedFuProj.committedQty || 0} units @ ₹${selectedFuProj.price || 0} = ${inr(selectedFuProj.projValue || 0)} · Achieved ${selectedFuProj.achievedQty || 0} · Status: ${PROJ_STATUS_LABELS[selectedFuProj.status] ?? selectedFuProj.status}`}
-          currentDate={selectedFuProj.nextFollowUp}
-          currentProb={selectedFuProj.probability ?? undefined}
-          currentStatus={PROJ_STATUS_LABELS[selectedFuProj.status] ?? selectedFuProj.status}
-          projectionId={selectedFuProj.id}
-          onSave={(nextDate, _note, prob, nextStatusLabel) => {
-            const rawStatus = projStatusFromLabel(nextStatusLabel);
-            updateProjection.mutate(
-              {
-                id: selectedFuProj.id,
-                patch: {
-                  nextFollowUp: nextDate,
-                  probability: prob ?? null,
-                  ...(rawStatus ? { status: rawStatus } : {}),
-                },
-              },
-              {
-                onSuccess: () => toast.success("Follow-up updated successfully"),
-                onError: () => toast.error("Failed to update follow-up"),
-              },
-            );
-          }}
-        />
-      )}
-
-      <CustomerDrawer
-        customerId={selectedDrawerCustId}
-        onClose={() => setSelectedDrawerCustId(null)}
-      />
-
+      {/*
+        The follow-up modal and the customer drawer went with the Top open
+        projections table: its rows were the only thing that ever opened
+        either, so both were left permanently shut. Dead state that reads as
+        live is worse than no state — the next person to touch this page would
+        have spent an afternoon working out why a drawer wired to a `null` that
+        nothing assigns never appears.
+      */}
       <AddLeadModal
         open={showAddLead}
         onClose={() => setShowAddLead(false)}

@@ -195,7 +195,7 @@ test.describe("Admin dashboard — the page agrees with its aggregate", () => {
   test("every KPI tile shows the figure the server sent", async ({ page, request }) => {
     const watch = watchErrors(page);
     const { body } = await openDashboard(page, request, "admin");
-    await expect(page.getByRole("heading", { name: /Revenue Performance/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Executive Overview" })).toBeVisible();
 
     const k = body.kpis;
     await expectTile(page, "Recurring committed", k.recurringCommitted);
@@ -238,12 +238,6 @@ test.describe("Admin dashboard — the page agrees with its aggregate", () => {
     const rec = body.kpis.recurringCommitted;
     expect(body.byPrincipal.reduce((a, b) => a + b.committed, 0)).toBeCloseTo(rec, 2);
     expect(body.byCategory.reduce((a, c) => a + c.committed, 0)).toBeCloseTo(rec, 2);
-
-    // Top open projections are capped and ordered by value, which is what
-    // makes the list worth reading top-down.
-    expect(body.topOpenProjections.length).toBeLessThanOrEqual(10);
-    const values = body.topOpenProjections.map((p) => p.projValue);
-    expect(values).toEqual([...values].sort((a, b) => b - a));
   });
 
   test("the oral-confirmation table lists exactly the deals in the payload", async ({ page, request }) => {
@@ -453,15 +447,10 @@ test.describe("Admin dashboard — scope", () => {
   test("management reads the dashboard without the buttons that write to it", async ({ page, request }) => {
     await openDashboard(page, request, "mgmt");
 
-    await expect(page.getByRole("heading", { name: /Revenue Performance/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Executive Overview" })).toBeVisible();
     for (const label of [/New Sales Lead/i, /Add Customer/i, /Create Order/i]) {
       await expect(page.getByRole("button", { name: label })).toHaveCount(0);
     }
-
-    // It reads the same tables as an administrator — including the open
-    // projections — but the action that writes to one is not drawn at all.
-    await expect(page.getByText(/Top open projections/i)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Log Follow-Up" })).toHaveCount(0);
   });
 
   test("a sales user gets their own dashboard and no filter to leave it", async ({ page, request }) => {
@@ -579,22 +568,6 @@ test.describe("Admin dashboard — what the tiles are made of", () => {
     expect(body.followUps.every((f) => f.entityType)).toBe(true);
   });
 
-  test("an administrator sees the open projections the payload sends them", async ({
-    page,
-    request,
-  }) => {
-    // The aggregate has always carried these for every role; only the sales
-    // branch drew them, so an admin was sent ten rows a page that never
-    // rendered.
-    const { body } = await openYearAsAdmin(page, request);
-    test.skip(body.topOpenProjections.length === 0, "no open projections in any window");
-
-    const card = page.getByText(/Top open projections/i).locator("xpath=../..");
-    await expect(card).toBeVisible();
-    await expect(card.getByText(`${body.topOpenProjections.length} lines`)).toBeVisible();
-    await expect(card.locator("tbody tr")).toHaveCount(body.topOpenProjections.length);
-  });
-
   test("principal performance lists every principal, not the first six", async ({
     page,
     request,
@@ -615,30 +588,13 @@ test.describe("Admin dashboard — the drill-downs", () => {
   test.describe.configure({ timeout: 60_000 });
 
   /**
-   * The two tables are the page's way into a record, and both are populated
-   * from the reporting window. The current month can legitimately be empty, so
-   * these widen to the year first — an empty table would make the test pass
-   * without ever opening anything.
-   */
-  /**
-   * A sales user's dashboard, widened to the year.
+   * The oral-confirmation table is the page's way into a record.
    *
-   * "Top open projections" and its Log Follow-Up button live in the sales
-   * branch of the page — an administrator never sees that table, however many
-   * lines the aggregate carries for them — so these two drill-downs are a
-   * salesperson's, and the reporting window is widened because the current
-   * month can legitimately hold no open lines.
+   * It was two tables; "Top open projections" was the other, and it and its
+   * two drill-downs went when that card was taken off the dashboard. Its rows
+   * were also the only thing that opened the customer drawer and the follow-up
+   * log from this page, so neither is reachable here any more.
    */
-  const openYear = async (page: Page, request: APIRequestContext) => {
-    const first = await openDashboard(page, request, "sales");
-    await openPicker(page);
-    const year = await captureDashboard(page, request, "sales", () =>
-      page.getByRole("tab", { name: "Year", exact: true }).click(),
-    );
-    await page.keyboard.press("Escape");
-    return year.body.topOpenProjections.length ? year : first;
-  };
-
   test("an oral-confirmation row opens that deal", async ({ page, request }) => {
     const { body } = await openDashboard(page, request, "admin");
     test.skip(body.oralConfirmationDeals.length === 0, "no deals at oral confirmation");
@@ -651,36 +607,7 @@ test.describe("Admin dashboard — the drill-downs", () => {
     // Closing must leave the page behind it intact rather than a blank shell.
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: /Revenue Performance/i })).toBeVisible();
-  });
-
-  test("a top open projection opens that customer's record", async ({ page, request }) => {
-    const { body } = await openYear(page, request);
-    test.skip(body.topOpenProjections.length === 0, "no open projections in any window");
-    const top = body.topOpenProjections[0];
-
-    // Wait for the row before clicking it: a bare click on a locator that never
-    // resolves hangs until the test timeout with nothing to read afterwards.
-    const row = page.getByRole("button", { name: top.customerName, exact: true }).first();
-    await expect(row, `${top.customerName} should be in the top-open table`).toBeVisible({
-      timeout: 15000,
-    });
-    await row.click();
-    await expect(page.getByRole("heading", { name: top.customerName }).first()).toBeVisible();
-  });
-
-  test("a top open projection offers its follow-up log without writing anything", async ({ page, request }) => {
-    const { body } = await openYear(page, request);
-    test.skip(body.topOpenProjections.length === 0, "no open projections in any window");
-
-    const log = page.getByRole("button", { name: "Log Follow-Up" }).first();
-    await expect(log).toBeVisible({ timeout: 15000 });
-    await log.click();
-    const dialog = page.getByRole("dialog", { name: /Follow-Up & Status Log/i });
-    await expect(dialog).toBeVisible();
-
-    await page.keyboard.press("Escape");
-    await expect(dialog).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Executive Overview" })).toBeVisible();
   });
 
   test("Targets opens the editor for the window on the button", async ({ page, request }) => {

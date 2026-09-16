@@ -41,8 +41,10 @@ test.describe("Sales Operations & Analytics Suite (All 8 Surfaces)", () => {
     await page.goto(URLS.dashboard);
     await page.waitForLoadState("networkidle");
 
-    // Verify Header and Commercial Sales Pulse
-    await expect(page.getByRole("heading", { name: /Revenue Performance & Pipeline Tracker/i })).toBeVisible();
+    // The page is named by the shell's own heading. The dashboard's banner —
+    // an eyebrow, a headline and a line of copy, all of them telling somebody
+    // standing on the page what page they were on — was removed.
+    await expect(page.getByRole("heading", { name: "Executive Overview" })).toBeVisible();
 
     // Verify Core KPI metric cards
     await expect(page.getByText(/Recurring committed/i)).toBeVisible();

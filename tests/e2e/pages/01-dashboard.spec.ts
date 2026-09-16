@@ -9,10 +9,13 @@ test.describe("Dashboard Page (Executive Overview)", () => {
     await page.waitForLoadState("networkidle");
   });
 
-  test("Scenario 1.1: renders revenue performance headers and executive pulse", async ({ page }) => {
+  test("Scenario 1.1: renders the page heading and its salesperson chart", async ({ page }) => {
+    // The dashboard's own banner — an eyebrow, a headline and a line of copy,
+    // all telling somebody standing on the page what page they were on — was
+    // removed. The shell names the page, and the chart is the first thing the
+    // dashboard itself draws.
     await expect(page.getByRole("heading", { name: /Executive Overview/i })).toBeVisible();
-    await expect(page.getByText(/Revenue Performance & Pipeline Tracker/i)).toBeVisible();
-    await expect(page.getByText(/Commercial Sales Pulse/i)).toBeVisible();
+    await expect(page.getByText(/Committed vs achieved by salesperson/i)).toBeVisible();
   });
 
   test("Scenario 1.2: validates all 4 core KPI summary cards with metrics", async ({ page }) => {

@@ -9,7 +9,6 @@ test.describe("GreatSales All Features Suite", () => {
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByRole("heading", { name: /Executive Overview/i })).toBeVisible();
-    await expect(page.getByText(/Commercial Sales Pulse/i)).toBeVisible();
 
     // Verify KPI cards
     await expect(page.getByText(/Recurring committed/i)).toBeVisible();
