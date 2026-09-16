@@ -429,7 +429,15 @@ export default function PaymentsPage() {
                       <th className="py-2.5 px-3">Ref no.</th>
                       <th className="py-2.5 px-3">Date</th>
                       <th className="py-2.5 px-3 min-w-[250px]">Party</th>
-                      <th className="py-2.5 px-3 text-right">Aging</th>
+                      {/* Named on the column, because "aging" is exactly the
+                          word two people read two ways — and this one used to
+                          mean the other one. */}
+                      <th
+                        className="py-2.5 px-3 text-right"
+                        title="Days since the invoice date"
+                      >
+                        Aging
+                      </th>
                       <th className="py-2.5 px-3 text-right">Amount</th>
                       <th className="py-2.5 px-3 text-right font-bold text-ink">Pending</th>
                       <th className="py-2.5 px-3 text-right">Received</th>

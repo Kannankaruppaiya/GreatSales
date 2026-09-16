@@ -108,7 +108,13 @@ describe('PaymentsService (integration)', () => {
     );
     const p = res.items.find((x) => x.refNo === 'PAY-OVERDUE')!;
     expect(p.status).toBe('Overdue');
-    expect(p.agingDays).toBeGreaterThan(0);
+    // Past its due date, by the number that now says so. This used to assert
+    // `agingDays`, which counted from the due date and so meant the same
+    // thing; it is the age of the INVOICE now, and this payment has no
+    // invoice date to be an age from — a manual entry against a walk-in
+    // buyer need not have one.
+    expect(p.overdueDays).toBeGreaterThan(0);
+    expect(p.agingDays).toBeNull();
   });
 
   it('recomputes pending + status when a receipt is recorded', async () => {
