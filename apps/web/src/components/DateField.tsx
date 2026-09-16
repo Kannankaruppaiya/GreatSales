@@ -81,7 +81,7 @@ export function DateField({
   };
 
   return (
-    <div className={cn("w-full", className)}>
+    <div className={cn("w-fit max-w-full", className)}>
       <CalendarTrigger
         id={id}
         buttonRef={triggerRef}
@@ -206,7 +206,6 @@ export function DateTimeField({
           setDatePart(next);
           emit(next, timePart);
         }}
-        className="min-w-[10rem] flex-1"
       />
       <Select
         aria-label={`${label} — time`}

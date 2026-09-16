@@ -679,6 +679,14 @@ export function CalendarDayView({
  *
  * A button rather than a text input, because a half-typed date is a state this
  * control does not have — the value is always a real day or nothing at all.
+ *
+ * It is as wide as the date it holds and no wider. `w-full` was the obvious
+ * thing and it was wrong: a date is eleven characters, so stretching it across
+ * a form row drew a control the size of the address box for `09 Sep 2026`, and
+ * next to the 6.5rem Time select it read as a mistake. The min-width is what
+ * "Select date" needs, so the field does not resize under the cursor the
+ * moment a date is picked. A caller that genuinely wants the full column still
+ * passes `w-full` through `className`, which wins.
  */
 export function CalendarTrigger({
   id,
@@ -716,7 +724,7 @@ export function CalendarTrigger({
       aria-required={required || undefined}
       aria-label={text ? `${ariaLabel}: ${text}` : ariaLabel}
       className={cn(
-        "flex h-9 w-full items-center gap-2 rounded-lg border border-line bg-surface px-3 text-sm font-medium text-ink shadow-2xs transition-all hover:border-muted/30 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-muted cursor-pointer",
+        "flex h-9 w-fit min-w-[8.75rem] max-w-full items-center gap-2 whitespace-nowrap rounded-lg border border-line bg-surface px-3 text-sm font-medium text-ink shadow-2xs transition-all hover:border-muted/30 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-muted cursor-pointer",
         open && "border-brand ring-2 ring-brand/20",
         className,
       )}
