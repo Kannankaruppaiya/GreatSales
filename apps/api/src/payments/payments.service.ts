@@ -19,7 +19,9 @@ import {
 import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
-  agingDays,
+  dueDateFor,
+  invoiceAgeDays,
+  overdueDays,
   deriveStatus,
   pending,
   reminderSequenceError,
@@ -97,7 +99,15 @@ function iso(d: Date | null): string | null {
 function toRow(p: PaymentWithGraph, today: string): PaymentRow {
   const amount = dec(p.amount);
   const received = dec(p.received);
-  const dueDate = ymd(p.dueDate);
+  const invoiceDate = ymd(p.invoiceDate);
+  // Derived from the customer's own credit terms when the invoice does not
+  // carry a due date of its own, rather than the flat 30 days every row used
+  // to be given regardless of what was agreed with them.
+  const dueDate = dueDateFor(
+    invoiceDate,
+    p.customer?.paymentTerms ?? null,
+    ymd(p.dueDate),
+  );
   return {
     id: p.id,
     refNo: p.refNo,
@@ -109,12 +119,13 @@ function toRow(p: PaymentWithGraph, today: string): PaymentRow {
     salespersonName:
       p.salesperson?.name ?? p.customer?.salesperson?.name ?? null,
     invoiceNo: p.invoiceNo,
-    invoiceDate: ymd(p.invoiceDate),
+    invoiceDate,
     amount,
     received,
     pending: pending(amount, received),
     dueDate,
-    agingDays: agingDays(dueDate, today),
+    agingDays: invoiceAgeDays(invoiceDate, today),
+    overdueDays: overdueDays(dueDate, today),
     payZone: p.payZone,
     delayReason: p.delayReason,
     nextFollowUp: ymd(p.nextFollowUp),

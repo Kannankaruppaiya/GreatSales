@@ -14,7 +14,12 @@ import {
   type ImportRowError,
   type RequestUser,
 } from '@greatsales/shared';
-import { agingDays, deriveStatus, pending } from '../payments/payment-engine';
+import {
+  deriveStatus,
+  dueDateFor,
+  invoiceAgeDays,
+  pending,
+} from '../payments/payment-engine';
 import { businessToday } from '../common/business-day';
 import { PrismaService } from '../prisma/prisma.service';
 import { FeatureFlagsService } from '../feature-flags/feature-flags.service';
@@ -283,7 +288,11 @@ export class ImportsService {
     const [customers, existing] = await Promise.all([
       db.customer.findMany({
         where: { deletedAt: null },
-        select: { id: true, name: true },
+        // The terms come back with the id: an invoice's due date is its
+        // invoice date plus whatever credit THIS customer was granted, and
+        // this import used to add a flat 30 days to every row in the ledger
+        // without ever asking.
+        select: { id: true, name: true, paymentTerms: true },
       }),
       db.payment.findMany({
         where: { deletedAt: null, refNo: { not: null } },
@@ -292,6 +301,9 @@ export class ImportsService {
     ]);
     const customerByName = new Map(
       customers.map((c) => [c.name.trim().toLowerCase(), c.id]),
+    );
+    const termsByCustomerId = new Map(
+      customers.map((c) => [c.id, c.paymentTerms]),
     );
     const paymentByRef = new Map(
       existing.map((p) => [(p.refNo as string).trim().toLowerCase(), p.id]),
@@ -385,9 +397,17 @@ export class ImportsService {
 
     await this.prisma.transactionForTenant(user.tenantId, async (tx) => {
       for (const r of toCreate) {
-        const dueDate = r.invoiceDate
-          ? new Date(r.invoiceDate.getTime() + 30 * 86_400_000)
+        const invoiceDate = r.invoiceDate
+          ? r.invoiceDate.toISOString().slice(0, 10)
           : null;
+        // The sheet carries no due-date column, so this is derived — from the
+        // customer's agreed terms, not from a flat 30 days. A customer with
+        // none recorded still falls back to 30, so only rows where a real
+        // answer existed and was being ignored change.
+        const dueDate = dueDateFor(
+          invoiceDate,
+          r.customerId ? (termsByCustomerId.get(r.customerId) ?? null) : null,
+        );
         await tx.payment.create({
           data: {
             tenantId: user.tenantId,
@@ -396,22 +416,17 @@ export class ImportsService {
             customerName: r.customerName,
             invoiceNo: r.refNo,
             invoiceDate: r.invoiceDate,
-            dueDate,
+            dueDate: dueDate ? new Date(dueDate) : null,
             amount: r.amount,
             received: r.received,
             pending: pending(r.amount, r.received),
-            agingDays: agingDays(
-              dueDate ? dueDate.toISOString().slice(0, 10) : null,
-              today,
-            ),
+            // The age of the INVOICE, which is what this column has always
+            // been called and never been. It counted from the due date, so
+            // every imported row was 30 days younger than its own date said.
+            agingDays: invoiceAgeDays(invoiceDate, today),
             payZone: r.payZone,
             delayReason: r.delayReason,
-            status: deriveStatus(
-              r.amount,
-              r.received,
-              dueDate ? dueDate.toISOString().slice(0, 10) : null,
-              today,
-            ),
+            status: deriveStatus(r.amount, r.received, dueDate, today),
           },
         });
       }

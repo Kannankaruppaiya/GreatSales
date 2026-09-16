@@ -4,8 +4,47 @@ import {
   PaymentStatusSchema,
   PayZoneSchema,
   type PaymentStatusValue,
+  type PaymentTermsValue,
   type PayZoneValue,
 } from "./enums";
+
+/**
+ * How long a customer has to pay, by the terms agreed with them.
+ *
+ * The Tally import used to add a flat 30 days to every invoice date, which was
+ * wrong in both directions at once: a customer paying cash on delivery was
+ * given a month they never had, and a Credit45 customer was marked overdue a
+ * fortnight early. The terms were sitting on the customer record the whole
+ * time — the same import even parses "Credit 45" out of a spreadsheet — and
+ * nothing read them.
+ *
+ * The four zero-day terms are zero for different reasons and it does not
+ * matter here: cash on delivery, payment up front, half up front and "due
+ * immediately" all mean the invoice is payable the day it is raised.
+ */
+export const CREDIT_DAYS: Record<PaymentTermsValue, number> = {
+  Immediate: 0,
+  Credit15: 15,
+  Credit30: 30,
+  Credit45: 45,
+  CashOnDelivery: 0,
+  Advance50Balance: 0,
+  AdvancePayment: 0,
+};
+
+/**
+ * What a customer with no terms recorded is assumed to have.
+ *
+ * 30 days, which is what the import hardcoded for everybody — so a customer
+ * whose terms nobody has filled in behaves exactly as it did before, and the
+ * only rows this changes are the ones where a real answer was available and
+ * being ignored.
+ */
+export const DEFAULT_CREDIT_DAYS = 30;
+
+export function creditDays(terms: PaymentTermsValue | null | undefined): number {
+  return terms == null ? DEFAULT_CREDIT_DAYS : CREDIT_DAYS[terms];
+}
 
 /**
  * Payment (receivables) contracts, shared by the API and web. A payment need
@@ -56,7 +95,20 @@ export interface PaymentRow {
   received: number;
   pending: number;
   dueDate: string | null;
+  /**
+   * How old the INVOICE is: whole days since it was raised, null without an
+   * invoice date.
+   *
+   * This used to count from the due date, which made the number on a row
+   * disagree with the date printed beside it — an invoice dated 22 Oct 2024
+   * read "664d" on a day 694 days later, because 30 days of credit had been
+   * quietly subtracted. Aging is the age of the receivable; how far past its
+   * due date it has gone is `overdueDays`, which is a different question and
+   * now has its own answer.
+   */
   agingDays: number | null;
+  /** Whole days past the due date; 0 when not yet due, null with no due date. */
+  overdueDays: number | null;
   payZone: PayZoneValue | null;
   delayReason: string | null;
   nextFollowUp: string | null;

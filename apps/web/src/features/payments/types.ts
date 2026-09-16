@@ -43,7 +43,17 @@ export interface PaymentRow {
   received: number;
   pending: number;
   dueDate: string | null;
+  /**
+   * How old the INVOICE is: whole days since it was raised.
+   *
+   * This used to count from the due date, so the number disagreed with the
+   * date printed beside it — an invoice dated 22 Oct 2024 read "664d" on a day
+   * 694 days later, quietly short by 30 days of credit. Aging is the age of
+   * the receivable; how far past due it has gone is `overdueDays`.
+   */
   agingDays: number | null;
+  /** Whole days past the due date; 0 when not yet due, null with no due date. */
+  overdueDays: number | null;
   payZone: string | null;
   delayReason: string | null;
   nextFollowUp: string | null;
