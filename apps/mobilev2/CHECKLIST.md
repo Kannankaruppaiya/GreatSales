@@ -68,10 +68,11 @@ Legend: `[x]` done · `[~]` partially done · `[ ]` not started ·
 
 - [x] 02E.1 Home screen
 - [x] 02E.2 Quick Actions launcher
-- [ ] 02A Sales progress
-- [ ] 02B Actions overview (overdue / outstanding / opportunities)
-- [ ] 02C Follow-ups overview
-- [ ] 02D Hot opportunities
+- [x] 02A Sales progress — achievement derived from the period's projections
+- [x] 02B Actions overview — "Others" row dropped, nothing in the product feeds it
+- [x] 02C Follow-ups overview + 02C.2–02C.4 as bucket filters on one route
+- [x] 02C.5 Follow-up detail — quick actions hidden when their data is missing
+- [x] 02D Hot opportunities — "hot" is derived, there is no stored flag
 
 ## 03 — Pipeline (10)
 
@@ -208,6 +209,7 @@ around; each is a decision for the API, not something this app should fake.
 | 4 | **Activity timeline has no endpoint of its own.** | `listActivities` reads `/remarks`. The design's "activity types" (call, visit, stage change, quotation) are richer than remarks carry. |
 | 5 | **"Scan Bill"** appears in the design's quick actions. No OCR or attachment-scan endpoint exists. | Not built. The fourth quick action is Add Customer instead. |
 | 6 | **"Continue with Google"** is on the login board. The API exposes password sign-in only. | Not rendered. An OAuth button that cannot complete is worse than none. |
+| 7 | **No stored "hot" flag or per-deal probability.** 02D ranks by it. | Derived: open pipeline sorted by value, banded by a probability read off the deal's stage. Named in `STAGE_PROBABILITY`. |
 
 ## Asset gaps
 
