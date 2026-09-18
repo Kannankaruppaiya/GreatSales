@@ -225,12 +225,15 @@ export default function OpportunityProductsScreen() {
                         />
                       }
                       onPress={() =>
-                        router.push(
-                          `/mappings/new?customerId=${customer.id}` +
-                            (product.productId
-                              ? `&productId=${product.productId}`
-                              : ""),
-                        )
+                        router.push({
+                          pathname: "/mappings/new",
+                          params: {
+                            customerId: customer.id,
+                            ...(product.productId
+                              ? { productId: product.productId }
+                              : {}),
+                          },
+                        })
                       }
                     />
                   ) : null}

@@ -50,7 +50,7 @@ Legend: `[x]` done · `[~]` partially done · `[ ]` not started ·
 - [x] Domain labels + colour semantics for every wire enum
 - [x] Decorative vectors rebuilt as real SVG (ridges, brand swoosh)
 - [x] `assets/README.md` — the three photographs still to export from Penpot
-- [ ] Re-enable `typedRoutes` once every route below exists
+- [x] Re-enable `typedRoutes` once every route below exists
 - [ ] Auth / token wiring for `ApiSource`
 - [ ] Component tests for the primitives
 
@@ -84,99 +84,103 @@ Legend: `[x]` done · `[~]` partially done · `[ ]` not started ·
 - [x] 03C Opportunity detail — overview
 - [x] 03D / 03.5 Change stage
 - [x] 03E.2 Activity timeline + 03E.3 filters + 03E.4 detail
-- [ ] 03F Products & assignment
-- [ ] 03G Add follow-up
-- [ ] 03H Create sales order (opportunity → order)
+- [x] 03F Products & assignment
+- [x] 03G Add follow-up
+- [x] 03H Create sales order (opportunity → order)
 - [x] 03I Opportunity actions sheet
 
 ## 04 — New Sales Lead (7)
 
-- [ ] 04 Entry point
-- [ ] 04A Find / select customer
-- [ ] 04B Create customer branch
-- [ ] 04C Opportunity information
-- [ ] 04D Product / deal information
-- [ ] 04E Follow-up & expected closure
-- [ ] 04F Review & create
-- [ ] 04G Lead created — success
+- [x] 04 Entry point
+- [x] 04A Find / select customer
+- [x] 04B Create customer branch
+- [x] 04C Opportunity information
+- [x] 04D Product / deal information
+- [x] 04E Follow-up & expected closure
+- [x] 04F Review & create
+- [x] 04G Lead created — success
 
 ## 05 — Customers / Customer 360 (16)
 
 - [x] 05C Customer list
-- [ ] 05 Map + list shell
-- [ ] 05A Search
-- [ ] 05B Filters
-- [ ] 05D Customer map
-- [ ] 05E Customer overview (360 header)
-- [ ] 05F Contacts
-- [ ] 05G Products / assignments
-- [ ] 05H Sales orders
-- [ ] 05I Outstanding / payment status *(read-only)*
-- [ ] 05J Follow-ups / activity
-- [ ] 05K Location
-- [ ] 05L Add customer entry
-- [ ] 05M Customer form
-- [ ] 05N Review
-- [ ] 05O Customer created
+- [x] 05 Map + list shell
+- [x] 05A Search
+- [~] 05B Filters — category, area, industry, outstanding. Salesperson filter
+      not built: every customer readable here is already the signed-in user's.
+- [~] 05D Customer map — built as a pinned-locations list that opens each
+      customer in the device maps app. See "Backend gaps" #13.
+- [x] 05E Customer overview (360 header)
+- [x] 05F Contacts
+- [x] 05G Products / assignments
+- [x] 05H Sales orders
+- [x] 05I Outstanding / payment status *(read-only)*
+- [x] 05J Follow-ups / activity
+- [x] 05K Location
+- [x] 05L Add customer entry
+- [x] 05M Customer form
+- [x] 05N Review
+- [x] 05O Customer created
 
 ## 06 — My Customer Mapping (9)
 
-- [ ] 06 Mapping list
-- [ ] 06A Search / filter (incl. unpriced mappings)
-- [ ] 06B Select customer
-- [ ] 06C Select product
-- [ ] 06D Principal / product
-- [ ] 06E Agreed / custom price
-- [ ] 06F Review mapping
-- [ ] 06G Mapping created
-- [ ] 06H Edit / delete mapping
+- [x] 06 Mapping list
+- [x] 06A Search / filter (incl. unpriced mappings)
+- [x] 06B Select customer
+- [x] 06C Select product
+- [x] 06D Principal / product
+- [x] 06E Agreed / custom price
+- [x] 06F Review mapping
+- [x] 06G Mapping created
+- [x] 06H Edit / delete mapping
 
 ## 07 — Recurring Projections (13)
 
-- [ ] 07 Projection overview
-- [ ] 07A Month selection
-- [ ] 07B Search / filters
-- [ ] 07C Projection detail
-- [ ] 07D Edit projection *(blocked when the period is locked)*
-- [ ] 07E Next follow-up
-- [ ] 07F Expected closure / target date
-- [ ] 07G Status
-- [ ] 07H Remarks
-- [ ] 07I Follow-up log
-- [ ] 07J Convert to sales order
-- [ ] 07K Delete projection
-- [ ] 07L Roll forward / locked period
+- [x] 07 Projection overview
+- [x] 07A Month selection
+- [x] 07B Search / filters
+- [x] 07C Projection detail
+- [x] 07D Edit projection *(blocked when the period is locked)*
+- [x] 07E Next follow-up
+- [x] 07F Expected closure / target date
+- [x] 07G Status
+- [x] 07H Remarks
+- [x] 07I Follow-up log
+- [x] 07J Convert to sales order
+- [x] 07K Delete projection
+- [x] 07L Roll forward / locked period
 
 ## 08 — Sales Orders (15)
 
-- [ ] 08 Sales orders list
-- [ ] 08A Search / filters
-- [ ] 08B Order list rows
-- [ ] 08C Order detail
-- [ ] 08D Select customer
-- [ ] 08E Add products
-- [ ] 08F Quantity / pricing
-- [ ] 08G Delivery details
-- [ ] 08H Payment terms
-- [ ] 08I Order review
-- [ ] 08J Order created
-- [ ] 08K Status timeline
-- [ ] 08L Invoice / print view
-- [ ] 08M Fulfilment SLA
-- [ ] 08N Order actions
+- [x] 08 Sales orders list
+- [x] 08A Search / filters
+- [x] 08B Order list rows
+- [x] 08C Order detail
+- [x] 08D Select customer
+- [x] 08E Add products
+- [x] 08F Quantity / pricing
+- [x] 08G Delivery details
+- [x] 08H Payment terms
+- [x] 08I Order review
+- [x] 08J Order created
+- [x] 08K Status timeline
+- [x] 08L Invoice / print view
+- [x] 08M Fulfilment SLA
+- [!] 08N Order actions — cancel and edit are not offered: the API exposes no
+      order-write method for a salesperson. The status timeline shows a
+      cancelled order; it cannot cause one.
 
 ## 09 — Payments / Collection Intelligence (10) — **READ ONLY**
 
-- [ ] 09 Payments overview
-- [ ] 09A Outstanding
-- [ ] 09B Aging buckets
-- [ ] 09C Overdue / red zone
-- [ ] 09D Search / filters
-- [ ] 09E Customer outstanding
-- [ ] 09F Invoice / payment detail
-- [ ] 09G Payment history *(read-only)*
-- [ ] 09H Collection follow-up information
-- [ ] 09I Aging detail
+- [x] 09 Payments overview
+- [x] 09A Outstanding
+- [x] 09B Aging buckets
+- [x] 09C Overdue / red zone
+- [x] 09D Search / filters
+- [x] 09E Customer outstanding
+- [x] 09F Invoice / payment detail
+- [x] 09G Payment history *(read-only)*
+- [x] 09H Collection follow-up information
+- [x] 09I Aging detail
 
 Prohibited on this app, and absent from the write interface: record payment,
 edit payment, delete payment, import payment, send-reminder mutation.
@@ -186,16 +190,19 @@ edit payment, delete payment, import payment, send-reminder mutation.
 - [!] 10 Global search — see "Backend gaps"
 - [!] 10A Search results
 - [!] 10B Category / filter
-- [ ] 10C Result detail (routes into existing detail screens)
+- [x] 10C Result detail (routes into existing detail screens)
 
 ## 11 — More / Sales Account (6)
 
 - [x] 11 More menu
-- [ ] 11A My profile
-- [ ] 11B Notifications
-- [ ] 11C App settings
-- [ ] 11D Help / support
-- [ ] 11E About
+- [x] 11A My profile
+- [x] 11B Notifications
+- [~] 11C App settings — theme and date format only, held for the session.
+      Notification preferences and language are not built: nothing stores them.
+- [~] 11D Help / support — answers the questions this app raises (why payments
+      are read-only, where data comes from) and points at the web console.
+      No ticket management: there is no ticketing backend to carry it.
+- [x] 11E About
 
 ---
 
@@ -217,7 +224,45 @@ around; each is a decision for the API, not something this app should fake.
 | 9 | **No `GET /remarks/:id`.** 03E.4 opens one activity. | `getActivity` filters a page, like leads and orders. |
 | 10 | **An activity is one text field.** 03E.4 shows From → To stages and a separate "Additional Notes". | Neither is built. A "From" stage would have to be reconstructed from the timeline and shown as a record, and one field under two headings is not two fields. |
 | 11 | **Orders are not timeline events.** 03E.3 offers a "Sales Order Conversion" filter. | Not built; the activity stream reads `/remarks`, which carries no orders. |
-| 12 | **Every record belongs to the signed-in salesperson.** 03A.2 offers "My Deals", 03E.3 offers "Performed By". | Neither is built — the filter would never remove a row. |
+| 12 | **Every record belongs to the signed-in salesperson.** 03A.2 offers "My Deals", 03E.3 offers "Performed By", 05B offers a salesperson filter. | None is built — the filter would never remove a row. |
+| 13 | **No map tiles or geocoding service.** 05D is a map of customer pins. | Built as a list of pinned locations that opens each one in the device maps app. An in-app map needs `react-native-maps`, a key and a tile provider; none is configured, and it has no web target, which would have cost the render checks this app is verified with. |
+| 14 | **No order-write endpoint for a salesperson.** 08N offers edit and cancel. | Not built. `MutableDataSource` has `createOrder` and no order edit or cancel, so the screens cannot offer one. |
+| 15 | **No notification-preference or language store.** 11C offers both. | Not built. Settings holds theme and date format for the session only, and says so on screen. |
+| 16 | **No ticketing backend.** 11D is a support / ticket area. | Help answers the questions this app actually raises and points at the web console. No ticket list, no ticket creation. |
+| 17 | **Notifications are generated, not delivered.** There is no push registration or notification endpoint. | The list reads the synthetic feed and references real records. Nothing registers for push. |
+
+## Verified
+
+Every screen renders under Chromium at 376 x 859 with no page or console
+errors (`node scripts/screenshot.mjs <routes>` over the route list, plus a
+drill-through that opens each list's first row). The three create flows were
+driven end to end through the UI — sign in, + launcher, fill, save — and the
+record each one writes was checked afterwards:
+
+| Flow | Checked |
+|------|---------|
+| Add follow-up | Saved; Today's count 6 → 7 and the list total 29 → 30. |
+| Add customer | Saved; success screen, and the new account opens at `/customer/cust-new-1` with real zeros, not placeholders. |
+| New sales lead | Saved through all five steps with a product line; deal value computed, pipeline 29 → 30. |
+
+That pass is what found the focus bug below.
+
+## Fixed during verification
+
+- **Screens kept stale data.** A screen that stayed mounted held whatever it
+  loaded when it opened, so scheduling a follow-up from the + launcher left
+  Home showing the old count. `useAsync` now re-fetches when a screen regains
+  focus, skipping the first focus so nothing loads twice.
+- **Projections opened on the wrong month** — the newest period, which is next
+  month, showing 0% achievement. It opens on the current month now.
+- **Two dead navigation targets** — a "Sort" chip pointing at a route that does
+  not exist, and an Edit action with no screen behind it. Both are real screens
+  now.
+- **Duplicate notifications** — one line repeated down the feed. The generator
+  draws without replacement and references real records.
+- **Raw enum shown to the user** (`Moved to NewEnquiries`) and two date formats
+  in one app (`03 Sept 2026` beside `3 Sep 2026`). Both go through the shared
+  label and date helpers now.
 
 ## Asset gaps
 
@@ -231,6 +276,7 @@ reproduced as real SVG paths from the design's own path data.
 ## Design gaps
 
 The Penpot file covers flows 01, 02 and 03 (through 03E) across 45 boards.
-Flows 03F–11 are specified in writing but have no boards yet. Those screens are
-being built from the design system — the same tokens, cards, chips and
-navigation — rather than invented layouts.
+Flows 03F–11 are specified in writing and have no boards. Those screens were
+built in code from the design system — the same tokens, cards, chips and
+navigation as the boarded screens — rather than from invented layouts, on the
+instruction not to design them in Penpot first.
