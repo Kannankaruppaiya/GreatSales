@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "GreatSales",
+    "slug": "greatsales-mobilev2",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "greatsales-mobilev2",
+    "userInterfaceStyle": "light",
+    "primaryColor": "#17A45E",
+    "android": {
+      "package": "com.greatsales.crm.mobilev2",
+      "versionCode": 1,
+      "predictiveBackGestureEnabled": false
+    },
+    "ios": {
+      "bundleIdentifier": "com.greatsales.crm.mobilev2",
+      "buildNumber": "1",
+      "supportsTablet": false
+    },
+    "web": {
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#17A45E",
+          "imageWidth": 200
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {
+      "router": {}
+    }
+  }
+}
