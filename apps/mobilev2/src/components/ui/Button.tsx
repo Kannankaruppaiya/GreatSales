@@ -18,7 +18,14 @@ import {
   type ViewStyle,
 } from "react-native";
 
-import { color, control, elevation, font, radius, space } from "@/design/tokens";
+import {
+  color,
+  control,
+  elevation,
+  font,
+  radius,
+  space,
+} from "@/design/tokens";
 
 import { Text } from "./Text";
 
@@ -61,7 +68,11 @@ interface VariantStyle {
 }
 
 const VARIANTS: Record<ButtonVariant, VariantStyle> = {
-  primary: { background: color.primary, label: "surfaceWhite", shadow: elevation.primary },
+  primary: {
+    background: color.primary,
+    label: "surfaceWhite",
+    shadow: elevation.primary,
+  },
   secondary: {
     background: color.surfaceWhite,
     label: "primary",
@@ -120,7 +131,9 @@ export function Button({
       ) : (
         <View style={styles.content}>
           {icon ? <View style={styles.icon}>{icon}</View> : null}
-          <Text style={[styles.label, { color: color[spec.label] }]}>{label}</Text>
+          <Text style={[styles.label, { color: color[spec.label] }]}>
+            {label}
+          </Text>
         </View>
       )}
     </Pressable>

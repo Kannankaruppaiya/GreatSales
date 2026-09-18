@@ -46,7 +46,14 @@ import { color, radius, space } from "@/design/tokens";
 import { longDate, money, moneyShort } from "@/lib/format";
 import { PAYMENT_TERMS_LABELS } from "@/lib/labels";
 
-const STEPS = ["Customer", "Products", "Pricing", "Delivery", "Payment", "Review"];
+const STEPS = [
+  "Customer",
+  "Products",
+  "Pricing",
+  "Delivery",
+  "Payment",
+  "Review",
+];
 
 /** The tax the synthetic orders carry; the API returns its own on the order. */
 const DEFAULT_TAX_RATE = 0.18;
@@ -79,12 +86,16 @@ export default function NewOrderScreen() {
   const [terms, setTerms] = useState<PaymentTermsValue | null>(null);
   const [notes, setNotes] = useState("");
 
-  const [sheet, setSheet] = useState<"customer" | "product" | "date" | "terms" | null>(null);
+  const [sheet, setSheet] = useState<
+    "customer" | "product" | "date" | "terms" | null
+  >(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [created, setCreated] = useState<{ soNumber: string; id: string; total: number } | null>(
-    null,
-  );
+  const [created, setCreated] = useState<{
+    soNumber: string;
+    id: string;
+    total: number;
+  } | null>(null);
 
   // Coming from an opportunity or a projection, the customer and often the
   // products are already known; the flow opens on the products step.
@@ -104,8 +115,12 @@ export default function NewOrderScreen() {
       if (!params.leadId) return;
       const lead = await source.getLead(params.leadId);
       if (!live || !lead) return;
-      const page = await source.listCustomers({ search: lead.customerName, limit: 10 });
-      const row = page.items.find((c) => c.name === lead.customerName) ?? page.items[0];
+      const page = await source.listCustomers({
+        search: lead.customerName,
+        limit: 10,
+      });
+      const row =
+        page.items.find((c) => c.name === lead.customerName) ?? page.items[0];
       if (!row) return;
       setCustomer({ id: row.id, title: row.name, subtitle: row.area });
       setAddress(row.area ?? "");
@@ -119,7 +134,10 @@ export default function NewOrderScreen() {
 
   const loadCustomers = useCallback(
     async (search: string): Promise<EntityOption[]> => {
-      const page = await source.listCustomers({ search: search || undefined, limit: 25 });
+      const page = await source.listCustomers({
+        search: search || undefined,
+        limit: 25,
+      });
       return page.items.map((row) => ({
         id: row.id,
         title: row.name,
@@ -132,7 +150,10 @@ export default function NewOrderScreen() {
 
   const loadProducts = useCallback(
     async (search: string): Promise<EntityOption[]> => {
-      const page = await source.listProducts({ search: search || undefined, limit: 25 });
+      const page = await source.listProducts({
+        search: search || undefined,
+        limit: 25,
+      });
       return page.items.map((row) => ({
         id: row.id,
         title: row.name,
@@ -145,15 +166,24 @@ export default function NewOrderScreen() {
 
   async function addProduct(option: EntityOption) {
     if (lines.some((l) => l.productId === option.id)) return;
-    const products = await source.listProducts({ search: option.title, limit: 20 });
+    const products = await source.listProducts({
+      search: option.title,
+      limit: 20,
+    });
     const product = products.items.find((p) => p.id === option.id);
     if (!product) return;
 
     // An agreed price on the salesperson's own mapping wins over the list price.
     const mappings = customer
-      ? await source.listMappings({ customerId: customer.id, productId: product.id, limit: 5 })
+      ? await source.listMappings({
+          customerId: customer.id,
+          productId: product.id,
+          limit: 5,
+        })
       : null;
-    const agreed = mappings?.items.find((m) => m.productId === product.id)?.agreedPrice ?? null;
+    const agreed =
+      mappings?.items.find((m) => m.productId === product.id)?.agreedPrice ??
+      null;
 
     setLines((current) => [
       ...current,
@@ -177,7 +207,13 @@ export default function NewOrderScreen() {
   const total = subtotal + tax;
 
   const canAdvance =
-    step === 0 ? customer != null : step === 1 ? lines.length > 0 : step === 2 ? subtotal > 0 : true;
+    step === 0
+      ? customer != null
+      : step === 1
+        ? lines.length > 0
+        : step === 2
+          ? subtotal > 0
+          : true;
 
   async function submit() {
     if (!customer || lines.length === 0 || !isMutable(source)) return;
@@ -186,14 +222,26 @@ export default function NewOrderScreen() {
     try {
       const order = await source.createOrder({
         customerId: customer.id,
-        lines: lines.map((l) => ({ productId: l.productId, qty: l.qty, price: l.price })),
-        expectedDeliveryAt: deliveryAt ? new Date(`${deliveryAt}T10:00:00`).toISOString() : null,
+        lines: lines.map((l) => ({
+          productId: l.productId,
+          qty: l.qty,
+          price: l.price,
+        })),
+        expectedDeliveryAt: deliveryAt
+          ? new Date(`${deliveryAt}T10:00:00`).toISOString()
+          : null,
         deliveryAddress: address.trim() || null,
         paymentTerms: terms ?? undefined,
       });
-      setCreated({ soNumber: order.soNumber, id: order.id, total: order.total });
+      setCreated({
+        soNumber: order.soNumber,
+        id: order.id,
+        total: order.total,
+      });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "The order could not be created.");
+      setError(
+        e instanceof Error ? e.message : "The order could not be created.",
+      );
     } finally {
       setSaving(false);
     }
@@ -214,7 +262,10 @@ export default function NewOrderScreen() {
           },
         ]}
         actions={[
-          { label: "View Order", onPress: () => router.replace(`/order/${created.id}`) },
+          {
+            label: "View Order",
+            onPress: () => router.replace(`/order/${created.id}`),
+          },
           {
             label: "Create Another Order",
             onPress: () => {
@@ -224,7 +275,11 @@ export default function NewOrderScreen() {
               setCustomer(null);
             },
           },
-          { label: "Back to Orders", onPress: () => router.replace("/orders"), variant: "tertiary" },
+          {
+            label: "Back to Orders",
+            onPress: () => router.replace("/orders"),
+            variant: "tertiary",
+          },
         ]}
       />
     );
@@ -274,7 +329,9 @@ export default function NewOrderScreen() {
                         accessibilityLabel={`Remove ${line.productName}`}
                         hitSlop={10}
                         onPress={() =>
-                          setLines((c) => c.filter((l) => l.productId !== line.productId))
+                          setLines((c) =>
+                            c.filter((l) => l.productId !== line.productId),
+                          )
                         }
                       >
                         <Trash2 size={17} color={color.red} strokeWidth={2} />
@@ -307,7 +364,11 @@ export default function NewOrderScreen() {
                     {line.productName}
                   </Text>
                   <Chip
-                    label={line.priceSource === "mapping" ? "Agreed price" : "List price"}
+                    label={
+                      line.priceSource === "mapping"
+                        ? "Agreed price"
+                        : "List price"
+                    }
                     tone={line.priceSource === "mapping" ? "mint" : "neutral"}
                   />
                 </View>
@@ -320,7 +381,9 @@ export default function NewOrderScreen() {
                     value={line.qty}
                     onChange={(qty) =>
                       setLines((c) =>
-                        c.map((l) => (l.productId === line.productId ? { ...l, qty } : l)),
+                        c.map((l) =>
+                          l.productId === line.productId ? { ...l, qty } : l,
+                        ),
                       )
                     }
                   />
@@ -358,7 +421,9 @@ export default function NewOrderScreen() {
               label="Expected delivery"
               value={deliveryAt ? longDate(deliveryAt) : null}
               placeholder="Pick a date"
-              icon={<CalendarDays size={16} color={color.muted} strokeWidth={2} />}
+              icon={
+                <CalendarDays size={16} color={color.muted} strokeWidth={2} />
+              }
               onPress={() => setSheet("date")}
               hint="Optional"
             />
@@ -436,7 +501,9 @@ export default function NewOrderScreen() {
                         {line.priceSource === "list" ? " · list price" : ""}
                       </Text>
                     </View>
-                    <Text variant="cardTitle">{money(line.qty * line.price)}</Text>
+                    <Text variant="cardTitle">
+                      {money(line.qty * line.price)}
+                    </Text>
                   </View>
                 </View>
               ))}
@@ -454,7 +521,9 @@ export default function NewOrderScreen() {
 
         <StepFooter
           onBack={step > 0 ? () => setStep((s) => s - 1) : undefined}
-          onNext={step === STEPS.length - 1 ? submit : () => setStep((s) => s + 1)}
+          onNext={
+            step === STEPS.length - 1 ? submit : () => setStep((s) => s + 1)
+          }
           nextLabel={step === STEPS.length - 1 ? "Create Order" : "Continue"}
           nextDisabled={!canAdvance}
           busy={saving}
@@ -494,10 +563,12 @@ export default function NewOrderScreen() {
         visible={sheet === "terms"}
         onClose={() => setSheet(null)}
         title="Payment terms"
-        options={(Object.keys(PAYMENT_TERMS_LABELS) as PaymentTermsValue[]).map((value) => ({
-          value,
-          label: PAYMENT_TERMS_LABELS[value],
-        }))}
+        options={(Object.keys(PAYMENT_TERMS_LABELS) as PaymentTermsValue[]).map(
+          (value) => ({
+            value,
+            label: PAYMENT_TERMS_LABELS[value],
+          }),
+        )}
         value={terms}
         onChange={setTerms}
       />
@@ -505,7 +576,13 @@ export default function NewOrderScreen() {
   );
 }
 
-function Stepper({ value, onChange }: { value: number; onChange: (next: number) => void }) {
+function Stepper({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (next: number) => void;
+}) {
   return (
     <View style={styles.stepper}>
       <Pressable
@@ -516,7 +593,11 @@ function Stepper({ value, onChange }: { value: number; onChange: (next: number) 
         onPress={() => onChange(Math.max(1, value - 1))}
         style={styles.stepperButton}
       >
-        <Minus size={15} color={value <= 1 ? color.muted2 : color.ink} strokeWidth={2.5} />
+        <Minus
+          size={15}
+          color={value <= 1 ? color.muted2 : color.ink}
+          strokeWidth={2.5}
+        />
       </Pressable>
       <Text variant="cardTitle" align="center" style={styles.stepperValue}>
         {value}
@@ -534,7 +615,15 @@ function Stepper({ value, onChange }: { value: number; onChange: (next: number) 
   );
 }
 
-function Totals({ subtotal, tax, total }: { subtotal: number; tax: number; total: number }) {
+function Totals({
+  subtotal,
+  tax,
+  total,
+}: {
+  subtotal: number;
+  tax: number;
+  total: number;
+}) {
   return (
     <Panel tone="mint" style={styles.totals}>
       <KeyValueRow label="Subtotal" value={money(subtotal)} />
@@ -564,7 +653,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.input,
     backgroundColor: color.surfaceWhite,
   },
-  stepperButton: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
+  stepperButton: {
+    width: 38,
+    height: 38,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   stepperValue: { minWidth: 34 },
   addRow: {
     flexDirection: "row",

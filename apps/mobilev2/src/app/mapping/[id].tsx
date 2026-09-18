@@ -38,7 +38,10 @@ export default function MappingDetailScreen() {
   const router = useRouter();
   const source = useData();
 
-  const state = useAsync(() => (id ? source.getMapping(id) : Promise.resolve(null)), [source, id]);
+  const state = useAsync(
+    () => (id ? source.getMapping(id) : Promise.resolve(null)),
+    [source, id],
+  );
   const mapping = state.data ?? null;
 
   const [agreed, setAgreed] = useState("");
@@ -50,11 +53,14 @@ export default function MappingDetailScreen() {
   // The field is seeded once the row arrives, not on every render — otherwise
   // it would overwrite what the person is typing on the next reload.
   useEffect(() => {
-    if (mapping) setAgreed(mapping.agreedPrice != null ? String(mapping.agreedPrice) : "");
+    if (mapping)
+      setAgreed(mapping.agreedPrice != null ? String(mapping.agreedPrice) : "");
   }, [mapping?.id, mapping?.agreedPrice]);
 
-  const agreedValue = agreed.trim() === "" ? null : Number(agreed.replace(/[^0-9.]/g, ""));
-  const changed = mapping != null && agreedValue !== (mapping.agreedPrice ?? null);
+  const agreedValue =
+    agreed.trim() === "" ? null : Number(agreed.replace(/[^0-9.]/g, ""));
+  const changed =
+    mapping != null && agreedValue !== (mapping.agreedPrice ?? null);
 
   async function save() {
     if (!mapping || !isMutable(source)) return;
@@ -66,7 +72,9 @@ export default function MappingDetailScreen() {
       setSaved(true);
       state.reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "The price could not be saved.");
+      setError(
+        e instanceof Error ? e.message : "The price could not be saved.",
+      );
     } finally {
       setSaving(false);
     }
@@ -92,7 +100,9 @@ export default function MappingDetailScreen() {
       await source.deleteMapping(mapping.id);
       router.back();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "The mapping could not be deleted.");
+      setError(
+        e instanceof Error ? e.message : "The mapping could not be deleted.",
+      );
       setDeleting(false);
     }
   }
@@ -125,11 +135,17 @@ export default function MappingDetailScreen() {
             <Panel style={styles.panel}>
               <KeyValueRow label="Principal" value={mapping.principal} />
               <RowDivider />
-              <KeyValueRow label="List price" value={money(mapping.listPrice)} />
+              <KeyValueRow
+                label="List price"
+                value={money(mapping.listPrice)}
+              />
               <RowDivider />
               <KeyValueRow label="Salesperson" value={mapping.ownerName} />
               <RowDivider />
-              <KeyValueRow label="Mapped on" value={longDate(mapping.createdAt)} />
+              <KeyValueRow
+                label="Mapped on"
+                value={longDate(mapping.createdAt)}
+              />
             </Panel>
 
             <Input
@@ -138,12 +154,17 @@ export default function MappingDetailScreen() {
               onChangeText={setAgreed}
               keyboardType="numeric"
               placeholder={String(mapping.listPrice)}
-              icon={<IndianRupee size={15} color={color.muted} strokeWidth={2} />}
+              icon={
+                <IndianRupee size={15} color={color.muted} strokeWidth={2} />
+              }
               hint="Leave it empty to charge the list price"
             />
 
             {agreedValue != null && agreedValue !== mapping.listPrice ? (
-              <Text variant="caption" tone={agreedValue < mapping.listPrice ? "amber" : "primaryDark"}>
+              <Text
+                variant="caption"
+                tone={agreedValue < mapping.listPrice ? "amber" : "primaryDark"}
+              >
                 {agreedValue < mapping.listPrice
                   ? `${money(mapping.listPrice - agreedValue)} below list price.`
                   : `${money(agreedValue - mapping.listPrice)} above list price.`}
@@ -173,7 +194,9 @@ export default function MappingDetailScreen() {
               variant="destructive"
               block
               loading={deleting}
-              icon={<Trash2 size={16} color={color.surfaceWhite} strokeWidth={2} />}
+              icon={
+                <Trash2 size={16} color={color.surfaceWhite} strokeWidth={2} />
+              }
               onPress={confirmDelete}
               style={styles.delete}
             />

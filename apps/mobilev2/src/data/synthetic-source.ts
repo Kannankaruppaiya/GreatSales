@@ -306,11 +306,16 @@ export class SyntheticSource implements MutableDataSource {
       });
     }
 
-    rows.sort((a, b) =>
-      query.bucket === "completed"
-        ? (b.completedAt ?? "").localeCompare(a.completedAt ?? "")
-        : a.dueAt.localeCompare(b.dueAt),
-    );
+    rows.sort((a, b) => {
+      // Completed follow-ups read newest-first: what was done most recently is
+      // what a person is checking on.
+      if (query.bucket === "completed") {
+        return (b.completedAt ?? "").localeCompare(a.completedAt ?? "");
+      }
+      return query.sort === "latest"
+        ? b.dueAt.localeCompare(a.dueAt)
+        : a.dueAt.localeCompare(b.dueAt);
+    });
     return settle(paginate(rows, query), this.latency);
   }
 

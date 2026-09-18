@@ -31,9 +31,21 @@ type PermissionState = "asking" | "denied";
 
 const BADGES = [
   { key: "track", label: "Track Visits", Icon: MapPin, top: 0, left: 8 },
-  { key: "nearby", label: "Nearby\nCustomers", Icon: Users, top: -34, right: 8 },
+  {
+    key: "nearby",
+    label: "Nearby\nCustomers",
+    Icon: Users,
+    top: -34,
+    right: 8,
+  },
   { key: "plan", label: "Plan Better", Icon: Route, top: 135, left: 13 },
-  { key: "reports", label: "Accurate\nReports", Icon: Navigation, top: 119, right: 13 },
+  {
+    key: "reports",
+    label: "Accurate\nReports",
+    Icon: Navigation,
+    top: 119,
+    right: 13,
+  },
 ] as const;
 
 export default function LocationPermissionScreen() {
@@ -70,7 +82,10 @@ export default function LocationPermissionScreen() {
       <View
         style={[
           styles.content,
-          { paddingTop: insets.top + space.xxl, paddingBottom: insets.bottom + space.section },
+          {
+            paddingTop: insets.top + space.xxl,
+            paddingBottom: insets.bottom + space.section,
+          },
         ]}
       >
         <View style={styles.illustration}>
@@ -93,7 +108,11 @@ export default function LocationPermissionScreen() {
               ]}
             >
               <View style={styles.badgeCircle}>
-                <badge.Icon size={22} color={color.primaryDark} strokeWidth={2} />
+                <badge.Icon
+                  size={22}
+                  color={color.primaryDark}
+                  strokeWidth={2}
+                />
               </View>
               <Text variant="caption" align="center" style={styles.badgeLabel}>
                 {badge.label}
@@ -106,8 +125,8 @@ export default function LocationPermissionScreen() {
           Enable Location Access
         </Text>
         <Text variant="body" tone="muted" align="center" style={styles.body}>
-          We use your location to show nearby customers, track visits and give you
-          better recommendations.
+          We use your location to show nearby customers, track visits and give
+          you better recommendations.
         </Text>
 
         {state === "denied" ? (
@@ -125,7 +144,9 @@ export default function LocationPermissionScreen() {
         <View style={styles.actions}>
           <Button
             label={state === "denied" ? "Try Again" : "Allow Location Access"}
-            icon={<MapPin size={19} color={color.surfaceWhite} strokeWidth={2} />}
+            icon={
+              <MapPin size={19} color={color.surfaceWhite} strokeWidth={2} />
+            }
             block
             loading={busy}
             onPress={request}
@@ -153,7 +174,12 @@ export default function LocationPermissionScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: color.surfaceWhite },
   content: { flex: 1, paddingHorizontal: space.gutter },
-  illustration: { height: 250, marginTop: space.section, alignItems: "center", justifyContent: "center" },
+  illustration: {
+    height: 250,
+    marginTop: space.section,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   ringOuter: {
     position: "absolute",
     width: 229,
@@ -180,7 +206,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  badge: { position: "absolute", width: 104, alignItems: "center", gap: space.sm },
+  badge: {
+    position: "absolute",
+    width: 104,
+    alignItems: "center",
+    gap: space.sm,
+  },
   badgeCircle: {
     width: 55,
     height: 55,
@@ -196,6 +227,11 @@ const styles = StyleSheet.create({
   deniedRow: { flexDirection: "row", gap: space.sm },
   deniedText: { flex: 1, lineHeight: 16 },
   actions: { marginTop: "auto", gap: space.md },
-  note: { flexDirection: "row", gap: space.sm, marginTop: space.xl, alignItems: "flex-start" },
+  note: {
+    flexDirection: "row",
+    gap: space.sm,
+    marginTop: space.xl,
+    alignItems: "flex-start",
+  },
   noteText: { flex: 1, lineHeight: 15 },
 });

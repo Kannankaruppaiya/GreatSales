@@ -88,7 +88,11 @@ export function ChangeStageSheet({
                 {lead.customerName}
               </Text>
               <View style={styles.summaryValue}>
-                <IndianRupee size={12} color={color.primaryDark} strokeWidth={2.5} />
+                <IndianRupee
+                  size={12}
+                  color={color.primaryDark}
+                  strokeWidth={2.5}
+                />
                 <Text variant="micro" tone="primaryDark">
                   {money(lead.totalValue).replace("₹ ", "")}
                 </Text>
@@ -121,7 +125,11 @@ export function ChangeStageSheet({
                 {DEAL_STAGE_LABELS[stage]}
               </Text>
               {active ? (
-                <CircleCheckBig size={19} color={color.primary} strokeWidth={2} />
+                <CircleCheckBig
+                  size={19}
+                  color={color.primary}
+                  strokeWidth={2}
+                />
               ) : null}
             </Pressable>
           );
@@ -143,8 +151,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   summaryText: { flex: 1, gap: 2 },
-  summaryValue: { flexDirection: "row", alignItems: "center", gap: 2, marginTop: 2 },
-  list: { backgroundColor: "#F7FAFB", borderRadius: radius.listCard, padding: space.sm },
+  summaryValue: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    marginTop: 2,
+  },
+  list: {
+    backgroundColor: "#F7FAFB",
+    borderRadius: radius.listCard,
+    padding: space.sm,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -154,7 +171,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.input,
   },
   rowActive: { backgroundColor: color.surfaceWhite },
-  tile: { width: 28, height: 28, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  tile: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   rowLabel: { flex: 1 },
   rowLabelActive: { fontFamily: font.bold },
 });

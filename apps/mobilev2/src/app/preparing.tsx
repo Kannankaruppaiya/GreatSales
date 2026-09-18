@@ -36,10 +36,26 @@ export default function PreparingScreen() {
 
   // Built once: re-creating the list every render would restart the effect.
   const steps = useRef<Step[]>([
-    { key: "auth", label: "Authenticating your account", run: () => source.getCurrentUser() },
-    { key: "data", label: "Loading your sales data", run: () => source.getHomeSummary() },
-    { key: "offline", label: "Preparing offline content", run: () => source.listCustomers({ limit: 20 }) },
-    { key: "ready", label: "Almost ready...", run: () => source.listFollowUps({ bucket: "today", limit: 5 }) },
+    {
+      key: "auth",
+      label: "Authenticating your account",
+      run: () => source.getCurrentUser(),
+    },
+    {
+      key: "data",
+      label: "Loading your sales data",
+      run: () => source.getHomeSummary(),
+    },
+    {
+      key: "offline",
+      label: "Preparing offline content",
+      run: () => source.listCustomers({ limit: 20 }),
+    },
+    {
+      key: "ready",
+      label: "Almost ready...",
+      run: () => source.listFollowUps({ bucket: "today", limit: 5 }),
+    },
   ]).current;
 
   useEffect(() => {
@@ -51,7 +67,9 @@ export default function PreparingScreen() {
           await steps[i]!.run();
         } catch (caught) {
           if (cancelled) return;
-          setFailed(caught instanceof Error ? caught.message : "Something went wrong.");
+          setFailed(
+            caught instanceof Error ? caught.message : "Something went wrong.",
+          );
           return;
         }
         if (cancelled) return;
@@ -82,7 +100,10 @@ export default function PreparingScreen() {
       <View
         style={[
           styles.content,
-          { paddingTop: insets.top + space.xxl, paddingBottom: insets.bottom + space.section },
+          {
+            paddingTop: insets.top + space.xxl,
+            paddingBottom: insets.bottom + space.section,
+          },
         ]}
       >
         <View style={styles.headingBlock}>
@@ -96,9 +117,18 @@ export default function PreparingScreen() {
             const active = i === done;
             return (
               <View key={step.key} style={styles.stepRow}>
-                <View style={[styles.stepMark, complete ? styles.stepMarkDone : null]}>
+                <View
+                  style={[
+                    styles.stepMark,
+                    complete ? styles.stepMarkDone : null,
+                  ]}
+                >
                   {complete ? (
-                    <Check size={14} color={color.surfaceWhite} strokeWidth={3} />
+                    <Check
+                      size={14}
+                      color={color.surfaceWhite}
+                      strokeWidth={3}
+                    />
                   ) : null}
                 </View>
                 <Text
@@ -154,7 +184,12 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#FBFDFC" },
   content: { flex: 1, paddingHorizontal: space.gutter },
   headingBlock: { marginTop: 220, alignItems: "center" },
-  heading: { fontFamily: font.extrabold, fontSize: 25, color: color.ink, lineHeight: 31 },
+  heading: {
+    fontFamily: font.extrabold,
+    fontSize: 25,
+    color: color.ink,
+    lineHeight: 31,
+  },
   steps: { marginTop: space.xxl + space.sm, gap: space.section },
   stepRow: { flexDirection: "row", alignItems: "center", gap: space.lg },
   stepMark: {
@@ -169,8 +204,19 @@ const styles = StyleSheet.create({
   stepMarkDone: { backgroundColor: color.primary, borderColor: color.primary },
   stepLabel: { flex: 1 },
   failure: { marginTop: space.xl },
-  progressRow: { flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.xxl + space.sm },
-  track: { flex: 1, height: 9, borderRadius: 5, backgroundColor: "#E2ECEF", overflow: "hidden" },
+  progressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    marginTop: space.xxl + space.sm,
+  },
+  track: {
+    flex: 1,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: "#E2ECEF",
+    overflow: "hidden",
+  },
   fill: { height: 9, borderRadius: 5, backgroundColor: color.primary },
   pct: { fontFamily: font.bold },
   quoteCard: {
@@ -181,6 +227,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.section,
     alignItems: "center",
   },
-  quote: { fontFamily: font.script, fontSize: 23, color: color.ink, lineHeight: 28 },
+  quote: {
+    fontFamily: font.script,
+    fontSize: 23,
+    color: color.ink,
+    lineHeight: 28,
+  },
   quoteSwoosh: { marginTop: space.xs },
 });

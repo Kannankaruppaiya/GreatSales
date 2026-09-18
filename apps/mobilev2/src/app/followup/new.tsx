@@ -47,7 +47,10 @@ const PURPOSES = [
 ] as const;
 
 export default function NewFollowUpScreen() {
-  const params = useLocalSearchParams<{ leadId?: string; customerId?: string }>();
+  const params = useLocalSearchParams<{
+    leadId?: string;
+    customerId?: string;
+  }>();
   const router = useRouter();
   const source = useData();
 
@@ -57,14 +60,18 @@ export default function NewFollowUpScreen() {
   const [time, setTime] = useState<string | null>("10:00");
   const [notes, setNotes] = useState("");
 
-  const [sheet, setSheet] = useState<"customer" | "purpose" | "date" | "time" | null>(null);
+  const [sheet, setSheet] = useState<
+    "customer" | "purpose" | "date" | "time" | null
+  >(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // When the screen is opened from a deal, the customer is already decided.
   const context = useAsync(async () => {
     const lead = params.leadId ? await source.getLead(params.leadId) : null;
-    const fromCustomer = params.customerId ? await source.getCustomer(params.customerId) : null;
+    const fromCustomer = params.customerId
+      ? await source.getCustomer(params.customerId)
+      : null;
     return { lead, customer: fromCustomer };
   }, [source, params.leadId, params.customerId]);
 
@@ -73,7 +80,10 @@ export default function NewFollowUpScreen() {
 
   const loadCustomers = useCallback(
     async (search: string): Promise<EntityOption[]> => {
-      const page = await source.listCustomers({ search: search || undefined, limit: 25 });
+      const page = await source.listCustomers({
+        search: search || undefined,
+        limit: 25,
+      });
       return page.items.map((row) => ({
         id: row.id,
         title: row.name,
@@ -84,7 +94,9 @@ export default function NewFollowUpScreen() {
   );
 
   const today = useMemo(() => toDateKey(new Date()), []);
-  const ready = Boolean((lockedCustomerName || customer) && purpose && date && time);
+  const ready = Boolean(
+    (lockedCustomerName || customer) && purpose && date && time,
+  );
 
   async function save() {
     if (!ready || !isMutable(source)) return;
@@ -109,7 +121,9 @@ export default function NewFollowUpScreen() {
       });
       router.back();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "The follow-up could not be saved.");
+      setError(
+        e instanceof Error ? e.message : "The follow-up could not be saved.",
+      );
     } finally {
       setSaving(false);
     }
@@ -118,7 +132,9 @@ export default function NewFollowUpScreen() {
   /** Leads carry a customer name, not an id, so the id is looked up by name. */
   async function resolveCustomerId(name: string): Promise<string | null> {
     const page = await source.listCustomers({ search: name, limit: 10 });
-    return page.items.find((c) => c.name === name)?.id ?? page.items[0]?.id ?? null;
+    return (
+      page.items.find((c) => c.name === name)?.id ?? page.items[0]?.id ?? null
+    );
   }
 
   return (
@@ -132,7 +148,8 @@ export default function NewFollowUpScreen() {
               Opportunity
             </Text>
             <Text variant="cardTitle">
-              {context.data.lead.products[0]?.productName ?? context.data.lead.customerName}
+              {context.data.lead.products[0]?.productName ??
+                context.data.lead.customerName}
             </Text>
             <Text variant="caption" tone="muted">
               {context.data.lead.customerName}
@@ -163,7 +180,9 @@ export default function NewFollowUpScreen() {
               label="Date"
               value={date ? longDate(date) : null}
               placeholder="Pick a date"
-              icon={<CalendarDays size={16} color={color.muted} strokeWidth={2} />}
+              icon={
+                <CalendarDays size={16} color={color.muted} strokeWidth={2} />
+              }
               onPress={() => setSheet("date")}
             />
           </View>

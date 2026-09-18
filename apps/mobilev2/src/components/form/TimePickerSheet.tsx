@@ -68,7 +68,9 @@ export function TimePickerSheet({
               <Text variant="body" style={styles.label}>
                 {formatSlot(slot)}
               </Text>
-              {selected ? <Check size={17} color={color.primary} strokeWidth={2.5} /> : null}
+              {selected ? (
+                <Check size={17} color={color.primary} strokeWidth={2.5} />
+              ) : null}
             </Pressable>
           );
         })}
@@ -79,6 +81,11 @@ export function TimePickerSheet({
 
 const styles = StyleSheet.create({
   list: { paddingBottom: space.md },
-  row: { flexDirection: "row", alignItems: "center", minHeight: 44, gap: space.md },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 44,
+    gap: space.md,
+  },
   label: { flex: 1 },
 });

@@ -85,7 +85,11 @@ export function EntityPickerSheet({
   return (
     <BottomSheet visible={visible} onClose={onClose} title={title}>
       <View style={styles.searchRow}>
-        <SearchBar value={search} onChangeText={setSearch} placeholder={placeholder} />
+        <SearchBar
+          value={search}
+          onChangeText={setSearch}
+          placeholder={placeholder}
+        />
       </View>
 
       {loading && options.length === 0 ? (

@@ -85,7 +85,9 @@ export default function OrderSummaryScreen() {
                 <Text variant="nano" tone="muted">
                   STATUS
                 </Text>
-                <Text variant="cardTitle">{ORDER_STATUS_LABELS[order.status]}</Text>
+                <Text variant="cardTitle">
+                  {ORDER_STATUS_LABELS[order.status]}
+                </Text>
               </View>
             </View>
 
@@ -103,7 +105,9 @@ export default function OrderSummaryScreen() {
                 {customer?.primaryContactName ? (
                   <Text variant="caption" tone="muted">
                     {customer.primaryContactName}
-                    {customer.primaryContactPhone ? ` · ${customer.primaryContactPhone}` : ""}
+                    {customer.primaryContactPhone
+                      ? ` · ${customer.primaryContactPhone}`
+                      : ""}
                   </Text>
                 ) : null}
               </View>
@@ -131,7 +135,12 @@ export default function OrderSummaryScreen() {
               <Text variant="nano" tone="muted" style={styles.colQty}>
                 QTY
               </Text>
-              <Text variant="nano" tone="muted" align="right" style={styles.colAmount}>
+              <Text
+                variant="nano"
+                tone="muted"
+                align="right"
+                style={styles.colAmount}
+              >
                 AMOUNT
               </Text>
             </View>
@@ -149,7 +158,11 @@ export default function OrderSummaryScreen() {
                 <Text variant="secondary" style={styles.colQty}>
                   {quantity(line.qty, line.unit)}
                 </Text>
-                <Text variant="secondary" align="right" style={styles.colAmount}>
+                <Text
+                  variant="secondary"
+                  align="right"
+                  style={styles.colAmount}
+                >
                   {money(line.value)}
                 </Text>
               </View>
@@ -172,11 +185,18 @@ export default function OrderSummaryScreen() {
                 PAYMENT TERMS
               </Text>
               <Text variant="secondary">
-                {order.paymentTerms ? PAYMENT_TERMS_LABELS[order.paymentTerms] : "Not specified"}
+                {order.paymentTerms
+                  ? PAYMENT_TERMS_LABELS[order.paymentTerms]
+                  : "Not specified"}
               </Text>
             </View>
 
-            <Text variant="nano" tone="muted2" align="center" style={styles.foot}>
+            <Text
+              variant="nano"
+              tone="muted2"
+              align="center"
+              style={styles.foot}
+            >
               This is an order summary, not a tax invoice.
             </Text>
           </View>
@@ -197,7 +217,10 @@ function TotalRow({
 }) {
   return (
     <View style={styles.totalRow}>
-      <Text variant={strong ? "cardTitle" : "secondary"} tone={strong ? "ink" : "muted"}>
+      <Text
+        variant={strong ? "cardTitle" : "secondary"}
+        tone={strong ? "ink" : "muted"}
+      >
         {label}
       </Text>
       <Text variant={strong ? "cardTitle" : "secondary"}>{value}</Text>
@@ -227,7 +250,11 @@ const styles = StyleSheet.create({
   colQty: { width: 66 },
   colAmount: { width: 86 },
   totals: { gap: space.xs },
-  totalRow: { flexDirection: "row", justifyContent: "space-between", gap: space.md },
+  totalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: space.md,
+  },
   terms: { gap: 2 },
   foot: { marginTop: space.sm },
 });

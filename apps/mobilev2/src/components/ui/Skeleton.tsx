@@ -5,7 +5,13 @@
  * so the layout does not jump when the rows arrive.
  */
 import React, { useEffect, useRef } from "react";
-import { Animated, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import {
+  Animated,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 
 import { color, radius, space } from "@/design/tokens";
 
@@ -15,14 +21,26 @@ export interface SkeletonProps {
   style?: StyleProp<ViewStyle>;
 }
 
-export function Skeleton({ width = "100%", height = 12, style }: SkeletonProps) {
+export function Skeleton({
+  width = "100%",
+  height = 12,
+  style,
+}: SkeletonProps) {
   const pulse = useRef(new Animated.Value(0.5)).current;
 
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0.5, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0.5,
+          duration: 700,
+          useNativeDriver: true,
+        }),
       ]),
     );
     loop.start();

@@ -33,7 +33,10 @@ export interface ActivityFilters {
   range: ActivityRange;
 }
 
-export const NO_ACTIVITY_FILTERS: ActivityFilters = { groups: [], range: "all" };
+export const NO_ACTIVITY_FILTERS: ActivityFilters = {
+  groups: [],
+  range: "all",
+};
 
 export function activityFilterCount(f: ActivityFilters): number {
   return f.groups.length + (f.range === "all" ? 0 : 1);
@@ -107,7 +110,9 @@ export function ActivityFiltersSheet({
             style={styles.row}
           >
             <View style={[styles.box, on && styles.boxOn]}>
-              {on ? <Check size={13} color={color.surfaceWhite} strokeWidth={3} /> : null}
+              {on ? (
+                <Check size={13} color={color.surfaceWhite} strokeWidth={3} />
+              ) : null}
             </View>
             <Icon size={17} color={color.muted} strokeWidth={2} />
             <Text variant="body" style={styles.rowLabel}>
@@ -120,7 +125,10 @@ export function ActivityFiltersSheet({
         );
       })}
 
-      <Text variant="secondary" style={[styles.sectionTitle, styles.sectionGap]}>
+      <Text
+        variant="secondary"
+        style={[styles.sectionTitle, styles.sectionGap]}
+      >
         Date Range
       </Text>
       {(Object.keys(ACTIVITY_RANGE_LABELS) as ActivityRange[]).map((range) => {
@@ -147,9 +155,18 @@ export function ActivityFiltersSheet({
 }
 
 const styles = StyleSheet.create({
-  sectionTitle: { color: color.ink, paddingTop: space.md, paddingBottom: space.xs },
+  sectionTitle: {
+    color: color.ink,
+    paddingTop: space.md,
+    paddingBottom: space.xs,
+  },
   sectionGap: { marginTop: space.md },
-  row: { flexDirection: "row", alignItems: "center", gap: space.md, minHeight: 44 },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    minHeight: 44,
+  },
   rowLabel: { flex: 1 },
   box: {
     width: 19,
@@ -172,7 +189,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   dialOn: { borderColor: color.primary },
-  dialDot: { width: 9, height: 9, borderRadius: radius.pill, backgroundColor: color.primary },
+  dialDot: {
+    width: 9,
+    height: 9,
+    borderRadius: radius.pill,
+    backgroundColor: color.primary,
+  },
   footer: { flexDirection: "row", gap: space.md },
   half: { flex: 1 },
 });

@@ -14,6 +14,8 @@
  */
 import { Ellipsis, FileText, Phone, Send } from "lucide-react-native";
 
+import { longDate } from "./format";
+
 export type ActivityGroup = "stage" | "followup" | "note" | "other";
 
 export const ACTIVITY_GROUP_LABELS: Record<ActivityGroup, string> = {
@@ -41,8 +43,10 @@ export const ACTIVITY_CHIP_LABELS: Record<ActivityGroup, string> = {
 export function activityGroup(kind: string): ActivityGroup {
   const k = kind.toLowerCase();
   if (k.includes("stage")) return "stage";
-  if (k.includes("call") || k.includes("visit") || k.includes("meeting")) return "followup";
-  if (k.includes("note") || k.includes("quot") || k.includes("remark")) return "note";
+  if (k.includes("call") || k.includes("visit") || k.includes("meeting"))
+    return "followup";
+  if (k.includes("note") || k.includes("quot") || k.includes("remark"))
+    return "note";
   return "other";
 }
 
@@ -63,7 +67,10 @@ export const ACTIVITY_RANGE_LABELS: Record<ActivityRange, string> = {
   "90": "Last 90 Days",
 };
 
-export function rangeCutoff(range: ActivityRange, now: Date = new Date()): string | null {
+export function rangeCutoff(
+  range: ActivityRange,
+  now: Date = new Date(),
+): string | null {
   if (range === "all") return null;
   const cutoff = new Date(now.getTime() - Number(range) * 86_400_000);
   return cutoff.toISOString();
@@ -86,13 +93,15 @@ export function groupByDay<T extends { at: string }>(
   for (const row of rows) {
     const date = new Date(row.at);
     const key = date.toDateString();
-    const stamp = date.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    // The app's own date formatter, so a heading here reads exactly like a
+    // date anywhere else — and follows the format preference with them.
+    const stamp = longDate(date);
     const heading =
-      key === today ? `Today, ${stamp}` : key === yesterday ? `Yesterday, ${stamp}` : stamp;
+      key === today
+        ? `Today, ${stamp}`
+        : key === yesterday
+          ? `Yesterday, ${stamp}`
+          : stamp;
 
     const last = out[out.length - 1];
     if (last && last.key === key) last.rows.push(row);

@@ -16,7 +16,11 @@ export interface SectionHeaderProps {
   onAction?: () => void;
 }
 
-export function SectionHeader({ title, actionLabel, onAction }: SectionHeaderProps) {
+export function SectionHeader({
+  title,
+  actionLabel,
+  onAction,
+}: SectionHeaderProps) {
   return (
     <View style={styles.row}>
       <Text variant="section">{title}</Text>
@@ -31,7 +35,11 @@ export function SectionHeader({ title, actionLabel, onAction }: SectionHeaderPro
           <Text variant="secondary" tone="primary">
             {actionLabel}
           </Text>
-          <ChevronRight size={14} color={color.primary} strokeWidth={icon.strokeWidth} />
+          <ChevronRight
+            size={14}
+            color={color.primary}
+            strokeWidth={icon.strokeWidth}
+          />
         </Pressable>
       ) : null}
     </View>

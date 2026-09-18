@@ -227,8 +227,13 @@ export class ApiSource implements MutableDataSource {
 
   // ---- Follow-ups ---------------------------------------------------------
 
-  listFollowUps(q: FollowUpQuery = {}): Promise<Page<FollowUp>> {
-    return request<ApiPage<FollowUp>>(
+  /**
+   * `/followups` returns due-date order and takes no `sort`, so "latest first"
+   * is reversed here. It reverses the page, not the whole list — an API that
+   * took the order would do this properly.
+   */
+  async listFollowUps(q: FollowUpQuery = {}): Promise<Page<FollowUp>> {
+    const page = await request<ApiPage<FollowUp>>(
       `/followups${query({
         search: q.search,
         cursor: q.cursor,
@@ -238,6 +243,8 @@ export class ApiSource implements MutableDataSource {
         bucket: q.bucket,
       })}`,
     );
+    if (q.sort !== "latest") return page;
+    return { ...page, items: [...page.items].reverse() };
   }
 
   async getFollowUp(id: string): Promise<FollowUp | null> {

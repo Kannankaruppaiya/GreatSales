@@ -129,10 +129,30 @@ export default function HotOpportunitiesScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.chipRail}
         >
-          <Chip label="All" count={counts.all} active={band === "all"} onPress={() => setBand("all")} />
-          <Chip label="High" count={counts.high} active={band === "high"} onPress={() => setBand("high")} />
-          <Chip label="Medium" count={counts.medium} active={band === "medium"} onPress={() => setBand("medium")} />
-          <Chip label="Low" count={counts.low} active={band === "low"} onPress={() => setBand("low")} />
+          <Chip
+            label="All"
+            count={counts.all}
+            active={band === "all"}
+            onPress={() => setBand("all")}
+          />
+          <Chip
+            label="High"
+            count={counts.high}
+            active={band === "high"}
+            onPress={() => setBand("high")}
+          />
+          <Chip
+            label="Medium"
+            count={counts.medium}
+            active={band === "medium"}
+            onPress={() => setBand("medium")}
+          />
+          <Chip
+            label="Low"
+            count={counts.low}
+            active={band === "low"}
+            onPress={() => setBand("low")}
+          />
         </ScrollView>
 
         {state.loading ? (
@@ -148,7 +168,10 @@ export default function HotOpportunitiesScreen() {
                   onPress={() => router.push(`/lead/${entry.lead.id}`)}
                   accessibilityRole="button"
                   accessibilityLabel={`${entry.lead.customerName}, ${moneyShort(entry.lead.totalValue)}`}
-                  style={({ pressed }) => [styles.entry, pressed ? styles.entryPressed : null]}
+                  style={({ pressed }) => [
+                    styles.entry,
+                    pressed ? styles.entryPressed : null,
+                  ]}
                 >
                   <View style={styles.entryHead}>
                     <Avatar name={entry.lead.customerName} size={39} />
@@ -157,7 +180,8 @@ export default function HotOpportunitiesScreen() {
                         {entry.lead.customerName}
                       </Text>
                       <Text variant="secondary" tone="muted" numberOfLines={1}>
-                        {entry.lead.products[0]?.productName ?? "No products yet"}
+                        {entry.lead.products[0]?.productName ??
+                          "No products yet"}
                       </Text>
                     </View>
                     <Text style={styles.entryValue}>
@@ -167,14 +191,23 @@ export default function HotOpportunitiesScreen() {
                   <View style={styles.entryChips}>
                     <Chip
                       label={`${entry.probability}%`}
-                      tone={entry.band === "high" ? "red" : entry.band === "medium" ? "amber" : "neutral"}
+                      tone={
+                        entry.band === "high"
+                          ? "red"
+                          : entry.band === "medium"
+                            ? "amber"
+                            : "neutral"
+                      }
                     />
                     <Chip
                       label={DEAL_STAGE_LABELS[entry.lead.stage]}
                       tone={DEAL_STAGE_TONES[entry.lead.stage]}
                     />
                     {entry.lead.expClose ? (
-                      <Chip label={shortDate(entry.lead.expClose)} tone="neutral" />
+                      <Chip
+                        label={shortDate(entry.lead.expClose)}
+                        tone="neutral"
+                      />
                     ) : null}
                   </View>
                 </Pressable>
@@ -211,7 +244,11 @@ const styles = StyleSheet.create({
   statValue: { fontFamily: font.extrabold, fontSize: 19, color: color.ink },
   chipRail: { gap: space.sm, paddingVertical: space.xl },
   listCard: { padding: space.xs },
-  divider: { height: 1, backgroundColor: color.lineSoft, marginHorizontal: space.md },
+  divider: {
+    height: 1,
+    backgroundColor: color.lineSoft,
+    marginHorizontal: space.md,
+  },
   entry: { padding: space.md, gap: space.sm },
   entryPressed: { opacity: 0.9 },
   entryHead: { flexDirection: "row", alignItems: "center", gap: space.md },

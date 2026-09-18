@@ -131,7 +131,9 @@ export function CustomerFields({ value, onChange }: CustomerFieldsProps) {
       />
       <PickerField
         label="Payment terms"
-        value={value.paymentTerms ? PAYMENT_TERMS_LABELS[value.paymentTerms] : null}
+        value={
+          value.paymentTerms ? PAYMENT_TERMS_LABELS[value.paymentTerms] : null
+        }
         placeholder="Not set"
         onPress={() => setSheet("terms")}
         hint="Optional"
@@ -178,9 +180,9 @@ export function CustomerFields({ value, onChange }: CustomerFieldsProps) {
         visible={sheet === "category"}
         onClose={() => setSheet(null)}
         title="Category"
-        options={(Object.keys(CUSTOMER_CATEGORY_LABELS) as CustomerCategoryValue[]).map(
-          (v) => ({ value: v, label: CUSTOMER_CATEGORY_LABELS[v] }),
-        )}
+        options={(
+          Object.keys(CUSTOMER_CATEGORY_LABELS) as CustomerCategoryValue[]
+        ).map((v) => ({ value: v, label: CUSTOMER_CATEGORY_LABELS[v] }))}
         value={value.category}
         onChange={(next) => set("category", next)}
         clearLabel="Not categorised"
@@ -190,10 +192,12 @@ export function CustomerFields({ value, onChange }: CustomerFieldsProps) {
         visible={sheet === "terms"}
         onClose={() => setSheet(null)}
         title="Payment terms"
-        options={(Object.keys(PAYMENT_TERMS_LABELS) as PaymentTermsValue[]).map((v) => ({
-          value: v,
-          label: PAYMENT_TERMS_LABELS[v],
-        }))}
+        options={(Object.keys(PAYMENT_TERMS_LABELS) as PaymentTermsValue[]).map(
+          (v) => ({
+            value: v,
+            label: PAYMENT_TERMS_LABELS[v],
+          }),
+        )}
         value={value.paymentTerms}
         onChange={(next) => set("paymentTerms", next)}
         clearLabel="Not set"

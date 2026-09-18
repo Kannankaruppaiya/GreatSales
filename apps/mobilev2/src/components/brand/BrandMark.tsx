@@ -36,10 +36,7 @@ export function AppMark({ size = MIN_MARK_SIZE }: { size?: number }) {
       ]}
     >
       <Text
-        style={[
-          styles.markLetter,
-          { fontSize: Math.round(resolved * 0.52) },
-        ]}
+        style={[styles.markLetter, { fontSize: Math.round(resolved * 0.52) }]}
       >
         G
       </Text>
@@ -54,20 +51,35 @@ export interface WordmarkProps {
   style?: StyleProp<ViewStyle>;
 }
 
-export function Wordmark({ size = "app", showSubline = true, style }: WordmarkProps) {
+export function Wordmark({
+  size = "app",
+  showSubline = true,
+  style,
+}: WordmarkProps) {
   const titleSize = size === "large" ? 30 : 20;
   const subSize = size === "large" ? 12 : 10;
 
   return (
-    <View accessible accessibilityLabel="GreatSales, Field Sales CRM" style={style}>
+    <View
+      accessible
+      accessibilityLabel="GreatSales, Field Sales CRM"
+      style={style}
+    >
       <Text style={[styles.wordmark, { fontSize: titleSize }]}>
-        <Text style={[styles.wordmark, { fontSize: titleSize, color: color.primary }]}>
+        <Text
+          style={[
+            styles.wordmark,
+            { fontSize: titleSize, color: color.primary },
+          ]}
+        >
           G
         </Text>
         reatSales
       </Text>
       {showSubline ? (
-        <Text style={[styles.subline, { fontSize: subSize }]}>Field Sales CRM</Text>
+        <Text style={[styles.subline, { fontSize: subSize }]}>
+          Field Sales CRM
+        </Text>
       ) : null}
     </View>
   );

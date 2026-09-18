@@ -9,7 +9,14 @@ import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 
-import { AppBar, KeyValueRow, Panel, RowDivider, Screen, Text } from "@/components/ui";
+import {
+  AppBar,
+  KeyValueRow,
+  Panel,
+  RowDivider,
+  Screen,
+  Text,
+} from "@/components/ui";
 import {
   CustomerFields,
   EMPTY_CUSTOMER_DRAFT,
@@ -35,7 +42,9 @@ export default function NewCustomerScreen() {
   const [draft, setDraft] = useState<CustomerDraft>(EMPTY_CUSTOMER_DRAFT);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [created, setCreated] = useState<{ id: string; name: string } | null>(null);
+  const [created, setCreated] = useState<{ id: string; name: string } | null>(
+    null,
+  );
 
   async function submit() {
     if (!isMutable(source)) return;
@@ -45,7 +54,9 @@ export default function NewCustomerScreen() {
       const row = await source.createCustomer(customerDraftToInput(draft));
       setCreated({ id: row.id, name: row.name });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "The customer could not be saved.");
+      setError(
+        e instanceof Error ? e.message : "The customer could not be saved.",
+      );
     } finally {
       setSaving(false);
     }
@@ -57,15 +68,23 @@ export default function NewCustomerScreen() {
         title="Customer created"
         reference={created.name}
         facts={[
-          { label: "Contact", value: draft.contactName.trim() || "Not added yet" },
+          {
+            label: "Contact",
+            value: draft.contactName.trim() || "Not added yet",
+          },
           { label: "Area", value: draft.area.trim() || "Not set" },
           {
             label: "Payment terms",
-            value: draft.paymentTerms ? PAYMENT_TERMS_LABELS[draft.paymentTerms] : "Not set",
+            value: draft.paymentTerms
+              ? PAYMENT_TERMS_LABELS[draft.paymentTerms]
+              : "Not set",
           },
         ]}
         actions={[
-          { label: "View Customer", onPress: () => router.replace(`/customer/${created.id}`) },
+          {
+            label: "View Customer",
+            onPress: () => router.replace(`/customer/${created.id}`),
+          },
           {
             label: "Create Opportunity",
             onPress: () => router.replace(`/lead/new?customerId=${created.id}`),
@@ -94,19 +113,35 @@ export default function NewCustomerScreen() {
             <Panel style={styles.panel}>
               <KeyValueRow label="Name" value={draft.name.trim()} />
               <RowDivider />
-              <KeyValueRow label="Industry" value={draft.industryName.trim()} emptyText="Not set" />
+              <KeyValueRow
+                label="Industry"
+                value={draft.industryName.trim()}
+                emptyText="Not set"
+              />
               <RowDivider />
-              <KeyValueRow label="Area" value={draft.area.trim()} emptyText="Not set" />
+              <KeyValueRow
+                label="Area"
+                value={draft.area.trim()}
+                emptyText="Not set"
+              />
               <RowDivider />
               <KeyValueRow
                 label="Category"
-                value={draft.category ? CUSTOMER_CATEGORY_LABELS[draft.category] : null}
+                value={
+                  draft.category
+                    ? CUSTOMER_CATEGORY_LABELS[draft.category]
+                    : null
+                }
                 emptyText="Not categorised"
               />
               <RowDivider />
               <KeyValueRow
                 label="Payment terms"
-                value={draft.paymentTerms ? PAYMENT_TERMS_LABELS[draft.paymentTerms] : null}
+                value={
+                  draft.paymentTerms
+                    ? PAYMENT_TERMS_LABELS[draft.paymentTerms]
+                    : null
+                }
                 emptyText="Not set"
               />
             </Panel>
@@ -124,9 +159,17 @@ export default function NewCustomerScreen() {
                 emptyText="Not set"
               />
               <RowDivider />
-              <KeyValueRow label="Phone" value={draft.contactPhone.trim()} emptyText="Not set" />
+              <KeyValueRow
+                label="Phone"
+                value={draft.contactPhone.trim()}
+                emptyText="Not set"
+              />
               <RowDivider />
-              <KeyValueRow label="Email" value={draft.contactEmail.trim()} emptyText="Not set" />
+              <KeyValueRow
+                label="Email"
+                value={draft.contactEmail.trim()}
+                emptyText="Not set"
+              />
             </Panel>
 
             {error ? (

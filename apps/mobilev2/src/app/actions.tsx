@@ -57,7 +57,9 @@ export default function ActionsScreen() {
   }, [source]);
 
   const data = state.data;
-  const total = data ? data.overdue + data.payments + data.opportunities + data.proposals : 0;
+  const total = data
+    ? data.overdue + data.payments + data.opportunities + data.proposals
+    : 0;
 
   const rows = [
     {
@@ -110,7 +112,12 @@ export default function ActionsScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.chipRail}
         >
-          <Chip label="All" count={total} active={filter === "all"} onPress={() => setFilter("all")} />
+          <Chip
+            label="All"
+            count={total}
+            active={filter === "all"}
+            onPress={() => setFilter("all")}
+          />
           <Chip
             label="Overdue"
             count={data?.overdue ?? 0}
@@ -134,10 +141,15 @@ export default function ActionsScreen() {
             {data.overdue > 0 ? (
               <Card tone="red" style={styles.alert}>
                 <View style={styles.alertRow}>
-                  <TriangleAlert size={19} color={color.redDark} strokeWidth={2} />
+                  <TriangleAlert
+                    size={19}
+                    color={color.redDark}
+                    strokeWidth={2}
+                  />
                   <View style={styles.alertText}>
                     <Text variant="cardTitle" tone="redDark">
-                      {data.overdue} {data.overdue === 1 ? "item is" : "items are"} overdue
+                      {data.overdue}{" "}
+                      {data.overdue === 1 ? "item is" : "items are"} overdue
                     </Text>
                     <Text variant="secondary" tone="redDark">
                       Take action to keep your pipeline healthy.
@@ -157,7 +169,11 @@ export default function ActionsScreen() {
                 >
                   <View style={styles.row}>
                     <IconPlate size={38}>
-                      <row.Icon size={18} color={color.primaryDark} strokeWidth={2} />
+                      <row.Icon
+                        size={18}
+                        color={color.primaryDark}
+                        strokeWidth={2}
+                      />
                     </IconPlate>
                     <View style={styles.rowText}>
                       <Text variant="cardTitle">{row.label}</Text>
@@ -203,5 +219,10 @@ const styles = StyleSheet.create({
   rowText: { flex: 1, gap: 2 },
   count: { fontFamily: font.extrabold, fontSize: 22 },
   quote: { marginTop: space.xxl },
-  quoteLine: { fontFamily: font.script, fontSize: 20, lineHeight: 26, color: "#3E6374" },
+  quoteLine: {
+    fontFamily: font.script,
+    fontSize: 20,
+    lineHeight: 26,
+    color: "#3E6374",
+  },
 });

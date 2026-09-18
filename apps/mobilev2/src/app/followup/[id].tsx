@@ -130,7 +130,9 @@ export default function FollowUpDetailScreen() {
                   <QuickAction
                     label="Call"
                     Icon={Phone}
-                    onPress={() => open(`tel:${phone.replace(/\s/g, "")}`, "the dialler")}
+                    onPress={() =>
+                      open(`tel:${phone.replace(/\s/g, "")}`, "the dialler")
+                    }
                   />
                 ) : null}
                 {phone ? (
@@ -165,7 +167,11 @@ export default function FollowUpDetailScreen() {
             {late > 0 && followUp.completedAt == null ? (
               <Card tone="red" style={styles.banner}>
                 <View style={styles.bannerRow}>
-                  <CircleAlert size={20} color={color.redDark} strokeWidth={2} />
+                  <CircleAlert
+                    size={20}
+                    color={color.redDark}
+                    strokeWidth={2}
+                  />
                   <View style={styles.bannerText}>
                     <Text variant="section" tone="redDark">
                       Overdue by {late} {late === 1 ? "day" : "days"}
@@ -195,7 +201,10 @@ export default function FollowUpDetailScreen() {
                 {lead ? (
                   <>
                     <RowDivider />
-                    <KeyValueRow label="Expected Value" value={money(lead.totalValue)} />
+                    <KeyValueRow
+                      label="Expected Value"
+                      value={money(lead.totalValue)}
+                    />
                     <RowDivider />
                     <KeyValueRow label="Stage">
                       <Chip
@@ -229,9 +238,17 @@ export default function FollowUpDetailScreen() {
                 >
                   <View style={styles.relatedRow}>
                     <View style={styles.relatedPlate}>
-                      <Target size={17} color={color.primaryDark} strokeWidth={2} />
+                      <Target
+                        size={17}
+                        color={color.primaryDark}
+                        strokeWidth={2}
+                      />
                     </View>
-                    <Text variant="cardTitle" numberOfLines={1} style={styles.relatedName}>
+                    <Text
+                      variant="cardTitle"
+                      numberOfLines={1}
+                      style={styles.relatedName}
+                    >
                       {lead.products[0]?.productName ?? lead.customerName}
                     </Text>
                   </View>
@@ -282,7 +299,12 @@ function QuickAction({
 
 const styles = StyleSheet.create({
   body: { paddingHorizontal: space.gutter, gap: space.xl },
-  identity: { flexDirection: "row", alignItems: "center", gap: space.lg, paddingBottom: space.lg },
+  identity: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.lg,
+    paddingBottom: space.lg,
+  },
   identityText: { flex: 1, gap: 2 },
   link: { marginTop: 2 },
   quickActions: {
@@ -291,7 +313,12 @@ const styles = StyleSheet.create({
     paddingTop: space.lg,
   },
   quickAction: { alignItems: "center", gap: space.sm, width: 72 },
-  quickButton: { width: 44, height: 44, borderRadius: radius.pill, paddingHorizontal: 0 },
+  quickButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    paddingHorizontal: 0,
+  },
   banner: {},
   bannerRow: { flexDirection: "row", alignItems: "center", gap: space.md },
   bannerText: { flex: 1, gap: 2 },

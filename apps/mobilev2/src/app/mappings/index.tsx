@@ -109,13 +109,21 @@ export default function MappingsScreen() {
         <SkeletonList rows={5} />
       ) : (state.data?.items.length ?? 0) === 0 ? (
         <EmptyState
-          title={search || unpricedOnly || principal ? "Nothing matches" : "No mappings yet"}
+          title={
+            search || unpricedOnly || principal
+              ? "Nothing matches"
+              : "No mappings yet"
+          }
           body={
             search || unpricedOnly || principal
               ? "Clear the search or the filters to see the rest of your mappings."
               : "Map a customer to the products they buy so their agreed prices carry into quotes and orders."
           }
-          actionLabel={search || unpricedOnly || principal ? "Clear filters" : "Create a mapping"}
+          actionLabel={
+            search || unpricedOnly || principal
+              ? "Clear filters"
+              : "Create a mapping"
+          }
           onAction={() => {
             if (search || unpricedOnly || principal) {
               setSearch("");
@@ -137,7 +145,11 @@ export default function MappingsScreen() {
             >
               <View style={styles.rowInner}>
                 <View style={styles.plate}>
-                  <Package size={17} color={color.primaryDark} strokeWidth={2} />
+                  <Package
+                    size={17}
+                    color={color.primaryDark}
+                    strokeWidth={2}
+                  />
                 </View>
                 <View style={styles.rowText}>
                   <Text variant="cardTitle" numberOfLines={1}>

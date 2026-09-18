@@ -6,7 +6,14 @@
  * rather than grouped digits. Both forms are here — `money` for a figure being
  * read exactly, `moneyShort` for the KPI tiles where the design uses short form.
  */
-import { format, formatDistanceToNowStrict, isSameDay, isToday, isTomorrow, isYesterday } from "date-fns";
+import {
+  format,
+  formatDistanceToNowStrict,
+  isSameDay,
+  isToday,
+  isTomorrow,
+  isYesterday,
+} from "date-fns";
 
 const RUPEE = "₹";
 
@@ -24,15 +31,41 @@ export function money(amount: number): string {
  */
 export function moneyShort(amount: number): string {
   const abs = Math.abs(amount);
-  if (abs >= 10_000_000) return `${RUPEE} ${(amount / 10_000_000).toFixed(1)}Cr`;
+  if (abs >= 10_000_000)
+    return `${RUPEE} ${(amount / 10_000_000).toFixed(1)}Cr`;
   if (abs >= 100_000) return `${RUPEE} ${(amount / 100_000).toFixed(1)}L`;
-  if (abs >= 1_000) return `${RUPEE} ${Math.round(amount).toLocaleString("en-IN")}`;
+  if (abs >= 1_000)
+    return `${RUPEE} ${Math.round(amount).toLocaleString("en-IN")}`;
   return `${RUPEE} ${Math.round(amount)}`;
 }
 
-/** "20 Sep 2026" — the design's long date. */
+/**
+ * The pattern `longDate` writes dates in.
+ *
+ * A module-level value rather than a hook, because `longDate` is called from
+ * ordinary functions as well as components and threading a context through
+ * every call site would be a large change for a display preference. The
+ * settings screen sets it through `setDateFormatPattern`, and does so
+ * alongside a React state change, so the tree re-renders and the new pattern
+ * is picked up.
+ */
+let longDatePattern = "d MMM yyyy";
+
+export type DateFormatKey = "dmy" | "mdy" | "iso";
+
+const DATE_PATTERNS: Record<DateFormatKey, string> = {
+  dmy: "d MMM yyyy",
+  mdy: "MMM d, yyyy",
+  iso: "yyyy-MM-dd",
+};
+
+export function setDateFormatPattern(key: DateFormatKey): void {
+  longDatePattern = DATE_PATTERNS[key] ?? DATE_PATTERNS.dmy;
+}
+
+/** "20 Sep 2026" — the design's long date, in the chosen format. */
 export function longDate(value: string | Date): string {
-  return format(new Date(value), "d MMM yyyy");
+  return format(new Date(value), longDatePattern);
 }
 
 /** "20 Sep" — the nano label. */
@@ -66,7 +99,10 @@ export function overdueLabel(value: string | Date): string {
 }
 
 /** Whole days a date is past. 0 when it is today or still ahead. */
-export function daysOverdue(value: string | Date, now: Date = new Date()): number {
+export function daysOverdue(
+  value: string | Date,
+  now: Date = new Date(),
+): number {
   const due = new Date(value);
   if (isSameDay(due, now) || due > now) return 0;
   return Math.floor((now.getTime() - due.getTime()) / 86_400_000);

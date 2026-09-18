@@ -218,9 +218,7 @@ export default function HomeScreen() {
                 <View style={styles.followUpRow}>
                   <View style={styles.followUpWhen}>
                     <StatusDot
-                      tone={
-                        new Date(followUp.dueAt) < now ? "red" : "mint"
-                      }
+                      tone={new Date(followUp.dueAt) < now ? "red" : "mint"}
                     />
                     <Text variant="micro" tone="muted">
                       {dueLabel(followUp.dueAt)}

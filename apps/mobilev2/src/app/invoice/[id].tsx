@@ -49,7 +49,12 @@ export default function InvoiceScreen() {
   const overdue = (invoice?.agingDays ?? 0) > 0;
 
   return (
-    <Screen tabBarSpacing bleed onRefresh={state.reload} refreshing={state.refreshing}>
+    <Screen
+      tabBarSpacing
+      bleed
+      onRefresh={state.reload}
+      refreshing={state.refreshing}
+    >
       <AppBar title="Invoice" />
 
       <View style={styles.body}>
@@ -93,7 +98,10 @@ export default function InvoiceScreen() {
             ) : null}
 
             <Panel style={styles.panel}>
-              <KeyValueRow label="Invoice amount" value={money(invoice.amount)} />
+              <KeyValueRow
+                label="Invoice amount"
+                value={money(invoice.amount)}
+              />
               <RowDivider />
               <KeyValueRow label="Received" value={money(invoice.received)} />
               <RowDivider />
@@ -168,7 +176,9 @@ export default function InvoiceScreen() {
                         {longDate(followUp.dueAt)}
                       </Text>
                     </View>
-                    {followUp.completedAt ? <Chip label="Done" tone="mint" /> : null}
+                    {followUp.completedAt ? (
+                      <Chip label="Done" tone="mint" />
+                    ) : null}
                   </View>
                 </Card>
               ))
@@ -178,8 +188,12 @@ export default function InvoiceScreen() {
               label="Schedule a Follow-up"
               variant="secondary"
               block
-              icon={<CalendarPlus size={16} color={color.primary} strokeWidth={2} />}
-              onPress={() => router.push(`/followup/new?customerId=${invoice.customerId}`)}
+              icon={
+                <CalendarPlus size={16} color={color.primary} strokeWidth={2} />
+              }
+              onPress={() =>
+                router.push(`/followup/new?customerId=${invoice.customerId}`)
+              }
               style={styles.heading}
             />
 
@@ -187,8 +201,8 @@ export default function InvoiceScreen() {
               <View style={styles.noteRow}>
                 <Info size={16} color={color.muted} strokeWidth={2} />
                 <Text variant="caption" tone="muted" style={styles.noteText}>
-                  Payments are read-only on mobile. Recording a payment, editing one or sending a
-                  reminder happens in the web console.
+                  Payments are read-only on mobile. Recording a payment, editing
+                  one or sending a reminder happens in the web console.
                 </Text>
               </View>
             </Panel>

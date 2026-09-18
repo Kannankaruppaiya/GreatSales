@@ -70,7 +70,9 @@ export default function ProjectionDetailScreen() {
   const [qty, setQty] = useState("");
   const [price, setPrice] = useState("");
   const [remarks, setRemarks] = useState("");
-  const [sheet, setSheet] = useState<"status" | "followUp" | "target" | null>(null);
+  const [sheet, setSheet] = useState<"status" | "followUp" | "target" | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -94,7 +96,9 @@ export default function ProjectionDetailScreen() {
       setSaved(true);
       state.reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "The projection could not be saved.");
+      setError(
+        e instanceof Error ? e.message : "The projection could not be saved.",
+      );
     } finally {
       setSaving(false);
     }
@@ -105,7 +109,8 @@ export default function ProjectionDetailScreen() {
   const numbersChanged =
     projection != null &&
     (qtyValue !== projection.projectedQty || priceValue !== projection.price);
-  const remarksChanged = projection != null && remarks.trim() !== (projection.remarks ?? "");
+  const remarksChanged =
+    projection != null && remarks.trim() !== (projection.remarks ?? "");
 
   function confirmDelete() {
     if (!projection) return;
@@ -123,7 +128,9 @@ export default function ProjectionDetailScreen() {
               await source.deleteProjection(projection.id);
               router.back();
             } catch (e) {
-              setError(e instanceof Error ? e.message : "It could not be deleted.");
+              setError(
+                e instanceof Error ? e.message : "It could not be deleted.",
+              );
             }
           },
         },
@@ -137,7 +144,12 @@ export default function ProjectionDetailScreen() {
       : 0;
 
   return (
-    <Screen tabBarSpacing bleed onRefresh={state.reload} refreshing={state.refreshing}>
+    <Screen
+      tabBarSpacing
+      bleed
+      onRefresh={state.reload}
+      refreshing={state.refreshing}
+    >
       <AppBar title="Projection" />
 
       <View style={styles.body}>
@@ -177,9 +189,9 @@ export default function ProjectionDetailScreen() {
                 <View style={styles.lockRow}>
                   <Lock size={17} color={color.amber} strokeWidth={2} />
                   <Text variant="caption" tone="amber" style={styles.lockText}>
-                    {periodLabel(projection.period)} is closed. Its figures are kept as a record of
-                    what was committed, so nothing here can be changed or deleted. Open the current
-                    month to plan ahead.
+                    {periodLabel(projection.period)} is closed. Its figures are
+                    kept as a record of what was committed, so nothing here can
+                    be changed or deleted. Open the current month to plan ahead.
                   </Text>
                 </View>
               </Panel>
@@ -200,7 +212,10 @@ export default function ProjectionDetailScreen() {
               <RowDivider />
               <KeyValueRow label="Unit price" value={money(projection.price)} />
               <RowDivider />
-              <KeyValueRow label="Probability" value={percent(projection.probability)} />
+              <KeyValueRow
+                label="Probability"
+                value={percent(projection.probability)}
+              />
             </Panel>
 
             {!locked ? (
@@ -234,7 +249,9 @@ export default function ProjectionDetailScreen() {
                   block
                   disabled={!numbersChanged}
                   loading={saving}
-                  onPress={() => patch({ projectedQty: qtyValue, price: priceValue })}
+                  onPress={() =>
+                    patch({ projectedQty: qtyValue, price: priceValue })
+                  }
                 />
 
                 <PickerField
@@ -246,17 +263,37 @@ export default function ProjectionDetailScreen() {
 
                 <PickerField
                   label="Next follow-up"
-                  value={projection.nextFollowUpAt ? longDate(projection.nextFollowUpAt) : null}
+                  value={
+                    projection.nextFollowUpAt
+                      ? longDate(projection.nextFollowUpAt)
+                      : null
+                  }
                   placeholder="None scheduled"
-                  icon={<CalendarDays size={16} color={color.muted} strokeWidth={2} />}
+                  icon={
+                    <CalendarDays
+                      size={16}
+                      color={color.muted}
+                      strokeWidth={2}
+                    />
+                  }
                   onPress={() => setSheet("followUp")}
                 />
 
                 <PickerField
                   label="Expected closure"
-                  value={projection.targetDate ? longDate(projection.targetDate) : null}
+                  value={
+                    projection.targetDate
+                      ? longDate(projection.targetDate)
+                      : null
+                  }
                   placeholder="Not set"
-                  icon={<CalendarDays size={16} color={color.muted} strokeWidth={2} />}
+                  icon={
+                    <CalendarDays
+                      size={16}
+                      color={color.muted}
+                      strokeWidth={2}
+                    />
+                  }
                   onPress={() => setSheet("target")}
                 />
 
@@ -281,17 +318,29 @@ export default function ProjectionDetailScreen() {
               <Panel style={styles.panel}>
                 <KeyValueRow
                   label="Next follow-up"
-                  value={projection.nextFollowUpAt ? longDate(projection.nextFollowUpAt) : null}
+                  value={
+                    projection.nextFollowUpAt
+                      ? longDate(projection.nextFollowUpAt)
+                      : null
+                  }
                   emptyText="None scheduled"
                 />
                 <RowDivider />
                 <KeyValueRow
                   label="Expected closure"
-                  value={projection.targetDate ? longDate(projection.targetDate) : null}
+                  value={
+                    projection.targetDate
+                      ? longDate(projection.targetDate)
+                      : null
+                  }
                   emptyText="Not set"
                 />
                 <RowDivider />
-                <KeyValueRow label="Remarks" value={projection.remarks} emptyText="None" />
+                <KeyValueRow
+                  label="Remarks"
+                  value={projection.remarks}
+                  emptyText="None"
+                />
               </Panel>
             )}
 
@@ -330,7 +379,9 @@ export default function ProjectionDetailScreen() {
                         {longDate(followUp.dueAt)}
                       </Text>
                     </View>
-                    {followUp.completedAt ? <Chip label="Done" tone="mint" /> : null}
+                    {followUp.completedAt ? (
+                      <Chip label="Done" tone="mint" />
+                    ) : null}
                   </View>
                 </Card>
               ))
@@ -341,7 +392,13 @@ export default function ProjectionDetailScreen() {
                 <Button
                   label="Convert to Sales Order"
                   block
-                  icon={<ShoppingCart size={16} color={color.surfaceWhite} strokeWidth={2} />}
+                  icon={
+                    <ShoppingCart
+                      size={16}
+                      color={color.surfaceWhite}
+                      strokeWidth={2}
+                    />
+                  }
                   onPress={() =>
                     router.push(
                       `/order/new?customerId=${projection.customerId}&productId=${projection.productId}`,
@@ -353,7 +410,13 @@ export default function ProjectionDetailScreen() {
                   label="Delete Projection"
                   variant="destructive"
                   block
-                  icon={<Trash2 size={16} color={color.surfaceWhite} strokeWidth={2} />}
+                  icon={
+                    <Trash2
+                      size={16}
+                      color={color.surfaceWhite}
+                      strokeWidth={2}
+                    />
+                  }
                   onPress={confirmDelete}
                 />
               </>
@@ -376,7 +439,11 @@ export default function ProjectionDetailScreen() {
       <DatePickerSheet
         visible={sheet === "followUp"}
         onClose={() => setSheet(null)}
-        value={projection?.nextFollowUpAt ? projection.nextFollowUpAt.slice(0, 10) : null}
+        value={
+          projection?.nextFollowUpAt
+            ? projection.nextFollowUpAt.slice(0, 10)
+            : null
+        }
         onChange={(next) =>
           patch({ nextFollowUpAt: new Date(`${next}T10:00:00`).toISOString() })
         }
@@ -386,8 +453,12 @@ export default function ProjectionDetailScreen() {
       <DatePickerSheet
         visible={sheet === "target"}
         onClose={() => setSheet(null)}
-        value={projection?.targetDate ? projection.targetDate.slice(0, 10) : null}
-        onChange={(next) => patch({ targetDate: new Date(`${next}T10:00:00`).toISOString() })}
+        value={
+          projection?.targetDate ? projection.targetDate.slice(0, 10) : null
+        }
+        onChange={(next) =>
+          patch({ targetDate: new Date(`${next}T10:00:00`).toISOString() })
+        }
         title="Expected closure"
       />
     </Screen>

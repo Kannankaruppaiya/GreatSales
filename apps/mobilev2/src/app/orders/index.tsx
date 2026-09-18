@@ -70,7 +70,9 @@ export default function OrdersScreen() {
         <View style={styles.headerText}>
           <Text variant="pageTitle">Sales Orders</Text>
           <Text variant="caption" tone="muted">
-            {state.data ? `${state.data.total} orders · ${moneyShort(value)}` : " "}
+            {state.data
+              ? `${state.data.total} orders · ${moneyShort(value)}`
+              : " "}
           </Text>
         </View>
         <Chip
@@ -96,7 +98,11 @@ export default function OrdersScreen() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.rail}
       >
-        <Chip label="All" active={status == null} onPress={() => setStatus(null)} />
+        <Chip
+          label="All"
+          active={status == null}
+          onPress={() => setStatus(null)}
+        />
         {statuses.map(([value_, count]) => (
           <Chip
             key={value_}
@@ -140,7 +146,11 @@ export default function OrdersScreen() {
             >
               <View style={styles.rowInner}>
                 <View style={styles.plate}>
-                  <ShoppingCart size={17} color={color.primaryDark} strokeWidth={2} />
+                  <ShoppingCart
+                    size={17}
+                    color={color.primaryDark}
+                    strokeWidth={2}
+                  />
                 </View>
                 <View style={styles.rowText}>
                   <Text variant="cardTitle" numberOfLines={1}>
@@ -150,7 +160,8 @@ export default function OrdersScreen() {
                     {order.soNumber} · {longDate(order.issuedAt)}
                   </Text>
                   <Text variant="nano" tone="muted2" numberOfLines={1}>
-                    {order.lines.length} {order.lines.length === 1 ? "product" : "products"}
+                    {order.lines.length}{" "}
+                    {order.lines.length === 1 ? "product" : "products"}
                   </Text>
                 </View>
                 <View style={styles.priceCol}>

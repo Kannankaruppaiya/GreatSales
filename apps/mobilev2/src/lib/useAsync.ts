@@ -5,8 +5,16 @@
  * reload — and nothing more yet. A query library would add caching the app has
  * no use for while it reads from an in-memory source; this can be swapped for
  * one when the app moves onto the API and starts wanting invalidation.
+ *
+ * It also re-fetches whenever the screen comes back into focus. Without that, a
+ * screen the user navigated away from keeps whatever it loaded when it mounted:
+ * schedule a follow-up from the + launcher and Home still shows yesterday's
+ * count, because Home never unmounted. Re-fetching on focus is what a query
+ * library would do here, and it is the one piece of that behaviour the app
+ * actually needs.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useFocusEffect } from "expo-router";
 
 export interface AsyncState<T> {
   data: T | null;
@@ -30,6 +38,7 @@ export function useAsync<T>(
   // overwriting the newer result.
   const generation = useRef(0);
   const mounted = useRef(true);
+  const firstFocus = useRef(true);
 
   useEffect(() => {
     mounted.current = true;
@@ -69,6 +78,28 @@ export function useAsync<T>(
     void execute(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
+
+  // Held in a ref so the focus callback below can stay identity-stable: if it
+  // changed with `deps`, changing a filter would fire a second fetch on top of
+  // the one the deps effect already starts.
+  const latest = useRef(execute);
+  useEffect(() => {
+    latest.current = execute;
+  }, [execute]);
+
+  useFocusEffect(
+    useCallback(() => {
+      // The mount effect above already fetched, so the first focus is skipped —
+      // otherwise every screen would load twice on open.
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
+      }
+      // A refresh, not a load: the screen keeps showing what it has instead of
+      // flashing skeletons over data that is probably still correct.
+      void latest.current(true);
+    }, []),
+  );
 
   const reload = useCallback(() => {
     void execute(true);

@@ -42,11 +42,36 @@ interface ActionSpec {
 }
 
 const ACTIONS: ActionSpec[] = [
-  { key: "change-stage", label: "Change Stage", hint: "Move opportunity to another stage", Icon: Send },
-  { key: "add-follow-up", label: "Add Follow-up", hint: "Schedule a call, meeting or task", Icon: Clock },
-  { key: "create-order", label: "Create Sales Order", hint: "Convert this opportunity to an order", Icon: ShoppingCart },
-  { key: "edit", label: "Edit Opportunity", hint: "Update opportunity details", Icon: SquarePen },
-  { key: "view-customer", label: "View Customer", hint: "Open the full customer record", Icon: Building2 },
+  {
+    key: "change-stage",
+    label: "Change Stage",
+    hint: "Move opportunity to another stage",
+    Icon: Send,
+  },
+  {
+    key: "add-follow-up",
+    label: "Add Follow-up",
+    hint: "Schedule a call, meeting or task",
+    Icon: Clock,
+  },
+  {
+    key: "create-order",
+    label: "Create Sales Order",
+    hint: "Convert this opportunity to an order",
+    Icon: ShoppingCart,
+  },
+  {
+    key: "edit",
+    label: "Edit Opportunity",
+    hint: "Update opportunity details",
+    Icon: SquarePen,
+  },
+  {
+    key: "view-customer",
+    label: "View Customer",
+    hint: "Open the full customer record",
+    Icon: Building2,
+  },
 ];
 
 export function OpportunityActionsSheet({
@@ -79,10 +104,17 @@ export function OpportunityActionsSheet({
               onClose();
               onSelect(action.key);
             }}
-            style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : null]}
+            style={({ pressed }) => [
+              styles.row,
+              pressed ? styles.rowPressed : null,
+            ]}
           >
             <View style={styles.tile}>
-              <action.Icon size={18} color={color.primaryDark} strokeWidth={2} />
+              <action.Icon
+                size={18}
+                color={color.primaryDark}
+                strokeWidth={2}
+              />
             </View>
             <View style={styles.text}>
               <Text variant="cardTitle">{action.label}</Text>

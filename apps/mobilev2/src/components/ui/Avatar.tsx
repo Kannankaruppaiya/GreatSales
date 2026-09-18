@@ -29,7 +29,8 @@ export function initialsOf(name: string): string {
 
 function paletteFor(name: string) {
   let hash = 0;
-  for (let i = 0; i < name.length; i += 1) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < name.length; i += 1)
+    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
   return PALETTE[hash % PALETTE.length]!;
 }
 
@@ -47,11 +48,21 @@ export function Avatar({ name, size = 38, style }: AvatarProps) {
       accessibilityLabel={name}
       style={[
         styles.root,
-        { width: size, height: size, backgroundColor: tint.bg, borderRadius: radius.pill },
+        {
+          width: size,
+          height: size,
+          backgroundColor: tint.bg,
+          borderRadius: radius.pill,
+        },
         style,
       ]}
     >
-      <Text style={[styles.initials, { color: tint.fg, fontSize: Math.round(size * 0.34) }]}>
+      <Text
+        style={[
+          styles.initials,
+          { color: tint.fg, fontSize: Math.round(size * 0.34) },
+        ]}
+      >
         {initialsOf(name)}
       </Text>
     </View>

@@ -105,7 +105,9 @@ export function CountBadge({ count }: { count: number }) {
  * invisible against the card it sits on.
  */
 export function StatusDot({ tone }: { tone: ChipTone }) {
-  return <View style={[styles.dot, { backgroundColor: color[TONES[tone].fg] }]} />;
+  return (
+    <View style={[styles.dot, { backgroundColor: color[TONES[tone].fg] }]} />
+  );
 }
 
 const styles = StyleSheet.create({

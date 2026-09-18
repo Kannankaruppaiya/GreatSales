@@ -45,7 +45,12 @@ export function BottomSheet({
   const { height } = useWindowDimensions();
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <Pressable
         style={styles.scrim}
         accessibilityRole="button"
@@ -79,7 +84,9 @@ export function BottomSheet({
         </ScrollView>
 
         {footer ? (
-          <View style={[styles.footer, { paddingBottom: insets.bottom + space.xl }]}>
+          <View
+            style={[styles.footer, { paddingBottom: insets.bottom + space.xl }]}
+          >
             {footer}
           </View>
         ) : (

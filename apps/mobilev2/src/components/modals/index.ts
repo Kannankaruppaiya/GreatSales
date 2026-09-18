@@ -21,3 +21,10 @@ export {
   type ActivityFilters,
   type ActivityFiltersSheetProps,
 } from "./ActivityFiltersSheet";
+export {
+  CustomerFiltersSheet,
+  NO_CUSTOMER_FILTERS,
+  customerFilterCount,
+  type CustomerFilters,
+  type CustomerFiltersSheetProps,
+} from "./CustomerFiltersSheet";

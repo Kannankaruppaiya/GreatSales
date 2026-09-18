@@ -22,7 +22,13 @@ export interface EmptyStateProps {
   onAction?: () => void;
 }
 
-export function EmptyState({ title, body, icon, actionLabel, onAction }: EmptyStateProps) {
+export function EmptyState({
+  title,
+  body,
+  icon,
+  actionLabel,
+  onAction,
+}: EmptyStateProps) {
   return (
     <View style={styles.root}>
       {icon ? <View style={styles.plate}>{icon}</View> : null}
@@ -33,7 +39,12 @@ export function EmptyState({ title, body, icon, actionLabel, onAction }: EmptySt
         {body}
       </Text>
       {actionLabel && onAction ? (
-        <Button label={actionLabel} onPress={onAction} size="medium" variant="secondary" />
+        <Button
+          label={actionLabel}
+          onPress={onAction}
+          size="medium"
+          variant="secondary"
+        />
       ) : null}
     </View>
   );

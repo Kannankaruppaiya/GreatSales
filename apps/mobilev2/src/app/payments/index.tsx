@@ -53,10 +53,22 @@ export default function PaymentsScreen() {
       ) : (
         <>
           <View style={styles.metrics}>
-            <Metric label="Total outstanding" value={moneyShort(summary.totalOutstanding)} big />
+            <Metric
+              label="Total outstanding"
+              value={moneyShort(summary.totalOutstanding)}
+              big
+            />
             <Metric label="Pending" value={moneyShort(summary.totalPending)} />
-            <Metric label="Overdue" value={moneyShort(summary.overdue)} tone="red" />
-            <Metric label="Over 90 days" value={moneyShort(summary.over90Days)} tone="red" />
+            <Metric
+              label="Overdue"
+              value={moneyShort(summary.overdue)}
+              tone="red"
+            />
+            <Metric
+              label="Over 90 days"
+              value={moneyShort(summary.over90Days)}
+              tone="red"
+            />
           </View>
 
           <Card
@@ -119,8 +131,8 @@ export default function PaymentsScreen() {
             <View style={styles.noteRow}>
               <Info size={16} color={color.muted} strokeWidth={2} />
               <Text variant="caption" tone="muted" style={styles.noteText}>
-                These figures are read-only. Recording a payment, editing one or sending a reminder
-                happens in the web console, not here.
+                These figures are read-only. Recording a payment, editing one or
+                sending a reminder happens in the web console, not here.
               </Text>
             </View>
           </Panel>
@@ -133,7 +145,8 @@ export default function PaymentsScreen() {
 /** Later buckets read hotter, matching the chips board's aging semantics. */
 function barColor(bucket: string): string {
   const lower = bucket.toLowerCase();
-  if (lower.includes("current") || lower.includes("not due")) return color.primary;
+  if (lower.includes("current") || lower.includes("not due"))
+    return color.primary;
   if (lower.includes("90")) return color.red;
   if (lower.includes("60")) return color.redDark;
   if (lower.includes("30")) return color.amber;
@@ -152,8 +165,14 @@ function Metric({
   big?: boolean;
 }) {
   return (
-    <Panel tone={tone === "red" ? "red" : "mint"} style={[styles.metric, big ? styles.metricBig : null]}>
-      <Text variant={big ? "hero" : "section"} tone={tone === "red" ? "redDark" : "ink"}>
+    <Panel
+      tone={tone === "red" ? "red" : "mint"}
+      style={[styles.metric, big ? styles.metricBig : null]}
+    >
+      <Text
+        variant={big ? "hero" : "section"}
+        tone={tone === "red" ? "redDark" : "ink"}
+      >
         {value}
       </Text>
       <Text variant="caption" tone="muted">

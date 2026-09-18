@@ -45,12 +45,18 @@ export default function OpportunityProductsScreen() {
     const lead = id ? await source.getLead(id) : null;
     if (!lead) return { lead: null, customer: null, mappings: [] as Mapping[] };
 
-    const customers = await source.listCustomers({ search: lead.customerName, limit: 10 });
+    const customers = await source.listCustomers({
+      search: lead.customerName,
+      limit: 10,
+    });
     const customer =
-      customers.items.find((c) => c.name === lead.customerName) ?? customers.items[0] ?? null;
+      customers.items.find((c) => c.name === lead.customerName) ??
+      customers.items[0] ??
+      null;
 
     const mappings = customer
-      ? (await source.listMappings({ customerId: customer.id, limit: 100 })).items
+      ? (await source.listMappings({ customerId: customer.id, limit: 100 }))
+          .items
       : [];
 
     return { lead, customer, mappings };
@@ -67,8 +73,9 @@ export default function OpportunityProductsScreen() {
 
   const unmapped = useMemo(
     () =>
-      (lead?.products ?? []).filter((p) => p.productId == null || !byProduct.has(p.productId))
-        .length,
+      (lead?.products ?? []).filter(
+        (p) => p.productId == null || !byProduct.has(p.productId),
+      ).length,
     [lead, byProduct],
   );
 
@@ -109,16 +116,23 @@ export default function OpportunityProductsScreen() {
             ) : null}
 
             {lead.products.map((product) => {
-              const mapping = product.productId ? byProduct.get(product.productId) : undefined;
+              const mapping = product.productId
+                ? byProduct.get(product.productId)
+                : undefined;
               const agreed = mapping?.agreedPrice ?? null;
               const quoted = product.price ?? null;
-              const differs = agreed != null && quoted != null && agreed !== quoted;
+              const differs =
+                agreed != null && quoted != null && agreed !== quoted;
 
               return (
                 <Card key={product.id} style={styles.productCard}>
                   <View style={styles.productHead}>
                     <View style={styles.plate}>
-                      <Package size={18} color={color.primaryDark} strokeWidth={2} />
+                      <Package
+                        size={18}
+                        color={color.primaryDark}
+                        strokeWidth={2}
+                      />
                     </View>
                     <View style={styles.productText}>
                       <Text variant="cardTitle" numberOfLines={2}>
@@ -131,8 +145,16 @@ export default function OpportunityProductsScreen() {
                       ) : null}
                     </View>
                     <Chip
-                      label={mapping ? (agreed != null ? "Mapped" : "Mapped, unpriced") : "Not mapped"}
-                      tone={mapping ? (agreed != null ? "mint" : "amber") : "red"}
+                      label={
+                        mapping
+                          ? agreed != null
+                            ? "Mapped"
+                            : "Mapped, unpriced"
+                          : "Not mapped"
+                      }
+                      tone={
+                        mapping ? (agreed != null ? "mint" : "amber") : "red"
+                      }
                     />
                   </View>
 
@@ -154,7 +176,11 @@ export default function OpportunityProductsScreen() {
                     {mapping ? (
                       <KeyValueRow
                         label="Agreed price"
-                        value={agreed != null ? money(agreed) : "No agreed price on the mapping"}
+                        value={
+                          agreed != null
+                            ? money(agreed)
+                            : "No agreed price on the mapping"
+                        }
                       />
                     ) : null}
                     <KeyValueRow
@@ -166,7 +192,8 @@ export default function OpportunityProductsScreen() {
                   {differs ? (
                     <Panel tone="amber">
                       <Text variant="caption" tone="amber">
-                        Quoted at {money(quoted!)} against an agreed {money(agreed!)}.
+                        Quoted at {money(quoted!)} against an agreed{" "}
+                        {money(agreed!)}.
                       </Text>
                     </Panel>
                   ) : null}
@@ -176,7 +203,13 @@ export default function OpportunityProductsScreen() {
                       label="Open mapping"
                       variant="secondary"
                       block
-                      icon={<ChevronRight size={15} color={color.primary} strokeWidth={2.5} />}
+                      icon={
+                        <ChevronRight
+                          size={15}
+                          color={color.primary}
+                          strokeWidth={2.5}
+                        />
+                      }
                       onPress={() => router.push(`/mapping/${mapping.id}`)}
                     />
                   ) : customer ? (
@@ -184,11 +217,19 @@ export default function OpportunityProductsScreen() {
                       label="Create mapping"
                       variant="secondary"
                       block
-                      icon={<Plus size={15} color={color.primary} strokeWidth={2.5} />}
+                      icon={
+                        <Plus
+                          size={15}
+                          color={color.primary}
+                          strokeWidth={2.5}
+                        />
+                      }
                       onPress={() =>
                         router.push(
                           `/mappings/new?customerId=${customer.id}` +
-                            (product.productId ? `&productId=${product.productId}` : ""),
+                            (product.productId
+                              ? `&productId=${product.productId}`
+                              : ""),
                         )
                       }
                     />
@@ -212,7 +253,11 @@ const styles = StyleSheet.create({
   alertRow: { flexDirection: "row", alignItems: "flex-start", gap: space.md },
   alertText: { flex: 1 },
   productCard: { gap: space.md },
-  productHead: { flexDirection: "row", alignItems: "flex-start", gap: space.md },
+  productHead: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: space.md,
+  },
   plate: {
     width: 38,
     height: 38,

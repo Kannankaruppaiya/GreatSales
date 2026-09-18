@@ -63,22 +63,33 @@ export default function SplashScreen() {
       {photo ? (
         <ImageBackground source={photo} style={styles.hero} resizeMode="cover">
           <View style={styles.scrim} />
-          <View style={[styles.heroInner, { paddingTop: insets.top + space.xxl }]}>
+          <View
+            style={[styles.heroInner, { paddingTop: insets.top + space.xxl }]}
+          >
             {hero}
           </View>
         </ImageBackground>
       ) : (
         <View style={[styles.hero, styles.heroFallback]}>
-          <View style={[styles.heroInner, { paddingTop: insets.top + space.xxl }]}>
+          <View
+            style={[styles.heroInner, { paddingTop: insets.top + space.xxl }]}
+          >
             {hero}
           </View>
         </View>
       )}
 
-      <View style={[styles.panel, { paddingBottom: insets.bottom + space.section }]}>
+      <View
+        style={[styles.panel, { paddingBottom: insets.bottom + space.section }]}
+      >
         <Text style={styles.tagline}>Sell Smarter.</Text>
         <Text style={styles.tagline}>Go Further.</Text>
-        <Text variant="body" tone="muted" align="center" style={styles.trackLine}>
+        <Text
+          variant="body"
+          tone="muted"
+          align="center"
+          style={styles.trackLine}
+        >
           Track · Engage · Grow
         </Text>
 
@@ -86,7 +97,10 @@ export default function SplashScreen() {
           accessibilityRole="button"
           accessibilityLabel="Get started"
           onPress={() => router.replace("/login")}
-          style={({ pressed }) => [styles.cta, pressed ? styles.ctaPressed : null]}
+          style={({ pressed }) => [
+            styles.cta,
+            pressed ? styles.ctaPressed : null,
+          ]}
         >
           <Text style={styles.ctaLabel}>Get Started</Text>
           <ArrowRight size={19} color={color.surfaceWhite} strokeWidth={2.5} />
@@ -101,7 +115,10 @@ const styles = StyleSheet.create({
   hero: { flex: 1 },
   heroFallback: { backgroundColor: color.primaryDark },
   // The design darkens the top of the photograph so the white lockup holds.
-  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(11,27,36,0.34)" },
+  scrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(11,27,36,0.34)",
+  },
   heroInner: { flex: 1, paddingHorizontal: space.gutter },
   heroContent: { alignItems: "center" },
   logoG: { fontFamily: font.extrabold, fontSize: 42, color: "#2FCB7C" },

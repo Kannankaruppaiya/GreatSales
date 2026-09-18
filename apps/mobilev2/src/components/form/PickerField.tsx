@@ -64,11 +64,17 @@ export function PickerField({
         >
           {value ?? placeholder}
         </Text>
-        {!disabled ? <ChevronDown size={16} color={color.muted2} strokeWidth={2} /> : null}
+        {!disabled ? (
+          <ChevronDown size={16} color={color.muted2} strokeWidth={2} />
+        ) : null}
       </Pressable>
 
       {error || hint ? (
-        <Text variant="nano" tone={error ? "red" : "muted2"} style={styles.hint}>
+        <Text
+          variant="nano"
+          tone={error ? "red" : "muted2"}
+          style={styles.hint}
+        >
           {error ?? hint}
         </Text>
       ) : null}

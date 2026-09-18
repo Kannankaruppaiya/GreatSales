@@ -23,6 +23,7 @@ import { Caveat_400Regular } from "@expo-google-fonts/caveat";
 
 import { color } from "@/design/tokens";
 import { DataProvider } from "@/data/provider";
+import { PreferencesProvider } from "@/lib/preferences";
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -48,13 +49,15 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <DataProvider>
-          <StatusBar style="dark" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: color.canvas },
-            }}
-          />
+          <PreferencesProvider>
+            <StatusBar style="dark" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: color.canvas },
+              }}
+            />
+          </PreferencesProvider>
         </DataProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

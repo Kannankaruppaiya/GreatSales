@@ -8,7 +8,7 @@
  * Outstanding is displayed but never editable here: a salesperson holds
  * payment.read and not payment.write.
  */
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,7 +28,17 @@ import { SyntheticBanner } from "@/components/ui/SyntheticBanner";
 import { useData } from "@/data/provider";
 import { color, space } from "@/design/tokens";
 import { moneyShort } from "@/lib/format";
-import { CUSTOMER_CATEGORY_LABELS, PAY_ZONE_TONES, labelFor } from "@/lib/labels";
+import {
+  CUSTOMER_CATEGORY_LABELS,
+  PAY_ZONE_TONES,
+  labelFor,
+} from "@/lib/labels";
+import {
+  CustomerFiltersSheet,
+  NO_CUSTOMER_FILTERS,
+  customerFilterCount,
+  type CustomerFilters,
+} from "@/components/modals";
 import { useAsync } from "@/lib/useAsync";
 
 export default function CustomersScreen() {
@@ -37,11 +47,39 @@ export default function CustomersScreen() {
   const insets = useSafeAreaInsets();
 
   const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<CustomerFilters>(NO_CUSTOMER_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const active = customerFilterCount(filters);
 
   const state = useAsync(
-    () => source.listCustomers({ search: search || undefined, limit: 30 }),
-    [source, search],
+    () =>
+      source.listCustomers({
+        search: search || undefined,
+        category: filters.category ?? undefined,
+        area: filters.area ?? undefined,
+        industry: filters.industry ?? undefined,
+        withOutstanding: filters.withOutstanding || undefined,
+        limit: 30,
+      }),
+    [source, search, filters],
   );
+
+  // The chips offer what is actually present, so none of them filters to an
+  // empty list. They widen as more of the book is loaded, which is honest:
+  // this is what the app has seen, not a lookup table it does not have.
+  const facets = useMemo(() => {
+    const areas = new Set<string>();
+    const industries = new Set<string>();
+    for (const row of state.data?.items ?? []) {
+      if (row.area) areas.add(row.area);
+      if (row.industryName) industries.add(row.industryName);
+    }
+    return {
+      areas: [...areas].sort().slice(0, 12),
+      industries: [...industries].sort().slice(0, 12),
+    };
+  }, [state.data]);
 
   return (
     <Screen onRefresh={state.reload} refreshing={state.refreshing}>
@@ -68,10 +106,17 @@ export default function CustomersScreen() {
                 icon={<Map size={13} color={color.muted} strokeWidth={2} />}
               />
               <Chip
-                label="Filters"
+                label={active > 0 ? `Filters (${active})` : "Filters"}
                 tone="neutral"
-                onPress={() => router.push("/customers/filters")}
-                icon={<SlidersHorizontal size={13} color={color.muted} strokeWidth={2} />}
+                active={active > 0}
+                onPress={() => setFiltersOpen(true)}
+                icon={
+                  <SlidersHorizontal
+                    size={13}
+                    color={active > 0 ? color.surfaceWhite : color.muted}
+                    strokeWidth={2}
+                  />
+                }
               />
             </>
           }
@@ -102,7 +147,10 @@ export default function CustomersScreen() {
                   <View style={styles.chips}>
                     {customer.category ? (
                       <Chip
-                        label={labelFor(CUSTOMER_CATEGORY_LABELS, customer.category)}
+                        label={labelFor(
+                          CUSTOMER_CATEGORY_LABELS,
+                          customer.category,
+                        )}
                         tone="neutral"
                       />
                     ) : null}
@@ -132,10 +180,22 @@ export default function CustomersScreen() {
               ? "Try a shorter search, or add this account if it is new to you."
               : "Add the accounts you call on and they will be listed here."
           }
-          actionLabel="Add Customer"
-          onAction={() => router.push("/customer/new")}
+          actionLabel={active > 0 ? "Clear filters" : "Add Customer"}
+          onAction={() => {
+            if (active > 0) setFilters(NO_CUSTOMER_FILTERS);
+            else router.push("/customer/new");
+          }}
         />
       )}
+
+      <CustomerFiltersSheet
+        visible={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        value={filters}
+        onApply={setFilters}
+        areas={facets.areas}
+        industries={facets.industries}
+      />
     </Screen>
   );
 }

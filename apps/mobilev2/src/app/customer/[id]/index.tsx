@@ -11,7 +11,15 @@
  * the write interface this screen is handed has no payment method at all.
  */
 import React, { useMemo, useState } from "react";
-import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+  Alert,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   Building2,
@@ -56,7 +64,14 @@ import {
 } from "@/lib/labels";
 import { useAsync } from "@/lib/useAsync";
 
-type Tab = "overview" | "contacts" | "products" | "orders" | "payments" | "activity" | "location";
+type Tab =
+  | "overview"
+  | "contacts"
+  | "products"
+  | "orders"
+  | "payments"
+  | "activity"
+  | "location";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "overview", label: "Overview" },
@@ -120,7 +135,12 @@ export default function Customer360Screen() {
   const phone = customer?.primaryContactPhone ?? null;
 
   return (
-    <Screen tabBarSpacing bleed onRefresh={state.reload} refreshing={state.refreshing}>
+    <Screen
+      tabBarSpacing
+      bleed
+      onRefresh={state.reload}
+      refreshing={state.refreshing}
+    >
       <AppBar title="Customer" />
 
       {state.loading ? (
@@ -147,15 +167,19 @@ export default function Customer360Screen() {
                     {customer.name}
                   </Text>
                   <Text variant="caption" tone="muted" numberOfLines={1}>
-                    {[customer.industryName, customer.area].filter(Boolean).join(" · ") ||
-                      "No industry or area recorded"}
+                    {[customer.industryName, customer.area]
+                      .filter(Boolean)
+                      .join(" · ") || "No industry or area recorded"}
                   </Text>
                 </View>
               </View>
 
               <View style={styles.chips}>
                 {customer.category ? (
-                  <Chip label={CUSTOMER_CATEGORY_LABELS[customer.category]} tone="neutral" />
+                  <Chip
+                    label={CUSTOMER_CATEGORY_LABELS[customer.category]}
+                    tone="neutral"
+                  />
                 ) : null}
                 {customer.payZone ? (
                   <Chip
@@ -164,7 +188,10 @@ export default function Customer360Screen() {
                   />
                 ) : null}
                 {customer.paymentTerms ? (
-                  <Chip label={PAYMENT_TERMS_LABELS[customer.paymentTerms]} tone="neutral" />
+                  <Chip
+                    label={PAYMENT_TERMS_LABELS[customer.paymentTerms]}
+                    tone="neutral"
+                  />
                 ) : null}
               </View>
 
@@ -175,7 +202,9 @@ export default function Customer360Screen() {
                   <QuickAction
                     label="Call"
                     Icon={Phone}
-                    onPress={() => open(`tel:${phone.replace(/\s/g, "")}`, "the dialler")}
+                    onPress={() =>
+                      open(`tel:${phone.replace(/\s/g, "")}`, "the dialler")
+                    }
                   />
                 ) : null}
                 {phone ? (
@@ -193,12 +222,16 @@ export default function Customer360Screen() {
                 <QuickAction
                   label="Follow-up"
                   Icon={CalendarPlus}
-                  onPress={() => router.push(`/followup/new?customerId=${customer.id}`)}
+                  onPress={() =>
+                    router.push(`/followup/new?customerId=${customer.id}`)
+                  }
                 />
                 <QuickAction
                   label="New Lead"
                   Icon={Plus}
-                  onPress={() => router.push(`/lead/new?customerId=${customer.id}`)}
+                  onPress={() =>
+                    router.push(`/lead/new?customerId=${customer.id}`)
+                  }
                 />
               </View>
             </Card>
@@ -223,16 +256,36 @@ export default function Customer360Screen() {
             {tab === "overview" ? (
               <>
                 <View style={styles.metrics}>
-                  <Metric label="Outstanding" value={moneyShort(outstanding.pending)} />
-                  <Metric label="Overdue" value={moneyShort(outstanding.overdue)} />
-                  <Metric label="Open deals" value={String(state.data?.leads.length ?? 0)} />
-                  <Metric label="Orders" value={String(state.data?.orders.length ?? 0)} />
+                  <Metric
+                    label="Outstanding"
+                    value={moneyShort(outstanding.pending)}
+                  />
+                  <Metric
+                    label="Overdue"
+                    value={moneyShort(outstanding.overdue)}
+                  />
+                  <Metric
+                    label="Open deals"
+                    value={String(state.data?.leads.length ?? 0)}
+                  />
+                  <Metric
+                    label="Orders"
+                    value={String(state.data?.orders.length ?? 0)}
+                  />
                 </View>
 
                 <Panel style={styles.panel}>
-                  <KeyValueRow label="Industry" value={customer.industryName} emptyText="Not set" />
+                  <KeyValueRow
+                    label="Industry"
+                    value={customer.industryName}
+                    emptyText="Not set"
+                  />
                   <RowDivider />
-                  <KeyValueRow label="Area" value={customer.area} emptyText="Not set" />
+                  <KeyValueRow
+                    label="Area"
+                    value={customer.area}
+                    emptyText="Not set"
+                  />
                   <RowDivider />
                   <KeyValueRow
                     label="Key contact"
@@ -240,15 +293,26 @@ export default function Customer360Screen() {
                     emptyText="No contact recorded"
                   />
                   <RowDivider />
-                  <KeyValueRow label="Phone" value={customer.primaryContactPhone} emptyText="Not set" />
-                  <RowDivider />
                   <KeyValueRow
-                    label="Payment terms"
-                    value={customer.paymentTerms ? PAYMENT_TERMS_LABELS[customer.paymentTerms] : null}
+                    label="Phone"
+                    value={customer.primaryContactPhone}
                     emptyText="Not set"
                   />
                   <RowDivider />
-                  <KeyValueRow label="Salesperson" value={customer.salespersonName} />
+                  <KeyValueRow
+                    label="Payment terms"
+                    value={
+                      customer.paymentTerms
+                        ? PAYMENT_TERMS_LABELS[customer.paymentTerms]
+                        : null
+                    }
+                    emptyText="Not set"
+                  />
+                  <RowDivider />
+                  <KeyValueRow
+                    label="Salesperson"
+                    value={customer.salespersonName}
+                  />
                 </Panel>
 
                 {state.data && state.data.leads.length > 0 ? (
@@ -263,7 +327,8 @@ export default function Customer360Screen() {
                         <View style={styles.rowInner}>
                           <View style={styles.rowText}>
                             <Text variant="cardTitle" numberOfLines={1}>
-                              {lead.products[0]?.productName ?? lead.customerName}
+                              {lead.products[0]?.productName ??
+                                lead.customerName}
                             </Text>
                             <Text variant="caption" tone="muted">
                               {money(lead.totalValue)}
@@ -297,11 +362,17 @@ export default function Customer360Screen() {
                           <Text variant="cardTitle" numberOfLines={1}>
                             {contact.name}
                           </Text>
-                          <Text variant="caption" tone="muted" numberOfLines={1}>
+                          <Text
+                            variant="caption"
+                            tone="muted"
+                            numberOfLines={1}
+                          >
                             {contact.designation ?? "No designation recorded"}
                           </Text>
                         </View>
-                        {contact.isPrimary ? <Chip label="Primary" tone="mint" /> : null}
+                        {contact.isPrimary ? (
+                          <Chip label="Primary" tone="mint" />
+                        ) : null}
                       </View>
 
                       {contact.phone || contact.email ? (
@@ -313,7 +384,10 @@ export default function Customer360Screen() {
                                 label="Call"
                                 Icon={Phone}
                                 onPress={() =>
-                                  open(`tel:${contact.phone!.replace(/\s/g, "")}`, "the dialler")
+                                  open(
+                                    `tel:${contact.phone!.replace(/\s/g, "")}`,
+                                    "the dialler",
+                                  )
                                 }
                               />
                             ) : null}
@@ -321,7 +395,9 @@ export default function Customer360Screen() {
                               <QuickAction
                                 label="Email"
                                 Icon={Mail}
-                                onPress={() => open(`mailto:${contact.email}`, "mail")}
+                                onPress={() =>
+                                  open(`mailto:${contact.email}`, "mail")
+                                }
                               />
                             ) : null}
                           </View>
@@ -339,7 +415,9 @@ export default function Customer360Screen() {
                   title="No products mapped"
                   body="Map the products this customer buys so their agreed prices carry into quotes and orders."
                   actionLabel="Create a mapping"
-                  onAction={() => router.push(`/mappings/new?customerId=${customer.id}`)}
+                  onAction={() =>
+                    router.push(`/mappings/new?customerId=${customer.id}`)
+                  }
                 />
               ) : (
                 <View style={styles.section}>
@@ -351,13 +429,21 @@ export default function Customer360Screen() {
                     >
                       <View style={styles.rowInner}>
                         <View style={styles.plate}>
-                          <Package size={17} color={color.primaryDark} strokeWidth={2} />
+                          <Package
+                            size={17}
+                            color={color.primaryDark}
+                            strokeWidth={2}
+                          />
                         </View>
                         <View style={styles.rowText}>
                           <Text variant="cardTitle" numberOfLines={1}>
                             {mapping.productName}
                           </Text>
-                          <Text variant="caption" tone="muted" numberOfLines={1}>
+                          <Text
+                            variant="caption"
+                            tone="muted"
+                            numberOfLines={1}
+                          >
                             {mapping.principal}
                           </Text>
                         </View>
@@ -365,8 +451,17 @@ export default function Customer360Screen() {
                           <Text variant="cardTitle">
                             {money(mapping.agreedPrice ?? mapping.listPrice)}
                           </Text>
-                          <Text variant="nano" tone={mapping.agreedPrice != null ? "primaryDark" : "muted2"}>
-                            {mapping.agreedPrice != null ? "Agreed" : "List price"}
+                          <Text
+                            variant="nano"
+                            tone={
+                              mapping.agreedPrice != null
+                                ? "primaryDark"
+                                : "muted2"
+                            }
+                          >
+                            {mapping.agreedPrice != null
+                              ? "Agreed"
+                              : "List price"}
                           </Text>
                         </View>
                       </View>
@@ -382,7 +477,9 @@ export default function Customer360Screen() {
                   title="No orders yet"
                   body="Create an order from an opportunity, or start one from the + button."
                   actionLabel="New order"
-                  onAction={() => router.push(`/order/new?customerId=${customer.id}`)}
+                  onAction={() =>
+                    router.push(`/order/new?customerId=${customer.id}`)
+                  }
                 />
               ) : (
                 <View style={styles.section}>
@@ -394,17 +491,28 @@ export default function Customer360Screen() {
                     >
                       <View style={styles.rowInner}>
                         <View style={styles.plate}>
-                          <ShoppingCart size={17} color={color.primaryDark} strokeWidth={2} />
+                          <ShoppingCart
+                            size={17}
+                            color={color.primaryDark}
+                            strokeWidth={2}
+                          />
                         </View>
                         <View style={styles.rowText}>
                           <Text variant="cardTitle">{order.soNumber}</Text>
-                          <Text variant="caption" tone="muted" numberOfLines={1}>
-                            {order.lines.length} {order.lines.length === 1 ? "product" : "products"} ·{" "}
-                            {longDate(order.issuedAt)}
+                          <Text
+                            variant="caption"
+                            tone="muted"
+                            numberOfLines={1}
+                          >
+                            {order.lines.length}{" "}
+                            {order.lines.length === 1 ? "product" : "products"}{" "}
+                            · {longDate(order.issuedAt)}
                           </Text>
                         </View>
                         <View style={styles.priceCol}>
-                          <Text variant="cardTitle">{moneyShort(order.total)}</Text>
+                          <Text variant="cardTitle">
+                            {moneyShort(order.total)}
+                          </Text>
                           <Chip
                             label={ORDER_STATUS_LABELS[order.status]}
                             tone={ORDER_STATUS_TONES[order.status]}
@@ -419,14 +527,27 @@ export default function Customer360Screen() {
 
             {tab === "payments" ? (
               <View style={styles.section}>
-                <Panel tone={outstanding.overdue > 0 ? "red" : "mint"} style={styles.panel}>
-                  <KeyValueRow label="Outstanding" value={money(outstanding.pending)} />
+                <Panel
+                  tone={outstanding.overdue > 0 ? "red" : "mint"}
+                  style={styles.panel}
+                >
+                  <KeyValueRow
+                    label="Outstanding"
+                    value={money(outstanding.pending)}
+                  />
                   <RowDivider />
-                  <KeyValueRow label="Overdue" value={money(outstanding.overdue)} />
+                  <KeyValueRow
+                    label="Overdue"
+                    value={money(outstanding.overdue)}
+                  />
                   <RowDivider />
                   <KeyValueRow
                     label="Oldest overdue"
-                    value={outstanding.oldest > 0 ? `${outstanding.oldest} days` : "Nothing overdue"}
+                    value={
+                      outstanding.oldest > 0
+                        ? `${outstanding.oldest} days`
+                        : "Nothing overdue"
+                    }
                   />
                 </Panel>
 
@@ -444,13 +565,17 @@ export default function Customer360Screen() {
                     >
                       <View style={styles.rowInner}>
                         <View style={styles.rowText}>
-                          <Text variant="cardTitle">{invoice.invoiceNumber}</Text>
+                          <Text variant="cardTitle">
+                            {invoice.invoiceNumber}
+                          </Text>
                           <Text variant="caption" tone="muted">
                             Due {longDate(invoice.dueAt)}
                           </Text>
                         </View>
                         <View style={styles.priceCol}>
-                          <Text variant="cardTitle">{money(invoice.pending)}</Text>
+                          <Text variant="cardTitle">
+                            {money(invoice.pending)}
+                          </Text>
                           {invoice.agingDays > 0 ? (
                             <Text variant="nano" tone="red">
                               {invoice.agingDays} days overdue
@@ -467,8 +592,8 @@ export default function Customer360Screen() {
                 )}
 
                 <Text variant="nano" tone="muted2">
-                  Payments are read-only for a salesperson. Recording or editing one happens in the
-                  web console.
+                  Payments are read-only for a salesperson. Recording or editing
+                  one happens in the web console.
                 </Text>
               </View>
             ) : null}
@@ -479,7 +604,9 @@ export default function Customer360Screen() {
                   title="No follow-ups"
                   body="Schedule the next contact so it shows up on your home screen."
                   actionLabel="Add a follow-up"
-                  onAction={() => router.push(`/followup/new?customerId=${customer.id}`)}
+                  onAction={() =>
+                    router.push(`/followup/new?customerId=${customer.id}`)
+                  }
                 />
               ) : (
                 <View style={styles.section}>
@@ -501,7 +628,11 @@ export default function Customer360Screen() {
                         {followUp.completedAt ? (
                           <Chip label="Done" tone="mint" />
                         ) : (
-                          <ChevronRight size={15} color={color.muted2} strokeWidth={2} />
+                          <ChevronRight
+                            size={15}
+                            color={color.muted2}
+                            strokeWidth={2}
+                          />
                         )}
                       </View>
                     </Card>
@@ -513,7 +644,11 @@ export default function Customer360Screen() {
             {tab === "location" ? (
               <View style={styles.section}>
                 <Panel style={styles.panel}>
-                  <KeyValueRow label="Area" value={customer.area} emptyText="Not set" />
+                  <KeyValueRow
+                    label="Area"
+                    value={customer.area}
+                    emptyText="Not set"
+                  />
                   <RowDivider />
                   <KeyValueRow
                     label="Pinned"
@@ -543,14 +678,22 @@ export default function Customer360Screen() {
                   <Button
                     label="Open in Maps"
                     block
-                    icon={<Navigation size={16} color={color.surfaceWhite} strokeWidth={2.5} />}
+                    icon={
+                      <Navigation
+                        size={16}
+                        color={color.surfaceWhite}
+                        strokeWidth={2.5}
+                      />
+                    }
                     onPress={() => open(customer.locationUrl!, "maps")}
                   />
                 ) : (
                   <EmptyState
                     title="No location pinned"
                     body="Pin this customer from the web console, or on site with the location tools there."
-                    icon={<MapPin size={22} color={color.muted2} strokeWidth={2} />}
+                    icon={
+                      <MapPin size={22} color={color.muted2} strokeWidth={2} />
+                    }
                   />
                 )}
               </View>
@@ -615,7 +758,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  rail: { gap: space.sm, paddingHorizontal: space.gutter, paddingVertical: space.lg },
+  rail: {
+    gap: space.sm,
+    paddingHorizontal: space.gutter,
+    paddingVertical: space.lg,
+  },
   metrics: { flexDirection: "row", flexWrap: "wrap", gap: space.md },
   metric: { width: "47.5%", gap: 2, minHeight: 70, justifyContent: "center" },
   panel: { paddingVertical: space.xs },
@@ -632,5 +779,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  contactActions: { flexDirection: "row", gap: space.xxl, paddingTop: space.md },
+  contactActions: {
+    flexDirection: "row",
+    gap: space.xxl,
+    paddingTop: space.md,
+  },
 });

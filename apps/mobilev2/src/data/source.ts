@@ -88,6 +88,8 @@ export type FollowUpBucket = "overdue" | "today" | "upcoming" | "completed";
 
 export interface FollowUpQuery extends ListQuery {
   bucket?: FollowUpBucket;
+  /** Due date order. Soonest first is the default — it is the working order. */
+  sort?: "soonest" | "latest";
   customerId?: string;
   leadId?: string;
 }

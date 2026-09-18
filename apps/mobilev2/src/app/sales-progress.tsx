@@ -12,7 +12,12 @@
 import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { ArrowRight, CalendarDays, TrendingDown, TrendingUp } from "lucide-react-native";
+import {
+  ArrowRight,
+  CalendarDays,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react-native";
 
 import {
   AppBar,
@@ -27,6 +32,7 @@ import {
 import { useData } from "@/data/provider";
 import { color, font, space } from "@/design/tokens";
 import { moneyShort, percent } from "@/lib/format";
+import { defaultPeriod } from "@/lib/projection-labels";
 import { useAsync } from "@/lib/useAsync";
 
 /** "2026-09" → "September 2026", for the period pill. */
@@ -43,7 +49,7 @@ export default function SalesProgressScreen() {
 
   const state = useAsync(async () => {
     const periods = await source.listProjectionPeriods();
-    const active = period ?? periods[0]?.period ?? null;
+    const active = period ?? defaultPeriod(periods);
 
     const [projections, leads, followUps, summary] = await Promise.all([
       active ? source.listProjections({ period: active, limit: 100 }) : null,
@@ -61,9 +67,13 @@ export default function SalesProgressScreen() {
     const index = periods.findIndex((p) => p.period === active);
     const previous = index >= 0 ? periods[index + 1] : undefined;
     const previousRows = previous
-      ? (await source.listProjections({ period: previous.period, limit: 100 })).items
+      ? (await source.listProjections({ period: previous.period, limit: 100 }))
+          .items
       : [];
-    const previousAchieved = previousRows.reduce((sum, p) => sum + p.achievedValue, 0);
+    const previousAchieved = previousRows.reduce(
+      (sum, p) => sum + p.achievedValue,
+      0,
+    );
 
     const delta =
       previousAchieved > 0
@@ -102,8 +112,11 @@ export default function SalesProgressScreen() {
               onPress={() => {
                 // Step through the periods on file rather than opening a
                 // picker: there are three, and 07A owns real period selection.
-                const i = data.periods.findIndex((p) => p.period === data.active);
-                const next = data.periods[(i + 1) % Math.max(data.periods.length, 1)];
+                const i = data.periods.findIndex(
+                  (p) => p.period === data.active,
+                );
+                const next =
+                  data.periods[(i + 1) % Math.max(data.periods.length, 1)];
                 if (next) setPeriod(next.period);
               }}
               accessibilityLabel={`Period, ${data.active ? periodLabel(data.active) : "none"}. Tap to change.`}
@@ -132,9 +145,17 @@ export default function SalesProgressScreen() {
               <Panel tone="mint" style={styles.delta}>
                 <View style={styles.deltaRow}>
                   {data.delta >= 0 ? (
-                    <TrendingUp size={17} color={color.primaryDark} strokeWidth={2} />
+                    <TrendingUp
+                      size={17}
+                      color={color.primaryDark}
+                      strokeWidth={2}
+                    />
                   ) : (
-                    <TrendingDown size={17} color={color.redDark} strokeWidth={2} />
+                    <TrendingDown
+                      size={17}
+                      color={color.redDark}
+                      strokeWidth={2}
+                    />
                   )}
                   <Text
                     variant="section"
@@ -151,18 +172,36 @@ export default function SalesProgressScreen() {
             ) : null}
 
             <View style={styles.tiles}>
-              <Tile value={moneyShort(data.committed)} label="Committed Value" />
+              <Tile
+                value={moneyShort(data.committed)}
+                label="Committed Value"
+              />
               <Tile value={moneyShort(data.achieved)} label="Achieved Value" />
-              <Tile value={moneyShort(data.pipelineValue)} label="Pipeline Value" />
+              <Tile
+                value={moneyShort(data.pipelineValue)}
+                label="Pipeline Value"
+              />
               <Tile value={String(data.newSales)} label="New Sales" />
-              <Tile value={String(data.openOpportunities)} label="Opportunities" />
-              <Tile value={String(data.followUpsUpcoming)} label="Due This Week" />
+              <Tile
+                value={String(data.openOpportunities)}
+                label="Opportunities"
+              />
+              <Tile
+                value={String(data.followUpsUpcoming)}
+                label="Due This Week"
+              />
             </View>
 
             <Button
               label="View Detailed Breakdown"
               block
-              icon={<ArrowRight size={17} color={color.surfaceWhite} strokeWidth={2.5} />}
+              icon={
+                <ArrowRight
+                  size={17}
+                  color={color.surfaceWhite}
+                  strokeWidth={2.5}
+                />
+              }
               onPress={() => router.push("/projections")}
               style={styles.cta}
             />
@@ -206,7 +245,12 @@ const styles = StyleSheet.create({
     fontFamily: font.extrabold,
   },
   delta: { marginTop: space.xl, gap: space.xs },
-  deltaRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.sm },
+  deltaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.sm,
+  },
   tiles: {
     flexDirection: "row",
     flexWrap: "wrap",

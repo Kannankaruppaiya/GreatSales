@@ -97,7 +97,9 @@ export function DatePickerSheet({
           accessibilityRole="button"
           accessibilityLabel="Previous month"
           hitSlop={12}
-          onPress={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1))}
+          onPress={() =>
+            setCursor((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1))
+          }
         >
           <ChevronLeft size={19} color={color.ink} strokeWidth={2} />
         </Pressable>
@@ -108,7 +110,9 @@ export function DatePickerSheet({
           accessibilityRole="button"
           accessibilityLabel="Next month"
           hitSlop={12}
-          onPress={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1))}
+          onPress={() =>
+            setCursor((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1))
+          }
         >
           <ChevronRight size={19} color={color.ink} strokeWidth={2} />
         </Pressable>
@@ -116,7 +120,13 @@ export function DatePickerSheet({
 
       <View style={styles.week}>
         {WEEKDAYS.map((day, i) => (
-          <Text key={`${day}${i}`} variant="nano" tone="muted2" align="center" style={styles.cell}>
+          <Text
+            key={`${day}${i}`}
+            variant="nano"
+            tone="muted2"
+            align="center"
+            style={styles.cell}
+          >
             {day}
           </Text>
         ))}
@@ -138,12 +148,24 @@ export function DatePickerSheet({
                 onChange(key);
                 onClose();
               }}
-              style={[styles.cell, styles.day, selected ? styles.daySelected : null]}
+              style={[
+                styles.cell,
+                styles.day,
+                selected ? styles.daySelected : null,
+              ]}
             >
               <Text
                 variant="secondary"
                 align="center"
-                tone={selected ? "surfaceWhite" : blocked ? "muted2" : key === today ? "primary" : "ink"}
+                tone={
+                  selected
+                    ? "surfaceWhite"
+                    : blocked
+                      ? "muted2"
+                      : key === today
+                        ? "primary"
+                        : "ink"
+                }
               >
                 {Number(key.slice(8))}
               </Text>

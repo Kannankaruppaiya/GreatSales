@@ -25,7 +25,13 @@ export interface AppBarProps {
   action?: React.ReactNode;
 }
 
-export function AppBar({ title, subtitle, showBack = true, onBack, action }: AppBarProps) {
+export function AppBar({
+  title,
+  subtitle,
+  showBack = true,
+  onBack,
+  action,
+}: AppBarProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -39,7 +45,11 @@ export function AppBar({ title, subtitle, showBack = true, onBack, action }: App
             onPress={onBack ?? (() => router.back())}
             hitSlop={12}
           >
-            <ArrowLeft size={22} color={color.ink} strokeWidth={icon.strokeWidth} />
+            <ArrowLeft
+              size={22}
+              color={color.ink}
+              strokeWidth={icon.strokeWidth}
+            />
           </Pressable>
         ) : null}
       </View>

@@ -27,8 +27,16 @@ export const STAGE_VISUALS: Record<DealStageValue, StageVisual> = {
   NewEnquiries: { Icon: Plus, bg: "#EAF2FC", fg: color.steel },
   NeedsAnalysis: { Icon: Phone, bg: color.mintSurface, fg: color.primaryDark },
   TrialsAndSampleTests: { Icon: Users, bg: color.steelSoft, fg: color.steel },
-  ProposalsAndPriceQuote: { Icon: FileText, bg: color.amberSoft, fg: color.amber },
-  NegotiationOralConfirmation: { Icon: Users, bg: color.steelSoft, fg: color.steel },
+  ProposalsAndPriceQuote: {
+    Icon: FileText,
+    bg: color.amberSoft,
+    fg: color.amber,
+  },
+  NegotiationOralConfirmation: {
+    Icon: Users,
+    bg: color.steelSoft,
+    fg: color.steel,
+  },
   ClosedWon: { Icon: Trophy, bg: color.mintSurface, fg: color.primaryDark },
   ClosedLost: { Icon: CircleX, bg: color.redSoft, fg: color.red },
   NoRequirementOrCold: { Icon: CircleX, bg: color.lineSoft, fg: color.muted },

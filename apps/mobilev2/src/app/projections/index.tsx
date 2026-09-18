@@ -35,6 +35,7 @@ import {
   PROJECTION_STATUSES,
   PROJECTION_STATUS_LABELS,
   PROJECTION_STATUS_TONES,
+  defaultPeriod,
   periodLabel,
   type ProjectionStatus,
 } from "@/lib/projection-labels";
@@ -53,7 +54,7 @@ export default function ProjectionsScreen() {
 
   const state = useAsync(async () => {
     const periods = await source.listProjectionPeriods();
-    const active = period ?? periods[0]?.period ?? null;
+    const active = period ?? defaultPeriod(periods);
     const rows = active
       ? await source.listProjections({
           period: active,
@@ -108,7 +109,8 @@ export default function ProjectionsScreen() {
             <View style={styles.lockedRow}>
               <Lock size={16} color={color.amber} strokeWidth={2} />
               <Text variant="caption" tone="amber" style={styles.lockedText}>
-                This month is closed. Its projections can be read but not changed.
+                This month is closed. Its projections can be read but not
+                changed.
               </Text>
             </View>
           </Panel>
@@ -160,13 +162,18 @@ export default function ProjectionsScreen() {
           <Panel tone="mint" style={styles.totals}>
             <KeyValueRow label="Projected" value={money(totals.projected)} />
             <KeyValueRow label="Achieved" value={money(totals.achieved)} />
-            <KeyValueRow label="Achievement" value={percent(totals.achievement)} />
+            <KeyValueRow
+              label="Achievement"
+              value={percent(totals.achievement)}
+            />
           </Panel>
 
           <View style={styles.list}>
             {state.data?.rows.map((row) => {
               const achievement =
-                row.projectedValue > 0 ? (row.achievedValue / row.projectedValue) * 100 : 0;
+                row.projectedValue > 0
+                  ? (row.achievedValue / row.projectedValue) * 100
+                  : 0;
               return (
                 <Card
                   key={row.id}
@@ -190,8 +197,14 @@ export default function ProjectionsScreen() {
                   </View>
 
                   <View style={styles.rowStats}>
-                    <Stat label="Projected" value={moneyShort(row.projectedValue)} />
-                    <Stat label="Achieved" value={moneyShort(row.achievedValue)} />
+                    <Stat
+                      label="Projected"
+                      value={moneyShort(row.projectedValue)}
+                    />
+                    <Stat
+                      label="Achieved"
+                      value={moneyShort(row.achievedValue)}
+                    />
                     <Stat label="Achievement" value={percent(achievement)} />
                   </View>
                 </Card>

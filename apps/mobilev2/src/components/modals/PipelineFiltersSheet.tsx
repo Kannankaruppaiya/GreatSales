@@ -45,7 +45,11 @@ export interface PipelineFilters {
   openOnly: boolean;
 }
 
-export const NO_FILTERS: PipelineFilters = { stages: [], closure: null, openOnly: true };
+export const NO_FILTERS: PipelineFilters = {
+  stages: [],
+  closure: null,
+  openOnly: true,
+};
 
 export function filterCount(f: PipelineFilters): number {
   return f.stages.length + (f.closure ? 1 : 0) + (f.openOnly ? 0 : 1);
@@ -56,7 +60,10 @@ export function filterCount(f: PipelineFilters): number {
  * arithmetic rather than by adding days, so a 31-day month and a February both
  * land on their own last day.
  */
-export function closureCutoff(window: ClosureWindow, now: Date = new Date()): string {
+export function closureCutoff(
+  window: ClosureWindow,
+  now: Date = new Date(),
+): string {
   const monthsAhead = window === "month" ? 1 : window === "nextMonth" ? 2 : 4;
   const end = new Date(now.getFullYear(), now.getMonth() + monthsAhead, 0);
   return `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(
@@ -149,7 +156,10 @@ export function PipelineFiltersSheet({
             // Tapping the chosen window again clears it — the board has no
             // "Any" row, and a radio group you cannot leave is a trap.
             onPress={() =>
-              setDraft((d) => ({ ...d, closure: d.closure === window ? null : window }))
+              setDraft((d) => ({
+                ...d,
+                closure: d.closure === window ? null : window,
+              }))
             }
           />
         ))}
@@ -167,7 +177,13 @@ export function PipelineFiltersSheet({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <View style={styles.section}>
       <Text variant="secondary" style={styles.sectionTitle}>

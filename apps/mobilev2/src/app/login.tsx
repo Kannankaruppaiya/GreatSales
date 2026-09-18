@@ -10,10 +10,24 @@
  * that cannot complete is worse than none. Recorded in CHECKLIST.md.
  */
 import React, { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Check, ChevronDown, Eye, EyeOff, Lock, Phone } from "lucide-react-native";
+import {
+  Check,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  Lock,
+  Phone,
+} from "lucide-react-native";
 
 import { Button, Input, Text } from "@/components/ui";
 import { OnboardingBackdrop } from "@/components/brand/Decor";
@@ -42,7 +56,9 @@ export default function LoginScreen() {
       // continues to the permission step exactly as it would after a success.
       router.replace("/location-permission");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not sign you in.");
+      setError(
+        caught instanceof Error ? caught.message : "Could not sign you in.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -58,7 +74,10 @@ export default function LoginScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + space.xxl, paddingBottom: insets.bottom + space.xxl },
+          {
+            paddingTop: insets.top + space.xxl,
+            paddingBottom: insets.bottom + space.xxl,
+          },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -70,7 +89,9 @@ export default function LoginScreen() {
             style={styles.langPill}
             onPress={() => router.push("/settings")}
           >
-            <Text variant="secondary" style={styles.langLabel}>EN</Text>
+            <Text variant="secondary" style={styles.langLabel}>
+              EN
+            </Text>
             <ChevronDown size={14} color={color.ink} strokeWidth={2} />
           </Pressable>
         </View>
@@ -78,11 +99,18 @@ export default function LoginScreen() {
         <View style={styles.brandBlock}>
           <Text style={styles.logoG}>G</Text>
           <Text style={styles.brand}>GreatSales</Text>
-          <Text variant="secondary" tone="muted">Field Sales CRM</Text>
+          <Text variant="secondary" tone="muted">
+            Field Sales CRM
+          </Text>
         </View>
 
         <Text style={styles.heading}>Welcome Back</Text>
-        <Text variant="body" tone="muted" align="center" style={styles.subheading}>
+        <Text
+          variant="body"
+          tone="muted"
+          align="center"
+          style={styles.subheading}
+        >
           Sign in to continue to your sales workspace.
         </Text>
 
@@ -110,7 +138,9 @@ export default function LoginScreen() {
             trailing={
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                accessibilityLabel={
+                  showPassword ? "Hide password" : "Show password"
+                }
                 onPress={() => setShowPassword((v) => !v)}
                 hitSlop={10}
               >
@@ -142,8 +172,12 @@ export default function LoginScreen() {
             onPress={() => setRemember((v) => !v)}
             style={styles.rememberRow}
           >
-            <View style={[styles.checkbox, remember ? styles.checkboxOn : null]}>
-              {remember ? <Check size={14} color={color.surfaceWhite} strokeWidth={3} /> : null}
+            <View
+              style={[styles.checkbox, remember ? styles.checkboxOn : null]}
+            >
+              {remember ? (
+                <Check size={14} color={color.surfaceWhite} strokeWidth={3} />
+              ) : null}
             </View>
             <Text variant="body">Remember me</Text>
           </Pressable>
@@ -158,8 +192,13 @@ export default function LoginScreen() {
           />
         </View>
 
-        <Text variant="caption" tone="muted" align="center" style={styles.footer}>
-          New to GreatSales?  Contact your administrator.
+        <Text
+          variant="caption"
+          tone="muted"
+          align="center"
+          style={styles.footer}
+        >
+          New to GreatSales? Contact your administrator.
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -184,7 +223,12 @@ const styles = StyleSheet.create({
   langLabel: { fontFamily: font.semibold },
   brandBlock: { alignItems: "center", marginTop: space.section },
   logoG: { fontFamily: font.extrabold, fontSize: 39, color: color.primary },
-  brand: { fontFamily: font.extrabold, fontSize: 25, color: color.ink, marginTop: space.md },
+  brand: {
+    fontFamily: font.extrabold,
+    fontSize: 25,
+    color: color.ink,
+    marginTop: space.md,
+  },
   heading: {
     fontFamily: font.extrabold,
     fontSize: 27,

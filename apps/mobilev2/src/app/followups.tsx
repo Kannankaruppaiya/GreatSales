@@ -7,6 +7,9 @@
  *
  * 02C.2 to 02C.4 are the same screen with a different bucket selected, so they
  * are one route with a filter rather than three near-identical screens.
+ *
+ * "Completed" is on the rail as well. Without it, a follow-up marked done
+ * vanishes from the app entirely, and "did I already call them?" has no answer.
  */
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -32,10 +35,14 @@ import { color, space } from "@/design/tokens";
 import { daysOverdue, dueLabel, timeOfDay } from "@/lib/format";
 import { useAsync } from "@/lib/useAsync";
 
-/** The three buckets this screen offers. "completed" is history, reached from a customer. */
+/** The three that are work waiting. "completed" is on the rail but not summarised. */
 type VisibleBucket = Extract<FollowUpBucket, "overdue" | "today" | "upcoming">;
 
-const BUCKETS: { key: VisibleBucket; label: string; tone: "red" | "amber" | "mint" }[] = [
+const BUCKETS: {
+  key: VisibleBucket;
+  label: string;
+  tone: "red" | "amber" | "mint";
+}[] = [
   { key: "overdue", label: "Overdue", tone: "red" },
   { key: "today", label: "Today", tone: "amber" },
   { key: "upcoming", label: "Upcoming", tone: "mint" },
@@ -53,7 +60,8 @@ export default function FollowUpsScreen() {
   const source = useData();
 
   const [search, setSearch] = useState("");
-  const [bucket, setBucket] = useState<VisibleBucket | null>(null);
+  const [bucket, setBucket] = useState<FollowUpBucket | null>(null);
+  const [sort, setSort] = useState<"soonest" | "latest">("soonest");
 
   const state = useAsync(async () => {
     const [overdue, today, upcoming, list] = await Promise.all([
@@ -63,6 +71,7 @@ export default function FollowUpsScreen() {
       source.listFollowUps({
         bucket: bucket ?? undefined,
         search: search || undefined,
+        sort,
         limit: 40,
       }),
     ]);
@@ -75,7 +84,7 @@ export default function FollowUpsScreen() {
       },
       list,
     };
-  }, [source, bucket, search]);
+  }, [source, bucket, search, sort]);
 
   const data = state.data;
   const showSummary = bucket == null && search.length === 0;
@@ -94,10 +103,18 @@ export default function FollowUpsScreen() {
             placeholder="Search customers or follow-ups"
             trailing={
               <Chip
-                label="Sort"
+                label={sort === "latest" ? "Latest" : "Soonest"}
                 tone="neutral"
-                onPress={() => router.push("/followups/filters")}
-                icon={<SlidersHorizontal size={13} color={color.muted} strokeWidth={2} />}
+                onPress={() =>
+                  setSort(sort === "latest" ? "soonest" : "latest")
+                }
+                icon={
+                  <SlidersHorizontal
+                    size={13}
+                    color={color.muted}
+                    strokeWidth={2}
+                  />
+                }
               />
             }
           />
@@ -124,6 +141,15 @@ export default function FollowUpsScreen() {
               onPress={() => setBucket(bucket === b.key ? null : b.key)}
             />
           ))}
+          {/* Completed sits on the rail but not in the summary above: it is
+              history to look back at, not work waiting to be done. */}
+          <Chip
+            label="Completed"
+            active={bucket === "completed"}
+            onPress={() =>
+              setBucket(bucket === "completed" ? null : "completed")
+            }
+          />
         </ScrollView>
 
         {state.loading || !data ? (
@@ -154,7 +180,13 @@ export default function FollowUpsScreen() {
                   </View>
                   <Text
                     variant="hero"
-                    tone={b.tone === "red" ? "red" : b.tone === "amber" ? "amber" : "primary"}
+                    tone={
+                      b.tone === "red"
+                        ? "red"
+                        : b.tone === "amber"
+                          ? "amber"
+                          : "primary"
+                    }
                   >
                     {data.counts[b.key]}
                   </Text>
@@ -176,7 +208,10 @@ export default function FollowUpsScreen() {
                   <View style={styles.row}>
                     <View style={styles.when}>
                       <StatusDot tone={late > 0 ? "red" : "mint"} />
-                      <Text variant="micro" tone={late > 0 ? "redDark" : "muted"}>
+                      <Text
+                        variant="micro"
+                        tone={late > 0 ? "redDark" : "muted"}
+                      >
                         {dueLabel(followUp.dueAt)}
                       </Text>
                       {late > 0 ? (

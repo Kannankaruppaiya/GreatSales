@@ -37,12 +37,48 @@ interface MenuRow {
 }
 
 const ROWS: MenuRow[] = [
-  { key: "profile", label: "My Profile", hint: "Your name, role and contact details", href: "/profile", Icon: User },
-  { key: "notifications", label: "Notifications", hint: "Follow-ups, leads and order updates", href: "/notifications", Icon: Bell },
-  { key: "search", label: "Search", hint: "Find across customers, leads and orders", href: "/search", Icon: Search },
-  { key: "settings", label: "App Settings", hint: "Language, theme and date format", href: "/settings", Icon: Settings },
-  { key: "help", label: "Help & Support", hint: "Answers to common questions", href: "/help", Icon: CircleHelp },
-  { key: "about", label: "About", hint: "Version and product information", href: "/about", Icon: Info },
+  {
+    key: "profile",
+    label: "My Profile",
+    hint: "Your name, role and contact details",
+    href: "/profile",
+    Icon: User,
+  },
+  {
+    key: "notifications",
+    label: "Notifications",
+    hint: "Follow-ups, leads and order updates",
+    href: "/notifications",
+    Icon: Bell,
+  },
+  {
+    key: "search",
+    label: "Search",
+    hint: "Find across customers, leads and orders",
+    href: "/search",
+    Icon: Search,
+  },
+  {
+    key: "settings",
+    label: "App Settings",
+    hint: "Language, theme and date format",
+    href: "/settings",
+    Icon: Settings,
+  },
+  {
+    key: "help",
+    label: "Help & Support",
+    hint: "Answers to common questions",
+    href: "/help",
+    Icon: CircleHelp,
+  },
+  {
+    key: "about",
+    label: "About",
+    hint: "Version and product information",
+    href: "/about",
+    Icon: Info,
+  },
 ];
 
 export default function MoreScreen() {
@@ -85,7 +121,11 @@ export default function MoreScreen() {
             <Card style={styles.menuCard}>
               <View style={styles.menuRow}>
                 <IconPlate size={36}>
-                  <row.Icon size={18} color={color.primaryDark} strokeWidth={2} />
+                  <row.Icon
+                    size={18}
+                    color={color.primaryDark}
+                    strokeWidth={2}
+                  />
                 </IconPlate>
                 <View style={styles.menuText}>
                   <Text variant="cardTitle">{row.label}</Text>

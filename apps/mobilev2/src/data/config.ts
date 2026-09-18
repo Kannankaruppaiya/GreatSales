@@ -34,7 +34,10 @@ export const API_BASE_URL = readString(
 );
 
 /** Seed for the synthetic dataset. Same seed, same rows, every launch. */
-export const SYNTHETIC_SEED = readString("syntheticSeed", "greatsales-mobilev2");
+export const SYNTHETIC_SEED = readString(
+  "syntheticSeed",
+  "greatsales-mobilev2",
+);
 
 /**
  * Artificial latency for the synthetic source, in milliseconds.

@@ -37,13 +37,14 @@ export function OptionSheet<T extends string>({
 }: OptionSheetProps<T>) {
   return (
     <BottomSheet visible={visible} onClose={onClose} title={title}>
-      <View style={styles.list}>
+      <View style={styles.list} accessibilityRole="radiogroup">
         {options.map((option) => {
           const selected = option.value === value;
           return (
             <Pressable
               key={option.value}
               accessibilityRole="radio"
+              accessibilityLabel={option.label}
               accessibilityState={{ checked: selected }}
               onPress={() => {
                 onChange(option.value);
@@ -59,7 +60,9 @@ export function OptionSheet<T extends string>({
                   </Text>
                 ) : null}
               </View>
-              {selected ? <Check size={17} color={color.primary} strokeWidth={2.5} /> : null}
+              {selected ? (
+                <Check size={17} color={color.primary} strokeWidth={2.5} />
+              ) : null}
             </Pressable>
           );
         })}
@@ -85,6 +88,11 @@ export function OptionSheet<T extends string>({
 
 const styles = StyleSheet.create({
   list: { paddingBottom: space.md },
-  row: { flexDirection: "row", alignItems: "center", minHeight: 48, gap: space.md },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 48,
+    gap: space.md,
+  },
   rowText: { flex: 1, gap: 2 },
 });

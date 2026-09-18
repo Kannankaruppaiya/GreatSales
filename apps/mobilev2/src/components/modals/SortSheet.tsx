@@ -32,7 +32,12 @@ export interface SortSheetProps {
   onChange: (next: LeadSort) => void;
 }
 
-export function SortSheet({ visible, onClose, value, onChange }: SortSheetProps) {
+export function SortSheet({
+  visible,
+  onClose,
+  value,
+  onChange,
+}: SortSheetProps) {
   return (
     <BottomSheet visible={visible} onClose={onClose} title="Sort by">
       {ORDER.map((sort) => {
@@ -63,7 +68,12 @@ export function SortSheet({ visible, onClose, value, onChange }: SortSheetProps)
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", minHeight: 48, gap: space.md },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 48,
+    gap: space.md,
+  },
   label: { flex: 1 },
   tail: { height: space.sm },
 });

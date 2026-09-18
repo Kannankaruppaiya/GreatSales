@@ -9,7 +9,12 @@ import React from "react";
 import { Modal, Pressable, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CalendarPlus, ShoppingCart, UserPlus, Target } from "lucide-react-native";
+import {
+  CalendarPlus,
+  ShoppingCart,
+  UserPlus,
+  Target,
+} from "lucide-react-native";
 
 import { color, elevation, radius, space } from "@/design/tokens";
 
@@ -78,7 +83,9 @@ export function QuickActionsSheet({
         accessibilityRole="button"
         onPress={onClose}
       />
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + space.section }]}>
+      <View
+        style={[styles.sheet, { paddingBottom: insets.bottom + space.section }]}
+      >
         <View style={styles.grabber} />
         <Text variant="section" style={styles.title}>
           Quick Actions
@@ -94,10 +101,17 @@ export function QuickActionsSheet({
               onClose();
               router.push(action.href as never);
             }}
-            style={({ pressed }) => [styles.row, pressed ? styles.pressed : null]}
+            style={({ pressed }) => [
+              styles.row,
+              pressed ? styles.pressed : null,
+            ]}
           >
             <IconPlate size={38}>
-              <action.Icon size={19} color={color.primaryDark} strokeWidth={2} />
+              <action.Icon
+                size={19}
+                color={color.primaryDark}
+                strokeWidth={2}
+              />
             </IconPlate>
             <View style={styles.rowText}>
               <Text variant="cardTitle">{action.label}</Text>

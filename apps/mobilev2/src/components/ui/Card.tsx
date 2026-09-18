@@ -90,7 +90,12 @@ export interface PanelProps {
 }
 
 /** An inner panel. Radius 11, hairline, never a shadow. */
-export function Panel({ children, tone = "none", style, flush = false }: PanelProps) {
+export function Panel({
+  children,
+  tone = "none",
+  style,
+  flush = false,
+}: PanelProps) {
   return (
     <View
       style={[

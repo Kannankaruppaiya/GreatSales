@@ -705,24 +705,45 @@ export function generateDataset(
 
   // ---- Notifications ------------------------------------------------------
   const notifications: SyntheticNotification[] = [];
+  // System notices are drawn without replacement, so the list never shows the
+  // same one twice — a feed repeating one line reads as a bug in the feed.
+  const systemNotices = [
+    "A newer version of GreatSales is available.",
+    "Your projections for next month are open for editing.",
+    "Last month's projections are now closed.",
+    "Price lists were refreshed by your administrator.",
+  ];
+  let systemNext = 0;
+
   for (let i = 0; i < 12; i += 1) {
     const kind = rng.pick(["followup", "lead", "order", "system"] as const);
     const customer = rng.pick(customers);
+
+    let title: string;
+    let body: string;
+    if (kind === "system") {
+      title = "GreatSales";
+      body = systemNotices[systemNext % systemNotices.length]!;
+      systemNext += 1;
+    } else if (kind === "followup") {
+      title = "Follow-up due";
+      body = `${customer.name} — ${rng.pick(FOLLOW_UP_PURPOSES)}`;
+    } else if (kind === "lead") {
+      title = "Opportunity updated";
+      body = `${customer.name} — ${rng.pick(OPPORTUNITY_THEMES)}`;
+    } else {
+      const order = orders.find((o) => o.customerId === customer.id);
+      title = "Order status changed";
+      body = order
+        ? `${order.soNumber} — ${customer.name}`
+        : `${customer.name} — ${rng.pick(OPPORTUNITY_THEMES)}`;
+    }
+
     notifications.push({
       id: `notif-${i + 1}`,
       kind,
-      title:
-        kind === "followup"
-          ? "Follow-up due"
-          : kind === "lead"
-            ? "Opportunity updated"
-            : kind === "order"
-              ? "Order status changed"
-              : "App update available",
-      body:
-        kind === "system"
-          ? "A newer version of GreatSales is available."
-          : `${customer.name} — ${rng.pick(OPPORTUNITY_THEMES)}`,
+      title,
+      body,
       at: iso(now, -rng.int(0, 14), rng.int(8, 20)),
       read: rng.chance(0.55),
     });

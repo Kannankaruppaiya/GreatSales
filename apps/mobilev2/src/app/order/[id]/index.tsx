@@ -36,7 +36,11 @@ import {
 import { useData } from "@/data/provider";
 import { color, radius, space } from "@/design/tokens";
 import { longDate, money, quantity, timeOfDay } from "@/lib/format";
-import { ORDER_STATUS_LABELS, ORDER_STATUS_TONES, PAYMENT_TERMS_LABELS } from "@/lib/labels";
+import {
+  ORDER_STATUS_LABELS,
+  ORDER_STATUS_TONES,
+  PAYMENT_TERMS_LABELS,
+} from "@/lib/labels";
 import { useAsync } from "@/lib/useAsync";
 
 /** The order the statuses are reached in, for the timeline's unreached steps. */
@@ -52,7 +56,10 @@ const FLOW: OrderStatusValue[] = [
 /** Whole hours between two instants, or null when either is missing. */
 function hoursBetween(from?: string, to?: string): number | null {
   if (!from || !to) return null;
-  return Math.max(0, Math.round((Date.parse(to) - Date.parse(from)) / 3_600_000));
+  return Math.max(
+    0,
+    Math.round((Date.parse(to) - Date.parse(from)) / 3_600_000),
+  );
 }
 
 function duration(hours: number | null): string {
@@ -70,15 +77,22 @@ export default function OrderDetailScreen() {
   const state = useAsync(async () => {
     const order = id ? await source.getOrder(id) : null;
     if (!order) return { order: null, invoices: [] };
-    const invoices = await source.listInvoices({ customerId: order.customerId, limit: 50 });
-    return { order, invoices: invoices.items.filter((i) => i.orderId === order.id) };
+    const invoices = await source.listInvoices({
+      customerId: order.customerId,
+      limit: 50,
+    });
+    return {
+      order,
+      invoices: invoices.items.filter((i) => i.orderId === order.id),
+    };
   }, [source, id]);
 
   const order = state.data?.order ?? null;
 
   const reached = useMemo(() => {
     const map = new Map<OrderStatusValue, string>();
-    for (const entry of order?.statusHistory ?? []) map.set(entry.status, entry.at);
+    for (const entry of order?.statusHistory ?? [])
+      map.set(entry.status, entry.at);
     return map;
   }, [order]);
 
@@ -106,13 +120,21 @@ export default function OrderDetailScreen() {
       late,
       overdueBy:
         late && order.expectedDeliveryAt
-          ? hoursBetween(order.expectedDeliveryAt, delivered ?? new Date().toISOString())
+          ? hoursBetween(
+              order.expectedDeliveryAt,
+              delivered ?? new Date().toISOString(),
+            )
           : null,
     };
   }, [order, reached]);
 
   return (
-    <Screen tabBarSpacing bleed onRefresh={state.reload} refreshing={state.refreshing}>
+    <Screen
+      tabBarSpacing
+      bleed
+      onRefresh={state.reload}
+      refreshing={state.refreshing}
+    >
       <AppBar title="Order" />
 
       <View style={styles.body}>
@@ -151,14 +173,19 @@ export default function OrderDetailScreen() {
                   {index > 0 ? <RowDivider /> : null}
                   <View style={styles.line}>
                     <View style={styles.plate}>
-                      <Package size={16} color={color.primaryDark} strokeWidth={2} />
+                      <Package
+                        size={16}
+                        color={color.primaryDark}
+                        strokeWidth={2}
+                      />
                     </View>
                     <View style={styles.headText}>
                       <Text variant="cardTitle" numberOfLines={1}>
                         {line.productName}
                       </Text>
                       <Text variant="caption" tone="muted" numberOfLines={1}>
-                        {quantity(line.qty, line.unit)} × {money(line.price)} · {line.principal}
+                        {quantity(line.qty, line.unit)} × {money(line.price)} ·{" "}
+                        {line.principal}
                       </Text>
                     </View>
                     <Text variant="cardTitle">{money(line.value)}</Text>
@@ -180,13 +207,21 @@ export default function OrderDetailScreen() {
             <Panel style={styles.panel}>
               <KeyValueRow
                 label="Payment terms"
-                value={order.paymentTerms ? PAYMENT_TERMS_LABELS[order.paymentTerms] : null}
+                value={
+                  order.paymentTerms
+                    ? PAYMENT_TERMS_LABELS[order.paymentTerms]
+                    : null
+                }
                 emptyText="Not set"
               />
               <RowDivider />
               <KeyValueRow
                 label="Expected delivery"
-                value={order.expectedDeliveryAt ? longDate(order.expectedDeliveryAt) : null}
+                value={
+                  order.expectedDeliveryAt
+                    ? longDate(order.expectedDeliveryAt)
+                    : null
+                }
                 emptyText="Not set"
               />
               <RowDivider />
@@ -209,11 +244,20 @@ export default function OrderDetailScreen() {
                     <View style={styles.stepRail}>
                       <View style={[styles.dot, done ? styles.dotDone : null]}>
                         {done ? (
-                          <Check size={11} color={color.surfaceWhite} strokeWidth={3} />
+                          <Check
+                            size={11}
+                            color={color.surfaceWhite}
+                            strokeWidth={3}
+                          />
                         ) : null}
                       </View>
                       {index < FLOW.length - 1 ? (
-                        <View style={[styles.connector, done ? styles.connectorDone : null]} />
+                        <View
+                          style={[
+                            styles.connector,
+                            done ? styles.connectorDone : null,
+                          ]}
+                        />
                       ) : null}
                     </View>
                     <View style={styles.stepText}>
@@ -221,7 +265,9 @@ export default function OrderDetailScreen() {
                         {ORDER_STATUS_LABELS[status]}
                       </Text>
                       <Text variant="caption" tone="muted">
-                        {at ? `${longDate(at)}, ${timeOfDay(at)}` : "Not reached yet"}
+                        {at
+                          ? `${longDate(at)}, ${timeOfDay(at)}`
+                          : "Not reached yet"}
                       </Text>
                     </View>
                   </View>
@@ -245,15 +291,30 @@ export default function OrderDetailScreen() {
               Fulfilment
             </Text>
             <Panel style={styles.panel}>
-              <KeyValueRow label="Acknowledgement" value={duration(sla?.acknowledgement ?? null)} />
+              <KeyValueRow
+                label="Acknowledgement"
+                value={duration(sla?.acknowledgement ?? null)}
+              />
               <RowDivider />
-              <KeyValueRow label="Warehouse preparation" value={duration(sla?.warehouse ?? null)} />
+              <KeyValueRow
+                label="Warehouse preparation"
+                value={duration(sla?.warehouse ?? null)}
+              />
               <RowDivider />
-              <KeyValueRow label="Transit" value={duration(sla?.transit ?? null)} />
+              <KeyValueRow
+                label="Transit"
+                value={duration(sla?.transit ?? null)}
+              />
               <RowDivider />
-              <KeyValueRow label="Total fulfilment" value={duration(sla?.total ?? null)} />
+              <KeyValueRow
+                label="Total fulfilment"
+                value={duration(sla?.total ?? null)}
+              />
               <RowDivider />
-              <KeyValueRow label="Customer receipt" value={duration(sla?.receipt ?? null)} />
+              <KeyValueRow
+                label="Customer receipt"
+                value={duration(sla?.receipt ?? null)}
+              />
             </Panel>
 
             {sla?.late ? (
@@ -295,7 +356,9 @@ export default function OrderDetailScreen() {
               label="Order Summary"
               variant="secondary"
               block
-              icon={<FileText size={16} color={color.primary} strokeWidth={2} />}
+              icon={
+                <FileText size={16} color={color.primary} strokeWidth={2} />
+              }
               onPress={() => router.push(`/order/${order.id}/invoice`)}
               style={styles.heading}
             />
@@ -304,7 +367,9 @@ export default function OrderDetailScreen() {
               variant="secondary"
               block
               icon={<Plus size={16} color={color.primary} strokeWidth={2.5} />}
-              onPress={() => router.push(`/order/new?customerId=${order.customerId}`)}
+              onPress={() =>
+                router.push(`/order/new?customerId=${order.customerId}`)
+              }
             />
           </>
         )}
@@ -317,7 +382,12 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: space.gutter, gap: space.lg },
   headRow: { flexDirection: "row", alignItems: "center", gap: space.md },
   headText: { flex: 1, gap: 2 },
-  line: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.lg },
+  line: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    padding: space.lg,
+  },
   plate: {
     width: 34,
     height: 34,
@@ -343,7 +413,12 @@ const styles = StyleSheet.create({
   },
   dotDone: { backgroundColor: color.primary, borderColor: color.primary },
   dotCancelled: { backgroundColor: color.red, borderColor: color.red },
-  connector: { flex: 1, width: 2, backgroundColor: color.line, marginVertical: 2 },
+  connector: {
+    flex: 1,
+    width: 2,
+    backgroundColor: color.line,
+    marginVertical: 2,
+  },
   connectorDone: { backgroundColor: color.primary },
   stepText: { flex: 1, gap: 2, paddingBottom: space.lg },
   invoiceRow: { paddingVertical: space.md },

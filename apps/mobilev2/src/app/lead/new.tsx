@@ -80,7 +80,8 @@ export default function NewLeadScreen() {
   const [customer, setCustomer] = useState<EntityOption | null>(null);
   /** 04B — the branch taken when the customer does not exist yet. */
   const [creatingCustomer, setCreatingCustomer] = useState(false);
-  const [customerDraft, setCustomerDraft] = useState<CustomerDraft>(EMPTY_CUSTOMER_DRAFT);
+  const [customerDraft, setCustomerDraft] =
+    useState<CustomerDraft>(EMPTY_CUSTOMER_DRAFT);
 
   const [title, setTitle] = useState("");
   const [stage, setStage] = useState<DealStageValue>("NewEnquiries");
@@ -95,11 +96,20 @@ export default function NewLeadScreen() {
   const [followUpNotes, setFollowUpNotes] = useState("");
 
   const [sheet, setSheet] = useState<
-    "customer" | "product" | "stage" | "close" | "fuDate" | "fuTime" | "fuPurpose" | null
+    | "customer"
+    | "product"
+    | "stage"
+    | "close"
+    | "fuDate"
+    | "fuTime"
+    | "fuPurpose"
+    | null
   >(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [created, setCreated] = useState<{ id: string; value: number } | null>(null);
+  const [created, setCreated] = useState<{ id: string; value: number } | null>(
+    null,
+  );
 
   // Opened from a customer, the first step is already answered.
   useEffect(() => {
@@ -117,7 +127,10 @@ export default function NewLeadScreen() {
 
   const loadCustomers = useCallback(
     async (search: string): Promise<EntityOption[]> => {
-      const page = await source.listCustomers({ search: search || undefined, limit: 25 });
+      const page = await source.listCustomers({
+        search: search || undefined,
+        limit: 25,
+      });
       return page.items.map((row) => ({
         id: row.id,
         title: row.name,
@@ -129,7 +142,10 @@ export default function NewLeadScreen() {
 
   const loadProducts = useCallback(
     async (search: string): Promise<EntityOption[]> => {
-      const page = await source.listProducts({ search: search || undefined, limit: 25 });
+      const page = await source.listProducts({
+        search: search || undefined,
+        limit: 25,
+      });
       return page.items.map((row) => ({
         id: row.id,
         title: row.name,
@@ -147,9 +163,15 @@ export default function NewLeadScreen() {
     if (!product) return;
 
     const mappings = customer
-      ? await source.listMappings({ customerId: customer.id, productId: product.id, limit: 5 })
+      ? await source.listMappings({
+          customerId: customer.id,
+          productId: product.id,
+          limit: 5,
+        })
       : null;
-    const agreed = mappings?.items.find((m) => m.productId === product.id)?.agreedPrice ?? null;
+    const agreed =
+      mappings?.items.find((m) => m.productId === product.id)?.agreedPrice ??
+      null;
 
     setProducts((current) => [
       ...current,
@@ -182,8 +204,14 @@ export default function NewLeadScreen() {
 
   async function saveCustomerBranch(): Promise<EntityOption | null> {
     if (!isMutable(source)) return null;
-    const row = await source.createCustomer(customerDraftToInput(customerDraft));
-    const option: EntityOption = { id: row.id, title: row.name, subtitle: row.area };
+    const row = await source.createCustomer(
+      customerDraftToInput(customerDraft),
+    );
+    const option: EntityOption = {
+      id: row.id,
+      title: row.name,
+      subtitle: row.area,
+    };
     setCustomer(option);
     setCreatingCustomer(false);
     return option;
@@ -198,7 +226,9 @@ export default function NewLeadScreen() {
       try {
         await saveCustomerBranch();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "The customer could not be saved.");
+        setError(
+          e instanceof Error ? e.message : "The customer could not be saved.",
+        );
         return;
       } finally {
         setSaving(false);
@@ -254,7 +284,9 @@ export default function NewLeadScreen() {
 
       setCreated({ id: lead.id, value: lead.totalValue });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "The lead could not be created.");
+      setError(
+        e instanceof Error ? e.message : "The lead could not be created.",
+      );
     } finally {
       setSaving(false);
     }
@@ -269,14 +301,22 @@ export default function NewLeadScreen() {
           { label: "Customer", value: customer?.title ?? "" },
           { label: "Deal value", value: money(created.value) },
           { label: "Stage", value: DEAL_STAGE_LABELS[stage] },
-          { label: "Expected closure", value: expClose ? longDate(expClose) : "Not set" },
+          {
+            label: "Expected closure",
+            value: expClose ? longDate(expClose) : "Not set",
+          },
           {
             label: "Next follow-up",
-            value: followUpDate ? `${longDate(followUpDate)}, ${formatSlot(followUpTime ?? "10:00")}` : "None",
+            value: followUpDate
+              ? `${longDate(followUpDate)}, ${formatSlot(followUpTime ?? "10:00")}`
+              : "None",
           },
         ]}
         actions={[
-          { label: "View Opportunity", onPress: () => router.replace(`/lead/${created.id}`) },
+          {
+            label: "View Opportunity",
+            onPress: () => router.replace(`/lead/${created.id}`),
+          },
           {
             label: "Add Another Lead",
             onPress: () => {
@@ -323,7 +363,10 @@ export default function NewLeadScreen() {
                   Pick an existing customer instead
                 </Text>
               </Pressable>
-              <CustomerFields value={customerDraft} onChange={setCustomerDraft} />
+              <CustomerFields
+                value={customerDraft}
+                onChange={setCustomerDraft}
+              />
             </View>
           ) : (
             <View style={styles.section}>
@@ -367,7 +410,9 @@ export default function NewLeadScreen() {
               label="Expected closure"
               value={expClose ? longDate(expClose) : null}
               placeholder="Pick a date"
-              icon={<CalendarDays size={16} color={color.muted} strokeWidth={2} />}
+              icon={
+                <CalendarDays size={16} color={color.muted} strokeWidth={2} />
+              }
               onPress={() => setSheet("close")}
               hint="Optional"
             />
@@ -429,7 +474,9 @@ export default function NewLeadScreen() {
                           const qty = Number(t.replace(/[^0-9.]/g, "")) || 0;
                           setProducts((c) =>
                             c.map((p) =>
-                              p.productId === product.productId ? { ...p, qty } : p,
+                              p.productId === product.productId
+                                ? { ...p, qty }
+                                : p,
                             ),
                           );
                         }}
@@ -443,7 +490,9 @@ export default function NewLeadScreen() {
                           const price = Number(t.replace(/[^0-9.]/g, "")) || 0;
                           setProducts((c) =>
                             c.map((p) =>
-                              p.productId === product.productId ? { ...p, price } : p,
+                              p.productId === product.productId
+                                ? { ...p, price }
+                                : p,
                             ),
                           );
                         }}
@@ -491,7 +540,13 @@ export default function NewLeadScreen() {
                   label="Date"
                   value={followUpDate ? longDate(followUpDate) : null}
                   placeholder="Pick a date"
-                  icon={<CalendarDays size={16} color={color.muted} strokeWidth={2} />}
+                  icon={
+                    <CalendarDays
+                      size={16}
+                      color={color.muted}
+                      strokeWidth={2}
+                    />
+                  }
                   onPress={() => setSheet("fuDate")}
                 />
               </View>
@@ -559,7 +614,9 @@ export default function NewLeadScreen() {
                           {product.qty} {product.unit} × {money(product.price)}
                         </Text>
                       </View>
-                      <Text variant="cardTitle">{money(product.qty * product.price)}</Text>
+                      <Text variant="cardTitle">
+                        {money(product.qty * product.price)}
+                      </Text>
                     </View>
                   </View>
                 ))}

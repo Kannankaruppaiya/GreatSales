@@ -38,7 +38,10 @@ import { money } from "@/lib/format";
 const STEPS = ["Customer", "Product", "Price", "Review"];
 
 export default function NewMappingScreen() {
-  const params = useLocalSearchParams<{ customerId?: string; productId?: string }>();
+  const params = useLocalSearchParams<{
+    customerId?: string;
+    productId?: string;
+  }>();
   const router = useRouter();
   const source = useData();
 
@@ -59,9 +62,15 @@ export default function NewMappingScreen() {
   useEffect(() => {
     let live = true;
     (async () => {
-      const customerRow = params.customerId ? await source.getCustomer(params.customerId) : null;
+      const customerRow = params.customerId
+        ? await source.getCustomer(params.customerId)
+        : null;
       if (live && customerRow) {
-        setCustomer({ id: customerRow.id, title: customerRow.name, subtitle: customerRow.area });
+        setCustomer({
+          id: customerRow.id,
+          title: customerRow.name,
+          subtitle: customerRow.area,
+        });
       }
       if (!params.productId) {
         if (customerRow) setStep(1);
@@ -70,7 +79,11 @@ export default function NewMappingScreen() {
       const products = await source.listProducts({ limit: 200 });
       const productRow = products.items.find((p) => p.id === params.productId);
       if (live && productRow) {
-        setProduct({ id: productRow.id, title: productRow.name, subtitle: productRow.principal });
+        setProduct({
+          id: productRow.id,
+          title: productRow.name,
+          subtitle: productRow.principal,
+        });
         setListPrice(productRow.listPrice);
         setPrincipal(productRow.principal);
         if (customerRow) setStep(2);
@@ -83,7 +96,10 @@ export default function NewMappingScreen() {
 
   const loadCustomers = useCallback(
     async (search: string): Promise<EntityOption[]> => {
-      const page = await source.listCustomers({ search: search || undefined, limit: 25 });
+      const page = await source.listCustomers({
+        search: search || undefined,
+        limit: 25,
+      });
       return page.items.map((row) => ({
         id: row.id,
         title: row.name,
@@ -95,7 +111,10 @@ export default function NewMappingScreen() {
 
   const loadProducts = useCallback(
     async (search: string): Promise<EntityOption[]> => {
-      const page = await source.listProducts({ search: search || undefined, limit: 25 });
+      const page = await source.listProducts({
+        search: search || undefined,
+        limit: 25,
+      });
       return page.items.map((row) => ({
         id: row.id,
         title: row.name,
@@ -116,8 +135,10 @@ export default function NewMappingScreen() {
     setAgreed("");
   }
 
-  const agreedValue = agreed.trim() === "" ? null : Number(agreed.replace(/[^0-9.]/g, ""));
-  const canAdvance = step === 0 ? customer != null : step === 1 ? product != null : true;
+  const agreedValue =
+    agreed.trim() === "" ? null : Number(agreed.replace(/[^0-9.]/g, ""));
+  const canAdvance =
+    step === 0 ? customer != null : step === 1 ? product != null : true;
 
   async function submit() {
     if (!customer || !product || !isMutable(source)) return;
@@ -131,7 +152,9 @@ export default function NewMappingScreen() {
       });
       setCreated(mapping.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "The mapping could not be saved.");
+      setError(
+        e instanceof Error ? e.message : "The mapping could not be saved.",
+      );
     } finally {
       setSaving(false);
     }
@@ -144,14 +167,21 @@ export default function NewMappingScreen() {
         reference={`${customer?.title} · ${product?.title}`}
         facts={[
           { label: "Principal", value: principal ?? "Not set" },
-          { label: "List price", value: listPrice != null ? money(listPrice) : "—" },
+          {
+            label: "List price",
+            value: listPrice != null ? money(listPrice) : "—",
+          },
           {
             label: "Agreed price",
-            value: agreedValue != null ? money(agreedValue) : "List price applies",
+            value:
+              agreedValue != null ? money(agreedValue) : "List price applies",
           },
         ]}
         actions={[
-          { label: "View Mapping", onPress: () => router.replace(`/mapping/${created}`) },
+          {
+            label: "View Mapping",
+            onPress: () => router.replace(`/mapping/${created}`),
+          },
           {
             label: "Add Another Mapping",
             onPress: () => {
@@ -214,19 +244,31 @@ export default function NewMappingScreen() {
         {step === 2 ? (
           <View style={styles.section}>
             <Panel tone="mint" style={styles.panel}>
-              <KeyValueRow label="List price" value={listPrice != null ? money(listPrice) : "—"} />
+              <KeyValueRow
+                label="List price"
+                value={listPrice != null ? money(listPrice) : "—"}
+              />
             </Panel>
             <Input
               label="Agreed price"
               value={agreed}
               onChangeText={setAgreed}
               keyboardType="numeric"
-              placeholder={listPrice != null ? String(listPrice) : "Price per unit"}
-              icon={<IndianRupee size={15} color={color.muted} strokeWidth={2} />}
+              placeholder={
+                listPrice != null ? String(listPrice) : "Price per unit"
+              }
+              icon={
+                <IndianRupee size={15} color={color.muted} strokeWidth={2} />
+              }
               hint="Leave it empty to charge the list price"
             />
-            {agreedValue != null && listPrice != null && agreedValue !== listPrice ? (
-              <Text variant="caption" tone={agreedValue < listPrice ? "amber" : "primaryDark"}>
+            {agreedValue != null &&
+            listPrice != null &&
+            agreedValue !== listPrice ? (
+              <Text
+                variant="caption"
+                tone={agreedValue < listPrice ? "amber" : "primaryDark"}
+              >
                 {agreedValue < listPrice
                   ? `${money(listPrice - agreedValue)} below list price.`
                   : `${money(agreedValue - listPrice)} above list price.`}
@@ -242,9 +284,16 @@ export default function NewMappingScreen() {
               <RowDivider />
               <KeyValueRow label="Product" value={product?.title ?? ""} />
               <RowDivider />
-              <KeyValueRow label="Principal" value={principal} emptyText="Not set" />
+              <KeyValueRow
+                label="Principal"
+                value={principal}
+                emptyText="Not set"
+              />
               <RowDivider />
-              <KeyValueRow label="List price" value={listPrice != null ? money(listPrice) : "—"} />
+              <KeyValueRow
+                label="List price"
+                value={listPrice != null ? money(listPrice) : "—"}
+              />
               <RowDivider />
               <KeyValueRow
                 label="Agreed price"
@@ -263,7 +312,9 @@ export default function NewMappingScreen() {
 
         <StepFooter
           onBack={step > 0 ? () => setStep((s) => s - 1) : undefined}
-          onNext={step === STEPS.length - 1 ? submit : () => setStep((s) => s + 1)}
+          onNext={
+            step === STEPS.length - 1 ? submit : () => setStep((s) => s + 1)
+          }
           nextLabel={step === STEPS.length - 1 ? "Create Mapping" : "Continue"}
           nextDisabled={!canAdvance}
           busy={saving}

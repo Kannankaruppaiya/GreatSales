@@ -31,7 +31,12 @@ export interface SuccessScreenProps {
   actions: SuccessAction[];
 }
 
-export function SuccessScreen({ title, reference, facts, actions }: SuccessScreenProps) {
+export function SuccessScreen({
+  title,
+  reference,
+  facts,
+  actions,
+}: SuccessScreenProps) {
   return (
     <Screen tabBarSpacing bleed>
       <View style={styles.body}>
@@ -65,7 +70,9 @@ export function SuccessScreen({ title, reference, facts, actions }: SuccessScree
               key={action.label}
               label={action.label}
               block
-              variant={action.variant ?? (index === 0 ? "primary" : "secondary")}
+              variant={
+                action.variant ?? (index === 0 ? "primary" : "secondary")
+              }
               onPress={action.onPress}
             />
           ))}

@@ -79,10 +79,15 @@ export default function OutstandingScreen() {
       (invoice) =>
         invoice.pending > 0 &&
         inBand(invoice.agingDays, band) &&
-        (!redZoneOnly || invoice.payZone === "RedZone" || invoice.payZone === "Blacklist"),
+        (!redZoneOnly ||
+          invoice.payZone === "RedZone" ||
+          invoice.payZone === "Blacklist"),
     );
 
-    const map = new Map<string, { name: string; payZone: Invoice["payZone"]; rows: Invoice[] }>();
+    const map = new Map<
+      string,
+      { name: string; payZone: Invoice["payZone"]; rows: Invoice[] }
+    >();
     for (const invoice of rows) {
       const entry = map.get(invoice.customerId) ?? {
         name: invoice.customerName,
@@ -111,7 +116,12 @@ export default function OutstandingScreen() {
   const filtered = band !== "all" || redZoneOnly || search.length > 0;
 
   return (
-    <Screen tabBarSpacing bleed onRefresh={state.reload} refreshing={state.refreshing}>
+    <Screen
+      tabBarSpacing
+      bleed
+      onRefresh={state.reload}
+      refreshing={state.refreshing}
+    >
       <AppBar title="Outstanding" />
 
       <View style={styles.body}>
@@ -163,7 +173,8 @@ export default function OutstandingScreen() {
             <Panel tone={total > 0 ? "amber" : "mint"} style={styles.total}>
               <Text variant="hero">{money(total)}</Text>
               <Text variant="caption" tone="muted">
-                across {groups.length} {groups.length === 1 ? "customer" : "customers"}
+                across {groups.length}{" "}
+                {groups.length === 1 ? "customer" : "customers"}
               </Text>
             </Panel>
 
@@ -183,12 +194,17 @@ export default function OutstandingScreen() {
                         {group.name}
                       </Text>
                       <Text variant="caption" tone="muted">
-                        {group.rows.length} {group.rows.length === 1 ? "invoice" : "invoices"}
-                        {group.oldest > 0 ? ` · oldest ${group.oldest} days` : ""}
+                        {group.rows.length}{" "}
+                        {group.rows.length === 1 ? "invoice" : "invoices"}
+                        {group.oldest > 0
+                          ? ` · oldest ${group.oldest} days`
+                          : ""}
                       </Text>
                     </View>
                     <View style={styles.groupRight}>
-                      <Text variant="cardTitle">{moneyShort(group.pending)}</Text>
+                      <Text variant="cardTitle">
+                        {moneyShort(group.pending)}
+                      </Text>
                       {group.payZone ? (
                         <Chip
                           label={PAY_ZONE_LABELS[group.payZone]}
@@ -197,9 +213,17 @@ export default function OutstandingScreen() {
                       ) : null}
                     </View>
                     {expanded ? (
-                      <ChevronDown size={16} color={color.muted2} strokeWidth={2} />
+                      <ChevronDown
+                        size={16}
+                        color={color.muted2}
+                        strokeWidth={2}
+                      />
                     ) : (
-                      <ChevronRight size={16} color={color.muted2} strokeWidth={2} />
+                      <ChevronRight
+                        size={16}
+                        color={color.muted2}
+                        strokeWidth={2}
+                      />
                     )}
                   </Pressable>
 
@@ -213,13 +237,17 @@ export default function OutstandingScreen() {
                           style={styles.invoiceRow}
                         >
                           <View style={styles.groupText}>
-                            <Text variant="secondary">{invoice.invoiceNumber}</Text>
+                            <Text variant="secondary">
+                              {invoice.invoiceNumber}
+                            </Text>
                             <Text variant="nano" tone="muted">
                               Due {longDate(invoice.dueAt)}
                             </Text>
                           </View>
                           <View style={styles.groupRight}>
-                            <Text variant="secondary">{money(invoice.pending)}</Text>
+                            <Text variant="secondary">
+                              {money(invoice.pending)}
+                            </Text>
                             <Text
                               variant="nano"
                               tone={invoice.agingDays > 0 ? "red" : "muted2"}
@@ -244,7 +272,12 @@ export default function OutstandingScreen() {
 
 const styles = StyleSheet.create({
   body: { paddingHorizontal: space.gutter, gap: space.md },
-  filters: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, paddingBottom: space.sm },
+  filters: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: space.sm,
+    paddingBottom: space.sm,
+  },
   total: { alignItems: "center", gap: 2, paddingVertical: space.lg },
   group: {},
   groupHead: {

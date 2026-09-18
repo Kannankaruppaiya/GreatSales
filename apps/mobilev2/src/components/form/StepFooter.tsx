@@ -31,7 +31,12 @@ export function StepFooter({
   return (
     <View style={styles.root}>
       {onBack ? (
-        <Button label={backLabel} variant="secondary" style={styles.back} onPress={onBack} />
+        <Button
+          label={backLabel}
+          variant="secondary"
+          style={styles.back}
+          onPress={onBack}
+        />
       ) : null}
       <Button
         label={busy ? "Working…" : nextLabel}

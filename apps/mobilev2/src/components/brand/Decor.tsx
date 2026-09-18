@@ -102,7 +102,11 @@ export function MintWash({ height = 248 }: { height?: number }) {
 }
 
 /** Ridges pinned to the bottom of a screen, with the wash behind them. */
-export function OnboardingBackdrop({ washHeight = 248 }: { washHeight?: number }) {
+export function OnboardingBackdrop({
+  washHeight = 248,
+}: {
+  washHeight?: number;
+}) {
   return (
     <View
       pointerEvents="none"
