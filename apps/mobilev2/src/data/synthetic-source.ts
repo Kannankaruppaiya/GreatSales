@@ -35,16 +35,7 @@ import type {
   ProjectionQuery,
 } from "./source";
 import { generateDataset, type SyntheticDataset } from "./synthetic/dataset";
-
-/** Stages that count as still in play. */
-const OPEN_STAGES: DealStageValue[] = [
-  "NewEnquiries",
-  "NeedsAnalysis",
-  "TrialsAndSampleTests",
-  "ProposalsAndPriceQuote",
-  "NegotiationOralConfirmation",
-  "TrialProblem",
-];
+import { ALL_STAGES, OPEN_STAGES } from "@/lib/stages";
 
 const DEFAULT_LIMIT = 20;
 
@@ -54,7 +45,10 @@ function startOfDay(d: Date): number {
   return copy.getTime();
 }
 
-function matches(haystack: (string | null | undefined)[], needle: string): boolean {
+function matches(
+  haystack: (string | null | undefined)[],
+  needle: string,
+): boolean {
   const q = needle.trim().toLowerCase();
   if (!q) return true;
   return haystack.some((h) => (h ?? "").toLowerCase().includes(q));
@@ -182,21 +176,32 @@ export class SyntheticSource implements MutableDataSource {
     if (query.search) {
       rows = rows.filter((c) =>
         matches(
-          [c.name, c.area, c.industryName, c.primaryContactName, c.primaryContactPhone],
+          [
+            c.name,
+            c.area,
+            c.industryName,
+            c.primaryContactName,
+            c.primaryContactPhone,
+          ],
           query.search!,
         ),
       );
     }
-    if (query.category) rows = rows.filter((c) => c.category === query.category);
+    if (query.category)
+      rows = rows.filter((c) => c.category === query.category);
     if (query.area) rows = rows.filter((c) => c.area === query.area);
-    if (query.industry) rows = rows.filter((c) => c.industryName === query.industry);
+    if (query.industry)
+      rows = rows.filter((c) => c.industryName === query.industry);
     if (query.withOutstanding) rows = rows.filter((c) => c.outstanding > 0);
     rows.sort((a, b) => a.name.localeCompare(b.name));
     return settle(paginate(rows, query), this.latency);
   }
 
   async getCustomer(id: string): Promise<Customer | null> {
-    return settle(this.data.customers.find((c) => c.id === id) ?? null, this.latency);
+    return settle(
+      this.data.customers.find((c) => c.id === id) ?? null,
+      this.latency,
+    );
   }
 
   // ---- Leads --------------------------------------------------------------
@@ -205,18 +210,35 @@ export class SyntheticSource implements MutableDataSource {
     let rows = [...this.data.leads];
     if (query.search) {
       rows = rows.filter((l) =>
-        matches([l.customerName, l.contactName, l.area, l.industryName], query.search!),
+        matches(
+          [l.customerName, l.contactName, l.area, l.industryName],
+          query.search!,
+        ),
       );
     }
     if (query.stage) rows = rows.filter((l) => l.stage === query.stage);
-    if (query.openOnly) rows = rows.filter((l) => OPEN_STAGES.includes(l.stage));
+    if (query.stages?.length) {
+      const wanted = new Set(query.stages);
+      rows = rows.filter((l) => wanted.has(l.stage));
+    }
+    if (query.closeBefore) {
+      // A deal with no expected closure date cannot satisfy a closure filter,
+      // so it drops out rather than being treated as "closing today".
+      rows = rows.filter(
+        (l) => l.expClose != null && l.expClose <= query.closeBefore!,
+      );
+    }
+    if (query.openOnly)
+      rows = rows.filter((l) => OPEN_STAGES.includes(l.stage));
 
     switch (query.sort) {
       case "value":
         rows.sort((a, b) => b.totalValue - a.totalValue);
         break;
       case "closeDate":
-        rows.sort((a, b) => (a.expClose ?? "9999").localeCompare(b.expClose ?? "9999"));
+        rows.sort((a, b) =>
+          (a.expClose ?? "9999").localeCompare(b.expClose ?? "9999"),
+        );
         break;
       case "recent":
       default:
@@ -227,14 +249,18 @@ export class SyntheticSource implements MutableDataSource {
   }
 
   async getLead(id: string): Promise<Lead | null> {
-    return settle(this.data.leads.find((l) => l.id === id) ?? null, this.latency);
+    return settle(
+      this.data.leads.find((l) => l.id === id) ?? null,
+      this.latency,
+    );
   }
 
-  async getPipelineStageCounts(): Promise<
-    { stage: DealStageValue; count: number; value: number }[]
-  > {
+  async getPipelineStageCounts(
+    options: { openOnly?: boolean } = {},
+  ): Promise<{ stage: DealStageValue; count: number; value: number }[]> {
+    const stages = options.openOnly === false ? ALL_STAGES : OPEN_STAGES;
     const byStage = new Map<DealStageValue, { count: number; value: number }>();
-    for (const stage of OPEN_STAGES) byStage.set(stage, { count: 0, value: 0 });
+    for (const stage of stages) byStage.set(stage, { count: 0, value: 0 });
     for (const lead of this.data.leads) {
       const entry = byStage.get(lead.stage);
       if (!entry) continue;
@@ -253,10 +279,13 @@ export class SyntheticSource implements MutableDataSource {
     const today = startOfDay(this.data.now);
     let rows = [...this.data.followUps];
 
-    if (query.customerId) rows = rows.filter((f) => f.customerId === query.customerId);
+    if (query.customerId)
+      rows = rows.filter((f) => f.customerId === query.customerId);
     if (query.leadId) rows = rows.filter((f) => f.leadId === query.leadId);
     if (query.search) {
-      rows = rows.filter((f) => matches([f.customerName, f.purpose, f.notes], query.search!));
+      rows = rows.filter((f) =>
+        matches([f.customerName, f.purpose, f.notes], query.search!),
+      );
     }
 
     if (query.bucket) {
@@ -286,24 +315,33 @@ export class SyntheticSource implements MutableDataSource {
   }
 
   async getFollowUp(id: string): Promise<FollowUp | null> {
-    return settle(this.data.followUps.find((f) => f.id === id) ?? null, this.latency);
+    return settle(
+      this.data.followUps.find((f) => f.id === id) ?? null,
+      this.latency,
+    );
   }
 
   // ---- Orders -------------------------------------------------------------
 
   async listOrders(query: OrderQuery = {}): Promise<Page<Order>> {
     let rows = [...this.data.orders];
-    if (query.customerId) rows = rows.filter((o) => o.customerId === query.customerId);
+    if (query.customerId)
+      rows = rows.filter((o) => o.customerId === query.customerId);
     if (query.status) rows = rows.filter((o) => o.status === query.status);
     if (query.search) {
-      rows = rows.filter((o) => matches([o.soNumber, o.customerName], query.search!));
+      rows = rows.filter((o) =>
+        matches([o.soNumber, o.customerName], query.search!),
+      );
     }
     rows.sort((a, b) => b.issuedAt.localeCompare(a.issuedAt));
     return settle(paginate(rows, query), this.latency);
   }
 
   async getOrder(id: string): Promise<Order | null> {
-    return settle(this.data.orders.find((o) => o.id === id) ?? null, this.latency);
+    return settle(
+      this.data.orders.find((o) => o.id === id) ?? null,
+      this.latency,
+    );
   }
 
   // ---- Catalogue ----------------------------------------------------------
@@ -321,9 +359,12 @@ export class SyntheticSource implements MutableDataSource {
 
   async listMappings(query: MappingQuery = {}): Promise<Page<Mapping>> {
     let rows = this.data.mappings.filter((m) => m.active);
-    if (query.customerId) rows = rows.filter((m) => m.customerId === query.customerId);
-    if (query.productId) rows = rows.filter((m) => m.productId === query.productId);
-    if (query.principal) rows = rows.filter((m) => m.principal === query.principal);
+    if (query.customerId)
+      rows = rows.filter((m) => m.customerId === query.customerId);
+    if (query.productId)
+      rows = rows.filter((m) => m.productId === query.productId);
+    if (query.principal)
+      rows = rows.filter((m) => m.principal === query.principal);
     if (query.unpricedOnly) rows = rows.filter((m) => m.agreedPrice == null);
     if (query.search) {
       rows = rows.filter((m) =>
@@ -335,21 +376,28 @@ export class SyntheticSource implements MutableDataSource {
   }
 
   async getMapping(id: string): Promise<Mapping | null> {
-    return settle(this.data.mappings.find((m) => m.id === id) ?? null, this.latency);
+    return settle(
+      this.data.mappings.find((m) => m.id === id) ?? null,
+      this.latency,
+    );
   }
 
   // ---- Projections --------------------------------------------------------
 
-  async listProjections(query: ProjectionQuery = {}): Promise<Page<Projection>> {
+  async listProjections(
+    query: ProjectionQuery = {},
+  ): Promise<Page<Projection>> {
     const currentPeriod = `${this.data.now.getFullYear()}-${String(
       this.data.now.getMonth() + 1,
     ).padStart(2, "0")}`;
     const wanted = query.period ?? currentPeriod;
 
     let rows = this.data.projections.filter((p) => p.period === wanted);
-    if (query.customerId) rows = rows.filter((p) => p.customerId === query.customerId);
+    if (query.customerId)
+      rows = rows.filter((p) => p.customerId === query.customerId);
     if (query.status) rows = rows.filter((p) => p.status === query.status);
-    if (query.needsFollowUp) rows = rows.filter((p) => p.nextFollowUpAt != null);
+    if (query.needsFollowUp)
+      rows = rows.filter((p) => p.nextFollowUpAt != null);
     if (query.search) {
       rows = rows.filter((p) =>
         matches([p.customerName, p.productName, p.principal], query.search!),
@@ -360,10 +408,15 @@ export class SyntheticSource implements MutableDataSource {
   }
 
   async getProjection(id: string): Promise<Projection | null> {
-    return settle(this.data.projections.find((p) => p.id === id) ?? null, this.latency);
+    return settle(
+      this.data.projections.find((p) => p.id === id) ?? null,
+      this.latency,
+    );
   }
 
-  async listProjectionPeriods(): Promise<{ period: string; locked: boolean }[]> {
+  async listProjectionPeriods(): Promise<
+    { period: string; locked: boolean }[]
+  > {
     const seen = new Map<string, boolean>();
     for (const p of this.data.projections) {
       // A period is locked if any of its rows say so; they are generated
@@ -395,7 +448,9 @@ export class SyntheticSource implements MutableDataSource {
     ];
 
     const aging = buckets.map(({ bucket, min, max }) => {
-      const rows = invoices.filter((i) => i.agingDays >= min && i.agingDays <= max);
+      const rows = invoices.filter(
+        (i) => i.agingDays >= min && i.agingDays <= max,
+      );
       return {
         bucket,
         amount: rows.reduce((sum, i) => sum + i.pending, 0),
@@ -406,7 +461,10 @@ export class SyntheticSource implements MutableDataSource {
     return settle(
       {
         totalPending,
-        totalOutstanding: this.data.customers.reduce((s, c) => s + c.outstanding, 0),
+        totalOutstanding: this.data.customers.reduce(
+          (s, c) => s + c.outstanding,
+          0,
+        ),
         overdue: overdueInvoices.reduce((sum, i) => sum + i.pending, 0),
         over90Days: over90.reduce((sum, i) => sum + i.pending, 0),
         followUpCount: overdueInvoices.length,
@@ -420,25 +478,33 @@ export class SyntheticSource implements MutableDataSource {
     query: ListQuery & { customerId?: string; overdueOnly?: boolean } = {},
   ): Promise<Page<Invoice>> {
     let rows = [...this.data.invoices];
-    if (query.customerId) rows = rows.filter((i) => i.customerId === query.customerId);
+    if (query.customerId)
+      rows = rows.filter((i) => i.customerId === query.customerId);
     if (query.overdueOnly) rows = rows.filter((i) => i.agingDays > 0);
     if (query.search) {
-      rows = rows.filter((i) => matches([i.invoiceNumber, i.customerName], query.search!));
+      rows = rows.filter((i) =>
+        matches([i.invoiceNumber, i.customerName], query.search!),
+      );
     }
     rows.sort((a, b) => b.agingDays - a.agingDays);
     return settle(paginate(rows, query), this.latency);
   }
 
   async getInvoice(id: string): Promise<Invoice | null> {
-    return settle(this.data.invoices.find((i) => i.id === id) ?? null, this.latency);
+    return settle(
+      this.data.invoices.find((i) => i.id === id) ?? null,
+      this.latency,
+    );
   }
 
   async listPaymentRecords(
     query: ListQuery & { customerId?: string; invoiceId?: string } = {},
   ): Promise<Page<PaymentRecord>> {
     let rows = [...this.data.payments];
-    if (query.customerId) rows = rows.filter((p) => p.customerId === query.customerId);
-    if (query.invoiceId) rows = rows.filter((p) => p.invoiceId === query.invoiceId);
+    if (query.customerId)
+      rows = rows.filter((p) => p.customerId === query.customerId);
+    if (query.invoiceId)
+      rows = rows.filter((p) => p.invoiceId === query.invoiceId);
     rows.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
     return settle(paginate(rows, query), this.latency);
   }
@@ -446,17 +512,32 @@ export class SyntheticSource implements MutableDataSource {
   // ---- Activity & notifications ------------------------------------------
 
   async listActivities(
-    query: ListQuery & { leadId?: string; customerId?: string; kind?: string } = {},
+    query: ListQuery & {
+      leadId?: string;
+      customerId?: string;
+      kind?: string;
+    } = {},
   ): Promise<Page<Activity>> {
     let rows = [...this.data.activities];
     if (query.leadId) rows = rows.filter((a) => a.leadId === query.leadId);
-    if (query.customerId) rows = rows.filter((a) => a.customerId === query.customerId);
+    if (query.customerId)
+      rows = rows.filter((a) => a.customerId === query.customerId);
     if (query.kind) rows = rows.filter((a) => a.kind === query.kind);
-    if (query.search) rows = rows.filter((a) => matches([a.summary, a.kind], query.search!));
+    if (query.search)
+      rows = rows.filter((a) => matches([a.summary, a.kind], query.search!));
     return settle(paginate(rows, query), this.latency);
   }
 
-  async listNotifications(query: ListQuery = {}): Promise<Page<AppNotification>> {
+  async getActivity(id: string): Promise<Activity | null> {
+    return settle(
+      this.data.activities.find((a) => a.id === id) ?? null,
+      this.latency,
+    );
+  }
+
+  async listNotifications(
+    query: ListQuery = {},
+  ): Promise<Page<AppNotification>> {
     return settle(paginate([...this.data.notifications], query), this.latency);
   }
 
@@ -468,7 +549,9 @@ export class SyntheticSource implements MutableDataSource {
 
   // ---- Writes -------------------------------------------------------------
 
-  async createCustomer(input: Partial<Customer> & { name: string }): Promise<Customer> {
+  async createCustomer(
+    input: Partial<Customer> & { name: string },
+  ): Promise<Customer> {
     const id = this.nextId("cust");
     const nowIso = new Date().toISOString();
     const row: Customer = {
@@ -510,14 +593,19 @@ export class SyntheticSource implements MutableDataSource {
     return settle(row, this.latency);
   }
 
-  async updateCustomer(id: string, input: Partial<Customer>): Promise<Customer> {
+  async updateCustomer(
+    id: string,
+    input: Partial<Customer>,
+  ): Promise<Customer> {
     const row = this.data.customers.find((c) => c.id === id);
     if (!row) throw new Error(`No customer ${id}`);
     Object.assign(row, input, { updatedAt: new Date().toISOString() });
     return settle(row, this.latency);
   }
 
-  async createLead(input: Partial<Lead> & { customerName: string }): Promise<Lead> {
+  async createLead(
+    input: Partial<Lead> & { customerName: string },
+  ): Promise<Lead> {
     const nowIso = new Date().toISOString();
     const products = input.products ?? [];
     const row: Lead = {
@@ -542,7 +630,8 @@ export class SyntheticSource implements MutableDataSource {
       stageUpdatedAt: nowIso,
       products,
       totalValue:
-        input.totalValue ?? products.reduce((sum, p) => sum + (p.value ?? 0), 0),
+        input.totalValue ??
+        products.reduce((sum, p) => sum + (p.value ?? 0), 0),
       createdAt: nowIso,
       updatedAt: nowIso,
     };
@@ -686,12 +775,16 @@ export class SyntheticSource implements MutableDataSource {
     await settle(undefined, this.latency);
   }
 
-  async updateProjection(id: string, input: Partial<Projection>): Promise<Projection> {
+  async updateProjection(
+    id: string,
+    input: Partial<Projection>,
+  ): Promise<Projection> {
     const row = this.data.projections.find((p) => p.id === id);
     if (!row) throw new Error(`No projection ${id}`);
     // A locked period is read-only. The screens hide the controls, but the
     // source refuses too, so a stale screen cannot write through.
-    if (row.locked) throw new Error("This period is locked and cannot be edited.");
+    if (row.locked)
+      throw new Error("This period is locked and cannot be edited.");
     Object.assign(row, input);
     row.projectedValue = row.projectedQty * row.price;
     row.achievedValue = row.achievedQty * row.price;
@@ -701,7 +794,8 @@ export class SyntheticSource implements MutableDataSource {
   async deleteProjection(id: string): Promise<void> {
     const row = this.data.projections.find((p) => p.id === id);
     if (!row) return;
-    if (row.locked) throw new Error("This period is locked and cannot be edited.");
+    if (row.locked)
+      throw new Error("This period is locked and cannot be edited.");
     this.data.projections = this.data.projections.filter((p) => p.id !== id);
     await settle(undefined, this.latency);
   }

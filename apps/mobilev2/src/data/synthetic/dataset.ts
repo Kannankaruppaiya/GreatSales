@@ -48,6 +48,7 @@ import {
   REMARK_NOTES,
   SUB_INDUSTRIES,
 } from "./vocabulary";
+import { DEAL_STAGE_LABELS } from "@/lib/stages";
 
 /** Default seed. Change it to shuffle the whole dataset coherently. */
 export const DEFAULT_SEED = "greatsales-mobilev2";
@@ -248,7 +249,9 @@ export interface GenerateOptions {
   leadCount?: number;
 }
 
-export function generateDataset(options: GenerateOptions = {}): SyntheticDataset {
+export function generateDataset(
+  options: GenerateOptions = {},
+): SyntheticDataset {
   const seed = options.seed ?? DEFAULT_SEED;
   const now = options.now ?? new Date();
   const rng = new Rng(seed);
@@ -569,8 +572,7 @@ export function generateDataset(options: GenerateOptions = {}): SyntheticDataset
       const invoice: SyntheticInvoice = {
         id: `inv-${invoiceSeq}`,
         invoiceNumber: `INV-${String(9400 + invoiceSeq)}`,
-        orderId:
-          orders.find((o) => o.customerId === customer.id)?.id ?? null,
+        orderId: orders.find((o) => o.customerId === customer.id)?.id ?? null,
         customerId: customer.id,
         customerName: customer.name,
         amount,
@@ -638,9 +640,7 @@ export function generateDataset(options: GenerateOptions = {}): SyntheticDataset
       const price = mapping.agreedPrice ?? mapping.listPrice;
       const projectedQty = rng.int(10, 320);
       const achievedQty =
-        monthOffset > 0
-          ? 0
-          : Math.round(projectedQty * rng.float(0, 1.15, 2));
+        monthOffset > 0 ? 0 : Math.round(projectedQty * rng.float(0, 1.15, 2));
       projections.push({
         id: `proj-${projectionSeq}`,
         period: p,
@@ -689,9 +689,14 @@ export function generateDataset(options: GenerateOptions = {}): SyntheticDataset
           kind === "Note"
             ? rng.pick(REMARK_NOTES)
             : kind === "Stage change"
-              ? `Moved to ${lead.stage}`
+              ? `Moved to ${DEAL_STAGE_LABELS[lead.stage]}`
               : rng.pick(FOLLOW_UP_PURPOSES),
-        at: iso(now, -rng.int(0, 90), rng.int(9, 19), rng.pick([0, 15, 30, 45])),
+        at: iso(
+          now,
+          -rng.int(0, 90),
+          rng.int(9, 19),
+          rng.pick([0, 15, 30, 45]),
+        ),
         actorName: user.name,
       });
     }

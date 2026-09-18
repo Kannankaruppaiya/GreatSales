@@ -12,3 +12,4 @@ export { SectionHeader, type SectionHeaderProps } from "./SectionHeader";
 export { AppBar, type AppBarProps } from "./AppBar";
 export { KeyValueRow, RowDivider, type KeyValueRowProps } from "./KeyValueRow";
 export { SyntheticBanner } from "./SyntheticBanner";
+export { BottomSheet, type BottomSheetProps } from "./BottomSheet";

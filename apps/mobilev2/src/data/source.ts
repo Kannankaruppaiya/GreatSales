@@ -71,6 +71,14 @@ export interface CustomerQuery extends ListQuery {
 
 export interface LeadQuery extends ListQuery {
   stage?: DealStageValue;
+  /**
+   * Several stages at once, from the filter sheet. `stage` stays for the
+   * single-stage rail, which the API can serve directly; `stages` is narrowed
+   * on the client, because `/leads` takes one stage only.
+   */
+  stages?: DealStageValue[];
+  /** Expected closure on or before this ISO date. */
+  closeBefore?: string;
   /** Open stages only — the pipeline's default view. */
   openOnly?: boolean;
   sort?: "value" | "closeDate" | "probability" | "recent";
@@ -143,10 +151,16 @@ export interface DataSource {
 
   listLeads(query?: LeadQuery): Promise<Page<Lead>>;
   getLead(id: string): Promise<Lead | null>;
-  /** Count of open opportunities per pipeline stage, for the stage rail. */
-  getPipelineStageCounts(): Promise<
-    { stage: DealStageValue; count: number; value: number }[]
-  >;
+  /**
+   * Count and value per pipeline stage.
+   *
+   * Open stages only by default, which is what the stage rail and the pipeline
+   * header need. `openOnly: false` returns the closed stages too, for the
+   * All Stages screen, which shows the funnel whole.
+   */
+  getPipelineStageCounts(options?: {
+    openOnly?: boolean;
+  }): Promise<{ stage: DealStageValue; count: number; value: number }[]>;
 
   listFollowUps(query?: FollowUpQuery): Promise<Page<FollowUp>>;
   getFollowUp(id: string): Promise<FollowUp | null>;
@@ -166,17 +180,18 @@ export interface DataSource {
 
   /** Collections. Read-only — there is no corresponding write method. */
   getPaymentsSummary(): Promise<PaymentsSummary>;
-  listInvoices(query?: ListQuery & { customerId?: string; overdueOnly?: boolean }): Promise<
-    Page<Invoice>
-  >;
+  listInvoices(
+    query?: ListQuery & { customerId?: string; overdueOnly?: boolean },
+  ): Promise<Page<Invoice>>;
   getInvoice(id: string): Promise<Invoice | null>;
-  listPaymentRecords(query?: ListQuery & { customerId?: string; invoiceId?: string }): Promise<
-    Page<PaymentRecord>
-  >;
+  listPaymentRecords(
+    query?: ListQuery & { customerId?: string; invoiceId?: string },
+  ): Promise<Page<PaymentRecord>>;
 
-  listActivities(query?: ListQuery & { leadId?: string; customerId?: string; kind?: string }): Promise<
-    Page<Activity>
-  >;
+  listActivities(
+    query?: ListQuery & { leadId?: string; customerId?: string; kind?: string },
+  ): Promise<Page<Activity>>;
+  getActivity(id: string): Promise<Activity | null>;
 
   listNotifications(query?: ListQuery): Promise<Page<AppNotification>>;
   markNotificationRead(id: string): Promise<void>;
@@ -192,7 +207,9 @@ export interface DataSource {
  * API and must not be offered in the UI.
  */
 export interface MutableDataSource extends DataSource {
-  createCustomer(input: Partial<Customer> & { name: string }): Promise<Customer>;
+  createCustomer(
+    input: Partial<Customer> & { name: string },
+  ): Promise<Customer>;
   updateCustomer(id: string, input: Partial<Customer>): Promise<Customer>;
 
   createLead(input: Partial<Lead> & { customerName: string }): Promise<Lead>;
@@ -217,7 +234,10 @@ export interface MutableDataSource extends DataSource {
     productId: string;
     agreedPrice: number | null;
   }): Promise<Mapping>;
-  updateMapping(id: string, input: { agreedPrice: number | null }): Promise<Mapping>;
+  updateMapping(
+    id: string,
+    input: { agreedPrice: number | null },
+  ): Promise<Mapping>;
   deleteMapping(id: string): Promise<void>;
 
   updateProjection(id: string, input: Partial<Projection>): Promise<Projection>;

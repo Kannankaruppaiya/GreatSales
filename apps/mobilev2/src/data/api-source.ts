@@ -39,6 +39,7 @@ import type {
   Projection,
   ProjectionQuery,
 } from "./source";
+import { ALL_STAGES, OPEN_STAGES } from "@/lib/stages";
 
 /** Supplies the bearer token. Set once at sign-in. */
 export type TokenProvider = () => string | null | Promise<string | null>;
@@ -111,15 +112,6 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 /** The API returns `{ items, nextCursor, total }` — the same shape as `Page`. */
 type ApiPage<T> = Page<T>;
 
-const OPEN_STAGES: DealStageValue[] = [
-  "NewEnquiries",
-  "NeedsAnalysis",
-  "TrialsAndSampleTests",
-  "ProposalsAndPriceQuote",
-  "NegotiationOralConfirmation",
-  "TrialProblem",
-];
-
 export class ApiSource implements MutableDataSource {
   readonly kind = "api" as const;
 
@@ -169,15 +161,35 @@ export class ApiSource implements MutableDataSource {
 
   // ---- Leads --------------------------------------------------------------
 
-  listLeads(q: LeadQuery = {}): Promise<Page<Lead>> {
-    return request<ApiPage<LeadRow>>(
+  /**
+   * `/leads` accepts one stage and no closure-date bound, so a multi-stage or
+   * date-bounded filter is narrowed here after the fetch. That is honest but
+   * not cheap: it pages the server's view, not the filtered view. An API that
+   * took `stages[]` and `closeBefore` would remove this.
+   */
+  async listLeads(q: LeadQuery = {}): Promise<Page<Lead>> {
+    const narrowing = Boolean(q.stages?.length || q.closeBefore);
+    const page = await request<ApiPage<LeadRow>>(
       `/leads${query({
         search: q.search,
-        cursor: q.cursor,
-        limit: q.limit,
+        cursor: narrowing ? undefined : q.cursor,
+        limit: narrowing ? 200 : q.limit,
         stage: q.stage,
       })}`,
     );
+    if (!narrowing) return page;
+
+    const wanted = q.stages?.length ? new Set(q.stages) : null;
+    const items = page.items.filter(
+      (l) =>
+        (!wanted || wanted.has(l.stage)) &&
+        (!q.closeBefore || (l.expClose != null && l.expClose <= q.closeBefore)),
+    );
+    return {
+      items: items.slice(0, q.limit ?? items.length),
+      nextCursor: null,
+      total: items.length,
+    };
   }
 
   /**
@@ -186,17 +198,20 @@ export class ApiSource implements MutableDataSource {
    * endpoint to add on the API side.
    */
   async getLead(id: string): Promise<Lead | null> {
-    const page = await request<ApiPage<LeadRow>>(`/leads${query({ limit: 100 })}`);
+    const page = await request<ApiPage<LeadRow>>(
+      `/leads${query({ limit: 100 })}`,
+    );
     return page.items.find((l) => l.id === id) ?? null;
   }
 
-  async getPipelineStageCounts(): Promise<
-    { stage: DealStageValue; count: number; value: number }[]
-  > {
+  async getPipelineStageCounts(
+    options: { openOnly?: boolean } = {},
+  ): Promise<{ stage: DealStageValue; count: number; value: number }[]> {
     // No per-stage aggregate endpoint exists; count one page per stage so each
     // call carries its own `total` rather than paging the whole pipeline.
+    const stages = options.openOnly === false ? ALL_STAGES : OPEN_STAGES;
     const results = await Promise.all(
-      OPEN_STAGES.map(async (stage) => {
+      stages.map(async (stage) => {
         const page = await request<ApiPage<LeadRow>>(
           `/leads${query({ stage, limit: 100 })}`,
         );
@@ -226,7 +241,9 @@ export class ApiSource implements MutableDataSource {
   }
 
   async getFollowUp(id: string): Promise<FollowUp | null> {
-    const page = await request<ApiPage<FollowUp>>(`/followups${query({ limit: 100 })}`);
+    const page = await request<ApiPage<FollowUp>>(
+      `/followups${query({ limit: 100 })}`,
+    );
     return page.items.find((f) => f.id === id) ?? null;
   }
 
@@ -245,7 +262,9 @@ export class ApiSource implements MutableDataSource {
   }
 
   async getOrder(id: string): Promise<Order | null> {
-    const page = await request<ApiPage<Order>>(`/orders${query({ limit: 100 })}`);
+    const page = await request<ApiPage<Order>>(
+      `/orders${query({ limit: 100 })}`,
+    );
     return page.items.find((o) => o.id === id) ?? null;
   }
 
@@ -272,7 +291,9 @@ export class ApiSource implements MutableDataSource {
   }
 
   async getMapping(id: string): Promise<Mapping | null> {
-    const page = await request<ApiPage<Mapping>>(`/mappings${query({ limit: 100 })}`);
+    const page = await request<ApiPage<Mapping>>(
+      `/mappings${query({ limit: 100 })}`,
+    );
     return page.items.find((m) => m.id === id) ?? null;
   }
 
@@ -298,7 +319,9 @@ export class ApiSource implements MutableDataSource {
     return page.items.find((p) => p.id === id) ?? null;
   }
 
-  async listProjectionPeriods(): Promise<{ period: string; locked: boolean }[]> {
+  async listProjectionPeriods(): Promise<
+    { period: string; locked: boolean }[]
+  > {
     // Period locks live in their own module.
     return request<{ period: string; locked: boolean }[]>("/period-locks");
   }
@@ -306,7 +329,9 @@ export class ApiSource implements MutableDataSource {
   // ---- Payments (read-only) ----------------------------------------------
 
   async getPaymentsSummary(): Promise<PaymentsSummary> {
-    const page = await request<ApiPage<Invoice>>(`/payments${query({ limit: 100 })}`);
+    const page = await request<ApiPage<Invoice>>(
+      `/payments${query({ limit: 100 })}`,
+    );
     const invoices = page.items;
     const overdue = invoices.filter((i) => i.agingDays > 0);
 
@@ -327,7 +352,9 @@ export class ApiSource implements MutableDataSource {
         .reduce((sum, i) => sum + i.pending, 0),
       followUpCount: overdue.length,
       aging: buckets.map(({ bucket, min, max }) => {
-        const rows = invoices.filter((i) => i.agingDays >= min && i.agingDays <= max);
+        const rows = invoices.filter(
+          (i) => i.agingDays >= min && i.agingDays <= max,
+        );
         return {
           bucket,
           amount: rows.reduce((sum, i) => sum + i.pending, 0),
@@ -352,7 +379,9 @@ export class ApiSource implements MutableDataSource {
   }
 
   async getInvoice(id: string): Promise<Invoice | null> {
-    const page = await request<ApiPage<Invoice>>(`/payments${query({ limit: 100 })}`);
+    const page = await request<ApiPage<Invoice>>(
+      `/payments${query({ limit: 100 })}`,
+    );
     return page.items.find((i) => i.id === id) ?? null;
   }
 
@@ -385,6 +414,14 @@ export class ApiSource implements MutableDataSource {
     );
   }
 
+  /** No `GET /remarks/:id` either, so this filters a page, as leads do. */
+  async getActivity(id: string): Promise<Activity | null> {
+    const page = await request<ApiPage<Activity>>(
+      `/remarks${query({ limit: 200 })}`,
+    );
+    return page.items.find((a) => a.id === id) ?? null;
+  }
+
   listNotifications(q: ListQuery = {}): Promise<Page<AppNotification>> {
     return request<ApiPage<AppNotification>>(
       `/notifications${query({ cursor: q.cursor, limit: q.limit })}`,
@@ -397,7 +434,9 @@ export class ApiSource implements MutableDataSource {
 
   // ---- Writes -------------------------------------------------------------
 
-  createCustomer(input: Partial<Customer> & { name: string }): Promise<Customer> {
+  createCustomer(
+    input: Partial<Customer> & { name: string },
+  ): Promise<Customer> {
     return request<Customer>("/customers", {
       method: "POST",
       body: JSON.stringify(input),
@@ -412,7 +451,10 @@ export class ApiSource implements MutableDataSource {
   }
 
   createLead(input: Partial<Lead> & { customerName: string }): Promise<Lead> {
-    return request<Lead>("/leads", { method: "POST", body: JSON.stringify(input) });
+    return request<Lead>("/leads", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
   }
 
   updateLead(id: string, input: Partial<Lead>): Promise<Lead> {
@@ -449,7 +491,10 @@ export class ApiSource implements MutableDataSource {
     deliveryAddress?: string | null;
     paymentTerms?: Order["paymentTerms"];
   }): Promise<Order> {
-    return request<Order>("/orders", { method: "POST", body: JSON.stringify(input) });
+    return request<Order>("/orders", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
   }
 
   createMapping(input: {
@@ -463,7 +508,10 @@ export class ApiSource implements MutableDataSource {
     });
   }
 
-  updateMapping(id: string, input: { agreedPrice: number | null }): Promise<Mapping> {
+  updateMapping(
+    id: string,
+    input: { agreedPrice: number | null },
+  ): Promise<Mapping> {
     return request<Mapping>(`/mappings/${id}`, {
       method: "PATCH",
       body: JSON.stringify(input),
@@ -474,7 +522,10 @@ export class ApiSource implements MutableDataSource {
     await request<void>(`/mappings/${id}`, { method: "DELETE" });
   }
 
-  updateProjection(id: string, input: Partial<Projection>): Promise<Projection> {
+  updateProjection(
+    id: string,
+    input: Partial<Projection>,
+  ): Promise<Projection> {
     return request<Projection>(`/projections/${id}`, {
       method: "PATCH",
       body: JSON.stringify(input),

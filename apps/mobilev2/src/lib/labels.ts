@@ -16,17 +16,12 @@ import type {
 
 import type { ChipTone } from "@/components/ui";
 
-export const DEAL_STAGE_LABELS: Record<DealStageValue, string> = {
-  NewEnquiries: "New Enquiry",
-  NeedsAnalysis: "Discovery",
-  TrialsAndSampleTests: "Trial",
-  ProposalsAndPriceQuote: "Proposal Sent",
-  NegotiationOralConfirmation: "Negotiation",
-  ClosedWon: "Closed Won",
-  ClosedLost: "Closed Lost",
-  NoRequirementOrCold: "No Requirement",
-  TrialProblem: "Trial Problem",
-};
+export {
+  ALL_STAGES,
+  DEAL_STAGE_LABELS,
+  OPEN_STAGES,
+  isOpenStage,
+} from "./stages";
 
 export const DEAL_STAGE_TONES: Record<DealStageValue, ChipTone> = {
   // Cool at the start of the funnel.

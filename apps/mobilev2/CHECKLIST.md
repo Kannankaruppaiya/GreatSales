@@ -77,14 +77,17 @@ Legend: `[x]` done · `[~]` partially done · `[ ]` not started ·
 ## 03 — Pipeline (10)
 
 - [x] 03 / 03A Pipeline overview + list (stage rail, search, stream)
-- [ ] 03B Search & filters
-- [ ] 03C Opportunity detail — overview
-- [ ] 03D Change stage
-- [ ] 03E Activity timeline
+- [x] 03.2 All stages — the funnel whole, closed stages included
+- [x] 03.3 Opportunity card — the row shape used by every list
+- [x] 03A.2 / 03A.3 Filters + sorted list
+- [x] 03B Search & filters — one sheet, not eight drill-in pickers
+- [x] 03C Opportunity detail — overview
+- [x] 03D / 03.5 Change stage
+- [x] 03E.2 Activity timeline + 03E.3 filters + 03E.4 detail
 - [ ] 03F Products & assignment
 - [ ] 03G Add follow-up
 - [ ] 03H Create sales order (opportunity → order)
-- [ ] 03I Opportunity actions sheet
+- [x] 03I Opportunity actions sheet
 
 ## 04 — New Sales Lead (7)
 
@@ -209,7 +212,12 @@ around; each is a decision for the API, not something this app should fake.
 | 4 | **Activity timeline has no endpoint of its own.** | `listActivities` reads `/remarks`. The design's "activity types" (call, visit, stage change, quotation) are richer than remarks carry. |
 | 5 | **"Scan Bill"** appears in the design's quick actions. No OCR or attachment-scan endpoint exists. | Not built. The fourth quick action is Add Customer instead. |
 | 6 | **"Continue with Google"** is on the login board. The API exposes password sign-in only. | Not rendered. An OAuth button that cannot complete is worse than none. |
-| 7 | **No stored "hot" flag or per-deal probability.** 02D ranks by it. | Derived: open pipeline sorted by value, banded by a probability read off the deal's stage. Named in `STAGE_PROBABILITY`. |
+| 7 | **No stored "hot" flag or per-deal probability.** 02D ranks by it, and 03A.2 offers it as a filter. | Derived: open pipeline sorted by value, banded by a probability read off the deal's stage. Named in `STAGE_PROBABILITY`. The 03A.2 "Probability" filter section is **not built** — derived from the stage, it would be the stage filter under a second name. |
+| 8 | **`/leads` takes one stage and no closure-date bound.** 03A.2 filters on several stages at once. | `ApiSource.listLeads` narrows after the fetch, and says so in a comment. Works; costs a wider page than it should. |
+| 9 | **No `GET /remarks/:id`.** 03E.4 opens one activity. | `getActivity` filters a page, like leads and orders. |
+| 10 | **An activity is one text field.** 03E.4 shows From → To stages and a separate "Additional Notes". | Neither is built. A "From" stage would have to be reconstructed from the timeline and shown as a record, and one field under two headings is not two fields. |
+| 11 | **Orders are not timeline events.** 03E.3 offers a "Sales Order Conversion" filter. | Not built; the activity stream reads `/remarks`, which carries no orders. |
+| 12 | **Every record belongs to the signed-in salesperson.** 03A.2 offers "My Deals", 03E.3 offers "Performed By". | Neither is built — the filter would never remove a row. |
 
 ## Asset gaps
 
