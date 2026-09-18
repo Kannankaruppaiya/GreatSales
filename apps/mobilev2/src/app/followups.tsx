@@ -29,6 +29,7 @@ import {
   SyntheticBanner,
   Text,
 } from "@/components/ui";
+import { QuoteBand } from "@/components/brand/QuoteBand";
 import { useData } from "@/data/provider";
 import type { FollowUpBucket } from "@/data/source";
 import { color, space } from "@/design/tokens";
@@ -255,6 +256,8 @@ export default function FollowUpsScreen() {
             onAction={() => router.push("/followup/new")}
           />
         )}
+
+        <QuoteBand />
       </View>
     </Screen>
   );

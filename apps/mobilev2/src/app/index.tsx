@@ -20,19 +20,7 @@ import { ArrowRight } from "lucide-react-native";
 import { Text } from "@/components/ui";
 import { BrandSwoosh } from "@/components/brand/Decor";
 import { color, elevation, font, space } from "@/design/tokens";
-
-/**
- * `require` of a file that may not exist would fail the bundle, so the photo is
- * resolved through a helper that returns null when it has not been added yet.
- */
-function splashPhoto(): number | null {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require("@/assets/images/splash-bg.jpg") as number;
-  } catch {
-    return null;
-  }
-}
+import { splashPhoto } from "@/lib/photos";
 
 export default function SplashScreen() {
   const router = useRouter();

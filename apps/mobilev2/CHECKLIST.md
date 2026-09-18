@@ -49,7 +49,7 @@ Legend: `[x]` done · `[~]` partially done · `[ ]` not started ·
 - [x] `ApiSource` (endpoints mapped from `apps/api/src`)
 - [x] Domain labels + colour semantics for every wire enum
 - [x] Decorative vectors rebuilt as real SVG (ridges, brand swoosh)
-- [x] `assets/README.md` — the three photographs still to export from Penpot
+- [x] Photographs exported from Penpot and wired (`src/lib/photos.ts`)
 - [x] Re-enable `typedRoutes` once every route below exists
 - [ ] Auth / token wiring for `ApiSource`
 - [ ] Component tests for the primitives
@@ -58,7 +58,7 @@ Legend: `[x]` done · `[~]` partially done · `[ ]` not started ·
 
 ## 01 — Splash / Login / Entry (5)
 
-- [x] 01 Splash / Welcome — photo falls back to brand green until the asset is exported
+- [x] 01 Splash / Welcome — the board's own photograph, brand green if it is absent
 - [x] 01A Login — Google sign-in omitted, the API has password auth only
 - [x] 01B Location permission — the OS prompt and its outcomes are states of this screen
 - [x] 01C Preparing / setting up — steps resolve on real requests, not a timer
@@ -264,14 +264,19 @@ That pass is what found the focus bug below.
   in one app (`03 Sept 2026` beside `3 Sep 2026`). Both go through the shared
   label and date helpers now.
 
-## Asset gaps
+## Assets
 
-Penpot's asset CDN is not reachable from the build environment, so three
-photographs could not be pulled automatically. `assets/README.md` names each
-one, its Penpot shape and the filename to save it as. Screens fall back to a
-flat brand surface until they are added — never to an invented illustration.
+No gaps. All three photographs are exported and rendered: the splash hero, the
+band under the pull-quote on "02C.1 Follow-ups Overview", and the art behind the
+promo card on "03.2 All Stages". Penpot's asset CDN is unreachable from the
+build environment, so they came through the plugin's `shape.export()` instead;
+`assets/README.md` records the route, the sizes and which screen draws each one.
+Every file is resolved through a guarded `require`, so a missing photograph
+degrades to the flat brand surface — never to an invented illustration.
+
 The ridges and the brand swoosh needed no export: they are vectors, and are
-reproduced as real SVG paths from the design's own path data.
+reproduced as real SVG paths from the design's own path data. The app icons are
+the brand mark itself, rasterised by `scripts/make-icons.mjs`.
 
 ## Design gaps
 

@@ -25,6 +25,7 @@ import {
   SyntheticBanner,
   Text,
 } from "@/components/ui";
+import { PromoCard } from "@/components/brand/PromoCard";
 import { useData } from "@/data/provider";
 import { color, radius, space } from "@/design/tokens";
 import { moneyShort } from "@/lib/format";
@@ -72,6 +73,7 @@ export default function AllStagesScreen() {
                 }
               />
             ))}
+            <PromoCard />
           </View>
         )}
       </View>

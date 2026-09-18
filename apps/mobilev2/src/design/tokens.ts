@@ -37,6 +37,14 @@ export const color = {
   amberSoft: "#FDF0E0",
   steel: "#4B7C93",
   steelSoft: "#EAF2F7",
+
+  // Board values that are not on "02 — Colour Tokens". Kept here so screens
+  // still carry no raw hex, and named so the gap stays visible: if the token
+  // board ever gains them, these fold into it.
+  /** The pull-quote on "02C.1 Follow-ups Overview". */
+  quoteInk: "#3E6374",
+  /** The promo card's sub-line on "03.2 All Stages". */
+  promoSub: "#3D5E6E",
 } as const;
 
 export type ColorToken = keyof typeof color;
