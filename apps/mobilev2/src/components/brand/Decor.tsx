@@ -35,8 +35,7 @@ export function MountainRidges({
       viewBox="0 0 376 82"
       preserveAspectRatio="none"
       // Purely decorative: it carries no information a screen reader needs.
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
+      aria-hidden
     >
       <Path
         d="M0,51.25L49.44,27.33L85.87,42.71L135.31,15.38L189.95,41L241.99,22.21L291.43,44.42L340.87,25.63L376,41L376,82L0,82Z"
@@ -66,13 +65,7 @@ export function BrandSwoosh({
   stroke?: string;
 }) {
   return (
-    <Svg
-      width={width}
-      height={height}
-      viewBox="0 0 148 20"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    >
+    <Svg width={width} height={height} viewBox="0 0 148 20" aria-hidden>
       <Path
         d="M0,12.78C37.7,19.17 102.7,8.95 148.2,0"
         stroke={stroke}
@@ -94,8 +87,7 @@ export function BrandSwoosh({
 export function MintWash({ height = 248 }: { height?: number }) {
   return (
     <View
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
+      aria-hidden
       style={[styles.wash, { height, backgroundColor: color.mintTint }]}
     />
   );
@@ -108,12 +100,7 @@ export function OnboardingBackdrop({
   washHeight?: number;
 }) {
   return (
-    <View
-      pointerEvents="none"
-      style={styles.backdrop}
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    >
+    <View pointerEvents="none" style={styles.backdrop} aria-hidden>
       <MintWash height={washHeight} />
       <View style={styles.ridges}>
         <MountainRidges />

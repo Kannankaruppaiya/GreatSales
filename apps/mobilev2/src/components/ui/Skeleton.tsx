@@ -49,8 +49,7 @@ export function Skeleton({
 
   return (
     <Animated.View
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
+      aria-hidden
       style={[styles.block, { width, height, opacity: pulse }, style]}
     />
   );
