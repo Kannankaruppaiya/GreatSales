@@ -48,6 +48,8 @@ Legend: `[x]` done · `[~]` partially done · `[ ]` not started ·
 - [x] `SyntheticSource` (in-memory, read + write)
 - [x] `ApiSource` (endpoints mapped from `apps/api/src`)
 - [x] Domain labels + colour semantics for every wire enum
+- [x] Decorative vectors rebuilt as real SVG (ridges, brand swoosh)
+- [x] `assets/README.md` — the three photographs still to export from Penpot
 - [ ] Re-enable `typedRoutes` once every route below exists
 - [ ] Auth / token wiring for `ApiSource`
 - [ ] Component tests for the primitives
@@ -56,11 +58,11 @@ Legend: `[x]` done · `[~]` partially done · `[ ]` not started ·
 
 ## 01 — Splash / Login / Entry (5)
 
-- [ ] 01 Splash / Welcome
-- [ ] 01A Login
-- [ ] 01B Location permission
-- [ ] 01C Change password
-- [ ] 01D Session restore / error
+- [x] 01 Splash / Welcome — photo falls back to brand green until the asset is exported
+- [x] 01A Login — Google sign-in omitted, the API has password auth only
+- [x] 01B Location permission — the OS prompt and its outcomes are states of this screen
+- [x] 01C Preparing / setting up — steps resolve on real requests, not a timer
+- [x] 01D Session restore — `preparing` routes on to Home when the steps complete
 
 ## 02 — Home (6)
 
@@ -205,6 +207,16 @@ around; each is a decision for the API, not something this app should fake.
 | 3 | **No `GET /orders/:id`.** Same as above. | Same approach. |
 | 4 | **Activity timeline has no endpoint of its own.** | `listActivities` reads `/remarks`. The design's "activity types" (call, visit, stage change, quotation) are richer than remarks carry. |
 | 5 | **"Scan Bill"** appears in the design's quick actions. No OCR or attachment-scan endpoint exists. | Not built. The fourth quick action is Add Customer instead. |
+| 6 | **"Continue with Google"** is on the login board. The API exposes password sign-in only. | Not rendered. An OAuth button that cannot complete is worse than none. |
+
+## Asset gaps
+
+Penpot's asset CDN is not reachable from the build environment, so three
+photographs could not be pulled automatically. `assets/README.md` names each
+one, its Penpot shape and the filename to save it as. Screens fall back to a
+flat brand surface until they are added — never to an invented illustration.
+The ridges and the brand swoosh needed no export: they are vectors, and are
+reproduced as real SVG paths from the design's own path data.
 
 ## Design gaps
 

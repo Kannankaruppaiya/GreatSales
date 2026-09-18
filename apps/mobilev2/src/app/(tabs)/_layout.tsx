@@ -21,9 +21,9 @@ export default function TabsLayout() {
       <Tabs
         screenOptions={{ headerShown: false }}
         tabBar={({ state }) => {
-          const active = (state.routeNames[state.index] ?? "index") as string;
+          const active = (state.routeNames[state.index] ?? "home") as string;
           const key: TabKey =
-            active === "index"
+            active === "home"
               ? "home"
               : active === "pipeline"
                 ? "pipeline"
@@ -33,15 +33,13 @@ export default function TabsLayout() {
           return (
             <BottomNav
               active={key}
-              onSelect={(tab) =>
-                router.push(tab === "home" ? "/(tabs)" : `/(tabs)/${tab}`)
-              }
+              onSelect={(tab) => router.push(`/(tabs)/${tab}`)}
               onCreate={() => setCreateOpen(true)}
             />
           );
         }}
       >
-        <Tabs.Screen name="index" options={{ title: "Home" }} />
+        <Tabs.Screen name="home" options={{ title: "Home" }} />
         <Tabs.Screen name="pipeline" options={{ title: "Pipeline" }} />
         <Tabs.Screen name="customers" options={{ title: "Customers" }} />
         <Tabs.Screen name="more" options={{ title: "More" }} />
