@@ -16,18 +16,26 @@ import { ICONS, type IconName } from '../../design-system/icons';
 type Variant = 'primary' | 'secondary' | 'tertiary' | 'destructive';
 
 /**
- * The board demonstrates its variants at 44 and then lists three sizes -
- * "Large · 46", "Medium · 40", "Small · 32" - so there are four heights in the
- * design, not three. 44 is the unlabelled one the variants row uses and the
- * minimum touch target the rule names, so it is the default.
+ * The default is 46/12, because that is what the SCREENS use.
  *
- * Medium and small sit BELOW that minimum. They are in the design for buttons
- * inside a row or a card, where the whole row is the target; a screen's
- * primary action should not use them.
+ * Board 08 demonstrates its variants at 44 and lists "Large · 46",
+ * "Medium · 40", "Small · 32". Counting the brand-filled button rectangles
+ * across all 56 screens instead: every real primary action - "Update Stage",
+ * "Apply Filters", "Change Stage", "Add Follow-up" - is 46 high at radius 12
+ * with a 13/700 label. The board's default 44 appears on no screen at all, and
+ * neither 40/11 nor 32/9 appears anywhere.
+ *
+ * So the board is right about the RULES (44px minimum target, label 13/700 -
+ * 46 clears the first and matches the second) and wrong about which of its
+ * sizes anyone reached for. Where the two disagree the screens win: they are
+ * the product, the board is a description of it.
+ *
+ * md and sm are kept because the board defines them and a dense row may yet
+ * want one, but they sit below the 44px minimum and are not for a screen's
+ * primary action.
  */
 const SIZES = {
-  lg: { height: 46, radius: 12, text: 'text-14', icon: 20 },
-  default: { height: 44, radius: 12, text: 'text-13', icon: 18 },
+  default: { height: 46, radius: 12, text: 'text-13', icon: 20 },
   md: { height: 40, radius: 11, text: 'text-13', icon: 18 },
   sm: { height: 32, radius: 9, text: 'text-11', icon: 16 },
 } as const;
