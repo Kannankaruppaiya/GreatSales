@@ -83,6 +83,22 @@
   --hill-back: 226 243 235;       /* #e2f3eb */
   --hill-front: 210 235 223;      /* #d2ebdf */
 
+  /* Screen 01B Location: its quiet second action, and the illustration. */
+  --btn-quiet: 238 243 245;       /* #eef3f5 — "Not Now" */
+  --btn-quiet-ink: 83 112 126;    /* #53707e — its label */
+  --ring-outer: 199 230 214;      /* #c7e6d6 */
+  --ring-inner: 220 240 230;      /* #dcf0e6 */
+  --device-line: 23 73 92;        /* #17495c — the drawn phone's outline */
+  --device-screen: 240 248 244;   /* #f0f8f4 */
+  --device-rule: 216 237 226;     /* #d8ede2 */
+  --shield: 79 185 138;           /* #4fb98a */
+
+  /* Screen 01C Preparing. Its illustration's colours are NOT here - those
+   * live in SkyIllustration, because a picture's palette is not a token set. */
+  --page-tint: 251 253 252;       /* #fbfdfc — this screen's page, not canvas */
+  --progress-track: 226 236 239;  /* #e2ecef */
+  --quote-card: 237 247 241;      /* #edf7f1 */
+
   /* Control states, from board 08 — Buttons. */
   --disabled: 228 235 239;        /* #e4ebef — disabled button fill */
   --disabled-ink: 157 176 187;    /* #9db0bb — disabled label */

@@ -4,3 +4,10 @@
 
 expo-env.d.ts
 # @end expo-cli
+
+# Expo's generated cache and typed-route definitions. router.d.ts had been
+# committed, so it listed the OLD app's routes - every screen added after it
+# failed the typecheck with "not assignable" against a stale union, and
+# rebuilding did not refresh it because git kept restoring it.
+.expo/
+dist/

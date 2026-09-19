@@ -60,6 +60,10 @@ module.exports = {
         placeholder: c('--placeholder'),
         divider: c('--divider'),
         hill: { back: c('--hill-back'), front: c('--hill-front') },
+        quiet: { DEFAULT: c('--btn-quiet'), ink: c('--btn-quiet-ink') },
+        pageTint: c('--page-tint'),
+        progressTrack: c('--progress-track'),
+        quoteCard: c('--quote-card'),
         danger: {
           DEFAULT: c('--danger'),
           dark: c('--danger-dark'),

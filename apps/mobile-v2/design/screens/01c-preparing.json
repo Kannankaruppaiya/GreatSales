@@ -1,0 +1,222 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board 'Screen 01C Preparing'",
+  "_board": {
+    "width": 376,
+    "height": 859,
+    "bezelRadius": 34
+  },
+  "_excluded": [
+    "time / status-icons \u2014 the mockup's status bar",
+    "bg radius 34 \u2014 the phone frame"
+  ],
+  "_layout": {
+    "absolute": true,
+    "pageFill": "#fbfdfc",
+    "_why": "The sky is a composition of overlapping pieces at specific offsets; a flow beside it would drift on a different screen height."
+  },
+  "_state": "The four steps and the 75% are static, as the board has them. They become real when the launch sequence does - each step a state this screen reads, not a timer it runs.",
+  "shapes": [
+    {
+      "n": "mint",
+      "t": "rect",
+      "y": 559,
+      "h": 300,
+      "fill": {
+        "gradient": [
+          "#e9f7f0",
+          "#dcf1e7"
+        ],
+        "dir": "vertical"
+      },
+      "_note": "300 tall here, against 248 on 01A and 01B."
+    },
+    {
+      "n": "moon",
+      "t": "ellipse",
+      "x": 104,
+      "y": 80,
+      "w": 172,
+      "h": 172
+    },
+    {
+      "n": "cloud-left",
+      "t": "group",
+      "x": 73,
+      "y": 122,
+      "w": 117,
+      "h": 47
+    },
+    {
+      "n": "cloud-right",
+      "t": "group",
+      "x": 192,
+      "y": 192,
+      "w": 104,
+      "h": 42
+    },
+    {
+      "n": "cloud-top",
+      "t": "group",
+      "x": 231,
+      "y": 91,
+      "w": 70,
+      "h": 29
+    },
+    {
+      "n": "trail",
+      "t": "group",
+      "x": 52,
+      "y": 130,
+      "w": 195,
+      "h": 125
+    },
+    {
+      "n": "plane",
+      "t": "group",
+      "x": 226,
+      "y": 83,
+      "w": 83,
+      "h": 68
+    },
+    {
+      "n": "h1a",
+      "t": "text",
+      "y": 304,
+      "w": 376,
+      "chars": "Setting up",
+      "size": 25,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "h1b",
+      "t": "text",
+      "y": 335,
+      "w": 376,
+      "chars": "your workspace...",
+      "size": 25,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "ck-t-0",
+      "t": "text",
+      "x": 75,
+      "y": 400,
+      "chars": "Authenticating your account",
+      "size": 15,
+      "weight": 500,
+      "fill": "#123e52"
+    },
+    {
+      "n": "ck-t-1",
+      "t": "text",
+      "x": 75,
+      "y": 444,
+      "chars": "Loading your sales data",
+      "size": 15,
+      "weight": 500,
+      "fill": "#123e52"
+    },
+    {
+      "n": "ck-t-2",
+      "t": "text",
+      "x": 75,
+      "y": 488,
+      "chars": "Preparing offline content",
+      "size": 15,
+      "weight": 500,
+      "fill": "#123e52"
+    },
+    {
+      "n": "ck-t-3",
+      "t": "text",
+      "x": 75,
+      "y": 533,
+      "chars": "Almost ready...",
+      "size": 15,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "pg-track",
+      "t": "rect",
+      "x": 28,
+      "y": 611,
+      "w": 280,
+      "h": 9,
+      "r": 5,
+      "fill": "#e2ecef"
+    },
+    {
+      "n": "pg-fill",
+      "t": "rect",
+      "x": 28,
+      "y": 611,
+      "w": 209,
+      "h": 9,
+      "r": 5,
+      "fill": {
+        "gradient": [
+          "#0e7a4a",
+          "#2cb873"
+        ],
+        "dir": "horizontal"
+      }
+    },
+    {
+      "n": "pg-lbl",
+      "t": "text",
+      "x": 316,
+      "y": 605,
+      "chars": "75%",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "quote-card",
+      "t": "rect",
+      "x": 22,
+      "y": 670,
+      "w": 319,
+      "h": 91,
+      "r": 16,
+      "fill": "#edf7f1"
+    },
+    {
+      "n": "q1",
+      "t": "text",
+      "y": 683,
+      "w": 376,
+      "chars": "A bigger tomorrow",
+      "size": 23,
+      "weight": 400,
+      "family": "Caveat",
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "q2",
+      "t": "text",
+      "y": 712,
+      "w": 376,
+      "chars": "begins with the next visit.",
+      "size": 23,
+      "weight": 400,
+      "family": "Caveat",
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "q-swoosh",
+      "t": "group",
+      "x": 166,
+      "y": 738,
+      "w": 130,
+      "h": 21
+    }
+  ]
+}

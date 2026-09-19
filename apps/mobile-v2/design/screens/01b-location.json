@@ -1,0 +1,227 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board 'Screen 01B Location'",
+  "_board": {
+    "width": 376,
+    "height": 859,
+    "bezelRadius": 34
+  },
+  "_excluded": [
+    "time / status-icons \u2014 the mockup's status bar",
+    "bg radius 34 \u2014 the phone frame"
+  ],
+  "_layout": {
+    "absolute": true,
+    "_why": "The four badges sit at 135, 101, 270 and 254 so they do NOT read as a grid. Any row-and-column layout straightens that out, so the whole screen is placed at the board's coordinates and wrapped in a ScrollView sized to the board."
+  },
+  "shapes": [
+    {
+      "n": "mint",
+      "t": "rect",
+      "y": 611,
+      "h": 248,
+      "fill": {
+        "gradient": [
+          "#e9f7f0",
+          "#dcf1e7"
+        ],
+        "dir": "vertical"
+      }
+    },
+    {
+      "n": "mountains",
+      "t": "group",
+      "y": 777,
+      "h": 82
+    },
+    {
+      "n": "rings",
+      "t": "group",
+      "x": 73,
+      "y": 148,
+      "w": 229,
+      "h": 229,
+      "_note": "two circles, 216 and 156 across, stroked 1.5 #c7e6d6 and 1.4 #dcf0e6"
+    },
+    {
+      "n": "phone-illus",
+      "t": "group",
+      "x": 145,
+      "y": 189,
+      "w": 86,
+      "h": 151
+    },
+    {
+      "n": "bdg-0",
+      "t": "ellipse",
+      "x": 29,
+      "y": 135,
+      "w": 55,
+      "h": 55,
+      "fill": "#e8f6ee",
+      "icon": "pin (solid, from the design's path)"
+    },
+    {
+      "n": "bdg-l-0",
+      "t": "text",
+      "x": 21,
+      "y": 195,
+      "w": 101,
+      "chars": "Track Visits",
+      "size": 11,
+      "weight": 600,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "bdg-1",
+      "t": "ellipse",
+      "x": 293,
+      "y": 101,
+      "w": 55,
+      "h": 55,
+      "fill": "#e8f6ee",
+      "icon": "people (solid)"
+    },
+    {
+      "n": "bdg-l-1",
+      "t": "text",
+      "x": 268,
+      "y": 161,
+      "w": 104,
+      "chars": "Nearby\nCustomers",
+      "size": 11,
+      "weight": 600,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "bdg-2",
+      "t": "ellipse",
+      "x": 34,
+      "y": 270,
+      "w": 55,
+      "h": 55,
+      "fill": "#e8f6ee",
+      "icon": "calendar (solid)"
+    },
+    {
+      "n": "bdg-l-2",
+      "t": "text",
+      "x": 9,
+      "y": 330,
+      "w": 104,
+      "chars": "Plan Better",
+      "size": 11,
+      "weight": 600,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "bdg-3",
+      "t": "ellipse",
+      "x": 288,
+      "y": 254,
+      "w": 55,
+      "h": 55,
+      "fill": "#e8f6ee",
+      "icon": "bars (three rects)"
+    },
+    {
+      "n": "bdg-l-3",
+      "t": "text",
+      "x": 263,
+      "y": 314,
+      "w": 104,
+      "chars": "Accurate\nReports",
+      "size": 11,
+      "weight": 600,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "h1",
+      "t": "text",
+      "y": 444,
+      "w": 376,
+      "chars": "Enable Location Access",
+      "size": 22,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "body",
+      "t": "text",
+      "x": 37,
+      "y": 486,
+      "w": 303,
+      "chars": "We use your location to show nearby customers, track visits and give you better recommendations.",
+      "size": 15,
+      "weight": 400,
+      "fill": "#6b8796",
+      "align": "center",
+      "lineHeight": 24
+    },
+    {
+      "n": "cta",
+      "t": "rect",
+      "x": 22,
+      "y": 616,
+      "w": 319,
+      "h": 52,
+      "r": 13,
+      "fill": {
+        "gradient": [
+          "#0e7a4a",
+          "#1ba560"
+        ],
+        "dir": "horizontal"
+      }
+    },
+    {
+      "n": "cta-t",
+      "t": "text",
+      "x": 109,
+      "y": 633,
+      "chars": "Allow Location Access",
+      "size": 18,
+      "weight": 700,
+      "fill": "#ffffff",
+      "_skipX": true,
+      "_note": "Row is centred; Penpot's 234-wide box and the browser's glyph run are different measurements."
+    },
+    {
+      "n": "sec",
+      "t": "rect",
+      "x": 22,
+      "y": 686,
+      "w": 319,
+      "h": 49,
+      "r": 13,
+      "fill": "#eef3f5"
+    },
+    {
+      "n": "sec-t",
+      "t": "text",
+      "y": 700,
+      "w": 376,
+      "chars": "Not Now",
+      "size": 18,
+      "weight": 600,
+      "fill": "#53707e",
+      "align": "center"
+    },
+    {
+      "n": "sec-note",
+      "t": "text",
+      "x": 73,
+      "y": 803,
+      "w": 260,
+      "chars": "Your location is secure with us.\nWe never share it without your permission.",
+      "size": 11,
+      "weight": 400,
+      "fill": "#6b8796",
+      "lineHeight": 18
+    }
+  ]
+}
