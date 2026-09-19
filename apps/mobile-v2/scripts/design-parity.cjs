@@ -48,8 +48,11 @@ const EXECUTABLE = process.env.PW_CHROMIUM || '/opt/pw-browsers/chromium-1194/ch
   await page.waitForTimeout(2500);
 
   const wanted = spec.shapes
-    .filter((s) => s.chars)
-    .map((s) => ({ n: s.n, chars: s.chars, y: s.y, x: s.x }));
+    // A placeholder is an attribute on the input, not a text node, so it can
+    // never be found by walking text. The design records it; this cannot
+    // measure it.
+    .filter((s) => s.chars && !s._placeholder)
+    .map((s) => ({ n: s.n, chars: s.chars, y: s.y, x: s.x, w: s.w, align: s.align, skipX: !!s._skipX }));
 
   const measured = await page.evaluate((items) => {
     const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -57,7 +60,13 @@ const EXECUTABLE = process.env.PW_CHROMIUM || '/opt/pw-browsers/chromium-1194/ch
     let t;
     while ((t = walk.nextNode())) if (t.textContent.trim()) nodes.push(t);
     return items.map((it) => {
-      const hit = nodes.find((n) => n.textContent.trim() === it.chars.trim());
+      // Exact first. Falling back to startsWith covers a design text run that
+      // the screen splits - the footer's two differently-coloured halves live
+      // in one Penpot shape and two nested <Text>s.
+      const want = it.chars.trim();
+      const hit =
+        nodes.find((n) => n.textContent.trim() === want) ||
+        nodes.find((n) => n.textContent.trim().startsWith(want));
       if (!hit) return { n: it.n, missing: true };
       const r = hit.parentElement.getBoundingClientRect();
       const cs = getComputedStyle(hit.parentElement);
@@ -65,6 +74,7 @@ const EXECUTABLE = process.env.PW_CHROMIUM || '/opt/pw-browsers/chromium-1194/ch
         n: it.n,
         top: Math.round(r.top),
         left: Math.round(r.left),
+        width: Math.round(r.width),
         fontSize: cs.fontSize,
         family: cs.fontFamily.split(',')[0].replace(/"/g, ''),
       };
@@ -86,13 +96,30 @@ const EXECUTABLE = process.env.PW_CHROMIUM || '/opt/pw-browsers/chromium-1194/ch
       continue;
     }
     const dy = m.top - it.y;
-    const dx = it.x == null ? null : m.left - it.x;
+
+    /*
+     * A centred run is compared by its CENTRE, not its left edge.
+     *
+     * Penpot's shape for centred text is a BOX - "Continue with Google" is a
+     * 221-wide box at x128, not a glyph run starting at 128 - and the browser
+     * lays the same string out to its own width. Subtracting two left edges
+     * there measures the difference between two text-measurement engines, not
+     * a layout error. Centres are the same point in both.
+     */
+    const centred = it.align === 'center' || (it.x == null && it.w == null);
+    let dx = null;
+    if (it.x != null && !it.skipX) {
+      dx = centred && it.w != null
+        ? Math.round(it.x + it.w / 2 - (m.left + m.width / 2))
+        : m.left - it.x;
+    }
     const bad = Math.abs(dy) > TOLERANCE || (dx != null && Math.abs(dx) > TOLERANCE);
     if (bad) failures++;
     console.log(
       `${it.n.padEnd(13)}${String(it.y).padStart(9)}${String(m.top).padStart(10)}` +
         `${sign(dy).padStart(6)}${String(it.x ?? '-').padStart(11)}` +
         `${String(dx == null ? '-' : m.left).padStart(10)}${(dx == null ? '-' : sign(dx)).padStart(6)}` +
+        `${centred && it.x != null ? ' c' : '  '}` +
         `${String(m.fontSize).padStart(7)}   ${m.family}${bad ? '   ← off' : ''}`,
     );
   }

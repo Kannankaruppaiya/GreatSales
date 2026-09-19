@@ -71,6 +71,18 @@
   --scrim: 6 32 44;               /* #06202c */
   --brand-grad-end: 27 165 96;    /* #1ba560 — the splash CTA's gradient end */
 
+  /* Forms and dividers, measured off Screen 01A Login. */
+  --field-line: 223 232 237;      /* #dfe8ed — input and pill border */
+  --field-subtle: 245 249 251;    /* #f5f9fb — the language pill's fill */
+  --placeholder: 156 178 189;     /* #9cb2bd — input placeholder */
+  --divider: 221 231 236;         /* #dde7ec — the rule beside "or" */
+
+  /* The mint wash and the hills that close the pre-sign-in screens. */
+  --mint-from: 233 247 240;       /* #e9f7f0 */
+  --mint-to: 220 241 231;         /* #dcf1e7 */
+  --hill-back: 226 243 235;       /* #e2f3eb */
+  --hill-front: 210 235 223;      /* #d2ebdf */
+
   /* Control states, from board 08 — Buttons. */
   --disabled: 228 235 239;        /* #e4ebef — disabled button fill */
   --disabled-ink: 157 176 187;    /* #9db0bb — disabled label */

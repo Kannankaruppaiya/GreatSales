@@ -1,0 +1,360 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board 'Screen 01A Login'",
+  "_board": {
+    "width": 376,
+    "height": 859,
+    "bezelRadius": 34,
+    "_note": "bezelRadius is the mockup's phone frame, not the app."
+  },
+  "_excluded": [
+    "time / status-icons \u2014 the mockup's status bar; the OS draws the real one",
+    "bg radius 34 \u2014 the phone frame"
+  ],
+  "_layout": {
+    "gutter": 22,
+    "scrolls": true,
+    "_why": "The board is a fixed 859 and the content fills it. On a 667pt phone, or any phone with the keyboard up, a fixed layout puts 'Continue with Google' under the keyboard with no way to reach it."
+  },
+  "shapes": [
+    {
+      "n": "mint",
+      "t": "rect",
+      "x": 0,
+      "y": 611,
+      "w": 376,
+      "h": 248,
+      "fill": {
+        "gradient": [
+          "#e9f7f0",
+          "#dcf1e7"
+        ],
+        "dir": "vertical"
+      }
+    },
+    {
+      "n": "mountains",
+      "t": "group",
+      "x": 0,
+      "y": 777,
+      "w": 376,
+      "h": 82,
+      "paths": [
+        {
+          "fill": "#e2f3eb"
+        },
+        {
+          "fill": "#d2ebdf"
+        }
+      ],
+      "_viewBox": "2976 1117 376 82"
+    },
+    {
+      "n": "back",
+      "t": "icon",
+      "x": 23,
+      "y": 61,
+      "w": 22,
+      "icon": "chevron-left"
+    },
+    {
+      "n": "lang-pill",
+      "t": "rect",
+      "x": 284,
+      "y": 53,
+      "w": 69,
+      "h": 35,
+      "r": 10,
+      "fill": "#f5f9fb",
+      "stroke": "1px #dfe8ed"
+    },
+    {
+      "n": "lang",
+      "t": "text",
+      "x": 297,
+      "y": 62,
+      "chars": "EN",
+      "size": 14,
+      "weight": 600,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "logo-G",
+      "t": "text",
+      "y": 96,
+      "chars": "G",
+      "size": 39,
+      "weight": 800,
+      "fill": "#17a45e",
+      "align": "center",
+      "w": 376
+    },
+    {
+      "n": "brand",
+      "t": "text",
+      "y": 148,
+      "chars": "GreatSales",
+      "size": 25,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "center",
+      "w": 376
+    },
+    {
+      "n": "brand-sub",
+      "t": "text",
+      "y": 180,
+      "chars": "Field Sales CRM",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796",
+      "align": "center",
+      "w": 376
+    },
+    {
+      "n": "h1",
+      "t": "text",
+      "y": 228,
+      "chars": "Welcome Back",
+      "size": 27,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "center",
+      "w": 376
+    },
+    {
+      "n": "h1sub",
+      "t": "text",
+      "x": 58,
+      "y": 270,
+      "w": 259,
+      "chars": "Sign in to continue to your sales workspace.",
+      "size": 16,
+      "weight": 400,
+      "fill": "#6b8796",
+      "align": "center",
+      "lineHeight": 1.55
+    },
+    {
+      "n": "lbl1",
+      "t": "text",
+      "x": 22,
+      "y": 348,
+      "chars": "Mobile Number or Email",
+      "size": 14,
+      "weight": 600,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "in1",
+      "t": "rect",
+      "x": 22,
+      "y": 377,
+      "w": 319,
+      "h": 49,
+      "r": 12,
+      "fill": "#ffffff",
+      "stroke": "1px #dfe8ed"
+    },
+    {
+      "n": "in1-ic",
+      "t": "icon",
+      "x": 40,
+      "y": 391,
+      "w": 20,
+      "icon": "phone"
+    },
+    {
+      "n": "in1-ph",
+      "t": "text",
+      "x": 69,
+      "y": 394,
+      "chars": "+91 98765 43210",
+      "size": 15,
+      "weight": 400,
+      "fill": "#9cb2bd",
+      "_placeholder": true
+    },
+    {
+      "n": "lbl2",
+      "t": "text",
+      "x": 22,
+      "y": 452,
+      "chars": "Password",
+      "size": 14,
+      "weight": 600,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "in2",
+      "t": "rect",
+      "x": 22,
+      "y": 481,
+      "w": 319,
+      "h": 49,
+      "r": 12,
+      "fill": "#ffffff",
+      "stroke": "1px #dfe8ed"
+    },
+    {
+      "n": "in2-ic",
+      "t": "icon",
+      "x": 40,
+      "y": 495,
+      "w": 20,
+      "icon": "lock"
+    },
+    {
+      "n": "in2-ph",
+      "t": "text",
+      "x": 69,
+      "y": 498,
+      "chars": "Enter your password",
+      "size": 15,
+      "weight": 400,
+      "fill": "#9cb2bd",
+      "_placeholder": true
+    },
+    {
+      "n": "in2-eye",
+      "t": "icon",
+      "x": 304,
+      "y": 496,
+      "w": 21,
+      "icon": "eye"
+    },
+    {
+      "n": "forgot",
+      "t": "text",
+      "x": 22,
+      "y": 543,
+      "w": 319,
+      "chars": "Forgot Password?",
+      "size": 14,
+      "weight": 600,
+      "fill": "#0e7a4a",
+      "align": "right"
+    },
+    {
+      "n": "cb",
+      "t": "rect",
+      "x": 22,
+      "y": 579,
+      "w": 20,
+      "h": 20,
+      "r": 5,
+      "fill": "#17a45e"
+    },
+    {
+      "n": "cb-lbl",
+      "t": "text",
+      "x": 50,
+      "y": 581,
+      "chars": "Remember me",
+      "size": 14,
+      "weight": 500,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "signin",
+      "t": "rect",
+      "x": 22,
+      "y": 621,
+      "w": 319,
+      "h": 49,
+      "r": 12,
+      "fill": {
+        "gradient": [
+          "#0e7a4a",
+          "#1ba560"
+        ],
+        "dir": "horizontal"
+      }
+    },
+    {
+      "n": "signin-t",
+      "t": "text",
+      "y": 635,
+      "chars": "Sign In",
+      "size": 20,
+      "weight": 700,
+      "fill": "#ffffff",
+      "align": "center",
+      "w": 376
+    },
+    {
+      "n": "or",
+      "t": "text",
+      "y": 687,
+      "chars": "or",
+      "size": 14,
+      "weight": 400,
+      "fill": "#6b8796",
+      "align": "center",
+      "w": 376
+    },
+    {
+      "n": "or-rules",
+      "t": "rect",
+      "y": 696,
+      "h": 1,
+      "fill": "#dde7ec",
+      "_note": "two 143-wide rules at x22 and x197, the gap holding 'or'"
+    },
+    {
+      "n": "goog",
+      "t": "rect",
+      "x": 22,
+      "y": 720,
+      "w": 319,
+      "h": 49,
+      "r": 12,
+      "fill": "#ffffff",
+      "stroke": "1px #dfe8ed"
+    },
+    {
+      "n": "goog-ic",
+      "t": "icon",
+      "x": 99,
+      "y": 734,
+      "w": 21,
+      "icon": "google",
+      "_note": "Google's own four-colour mark, not Lucide; drawn in the screen."
+    },
+    {
+      "n": "goog-t",
+      "t": "text",
+      "x": 128,
+      "y": 735,
+      "chars": "Continue with Google",
+      "size": 16,
+      "weight": 600,
+      "fill": "#0f3244",
+      "_note": "Row is centred and correct in both, but Penpot's 221-wide text box and the browser's glyph run differ by ~19px, so their left edges are not the same measurement. y is still checked.",
+      "_skipX": true
+    },
+    {
+      "n": "foot-q",
+      "t": "text",
+      "y": 806,
+      "chars": "New to GreatSales?",
+      "size": 14,
+      "weight": 400,
+      "fill": "#6b8796",
+      "align": "center",
+      "_run": "first run of the `foot` text, which has mixed fills",
+      "w": 376
+    },
+    {
+      "n": "foot-cta",
+      "t": "text",
+      "y": 806,
+      "chars": "Contact Support",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0e7a4a",
+      "align": "center",
+      "_run": "second run of `foot`",
+      "w": 376
+    }
+  ]
+}

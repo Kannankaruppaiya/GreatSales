@@ -55,6 +55,11 @@ module.exports = {
           gradEnd: c('--brand-grad-end'),
         },
         scrim: c('--scrim'),
+        fieldLine: c('--field-line'),
+        fieldSubtle: c('--field-subtle'),
+        placeholder: c('--placeholder'),
+        divider: c('--divider'),
+        hill: { back: c('--hill-back'), front: c('--hill-front') },
         danger: {
           DEFAULT: c('--danger'),
           dark: c('--danger-dark'),

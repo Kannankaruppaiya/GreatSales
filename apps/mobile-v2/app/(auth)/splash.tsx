@@ -1,7 +1,7 @@
 import { View, Text, Pressable, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { router } from 'expo-router';
 
@@ -29,6 +29,11 @@ const f = (y: number) => y / BOARD_HEIGHT;
 export default function Splash() {
   const { height } = useWindowDimensions();
   const at = (y: number) => f(y) * height;
+  // The board's y values include the status-bar band, so the safe-area inset
+  // is subtracted from them rather than added. On web the inset is 0 and this
+  // is a no-op; on a phone it is what keeps the mark at the board's 62 instead
+  // of at 62 plus the notch.
+  const insets = useSafeAreaInsets();
 
   return (
     <View className="flex-1 bg-surface">
@@ -62,7 +67,7 @@ export default function Splash() {
       </View>
 
       <SafeAreaView edges={['top']} className="flex-1">
-        <View style={{ marginTop: at(62) - at(0) }}>
+        <View style={{ marginTop: Math.max(0, at(62) - insets.top) }}>
           <Text
             className="text-center text-brand-onPhoto"
             style={{ fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 42, lineHeight: 42 * 1.15 }}
