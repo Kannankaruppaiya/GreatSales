@@ -1,109 +1,57 @@
 import { describe, it, expect } from 'vitest';
-import {
-  customerRepo,
-  leadRepo,
-  orderRepo,
-  paymentRepo,
-  followUpRepo,
-} from '../../src/repositories';
+import * as registry from '../../src/repositories';
 
-describe('Synthetic Repositories Reactivity', () => {
-  it('creates and lists customers', async () => {
-    const created = await customerRepo.create({
-      name: 'Test Motors Pvt Ltd',
-      city: 'Coimbatore',
-      address: '123 Industrial Estate, Coimbatore',
-      industry: 'Auto',
-      tier: 'Tier-1',
-      paymentTermsDays: 30,
-      creditLimit: 500000,
-      outstanding: 0,
-      paymentZone: 'Green',
-      salespersonId: 'usr-1',
-      salespersonName: 'Megala',
-      contacts: [{ id: 'con-test', name: 'Rajan', phone: '+91 9988776655', isPrimary: true }],
-    });
+/**
+ * This file used to be "Synthetic Repositories Reactivity" — it exercised the
+ * in-memory fixtures in src/repositories/synthetic by creating a customer and
+ * reading it back. Those fixtures are gone, and with them the reason anyone
+ * believed the app had a working data layer: thirty-seven screens rendered
+ * against them without one API call, and these tests passed the whole time.
+ *
+ * So the subject under test is now the replacement contract. Until a real
+ * ./api implementation is wired in, every repository must fail loudly on its
+ * first call. A screen that has not been wired should crash on render, not
+ * quietly show fake numbers, and that is what these tests pin down.
+ */
+const REPOSITORIES = [
+  'authRepo',
+  'dashboardRepo',
+  'customerRepo',
+  'leadRepo',
+  'projectionRepo',
+  'orderRepo',
+  'paymentRepo',
+  'followUpRepo',
+  'mappingRepo',
+  'notificationRepo',
+  'activityRepo',
+  'productRepo',
+] as const;
 
-    expect(created.id).toBeDefined();
-    expect(created.name).toBe('Test Motors Pvt Ltd');
-
-    const found = await customerRepo.getById(created.id);
-    expect(found?.name).toBe('Test Motors Pvt Ltd');
-  });
-
-  it('updates lead stage and reflects in list', async () => {
-    const leads = await leadRepo.list();
-    const target = leads[0];
-    expect(target).toBeDefined();
-
-    const updated = await leadRepo.changeStage(target.id, 'NegotiationOralConfirmation', 'Oral deal agreed');
-    expect(updated.stage).toBe('NegotiationOralConfirmation');
-
-    const fresh = await leadRepo.getById(target.id);
-    expect(fresh?.stage).toBe('NegotiationOralConfirmation');
-  });
-
-  it('records payment and decrements customer outstanding balance', async () => {
-    const payments = await paymentRepo.list();
-    const openPayment = payments.find((p) => p.amount > 1000);
-    expect(openPayment).toBeDefined();
-
-    if (openPayment) {
-      const customerBefore = await customerRepo.getById(openPayment.customerId);
-      const outBefore = customerBefore?.outstanding || 0;
-
-      await paymentRepo.recordPayment(openPayment.id, 1000);
-
-      const customerAfter = await customerRepo.getById(openPayment.customerId);
-      expect(customerAfter?.outstanding).toBe(outBefore - 1000);
+describe('Repository registry', () => {
+  it('exports every repository the app depends on', () => {
+    for (const name of REPOSITORIES) {
+      expect(registry, `${name} is missing from the registry`).toHaveProperty(name);
     }
   });
 
-  it('completes follow-up and updates status', async () => {
-    const list = await followUpRepo.list();
-    const openFollowUp = list.find((f) => f.status !== 'Completed');
-    expect(openFollowUp).toBeDefined();
+  // The guard throws synchronously rather than returning a rejected promise,
+  // even though the interfaces declare Promise returns. That is deliberate: it
+  // is the louder failure, and react-query catches a synchronous throw from a
+  // queryFn just as it catches a rejection. Assertions here are synchronous to
+  // match - `.rejects` would never see a promise.
+  it.each(REPOSITORIES)('%s throws until a real implementation is wired', (name) => {
+    const repo = (registry as Record<string, Record<string, () => Promise<unknown>>>)[name];
 
-    if (openFollowUp) {
-      const done = await followUpRepo.complete(openFollowUp.id, 'Completed site meeting');
-      expect(done.status).toBe('Completed');
-    }
+    // The Proxy answers any property with a throwing function, so the method
+    // name here only has to be plausible - it stands in for every call a screen
+    // could make.
+    expect(() => repo.list()).toThrow(/has no implementation/);
   });
 
-  it('guarantees relational integrity across synthetic entities and customers', async () => {
-    const customers = await customerRepo.list();
-    const customerIds = new Set(customers.map((c) => c.id));
-
-    // Verify all leads reference existing customers
-    const leads = await leadRepo.list();
-    expect(leads.length).toBeGreaterThan(0);
-    for (const lead of leads) {
-      if (lead.customerId) {
-        expect(customerIds.has(lead.customerId)).toBe(true);
-      }
-    }
-
-    // Verify all orders reference existing customers
-    const orders = await orderRepo.list();
-    expect(orders.length).toBeGreaterThan(0);
-    for (const order of orders) {
-      expect(customerIds.has(order.customerId)).toBe(true);
-    }
-
-    // Verify all payments reference existing customers
-    const payments = await paymentRepo.list();
-    expect(payments.length).toBeGreaterThan(0);
-    for (const payment of payments) {
-      expect(customerIds.has(payment.customerId)).toBe(true);
-    }
-
-    // Verify all follow-ups with customerId reference existing customers
-    const followUps = await followUpRepo.list();
-    expect(followUps.length).toBeGreaterThan(0);
-    for (const fu of followUps) {
-      if (fu.customerId) {
-        expect(customerIds.has(fu.customerId)).toBe(true);
-      }
-    }
+  it('names the repository and the fix in the error it throws', () => {
+    expect(() => registry.customerRepo.list()).toThrow(
+      'CustomerRepository has no implementation. Add src/repositories/api/ and wire it in src/repositories/index.ts.',
+    );
   });
 });
