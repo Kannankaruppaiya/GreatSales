@@ -2,108 +2,71 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Colour comes from the Penpot design (file V4, page "mobiles"), not from a
+ * style guide written alongside it. Three palettes had already accumulated in
+ * this repo — MOBILE_DESIGN.md and apps/mobile at brand #059669 on slate
+ * #0f172a, and a removed design-system/tokens/colors.ts at #0D7A5F — and the
+ * design agreed with none of them. It is built on teal-navy, not slate.
+ *
+ * Every value below was measured rather than chosen: fills counted across all
+ * 42 screen boards (6,330 shapes, see design/extracted-tokens.json), then
+ * assigned to a role by reading which font size and weight each one paints.
+ * The frequency and the evidence for each role are in the comments.
+ *
+ * Values are space-separated RGB channels so Tailwind's <alpha-value> keeps
+ * working: border-line/50 has to resolve to rgb(230 239 243 / 0.5).
+ *
+ * There is deliberately no dark palette. The design has no dark variant, and
+ * inventing one means choosing thirty colours the designer never approved —
+ * which is how the three light palettes above came to disagree in the first
+ * place. When the design gains dark screens, they get measured the same way.
+ */
 :root {
-  --canvas: 248 250 252;
-  --surface: 255 255 255;
-  --surface-elevated: 255 255 255;
-  --surface2: 248 250 252;
-  --surface3: 241 245 249;
-  --surface-active: 226 232 240;
+  /* Surfaces. canvas is the full-screen rect behind every board; surface is
+   * the card fill (339x52 at radius 13 on the home screen). */
+  --canvas: 244 248 250;          /* #f4f8fa */
+  --surface: 255 255 255;         /* #ffffff — 378 fills */
+  --surface-elevated: 255 255 255;/* #ffffff — the design does not raise cards by tint */
+  --surface2: 238 244 247;        /* #eef4f7 — 34 */
+  --surface3: 234 242 247;        /* #eaf2f7 — 22 */
+  --surface-active: 203 217 224;  /* #cbd9e0 — 5 */
 
-  --ink: 15 23 42;
-  --ink2: 30 41 59;
-  --body: 51 65 85;
-  --muted: 100 116 139;
-  --faint: 148 163 184;
+  /* Text. Each role is the colour the design paints at that size and weight. */
+  --ink: 15 50 68;                /* #0f3244 — 843; 22/800, 26/800, 16/800, 13/700 */
+  --ink2: 18 62 82;               /* #123e52 — 28;  11/500, 12/600 */
+  --body: 94 122 136;             /* #5e7a88 — 28;  14/400 */
+  --muted: 107 135 150;           /* #6b8796 — 402; 12.5/400, 12/500, 11/400, 10/600 */
+  --faint: 147 169 181;           /* #93a9b5 — 105; 10/500 */
+  --faint2: 138 163 176;          /* #8aa3b0 — 120 fills, 555 strokes: icon outlines */
 
-  --line: 226 232 240;
-  --line-dark: 203 213 225;
+  /* Lines */
+  --line: 230 239 243;            /* #e6eff3 — 211 strokes */
+  --line-dark: 201 217 225;       /* #c9d9e1 — 25 strokes */
 
-  --brand: 5 150 105;
-  --brand-light: 16 185 129;
-  --brand-hover: 4 120 87;
-  --brand-dark: 6 78 59;
-  --brand-soft: 236 253 245;
-  --brand-border: 167 243 208;
-  --brand-ink: 2 44 34;
+  /* Brand. #0e7a4a is the wordmark, primary text and the FAB; #17a45e is the
+   * lighter accent used for positive deltas at 11/600 and 10/700. */
+  --brand: 14 122 74;             /* #0e7a4a — 218 fills, 702 strokes */
+  --brand-light: 23 164 94;       /* #17a45e — 178 */
+  --brand-soft: 232 246 238;      /* #e8f6ee — 208; stat tiles, quick-action circles */
+  --brand-soft2: 241 249 245;     /* #f1f9f5 — 70 */
+  --brand-border: 220 239 228;    /* #dcefe4 — 31 strokes */
+  --brand-ink: 11 27 36;          /* #0b1b24 — 6 */
 
-  --amber: 217 119 6;
-  --amber-dark: 180 83 9;
-  --amber-soft: 255 251 235;
-  --amber-border: 253 230 138;
+  /* Status */
+  --danger: 229 72 77;            /* #e5484d — 84 fills, 165 strokes */
+  --danger-dark: 199 52 58;       /* #c7343a — 12/800 */
+  --danger-soft: 253 236 236;     /* #fdecec — 28 */
+  --danger-border: 248 220 220;   /* #f8dcdc — 3 strokes */
 
-  --danger: 220 38 38;
-  --danger-dark: 153 27 27;
-  --danger-soft: 254 242 242;
-  --danger-border: 254 202 202;
+  --amber: 240 163 43;            /* #f0a32b — 11/600 */
+  --amber-dark: 183 122 24;       /* #b77a18 — 12/800 */
+  --amber-strong: 201 122 9;      /* #c97a09 — 19 fills, 18 strokes */
+  --amber-soft: 253 240 224;      /* #fdf0e0 — 20 */
 
-  --info: 37 99 235;
-  --info-dark: 30 64 175;
-  --info-soft: 239 246 255;
-  --info-border: 191 219 254;
+  --info: 46 118 214;             /* #2e76d6 — 13 strokes */
+  --info-dark: 59 94 168;         /* #3b5ea8 — 8 */
+  --info-soft: 234 242 252;       /* #eaf2fc — 4 */
 
-  --indigo: 79 70 229;
-  --indigo-dark: 55 48 163;
-  --indigo-soft: 238 242 255;
-  --indigo-border: 199 210 254;
-
-  --violet: 124 58 237;
-  --violet-dark: 91 33 182;
-  --violet-soft: 245 243 255;
-  --violet-border: 221 214 254;
-
-  --shadow-tint: 15 23 42;
-}
-
-.dark {
-  --canvas: 11 18 32;
-  --surface: 20 29 46;
-  --surface-elevated: 26 36 54;
-  --surface2: 26 36 54;
-  --surface3: 33 45 67;
-  --surface-active: 43 56 84;
-
-  --ink: 248 250 252;
-  --ink2: 226 232 240;
-  --body: 203 213 225;
-  --muted: 148 163 184;
-  --faint: 100 116 139;
-
-  --line: 38 50 75;
-  --line-dark: 59 74 107;
-
-  --brand: 16 185 129;
-  --brand-light: 52 211 153;
-  --brand-hover: 5 150 105;
-  --brand-dark: 167 243 208;
-  --brand-soft: 12 47 36;
-  --brand-border: 20 86 63;
-  --brand-ink: 209 250 229;
-
-  --amber: 245 158 11;
-  --amber-dark: 252 211 77;
-  --amber-soft: 43 31 8;
-  --amber-border: 107 74 16;
-
-  --danger: 239 68 68;
-  --danger-dark: 252 165 165;
-  --danger-soft: 45 18 20;
-  --danger-border: 115 28 32;
-
-  --info: 59 130 246;
-  --info-dark: 147 197 253;
-  --info-soft: 14 31 61;
-  --info-border: 30 64 135;
-
-  --indigo: 99 102 241;
-  --indigo-dark: 165 180 252;
-  --indigo-soft: 26 25 61;
-  --indigo-border: 55 48 135;
-
-  --violet: 139 92 246;
-  --violet-dark: 196 181 253;
-  --violet-soft: 35 20 61;
-  --violet-border: 76 29 149;
-
-  --shadow-tint: 0 0 0;
+  --shadow-tint: 15 50 68;        /* the ink, so shadows sit in the same family */
 }
