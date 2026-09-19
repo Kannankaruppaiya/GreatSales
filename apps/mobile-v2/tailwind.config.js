@@ -55,9 +55,16 @@ module.exports = {
         danger: {
           DEFAULT: c('--danger'),
           dark: c('--danger-dark'),
+          strong: c('--danger-strong'),
           soft: c('--danger-soft'),
           border: c('--danger-border'),
+          line: c('--danger-line'),
         },
+        disabled: {
+          DEFAULT: c('--disabled'),
+          ink: c('--disabled-ink'),
+        },
+        mintLine: c('--mint-line'),
         amber: {
           DEFAULT: c('--amber'),
           dark: c('--amber-dark'),

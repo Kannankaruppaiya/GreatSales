@@ -64,6 +64,13 @@
   --amber-strong: 201 122 9;      /* #c97a09 — 19 fills, 18 strokes */
   --amber-soft: 253 240 224;      /* #fdf0e0 — 20 */
 
+  /* Control states, from board 08 — Buttons. */
+  --disabled: 228 235 239;        /* #e4ebef — disabled button fill */
+  --disabled-ink: 157 176 187;    /* #9db0bb — disabled label */
+  --danger-strong: 194 43 48;     /* #c22b30 — destructive label */
+  --danger-line: 246 215 215;     /* #f6d7d7 — destructive border */
+  --mint-line: 214 237 224;       /* #d6ede0 — mint icon-button border */
+
   --info: 46 118 214;             /* #2e76d6 — 13 strokes */
   --info-dark: 59 94 168;         /* #3b5ea8 — 8 */
   --info-soft: 234 242 252;       /* #eaf2fc — 4 */
