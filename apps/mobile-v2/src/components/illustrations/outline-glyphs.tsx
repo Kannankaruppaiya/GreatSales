@@ -321,3 +321,40 @@ export function CheckCircleOutline({ size = 20, color = '#ffffff' }: P) {
     </Svg>
   );
 }
+
+/* --- 02C.1's category glyph, and the rule under a handwritten quote ----- */
+
+/** An alarm clock - 02C.1's overdue category. Bells, feet and all. */
+export function AlarmClockOutline({ size = 26, color = '#e5484d' }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 26 26">
+      <Ellipse cx={13} cy={14.62} rx={8.13} ry={8.13} {...stroke(color)} />
+      <Path d="M13,11.38L13,15.17L15.6,16.9" {...stroke(color)} />
+      <Path d="M4.98,5.63L7.48,3.47" {...stroke(color)} />
+      <Path d="M21.02,5.63L18.52,3.47" {...stroke(color)} />
+      <Path d="M5.63,22.1L3.9,23.83" {...stroke(color)} />
+      <Path d="M20.37,22.1L22.1,23.83" {...stroke(color)} />
+    </Svg>
+  );
+}
+
+/**
+ * The green rule under a handwritten quotation.
+ *
+ * 02B.1 draws it 81 wide and 02C.1 83, over the same curve at the same
+ * stroke - three pixels of the designer's hand, not two shapes. One viewBox
+ * serves both; `width` is the difference.
+ */
+export function QuoteRule({ width = 83 }: { width?: number }) {
+  return (
+    <Svg width={width} height={9} viewBox="0 0 83 9">
+      <Path
+        d="M3.89,2.57C23.24,9 58.1,4.95 79.11,3.86"
+        stroke="#17a45e"
+        strokeWidth={2.4}
+        strokeLinecap="round"
+        fill="none"
+      />
+    </Svg>
+  );
+}

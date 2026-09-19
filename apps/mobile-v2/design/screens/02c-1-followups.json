@@ -1,0 +1,290 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board '02C.1 Follow-ups Overview'",
+  "_board": {
+    "width": 376,
+    "height": 859
+  },
+  "_excluded": [
+    "time / status-icons — the mockup status bar"
+  ],
+  "_layout": {
+    "flows": true,
+    "_note": "Flows; each 73-tall category card places its contents absolutely at the board's offsets. The chips carry the board's own six insets, as on 02B.1."
+  },
+  "_state": "Counts are the board's, unwired. All SEVEN of them — four chips and three cards — must come from one request: seven calls would let 24 disagree with 6+8+10 on a slow connection. The three windows are a granularity and an anchor resolved on read, never a stored range (AGENTS.md): 'Next 7 days' left open overnight has to move with the calendar.",
+  "_asset": "02c-road.webp — 35KB, from the design's 388KB PNG at the same 760x330. Decorative; the quotation above it carries the meaning, so it is hidden from screen readers rather than described twice.",
+  "shapes": [
+    {
+      "n": "h-title",
+      "t": "text",
+      "x": 57,
+      "y": 50,
+      "w": 261,
+      "chars": "Follow-ups Due",
+      "size": 20,
+      "weight": 700,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "s-ph",
+      "t": "text",
+      "x": 60,
+      "y": 113,
+      "chars": "Search customers or follow-ups...",
+      "size": 14,
+      "weight": 500,
+      "fill": "#8aa3b0"
+    },
+    {
+      "n": "chip-0",
+      "t": "text",
+      "x": 28,
+      "y": 167,
+      "chars": "All",
+      "size": 12,
+      "weight": 700,
+      "fill": "#ffffff"
+    },
+    {
+      "n": "chip-0n",
+      "t": "text",
+      "x": 57,
+      "y": 167,
+      "chars": "24",
+      "size": 12,
+      "weight": 800,
+      "fill": "#ffffff"
+    },
+    {
+      "n": "chip-1",
+      "t": "text",
+      "x": 99,
+      "y": 167,
+      "chars": "Overdue",
+      "size": 12,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "chip-1n",
+      "t": "text",
+      "x": 156,
+      "y": 167,
+      "chars": "6",
+      "size": 12,
+      "weight": 800,
+      "fill": "#e5484d"
+    },
+    {
+      "n": "chip-2",
+      "t": "text",
+      "x": 191,
+      "y": 167,
+      "chars": "Today",
+      "size": 12,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "chip-2n",
+      "t": "text",
+      "x": 234,
+      "y": 167,
+      "chars": "8",
+      "size": 12,
+      "weight": 800,
+      "fill": "#d98a15"
+    },
+    {
+      "n": "chip-3",
+      "t": "text",
+      "x": 269,
+      "y": 167,
+      "chars": "Upcoming",
+      "size": 12,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "chip-3n",
+      "t": "text",
+      "x": 334,
+      "y": 167,
+      "chars": "10",
+      "size": 12,
+      "weight": 800,
+      "fill": "#17a45e"
+    },
+    {
+      "n": "cat-t-0",
+      "t": "text",
+      "x": 73,
+      "y": 254,
+      "chars": "Overdue Follow-ups",
+      "size": 14,
+      "weight": 700,
+      "fill": "#c22b30"
+    },
+    {
+      "n": "cat-s-0",
+      "t": "text",
+      "x": 73,
+      "y": 275,
+      "chars": "Past due. Take action now.",
+      "size": 12,
+      "weight": 500,
+      "fill": "#a86063"
+    },
+    {
+      "n": "cat-n-0",
+      "t": "text",
+      "x": 265,
+      "y": 256,
+      "w": 55,
+      "chars": "6",
+      "size": 22,
+      "weight": 800,
+      "fill": "#e5484d",
+      "align": "right"
+    },
+    {
+      "n": "cat-t-1",
+      "t": "text",
+      "x": 73,
+      "y": 343,
+      "chars": "Due Today",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "cat-s-1",
+      "t": "text",
+      "x": 73,
+      "y": 364,
+      "chars": "Scheduled for today.",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "cat-n-1",
+      "t": "text",
+      "x": 265,
+      "y": 344,
+      "w": 55,
+      "chars": "8",
+      "size": 22,
+      "weight": 800,
+      "fill": "#d98a15",
+      "align": "right"
+    },
+    {
+      "n": "cat-t-2",
+      "t": "text",
+      "x": 73,
+      "y": 431,
+      "chars": "Upcoming",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "cat-s-2",
+      "t": "text",
+      "x": 73,
+      "y": 452,
+      "chars": "Next 7 days.",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "cat-n-2",
+      "t": "text",
+      "x": 265,
+      "y": 433,
+      "w": 55,
+      "chars": "10",
+      "size": 22,
+      "weight": 800,
+      "fill": "#17a45e",
+      "align": "right"
+    },
+    {
+      "n": "q1",
+      "t": "text",
+      "x": 31,
+      "y": 543,
+      "w": 313,
+      "chars": "“Consistent follow-ups",
+      "size": 20,
+      "weight": 400,
+      "family": "Caveat",
+      "fill": "#3e6374",
+      "align": "center"
+    },
+    {
+      "n": "q2",
+      "t": "text",
+      "x": 31,
+      "y": 566,
+      "w": 313,
+      "chars": "create stronger relationships.”",
+      "size": 20,
+      "weight": 400,
+      "family": "Caveat",
+      "fill": "#3e6374",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-0",
+      "t": "text",
+      "x": 3,
+      "y": 821,
+      "w": 78,
+      "chars": "Home",
+      "size": 10,
+      "weight": 700,
+      "fill": "#17a45e",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-1",
+      "t": "text",
+      "x": 78,
+      "y": 821,
+      "w": 78,
+      "chars": "Pipeline",
+      "size": 10,
+      "weight": 600,
+      "fill": "#8aa3b0",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-2",
+      "t": "text",
+      "x": 220,
+      "y": 821,
+      "w": 78,
+      "chars": "Customers",
+      "size": 10,
+      "weight": 600,
+      "fill": "#8aa3b0",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-3",
+      "t": "text",
+      "x": 295,
+      "y": 821,
+      "w": 78,
+      "chars": "More",
+      "size": 10,
+      "weight": 600,
+      "fill": "#8aa3b0",
+      "align": "center"
+    }
+  ]
+}

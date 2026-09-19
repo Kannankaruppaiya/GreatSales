@@ -148,16 +148,19 @@
         "02B.5 Opportunity Detail"
       ],
       "_reached_from": "02B.4's rows."
+    },
+    {
+      "screen": "Follow-ups Due",
+      "route": "/followups",
+      "boards": [
+        "02C.1 Follow-ups Overview"
+      ],
+      "_note": "Three category cards. Only Overdue opens a list — Due Today and Upcoming are boards 02C.3 and 02C.4 and are not built yet, so those two are left un-pressable rather than pointed at the overdue list."
     }
   ],
   "remaining": {
     "_note": "Bases still to build, with the boards that are states of each. A state is a component on an existing screen, not a new route.",
     "flows": [
-      {
-        "base": "02C.1 Follow-ups Overview",
-        "shapes": 57,
-        "image": "02c-road"
-      },
       {
         "base": "02C.2 Overdue Follow-ups",
         "shapes": 78
@@ -312,7 +315,7 @@
         "shapes": 38
       }
     ],
-    "_left": 26
+    "_left": 25
   },
   "_unreached": [
     "/actions has no entry point yet — no board links to 02B.1. It is a tab destination in the design (it carries the bar), so it belongs behind one of the four tabs; which one is not drawn.",

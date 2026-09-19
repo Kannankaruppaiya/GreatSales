@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
@@ -8,7 +7,7 @@ import { HillsPale } from '../../src/components/ui/Hills';
 import { TabBar } from '../../src/components/ui/TabBar';
 import {
   PhoneOutline, CardOutline, FileOutline, BarsSolid23, EllipsisGlyph,
-  FunnelOutline, AlertTriangleOutline, ChevronRightStroke,
+  FunnelOutline, AlertTriangleOutline, ChevronRightStroke, QuoteRule,
 } from '../../src/components/illustrations/outline-glyphs';
 
 /**
@@ -253,15 +252,7 @@ export default function Actions() {
             {'create bigger opportunities.”'}
           </Text>
           <View className="items-center" style={{ marginTop: 6 }}>
-            <Svg width={81} height={9} viewBox="0 0 81 9">
-              <Path
-                d="M3.92,2.57C22.68,9 56.7,4.95 77.08,3.86"
-                stroke="#17a45e"
-                strokeWidth={2.4}
-                strokeLinecap="round"
-                fill="none"
-              />
-            </Svg>
+            <QuoteRule width={81} />
           </View>
         </ScrollView>
       </SafeAreaView>
