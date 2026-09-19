@@ -1,0 +1,505 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board '02A Screen 02A.3'",
+  "_board": {
+    "width": 376,
+    "height": 859
+  },
+  "_excluded": [
+    "bg radius 31 — the mockup phone frame",
+    "time / status-icons — the mockup status bar"
+  ],
+  "_layout": {
+    "flows": true,
+    "_note": "Flows to the legend; the chart block (axis labels, plot, month labels) is one fixed 143-tall box with absolute children, because the '8L' label must land on the gridline it names."
+  },
+  "_state": "Numbers are the board's, unwired. The six cards are kpis.recurringCommitted / recurringAchieved / pipelineValue / newSalesCount / followUpsTotal / followUpsDue; their deltas are the same fields over the previous period; the trend is monthsInRange over the last six.",
+  "_chart": {
+    "plot": [
+      298,
+      120
+    ],
+    "origin": [
+      54,
+      539
+    ],
+    "barX": [
+      5.2,
+      54.7,
+      104.1,
+      153.6,
+      203,
+      252.5
+    ],
+    "barW": 26,
+    "barR": 4,
+    "gridY": [
+      0.7,
+      40.2,
+      79.8,
+      119.3
+    ],
+    "gridStroke": "1px #e8eff2",
+    "bars": "#2cb873, index 5 #17a45e",
+    "target": {
+      "d": "M5.21,99.78C52.05,91.96,80.68,78.91,117.12,68.48C169.17,55.43,223.83,34.56,292.80,8.48",
+      "stroke": "2px #7fd3a8 round"
+    }
+  },
+  "shapes": [
+    {
+      "n": "scr-title",
+      "t": "text",
+      "y": 52,
+      "w": 376,
+      "chars": "Sales Progress",
+      "size": 18,
+      "weight": 700,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "period-t",
+      "t": "text",
+      "x": 70,
+      "y": 103,
+      "chars": "This Month (Sep 2026)",
+      "size": 14,
+      "weight": 600,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "sec-1",
+      "t": "text",
+      "x": 23,
+      "y": 151,
+      "chars": "Key Metrics",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "kpi-v-0",
+      "t": "text",
+      "x": 67,
+      "y": 192,
+      "chars": "₹ 17.5L",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "kpi-l-0",
+      "t": "text",
+      "x": 67,
+      "y": 212,
+      "chars": "Committed Value",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "kpi-d-0",
+      "t": "text",
+      "x": 53,
+      "y": 237,
+      "chars": "+8%",
+      "size": 10,
+      "weight": 700,
+      "fill": "#0e7a4a"
+    },
+    {
+      "n": "kpi-s-0",
+      "t": "text",
+      "x": 85,
+      "y": 237,
+      "chars": "vs. last month",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "kpi-v-1",
+      "t": "text",
+      "x": 239,
+      "y": 192,
+      "chars": "₹ 12.5L",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "kpi-l-1",
+      "t": "text",
+      "x": 239,
+      "y": 212,
+      "chars": "Achieved Value",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "kpi-d-1",
+      "t": "text",
+      "x": 225,
+      "y": 237,
+      "chars": "+12%",
+      "size": 10,
+      "weight": 700,
+      "fill": "#0e7a4a"
+    },
+    {
+      "n": "kpi-s-1",
+      "t": "text",
+      "x": 257,
+      "y": 237,
+      "chars": "vs. last month",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "kpi-v-2",
+      "t": "text",
+      "x": 67,
+      "y": 288,
+      "chars": "₹ 28.4L",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "kpi-l-2",
+      "t": "text",
+      "x": 67,
+      "y": 309,
+      "chars": "Pipeline Value",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "kpi-d-2",
+      "t": "text",
+      "x": 53,
+      "y": 333,
+      "chars": "+18%",
+      "size": 10,
+      "weight": 700,
+      "fill": "#0e7a4a"
+    },
+    {
+      "n": "kpi-s-2",
+      "t": "text",
+      "x": 85,
+      "y": 333,
+      "chars": "vs. last month",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "kpi-v-3",
+      "t": "text",
+      "x": 239,
+      "y": 288,
+      "chars": "18",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "kpi-l-3",
+      "t": "text",
+      "x": 239,
+      "y": 309,
+      "chars": "New Sales",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "kpi-d-3",
+      "t": "text",
+      "x": 225,
+      "y": 333,
+      "chars": "+50%",
+      "size": 10,
+      "weight": 700,
+      "fill": "#0e7a4a"
+    },
+    {
+      "n": "kpi-s-3",
+      "t": "text",
+      "x": 257,
+      "y": 333,
+      "chars": "vs. last month",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "kpi-v-4",
+      "t": "text",
+      "x": 67,
+      "y": 384,
+      "chars": "24",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "kpi-l-4",
+      "t": "text",
+      "x": 67,
+      "y": 405,
+      "chars": "Follow-ups",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "kpi-d-4",
+      "t": "text",
+      "x": 53,
+      "y": 429,
+      "chars": "+14%",
+      "size": 10,
+      "weight": 700,
+      "fill": "#0e7a4a"
+    },
+    {
+      "n": "kpi-s-4",
+      "t": "text",
+      "x": 85,
+      "y": 429,
+      "chars": "vs. last month",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "kpi-v-5",
+      "t": "text",
+      "x": 239,
+      "y": 384,
+      "chars": "7",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "kpi-l-5",
+      "t": "text",
+      "x": 239,
+      "y": 405,
+      "chars": "Due This Week",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "kpi-d-5",
+      "t": "text",
+      "x": 225,
+      "y": 429,
+      "chars": "+75%",
+      "size": 10,
+      "weight": 700,
+      "fill": "#e5484d"
+    },
+    {
+      "n": "kpi-s-5",
+      "t": "text",
+      "x": 257,
+      "y": 429,
+      "chars": "vs. last week",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "sec-2",
+      "t": "text",
+      "x": 23,
+      "y": 481,
+      "chars": "Progress Trend",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "vd",
+      "t": "text",
+      "x": 208,
+      "y": 483,
+      "w": 130,
+      "chars": "View Details",
+      "size": 12,
+      "weight": 600,
+      "fill": "#0e7a4a",
+      "align": "right"
+    },
+    {
+      "n": "lg-t1",
+      "t": "text",
+      "x": 37,
+      "y": 507,
+      "chars": "Achieved",
+      "size": 10,
+      "weight": 500,
+      "fill": "#123e52"
+    },
+    {
+      "n": "lg-t2",
+      "t": "text",
+      "x": 130,
+      "y": 507,
+      "chars": "Target",
+      "size": 10,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "ax-0",
+      "t": "text",
+      "x": 20,
+      "y": 532,
+      "w": 29,
+      "chars": "24L",
+      "size": 9,
+      "weight": 500,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "ax-1",
+      "t": "text",
+      "x": 20,
+      "y": 572,
+      "w": 29,
+      "chars": "16L",
+      "size": 9,
+      "weight": 500,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "ax-2",
+      "t": "text",
+      "x": 20,
+      "y": 612,
+      "w": 29,
+      "chars": "8L",
+      "size": 9,
+      "weight": 500,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "ax-3",
+      "t": "text",
+      "x": 20,
+      "y": 651,
+      "w": 29,
+      "chars": "0",
+      "size": 9,
+      "weight": 500,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "xl-0",
+      "t": "text",
+      "x": 53,
+      "y": 663,
+      "w": 39,
+      "chars": "Apr",
+      "size": 9,
+      "weight": 500,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "xl-1",
+      "t": "text",
+      "x": 102,
+      "y": 663,
+      "w": 39,
+      "chars": "May",
+      "size": 9,
+      "weight": 500,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "xl-2",
+      "t": "text",
+      "x": 152,
+      "y": 663,
+      "w": 39,
+      "chars": "Jun",
+      "size": 9,
+      "weight": 500,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "xl-3",
+      "t": "text",
+      "x": 201,
+      "y": 663,
+      "w": 39,
+      "chars": "Jul",
+      "size": 9,
+      "weight": 500,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "xl-4",
+      "t": "text",
+      "x": 251,
+      "y": 663,
+      "w": 39,
+      "chars": "Aug",
+      "size": 9,
+      "weight": 500,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "xl-5",
+      "t": "text",
+      "x": 300,
+      "y": 663,
+      "w": 39,
+      "chars": "Sep",
+      "size": 9,
+      "weight": 500,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "impact-t",
+      "t": "text",
+      "x": 70,
+      "y": 709,
+      "chars": "Recent Activity Impact",
+      "size": 12,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "impact-d",
+      "t": "text",
+      "x": 70,
+      "y": 726,
+      "w": 263,
+      "chars": "Your follow-ups have increased by 14%, resulting in a 12% higher achievement this month.",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796",
+      "lh": 1.45
+    }
+  ]
+}

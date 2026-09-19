@@ -1,4 +1,4 @@
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Ellipse, Path, Rect } from 'react-native-svg';
 
 /**
  * The solid glyphs from Screen 01B, drawn from the design's own path data.
@@ -83,6 +83,154 @@ export function CtaPinGlyph({ size = 21, color = '#ffffff' }: { size?: number; c
   return (
     <Svg width={size} height={size} viewBox="3452 961 21 21">
       <Path d={CTA_PIN_D} fill={color} />
+    </Svg>
+  );
+}
+
+/* -------------------------------------------------------------------------
+ * Screen 02A.3's glyphs.
+ *
+ * Unlike the 01B set above, these arrive already in their own 0..22 box - the
+ * extractor now subtracts the group origin from the path data - so the
+ * viewBox is the group's own size and nothing has to be read against a canvas
+ * offset in the five thousands.
+ *
+ * Six of them are the KPI cards', one is the period pill's, one is the card
+ * at the foot of the screen, and one is the delta arrow, which is the only
+ * STROKED glyph in the set: the design draws an up-and-right arrow at stroke
+ * 1.9, not Material's straight `arrow-upward`.
+ * ---------------------------------------------------------------------- */
+
+const TARGET_D =
+  'M11,2.2C6.14,2.2 2.2,6.14 2.2,11C2.2,15.86 6.14,19.8 11,19.8C15.86,19.8 19.8,15.86 19.8,11C19.8,6.14 15.86,2.2 11,2.2ZM11,4.22C13.42,4.22 15.66,5.51 16.87,7.61C18.09,9.71 18.09,12.29 16.87,14.39C15.66,16.49 13.42,17.78 11,17.78C7.25,17.78 4.22,14.75 4.22,11C4.22,7.25 7.25,4.22 11,4.22ZM11,6.6C9.43,6.6 7.98,7.44 7.19,8.8C6.4,10.16 6.4,11.84 7.19,13.2C7.98,14.56 9.43,15.4 11,15.4C13.43,15.4 15.4,13.43 15.4,11C15.4,8.57 13.43,6.6 11,6.6ZM11,8.8C11.79,8.8 12.51,9.22 12.91,9.9C13.3,10.58 13.3,11.42 12.91,12.1C12.51,12.78 11.79,13.2 11,13.2C9.79,13.2 8.8,12.21 8.8,11C8.8,9.78 9.79,8.8 11,8.8Z';
+
+const STACK_MID_D =
+  'M3.12,8.07L3.12,10.45C3.12,12.1 6.6,13.38 11,13.38C15.4,13.38 18.88,12.1 18.88,10.45L18.88,8.07C18.88,9.72 15.4,11 11,11C6.6,11 3.12,9.72 3.12,8.07Z';
+const STACK_LOW_D =
+  'M3.12,12.83L3.12,15.22C3.12,16.87 6.6,18.15 11,18.15C15.4,18.15 18.88,16.87 18.88,15.22L18.88,12.83C18.88,14.48 15.4,15.77 11,15.77C6.6,15.77 3.12,14.48 3.12,12.83Z';
+
+const PERSON_D =
+  'M9.17,10.45C11.5,10.45 13.38,8.56 13.38,6.23C13.38,3.9 11.5,2.02 9.17,2.02C6.84,2.02 4.95,3.9 4.95,6.23C4.95,8.56 6.84,10.45 9.17,10.45ZM9.17,12.19C5.68,12.19 2.2,13.93 2.2,16.13L2.2,18.52L12.65,18.52L12.65,16.32C12.65,14.67 13.29,13.2 14.3,12.47C12.62,12.07 10.88,11.98 9.17,12.19Z';
+const PERSON_PLUS_D =
+  'M16.87,11.55L18.61,11.55L18.61,14.3L21.36,14.3L21.36,16.04L18.61,16.04L18.61,18.79L16.87,18.79L16.87,16.04L14.12,16.04L14.12,14.3L16.87,14.3Z';
+
+const CAL22_D =
+  'M6.42,1.83L6.42,3.67L5.04,3.67C3.78,3.67 2.75,4.69 2.75,5.96L2.75,18.33C2.75,19.35 3.57,20.17 4.58,20.17L17.42,20.17C18.43,20.17 19.25,19.35 19.25,18.33L19.25,5.96C19.25,4.69 18.22,3.67 16.96,3.67L15.58,3.67L15.58,1.83L13.75,1.83L13.75,3.67L8.25,3.67L8.25,1.83L6.42,1.83ZM17.42,8.25L17.42,18.33L4.58,18.33L4.58,8.25L17.42,8.25Z';
+
+const CAL20_D =
+  'M5.83,1.67L5.83,3.33L4.58,3.33C3.43,3.33 2.5,4.27 2.5,5.42L2.5,16.67C2.5,17.59 3.25,18.33 4.17,18.33L15.83,18.33C16.75,18.33 17.5,17.59 17.5,16.67L17.5,5.42C17.5,4.27 16.57,3.33 15.42,3.33L14.17,3.33L14.17,1.67L12.5,1.67L12.5,3.33L7.5,3.33L7.5,1.67L5.83,1.67ZM15.83,7.5L15.83,16.67L4.17,16.67L4.17,7.5L15.83,7.5Z';
+
+const CLOCK_D =
+  'M11,2.2C6.14,2.2 2.2,6.14 2.2,11C2.2,15.86 6.14,19.8 11,19.8C15.86,19.8 19.8,15.86 19.8,11C19.8,6.14 15.86,2.2 11,2.2ZM12.01,6.6L12.01,11.46L15.95,13.84L14.94,15.49L9.99,12.56L9.99,6.6L12.01,6.6Z';
+
+const BOLT_D = 'M11.9,1.31L3.5,12.16L9.01,12.16L8.66,19.69L17.33,8.57L11.55,8.57L11.9,1.31Z';
+
+const ARROW_UR_D = 'M3.25,9.75L9.75,3.25L5.2,3.25M9.75,3.25L9.75,7.8';
+
+/** Committed value - a concentric target. */
+export function TargetGlyph({ size = 22, color = BRAND }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 22 22">
+      <Path d={TARGET_D} fill={color} fillRule="evenodd" />
+    </Svg>
+  );
+}
+
+/** Achieved value - three rising bars, each its own rounded rect. */
+export function RisingBarsGlyph({ size = 22, color = BRAND }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 22 22">
+      {[
+        { x: 2.75, y: 11, h: 8.25 },
+        { x: 8.89, y: 6.42, h: 12.83 },
+        { x: 15.03, y: 2.75, h: 16.5 },
+      ].map((b) => (
+        <Rect key={b.x} x={b.x} y={b.y} width={4.22} height={b.h} rx={1.3} fill={color} />
+      ))}
+    </Svg>
+  );
+}
+
+/** Pipeline value - a three-disc stack; the top disc is a true ellipse. */
+export function StackGlyph({ size = 22, color = BRAND }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 22 22">
+      <Ellipse cx={11} cy={5.14} rx={7.88} ry={2.93} fill={color} />
+      <Path d={STACK_MID_D} fill={color} />
+      <Path d={STACK_LOW_D} fill={color} />
+    </Svg>
+  );
+}
+
+/** New sales - a person with a plus. */
+export function PersonPlusGlyph({ size = 22, color = BRAND }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 22 22">
+      <Path d={PERSON_D} fill={color} fillRule="evenodd" />
+      <Path d={PERSON_PLUS_D} fill={color} />
+    </Svg>
+  );
+}
+
+/** Follow-ups - the 22-box calendar. Not the 26-box one on 01B. */
+export function Calendar22Glyph({ size = 22, color = BRAND }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 22 22">
+      <Path d={CAL22_D} fill={color} fillRule="evenodd" />
+      {[6.42, 10.54, 14.67].map((x) => (
+        <Rect key={x} x={x} y={10.45} width={2.75} height={2.75} rx={0.7} fill={color} />
+      ))}
+    </Svg>
+  );
+}
+
+/** The period pill's calendar: a 20-box, and muted rather than brand. */
+export function Calendar20Glyph({ size = 20, color = '#6b8796' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 20 20">
+      <Path d={CAL20_D} fill={color} fillRule="evenodd" />
+      {[5.83, 9.58, 13.33].map((x) => (
+        <Rect key={x} x={x} y={9.5} width={2.5} height={2.5} rx={0.7} fill={color} />
+      ))}
+    </Svg>
+  );
+}
+
+/** Due this week - a clock. */
+export function ClockGlyph({ size = 22, color = BRAND }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 22 22">
+      <Path d={CLOCK_D} fill={color} fillRule="evenodd" />
+    </Svg>
+  );
+}
+
+/** Recent Activity Impact - a lightning bolt, in a 21-box. */
+export function BoltGlyph({ size = 21, color = BRAND }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 21 21">
+      <Path d={BOLT_D} fill={color} />
+    </Svg>
+  );
+}
+
+/**
+ * The delta arrow: up AND right, stroked 1.9 with round caps and joins.
+ *
+ * Its colour is the direction's rather than the metric's - see KpiCard - so
+ * it takes one, and no default that would let a caller forget.
+ */
+export function ArrowUpRightGlyph({ size = 13, color }: { size?: number; color: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 13 13">
+      <Path
+        d={ARROW_UR_D}
+        stroke={color}
+        strokeWidth={1.9}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
     </Svg>
   );
 }

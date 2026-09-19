@@ -190,6 +190,7 @@ export default function SalesProgress() {
 
           <Pressable
             accessibilityRole="button"
+            onPress={() => router.push('/(app)/sales-breakdown')}
             className="overflow-hidden"
             style={{ marginTop: 23, marginHorizontal: 24, height: 52, borderRadius: 13 }}
           >
