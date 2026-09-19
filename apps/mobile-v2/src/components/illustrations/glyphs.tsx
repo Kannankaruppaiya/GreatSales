@@ -32,9 +32,18 @@ const CTA_PIN_D =
 
 const BRAND = '#17a45e';
 
-export function PinGlyph({ size = 26, color = BRAND }: { size?: number; color?: string }) {
+export function PinGlyph({
+  size = 26, color = BRAND, width, height,
+}: { size?: number; color?: string; width?: number; height?: number }) {
+  // 01B-C frames the same pin in a 43x41 box rather than a square one, so
+  // width and height can be given separately; `size` covers every other use.
   return (
-    <Svg width={size} height={size} viewBox="3414 479 26 26">
+    <Svg
+      width={width ?? size}
+      height={height ?? size}
+      viewBox="3414 479 26 26"
+      preserveAspectRatio="none"
+    >
       <Path d={PIN_D} fill={color} />
     </Svg>
   );
@@ -300,6 +309,107 @@ export function BannerRidges({ width = 329, height = 36 }: { width?: number | st
       <Path d="M0,17.67L45.54,7.2L79.69,14.4L122.95,3.93L170.76,13.75L216.3,6.55L259.56,15.05L302.82,7.85L329,13.75L329,36L0,36Z" fill="#dceee6" />
       <Path d="M0,22.91L50.09,14.4L95.63,20.94L145.72,11.78L195.81,19.64L243.62,13.09L289.16,20.94L329,15.71L329,36L0,36Z" fill="#d0e8de" />
       <Path d="M0,28.8L54.64,22.25L109.29,27.49L170.76,20.29L227.68,26.84L282.33,21.6L329,26.18L329,36L0,36Z" fill="#c4e2d6" />
+    </Svg>
+  );
+}
+
+/* ------------- Screens 01B-C, 01B-D and 01B-INFO ------------------------- */
+
+const INFO_D =
+  'M10,1.67C5.4,1.67 1.67,5.4 1.67,10C1.67,14.6 5.4,18.33 10,18.33C14.6,18.33 18.33,14.6 18.33,10C18.33,5.4 14.6,1.67 10,1.67ZM10.92,14.33L9.08,14.33L9.08,8.83L10.92,8.83L10.92,14.33ZM10.92,7.33L9.08,7.33L9.08,5.5L10.92,5.5L10.92,7.33Z';
+
+const GEAR_D =
+  'M16.97,11.38C17.05,10.79 17.05,10.21 16.97,9.63L18.81,8.22L17.06,5.16L14.88,6.04C14.42,5.68 13.92,5.39 13.39,5.16L13.13,2.8L9.63,2.8L9.36,5.16C8.84,5.38 8.31,5.69 7.88,6.04L5.69,5.16L3.94,8.22L5.78,9.63C5.7,10.21 5.7,10.79 5.78,11.38L3.94,12.78L5.69,15.84L7.88,14.96C8.31,15.31 8.84,15.62 9.36,15.84L9.63,18.2L13.13,18.2L13.39,15.84C13.91,15.62 14.44,15.31 14.88,14.96L17.06,15.84L18.81,12.78L16.97,11.38ZM11.38,13.3C9.83,13.3 8.57,12.05 8.57,10.5C8.57,8.95 9.83,7.7 11.38,7.7C12.92,7.7 14.18,8.95 14.18,10.5C14.18,12.05 12.92,13.3 11.38,13.3Z';
+
+const REFRESH_D =
+  'M10.5,4.03L10.5,1.22L6.65,5.07L10.5,8.93L10.5,6.13C12.92,6.13 14.88,8.08 14.88,10.5C14.88,12.92 12.92,14.88 10.5,14.88C8.08,14.88 6.13,12.92 6.13,10.5L4.03,10.5C4.03,14.08 6.92,16.97 10.5,16.97C14.08,16.97 16.97,14.08 16.97,10.5C16.97,6.92 14.08,4.03 10.5,4.03Z';
+
+const ROUTE_PINS_D =
+  'M5.5,2.2C3.88,2.2 2.57,3.51 2.57,5.13C2.57,7.33 5.5,10.27 5.5,10.27C5.5,10.27 8.43,7.33 8.43,5.13C8.43,3.51 7.12,2.2 5.5,2.2ZM5.5,6.23C4.89,6.23 4.4,5.74 4.4,5.13C4.4,4.53 4.89,4.03 5.5,4.03C6.11,4.03 6.6,4.53 6.6,5.13C6.6,5.74 6.11,6.23 5.5,6.23ZM16.5,11.73C14.88,11.73 13.57,13.05 13.57,14.67C13.57,16.87 16.5,19.8 16.5,19.8C16.5,19.8 19.43,16.87 19.43,14.67C19.43,13.05 18.12,11.73 16.5,11.73ZM16.5,15.77C15.89,15.77 15.4,15.27 15.4,14.67C15.4,14.06 15.89,13.57 16.5,13.57C17.11,13.57 17.6,14.06 17.6,14.67C17.6,15.27 17.11,15.77 16.5,15.77Z';
+const ROUTE_LINK_D =
+  'M7.7,7.88C10.63,8.8 11.92,10.27 11.92,12.65C11.92,14.12 12.83,15.03 14.12,15.4';
+
+const SEND_D = 'M24.3,2.7L2.7,11.47L11.81,15.19L15.53,24.3L24.3,2.7Z';
+
+const SHIELD_CHECK_D =
+  'M13.5,2.03L4.05,5.63L4.05,12.82C4.05,18.45 8.1,23.74 13.5,25.09C18.9,23.74 22.95,18.45 22.95,12.82L22.95,5.63L13.5,2.03ZM12.38,18.22L7.99,13.84L9.79,12.04L12.38,14.63L18.34,8.66L20.14,10.46L12.38,18.22Z';
+
+/** The "i" disc on 01B-C's note. Muted, not brand - it is not an action. */
+export function InfoGlyph({ size = 20, color = '#5e7a88' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 20 20">
+      <Path d={INFO_D} fill={color} fillRule="evenodd" />
+    </Svg>
+  );
+}
+
+/** 01B-C's "Open App Settings". */
+export function GearGlyph({ size = 21, color = '#ffffff' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 21 21">
+      <Path d={GEAR_D} fill={color} fillRule="evenodd" />
+    </Svg>
+  );
+}
+
+/** 01B-C's "Retry Permission": an arrow turning back on itself. */
+export function RefreshGlyph({ size = 21, color = '#0e7a4a' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 21 21">
+      <Path d={REFRESH_D} fill={color} />
+    </Svg>
+  );
+}
+
+/** Two pins joined by a curve - 01B-D's "Plan better routes". */
+export function RouteGlyph({ size = 22, color = BRAND }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 22 22">
+      <Path d={ROUTE_PINS_D} fill={color} fillRule="evenodd" />
+      <Path d={ROUTE_LINK_D} stroke={color} strokeWidth={1.7} strokeLinecap="round" fill="none" />
+    </Svg>
+  );
+}
+
+/** A paper plane - 01B-INFO's "Plan Your Field Visits". */
+export function SendGlyph({ size = 27, color = BRAND }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 27 27">
+      <Path d={SEND_D} fill={color} />
+    </Svg>
+  );
+}
+
+/** A shield with a tick - 01B-INFO's "Your Privacy Matters". */
+export function ShieldCheckGlyph({ size = 27, color = BRAND }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 27 27">
+      <Path d={SHIELD_CHECK_D} fill={color} fillRule="evenodd" />
+    </Svg>
+  );
+}
+
+/**
+ * One of 01B-C's two clouds: three overlapping ellipses, the middle one a
+ * shade lighter than the two beside it, at the board's own offsets.
+ */
+export function Cloud({ side }: { side: 'left' | 'right' }) {
+  const spec =
+    side === 'left'
+      ? { w: 78, h: 33, parts: [[1.1, 12.1, 37.9, 19.8, 0], [24, 3.3, 32.3, 25.3, 1], [41.2, 14.3, 33.4, 17.6, 0]] }
+      : { w: 73, h: 30, parts: [[1, 11, 35.5, 18, 0], [22.4, 3, 30.2, 23, 1], [38.6, 13, 31.3, 16, 0]] };
+  return (
+    <Svg width={spec.w} height={spec.h} viewBox={`0 0 ${spec.w} ${spec.h}`}>
+      {spec.parts.map(([x, y, w, h, light]) => (
+        <Ellipse
+          key={`${x}`}
+          cx={x + w / 2}
+          cy={y + h / 2}
+          rx={w / 2}
+          ry={h / 2}
+          fill={light ? '#f5fafc' : '#e9f2f6'}
+        />
+      ))}
     </Svg>
   );
 }

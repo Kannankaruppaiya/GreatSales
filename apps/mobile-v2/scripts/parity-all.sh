@@ -24,6 +24,10 @@ done <<'SCREENS'
 01-splash:/
 01a-login:/login
 01b-location:/location
+01b-c-off:/location-off
+01b-d-retry:/location-retry
+01b-info:/location-info
+01b-e-enabled:/location-enabled
 01c-preparing:/preparing
 01d-sales-home:/home
 02a-1-sales-progress:/sales-progress

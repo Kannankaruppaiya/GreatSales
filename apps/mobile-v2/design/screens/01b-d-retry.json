@@ -1,0 +1,96 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board '01B Screen 01B-D'",
+  "_board": {
+    "width": 376,
+    "height": 859
+  },
+  "_excluded": [
+    "bg radius 34 — the mockup phone frame",
+    "time / status-icons — the mockup status bar"
+  ],
+  "_layout": {
+    "flows": true,
+    "_note": "Flows; the rings, the pin and the four dots are one 226-tall block with absolute children, pulled 12 above where the back row ends because the board starts them at y67."
+  },
+  "_state": "Static.",
+  "shapes": [
+    {
+      "n": "h1",
+      "t": "text",
+      "y": 293,
+      "w": 376,
+      "chars": "Let's Try Again",
+      "size": 22,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "body",
+      "t": "text",
+      "x": 39,
+      "y": 332,
+      "w": 298,
+      "chars": "Tap the button below to enable location access and get the full field sales experience.",
+      "size": 14,
+      "weight": 400,
+      "fill": "#6b8796",
+      "align": "center",
+      "lh": 1.6
+    },
+    {
+      "n": "b-t-0",
+      "t": "text",
+      "x": 78,
+      "y": 451,
+      "chars": "Find nearby customers",
+      "size": 14,
+      "weight": 500,
+      "fill": "#123e52"
+    },
+    {
+      "n": "b-t-1",
+      "t": "text",
+      "x": 78,
+      "y": 495,
+      "chars": "Plan better routes",
+      "size": 14,
+      "weight": 500,
+      "fill": "#123e52"
+    },
+    {
+      "n": "b-t-2",
+      "t": "text",
+      "x": 78,
+      "y": 539,
+      "chars": "Get area-wise insights",
+      "size": 14,
+      "weight": 500,
+      "fill": "#123e52"
+    },
+    {
+      "n": "cta-t",
+      "t": "text",
+      "x": 140,
+      "y": 626,
+      "chars": "Try Again  →",
+      "size": 17,
+      "weight": 700,
+      "fill": "#ffffff",
+      "_skipX": true,
+      "_note": "Row centred; the board fixes the glyph at x111 and the label at x140."
+    },
+    {
+      "n": "sec-t",
+      "t": "text",
+      "x": 23,
+      "y": 690,
+      "w": 329,
+      "chars": "Not Now",
+      "size": 17,
+      "weight": 600,
+      "fill": "#53707e",
+      "align": "center"
+    }
+  ]
+}

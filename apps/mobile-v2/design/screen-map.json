@@ -76,27 +76,43 @@
         "02A Screen 02A.4"
       ],
       "_reached_from": "02A.3's \"View Details\" — inferred; no board on the page carries a prototype interaction."
+    },
+    {
+      "screen": "Location Access is Off",
+      "route": "/location-off",
+      "boards": [
+        "01B Screen 01B-C"
+      ],
+      "_reached_from": "01B's \"Not Now\"."
+    },
+    {
+      "screen": "Let's Try Again",
+      "route": "/location-retry",
+      "boards": [
+        "01B Screen 01B-D"
+      ],
+      "_reached_from": "01B-C's \"Retry Permission\"."
+    },
+    {
+      "screen": "Why Location Helps",
+      "route": "/location-info",
+      "boards": [
+        "01B Screen 01B-INFO"
+      ],
+      "_reached_from": "NOTHING. No board on the page carries a prototype interaction and no screen in the 01B set has an affordance that would open this one. The route is built and unlinked rather than given an invented entry point; the design needs to say where it hangs."
+    },
+    {
+      "screen": "Location Access Enabled",
+      "route": "/location-enabled",
+      "boards": [
+        "01B Screen 01B-E"
+      ],
+      "_reached_from": "01B's \"Allow Location Access\", granted branch."
     }
   ],
   "remaining": {
     "_note": "Bases still to build, with the boards that are states of each. A state is a component on an existing screen, not a new route.",
     "flows": [
-      {
-        "base": "01B Screen 01B-C",
-        "shapes": 24
-      },
-      {
-        "base": "01B Screen 01B-D",
-        "shapes": 26
-      },
-      {
-        "base": "01B Screen 01B-E",
-        "shapes": 16
-      },
-      {
-        "base": "01B Screen 01B-INFO",
-        "shapes": 28
-      },
       {
         "base": "02B.1 Actions Overview",
         "shapes": 67
@@ -276,6 +292,6 @@
         "shapes": 38
       }
     ],
-    "_left": 35
+    "_left": 31
   }
 }

@@ -1,0 +1,99 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board '01B Screen 01B-C'",
+  "_board": {
+    "width": 376,
+    "height": 859
+  },
+  "_excluded": [
+    "bg radius 34 — the mockup phone frame",
+    "time / status-icons — the mockup status bar"
+  ],
+  "_layout": {
+    "flows": true,
+    "_note": "Flows; the disc, the two clouds and the pin are one 167-tall block with absolute children, because they are scattered rather than stacked."
+  },
+  "_state": "Static. Nothing here calls the API: it is the screen that has to work without the permission.",
+  "shapes": [
+    {
+      "n": "h1",
+      "t": "text",
+      "y": 252,
+      "w": 376,
+      "chars": "Location Access is Off",
+      "size": 22,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "body",
+      "t": "text",
+      "x": 34,
+      "y": 291,
+      "w": 308,
+      "chars": "We couldn't access your location. Some features like nearby customers, route planning and location-based insights may be limited.",
+      "size": 14,
+      "weight": 400,
+      "fill": "#6b8796",
+      "align": "center",
+      "lh": 1.6
+    },
+    {
+      "n": "note-t",
+      "t": "text",
+      "x": 70,
+      "y": 412,
+      "chars": "You can still continue",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "note-d",
+      "t": "text",
+      "x": 70,
+      "y": 433,
+      "w": 263,
+      "chars": "You can use the app without location and enable it anytime from settings.",
+      "size": 11,
+      "weight": 400,
+      "fill": "#6b8796",
+      "lh": 1.45
+    },
+    {
+      "n": "btn1-t",
+      "t": "text",
+      "x": 124,
+      "y": 525,
+      "chars": "Open App Settings",
+      "size": 16,
+      "weight": 700,
+      "fill": "#ffffff",
+      "_skipX": true,
+      "_note": "The row is centred; the board fixes the glyph and the label at x94 and x124 instead."
+    },
+    {
+      "n": "btn2-t",
+      "t": "text",
+      "x": 133,
+      "y": 590,
+      "chars": "Retry Permission",
+      "size": 16,
+      "weight": 700,
+      "fill": "#0e7a4a",
+      "_skipX": true
+    },
+    {
+      "n": "btn3-t",
+      "t": "text",
+      "x": 24,
+      "y": 654,
+      "w": 329,
+      "chars": "Continue Without Location",
+      "size": 16,
+      "weight": 600,
+      "fill": "#53707e",
+      "align": "center"
+    }
+  ]
+}

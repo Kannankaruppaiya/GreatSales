@@ -114,8 +114,12 @@ export default function Location() {
           </Text>
 
           {/* Primary: the gradient, 52 tall at radius 13 with a leading pin. */}
+          {/* Granted lands on 01B-E, refused on 01B-C. The OS prompt goes
+              between the two once expo-location is in; until then this is the
+              granted branch, which is the one the design leads with. */}
           <Pressable
             accessibilityRole="button"
+            onPress={() => router.replace('/(auth)/location-enabled')}
             className="overflow-hidden"
             // 319 wide at x22, so right is 35 - see the note in login.tsx.
             style={{ position: 'absolute', left: 22, right: 35, top: at(616), height: 52, borderRadius: 13 }}
@@ -138,7 +142,7 @@ export default function Location() {
 
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.replace('/(auth)/preparing')}
+            onPress={() => router.replace('/(auth)/location-off')}
             className="bg-quiet items-center justify-center"
             style={{ position: 'absolute', left: 22, right: 35, top: at(686), height: 49, borderRadius: 13 }}
           >

@@ -1,0 +1,76 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board '01B Screen 01B-E'",
+  "_board": {
+    "width": 376,
+    "height": 859
+  },
+  "_excluded": [
+    "bg radius 34 — the mockup phone frame",
+    "time / status-icons — the mockup status bar"
+  ],
+  "_layout": {
+    "flows": false,
+    "_note": "Absolute at the board's coordinates: the tick, the handwriting and the scene sit at four unrelated heights and a flow straightens them out. Wrapped in a ScrollView sized to the board."
+  },
+  "_state": "Static. It is the granted branch of the permission ask.",
+  "shapes": [
+    {
+      "n": "h1",
+      "t": "text",
+      "y": 239,
+      "w": 376,
+      "chars": "Location Access Enabled!",
+      "size": 21,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "body",
+      "t": "text",
+      "x": 31,
+      "y": 278,
+      "w": 313,
+      "chars": "You're all set. We'll use your location to bring you relevant customers, better insights and a smoother field sales experience.",
+      "size": 14,
+      "weight": 400,
+      "fill": "#6b8796",
+      "align": "center",
+      "lh": 1.6
+    },
+    {
+      "n": "hw1",
+      "t": "text",
+      "x": 242,
+      "y": 369,
+      "chars": "More",
+      "size": 20,
+      "weight": 400,
+      "family": "Caveat",
+      "fill": "#0f3244"
+    },
+    {
+      "n": "hw2",
+      "t": "text",
+      "x": 203,
+      "y": 392,
+      "chars": "opportunities ahead.",
+      "size": 20,
+      "weight": 400,
+      "family": "Caveat",
+      "fill": "#0f3244"
+    },
+    {
+      "n": "cta-t",
+      "t": "text",
+      "x": 23,
+      "y": 791,
+      "w": 329,
+      "chars": "Continue  →",
+      "size": 18,
+      "weight": 700,
+      "fill": "#ffffff",
+      "align": "center"
+    }
+  ]
+}
