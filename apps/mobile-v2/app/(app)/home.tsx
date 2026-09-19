@@ -70,7 +70,7 @@ export default function SalesHome() {
 
       <SafeAreaView edges={['top']} className="flex-1">
         <ScrollView
-          contentContainerStyle={{ paddingBottom: 52 + insets.bottom + 40 }}
+          contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
           showsVerticalScrollIndicator={false}
         >
           {/* Brand, bell and the initials chip that stands in for the avatar. */}

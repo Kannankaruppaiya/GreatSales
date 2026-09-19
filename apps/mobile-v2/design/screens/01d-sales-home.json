@@ -478,54 +478,6 @@
       "fill": "#ffffff"
     },
     {
-      "n": "nav-l-0",
-      "t": "text",
-      "x": 11,
-      "y": 841,
-      "w": 83,
-      "chars": "Home",
-      "size": 10,
-      "weight": 700,
-      "fill": "#17a45e",
-      "align": "center"
-    },
-    {
-      "n": "nav-l-1",
-      "t": "text",
-      "x": 78,
-      "y": 841,
-      "w": 83,
-      "chars": "Pipeline",
-      "size": 10,
-      "weight": 500,
-      "fill": "#93a9b5",
-      "align": "center"
-    },
-    {
-      "n": "nav-l-2",
-      "t": "text",
-      "x": 215,
-      "y": 841,
-      "w": 83,
-      "chars": "Customers",
-      "size": 10,
-      "weight": 500,
-      "fill": "#93a9b5",
-      "align": "center"
-    },
-    {
-      "n": "nav-l-3",
-      "t": "text",
-      "x": 282,
-      "y": 841,
-      "w": 83,
-      "chars": "More",
-      "size": 10,
-      "weight": 500,
-      "fill": "#93a9b5",
-      "align": "center"
-    },
-    {
       "n": "fab",
       "t": "ellipse",
       "x": 161,
@@ -539,5 +491,6 @@
         ]
       }
     }
-  ]
+  ],
+  "_deviation": "The four nav labels are NOT pinned. This board draws the app's OLDER tab bar — 52 tall, idle #93a9b5, 10/500 labels, tab centres 51/119/255/323 — and the app ships ONE bar, the later 79-tall one every screen from 02B on draws. A bar that changes height and colour as somebody moves between screens reads as a bug whatever the boards say. This is the only deliberate mismatch with a board in the app; see src/components/ui/TabBar.tsx."
 }

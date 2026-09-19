@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { TabBarTall } from '../../src/components/ui/TabBarTall';
+import { TabBar } from '../../src/components/ui/TabBar';
 import { ListSearchBar } from '../../src/components/ui/ListSearchBar';
 import { CustomerRowCard } from '../../src/components/ui/CustomerRowCard';
 import { ChevronLeftStroke } from '../../src/components/illustrations/outline-glyphs';
@@ -89,7 +89,7 @@ export default function FollowUpsOverdue() {
         </ScrollView>
       </SafeAreaView>
 
-      <TabBarTall
+      <TabBar
         active="home"
         bottomInset={insets.bottom}
         onPressTab={(key) => { if (key === 'home') router.replace('/(app)/home'); }}

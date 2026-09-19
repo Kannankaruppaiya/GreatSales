@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
-  PinGlyph, PeopleGlyph, CalendarGlyph, BarsGlyph,
+  PinGlyph, CalendarGlyph, BarsGlyph,
 } from '../components/illustrations/glyphs';
 
 /**
@@ -30,7 +30,6 @@ type IconProps = { size?: number; color?: string };
 
 /** Straight from the design's paths, extracted for Screen 01B. */
 export const SolidPin = PinGlyph;
-export const SolidPeople = PeopleGlyph;
 export const SolidCalendar = CalendarGlyph;
 export const SolidBars = BarsGlyph;
 
@@ -44,8 +43,4 @@ export const SolidBell = material('notifications');
 export const SolidPersonAdd = material('person-add');
 export const SolidScan = material('crop-free');
 export const SolidCart = material('shopping-cart');
-export const SolidHome = material('home');
-export const SolidPipeline = material('insert-chart');
-export const SolidMore = material('more-horiz');
 export const SolidPhone = material('phone');
-export const SolidPlus = material('add');

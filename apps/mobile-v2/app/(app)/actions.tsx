@@ -5,7 +5,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { HillsPale } from '../../src/components/ui/Hills';
-import { TabBarTall } from '../../src/components/ui/TabBarTall';
+import { TabBar } from '../../src/components/ui/TabBar';
 import {
   PhoneOutline, CardOutline, FileOutline, BarsSolid23, EllipsisGlyph,
   FunnelOutline, AlertTriangleOutline, ChevronRightStroke,
@@ -26,7 +26,7 @@ import {
  * rows are 16-radius rather than 13, the tab bar is 79 tall rather than 52,
  * and the icons are the board's OUTLINE family at stroke 2 where every screen
  * up to 02A drew solid fills. None of that is folded into the earlier
- * components; see TabBarTall and outline-glyphs.tsx for why.
+ * components; see TabBar and outline-glyphs.tsx for why.
  *
  * Counts are the board's, unwired. All five come from one aggregate - the
  * followups, payments, leads and orders repositories each already answer a
@@ -266,7 +266,7 @@ export default function Actions() {
         </ScrollView>
       </SafeAreaView>
 
-      <TabBarTall
+      <TabBar
         active="home"
         bottomInset={insets.bottom}
         onPressTab={(key) => { if (key === 'home') router.replace('/(app)/home'); }}
