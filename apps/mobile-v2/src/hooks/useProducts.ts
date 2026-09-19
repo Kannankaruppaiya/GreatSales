@@ -1,16 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
-import { syntheticProductRepository } from '../repositories/synthetic';
+import { productRepo } from '../repositories';
 
 export function useProducts() {
   return useQuery({
     queryKey: ['products'],
-    queryFn: () => syntheticProductRepository.list(),
+    queryFn: () => productRepo.list(),
   });
 }
 
 export function usePrincipals() {
   return useQuery({
     queryKey: ['principals'],
-    queryFn: () => syntheticProductRepository.listPrincipals(),
+    queryFn: () => productRepo.listPrincipals(),
   });
 }
