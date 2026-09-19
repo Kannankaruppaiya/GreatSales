@@ -26,6 +26,13 @@ const c = (v) => `rgb(var(${v}) / <alpha-value>)`;
 
 module.exports = {
   content: ['./app/**/*.{js,jsx,ts,tsx}', './src/**/*.{js,jsx,ts,tsx}'],
+  /*
+   * 'class', not the default 'media'. There is no dark palette - the design
+   * has no dark screens - so the app must not flip with the OS, and under
+   * 'media' nativewind also refuses any attempt to set the scheme, which it
+   * reports as an error on every dev render.
+   */
+  darkMode: 'class',
   presets: [require('nativewind/preset')],
   theme: {
     extend: {

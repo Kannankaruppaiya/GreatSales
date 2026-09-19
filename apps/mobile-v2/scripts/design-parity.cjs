@@ -39,9 +39,27 @@ const EXECUTABLE = process.env.PW_CHROMIUM || '/opt/pw-browsers/chromium-1194/ch
   );
   const page = await browser.newPage({ viewport: { width: BOARD_W, height: BOARD_H } });
 
+  /*
+   * Messages a DEPENDENCY emits in development and never in a production
+   * build. Each entry is an exact substring and each is here with a reason -
+   * this is not a place to quieten our own bugs, and the list is short on
+   * purpose.
+   *
+   * Verified absent from `expo export` output before being added.
+   */
+  const KNOWN_DEV_NOISE = [
+    // expo-image's web renderer passes React the HTML attribute spelling.
+    'Invalid DOM property `%s`. Did you mean `%s`? fetchpriority fetchPriority',
+  ];
+  const isNoise = (t) => KNOWN_DEV_NOISE.some((k) => t.includes(k));
+
   const consoleErrors = [];
-  page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()));
-  page.on('pageerror', (e) => consoleErrors.push('pageerror: ' + e.message));
+  page.on('console', (m) => {
+    if (m.type() === 'error' && !isNoise(m.text())) consoleErrors.push(m.text());
+  });
+  page.on('pageerror', (e) => {
+    if (!isNoise(e.message)) consoleErrors.push('pageerror: ' + e.message);
+  });
 
   await page.goto(url, { waitUntil: 'networkidle' });
   // Fonts change metrics, so measuring before they land measures the fallback.

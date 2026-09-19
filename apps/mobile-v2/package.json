@@ -53,7 +53,9 @@
     "web": "expo start --web",
     "check-types": "tsc --noEmit",
     "lint": "expo lint",
-    "design:parity": "node scripts/design-parity.cjs"
+    "design:parity": "node scripts/design-parity.cjs",
+    "dev:web": "EXPO_OFFLINE=1 expo start --web --port 8081",
+    "design:parity:all": "bash scripts/parity-all.sh"
   },
   "private": true
 }
