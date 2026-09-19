@@ -128,9 +128,12 @@ describe('reads', () => {
     ['mappingRepo', '/mappings/c1'],
   ])('%s reads one record from %s', async (repo, path) => {
     apiFetch.mockResolvedValue({ id: 'c1' });
-    await (repos as Record<string, { getById(id: string): Promise<unknown> }>)[
-      repo
-    ].getById('c1');
+    await (
+      repos as unknown as Record<
+        string,
+        { getById(id: string): Promise<unknown> }
+      >
+    )[repo].getById('c1');
     expect(lastCall()).toMatchObject({ path, method: 'GET' });
   });
 
