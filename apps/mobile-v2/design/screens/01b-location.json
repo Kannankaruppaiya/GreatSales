@@ -204,12 +204,14 @@
       "n": "sec-t",
       "t": "text",
       "y": 700,
-      "w": 376,
+      "w": 319,
       "chars": "Not Now",
       "size": 18,
       "weight": 600,
       "fill": "#53707e",
-      "align": "center"
+      "align": "center",
+      "x": 22,
+      "_note": "Centred in the button (x22 w319), not in the board."
     },
     {
       "n": "sec-note",

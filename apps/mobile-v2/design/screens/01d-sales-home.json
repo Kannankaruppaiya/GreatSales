@@ -1,0 +1,543 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board 'Screen 01D Sales Home'",
+  "_board": {
+    "width": 376,
+    "height": 859,
+    "bezelRadius": 34
+  },
+  "_excluded": [
+    "time / status-icons — the mockup's status bar",
+    "bg radius 34 — the phone frame",
+    "avatar — the demo user's photograph; UserRow has no avatar field, so a real user has nothing to render there. The design already uses an initials chip three times on this screen (SC, AT, KW); that is what stands in."
+  ],
+  "_layout": {
+    "flows": true,
+    "_why": "Content is a stack of sections that grows with the data - three follow-ups today, eleven tomorrow - so board coordinates would be wrong the first time a list got longer. Only the header hills and the tab bar are absolute."
+  },
+  "_icons": "Solid, not the outline set board 07 specifies. Every glyph here is a filled path; the only stroked one is the View All chevron at 1.7px #0e7a4a.",
+  "_state": "Numbers and rows are the board's, unwired. GET /dashboard returns all of them in one request (kpis.followUpsDue, followUps); this screen moves to useToday() when the sign-in flow in front of it does.",
+  "shapes": [
+    {
+      "n": "hdr-mountains",
+      "t": "group",
+      "y": 111,
+      "h": 135
+    },
+    {
+      "n": "brand",
+      "t": "text",
+      "x": 22,
+      "y": 57,
+      "chars": "GreatSales",
+      "size": 20,
+      "weight": 800,
+      "_note": "leading G in #17a45e, the rest #0f3244, as on the splash"
+    },
+    {
+      "n": "brand-sub",
+      "t": "text",
+      "x": 23,
+      "y": 84,
+      "chars": "Field Sales CRM",
+      "size": 10,
+      "weight": 600,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "bell",
+      "t": "icon",
+      "x": 289,
+      "y": 67,
+      "w": 23,
+      "fill": "#123e52"
+    },
+    {
+      "n": "bell-n",
+      "t": "text",
+      "x": 304,
+      "y": 65,
+      "w": 16,
+      "chars": "3",
+      "size": 9,
+      "weight": 700,
+      "fill": "#ffffff",
+      "align": "center"
+    },
+    {
+      "n": "greet",
+      "t": "text",
+      "x": 22,
+      "y": 118,
+      "chars": "Good Morning,",
+      "size": 12.5,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "name",
+      "t": "text",
+      "x": 22,
+      "y": 134,
+      "chars": "Megala 👋",
+      "size": 22,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "q1",
+      "t": "text",
+      "x": 194,
+      "y": 120,
+      "w": 160,
+      "chars": "“More conversations.",
+      "size": 14,
+      "weight": 400,
+      "fill": "#5e7a88",
+      "align": "right"
+    },
+    {
+      "n": "q2",
+      "t": "text",
+      "x": 194,
+      "y": 141,
+      "w": 160,
+      "chars": "More opportunities.”",
+      "size": 14,
+      "weight": 400,
+      "fill": "#5e7a88",
+      "align": "right"
+    },
+    {
+      "n": "pill-date",
+      "t": "rect",
+      "x": 22,
+      "y": 195,
+      "w": 159,
+      "h": 33,
+      "r": 10,
+      "fill": "#ffffff",
+      "stroke": "1px #e4edf1"
+    },
+    {
+      "n": "pill-date-t",
+      "t": "text",
+      "x": 56,
+      "y": 204,
+      "chars": "Sun, 14 Sep 2026",
+      "size": 12,
+      "weight": 600,
+      "fill": "#123e52"
+    },
+    {
+      "n": "pill-loc",
+      "t": "rect",
+      "x": 254,
+      "y": 195,
+      "w": 100,
+      "h": 33,
+      "r": 10,
+      "fill": "#ffffff",
+      "stroke": "1px #e4edf1"
+    },
+    {
+      "n": "pill-loc-t",
+      "t": "text",
+      "x": 286,
+      "y": 204,
+      "chars": "Chennai",
+      "size": 12,
+      "weight": 600,
+      "fill": "#123e52"
+    },
+    {
+      "n": "sec-focus",
+      "t": "text",
+      "x": 22,
+      "y": 257,
+      "chars": "Today's Focus",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "va-focus",
+      "t": "text",
+      "x": 234,
+      "y": 258,
+      "w": 109,
+      "chars": "View All",
+      "size": 12,
+      "weight": 600,
+      "fill": "#0e7a4a",
+      "align": "right"
+    },
+    {
+      "n": "stat-0",
+      "t": "rect",
+      "x": 22,
+      "y": 288,
+      "w": 103,
+      "h": 73,
+      "r": 13,
+      "fill": "#e9f6ef"
+    },
+    {
+      "n": "statn-0",
+      "t": "text",
+      "x": 22,
+      "y": 300,
+      "w": 103,
+      "chars": "5",
+      "size": 26,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "statl-0",
+      "t": "text",
+      "x": 22,
+      "y": 335,
+      "w": 103,
+      "chars": "Follow-ups",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796",
+      "align": "center"
+    },
+    {
+      "n": "statn-1",
+      "t": "text",
+      "x": 135,
+      "y": 300,
+      "w": 103,
+      "chars": "3",
+      "size": 26,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "statl-1",
+      "t": "text",
+      "x": 135,
+      "y": 335,
+      "w": 103,
+      "chars": "Site Visits",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796",
+      "align": "center"
+    },
+    {
+      "n": "stat-2",
+      "t": "rect",
+      "x": 249,
+      "y": 288,
+      "w": 103,
+      "h": 73,
+      "r": 13,
+      "fill": "#ebf1f8",
+      "_note": "blue, not green: proposals are not a visit count"
+    },
+    {
+      "n": "statn-2",
+      "t": "text",
+      "x": 249,
+      "y": 300,
+      "w": 103,
+      "chars": "2",
+      "size": 26,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "statl-2",
+      "t": "text",
+      "x": 249,
+      "y": 335,
+      "w": 103,
+      "chars": "Proposals",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796",
+      "align": "center"
+    },
+    {
+      "n": "sec-quick",
+      "t": "text",
+      "x": 22,
+      "y": 390,
+      "chars": "Quick Actions",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "qa-l-0",
+      "t": "text",
+      "x": 18,
+      "y": 472,
+      "w": 81,
+      "chars": "Add Lead",
+      "size": 11,
+      "weight": 500,
+      "fill": "#123e52",
+      "align": "center"
+    },
+    {
+      "n": "qa-l-1",
+      "t": "text",
+      "x": 103,
+      "y": 472,
+      "w": 81,
+      "chars": "Log Visit",
+      "size": 11,
+      "weight": 500,
+      "fill": "#123e52",
+      "align": "center"
+    },
+    {
+      "n": "qa-l-2",
+      "t": "text",
+      "x": 187,
+      "y": 472,
+      "w": 81,
+      "chars": "Scan Bill",
+      "size": 11,
+      "weight": 500,
+      "fill": "#123e52",
+      "align": "center"
+    },
+    {
+      "n": "qa-l-3",
+      "t": "text",
+      "x": 272,
+      "y": 472,
+      "w": 81,
+      "chars": "New Order",
+      "size": 11,
+      "weight": 500,
+      "fill": "#123e52",
+      "align": "center"
+    },
+    {
+      "n": "sec-upcoming",
+      "t": "text",
+      "x": 22,
+      "y": 546,
+      "chars": "Upcoming Follow-ups",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "row-0",
+      "t": "rect",
+      "x": 18,
+      "y": 577,
+      "w": 339,
+      "h": 52,
+      "r": 13,
+      "fill": "#ffffff",
+      "stroke": "1px #eaf0f3"
+    },
+    {
+      "n": "row-time-0",
+      "t": "text",
+      "x": 39,
+      "y": 596,
+      "chars": "04:00 PM",
+      "size": 11,
+      "weight": 600,
+      "fill": "#e5484d"
+    },
+    {
+      "n": "row-in-0",
+      "t": "text",
+      "x": 115,
+      "y": 595,
+      "w": 34,
+      "chars": "SC",
+      "size": 12,
+      "weight": 800,
+      "fill": "#c7343a",
+      "align": "center"
+    },
+    {
+      "n": "row-t-0",
+      "t": "text",
+      "x": 156,
+      "y": 587,
+      "chars": "Southern Auto Works",
+      "size": 13,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "row-s-0",
+      "t": "text",
+      "x": 156,
+      "y": 605,
+      "chars": "Call & discuss proposal",
+      "size": 11,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "row-time-1",
+      "t": "text",
+      "x": 39,
+      "y": 656,
+      "chars": "05:30 PM",
+      "size": 11,
+      "weight": 600,
+      "fill": "#f0a32b"
+    },
+    {
+      "n": "row-in-1",
+      "t": "text",
+      "x": 115,
+      "y": 655,
+      "w": 34,
+      "chars": "AT",
+      "size": 12,
+      "weight": 800,
+      "fill": "#b77a18",
+      "align": "center"
+    },
+    {
+      "n": "row-t-1",
+      "t": "text",
+      "x": 156,
+      "y": 647,
+      "chars": "Anand Machine Tools",
+      "size": 13,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "row-s-1",
+      "t": "text",
+      "x": 156,
+      "y": 665,
+      "chars": "Site visit confirmation",
+      "size": 11,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "row-time-2",
+      "t": "text",
+      "x": 39,
+      "y": 716,
+      "chars": "Tomorrow",
+      "size": 11,
+      "weight": 600,
+      "fill": "#17a45e"
+    },
+    {
+      "n": "row-in-2",
+      "t": "text",
+      "x": 115,
+      "y": 715,
+      "w": 34,
+      "chars": "KW",
+      "size": 12,
+      "weight": 800,
+      "fill": "#0e7a4a",
+      "align": "center"
+    },
+    {
+      "n": "row-t-2",
+      "t": "text",
+      "x": 156,
+      "y": 707,
+      "chars": "Krishna Metal Works",
+      "size": 13,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "row-s-2",
+      "t": "text",
+      "x": 156,
+      "y": 725,
+      "chars": "Follow up on payment",
+      "size": 11,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "nav",
+      "t": "rect",
+      "y": 807,
+      "w": 376,
+      "h": 52,
+      "fill": "#ffffff"
+    },
+    {
+      "n": "nav-l-0",
+      "t": "text",
+      "x": 11,
+      "y": 841,
+      "w": 83,
+      "chars": "Home",
+      "size": 10,
+      "weight": 700,
+      "fill": "#17a45e",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-1",
+      "t": "text",
+      "x": 78,
+      "y": 841,
+      "w": 83,
+      "chars": "Pipeline",
+      "size": 10,
+      "weight": 500,
+      "fill": "#93a9b5",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-2",
+      "t": "text",
+      "x": 215,
+      "y": 841,
+      "w": 83,
+      "chars": "Customers",
+      "size": 10,
+      "weight": 500,
+      "fill": "#93a9b5",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-3",
+      "t": "text",
+      "x": 282,
+      "y": 841,
+      "w": 83,
+      "chars": "More",
+      "size": 10,
+      "weight": 500,
+      "fill": "#93a9b5",
+      "align": "center"
+    },
+    {
+      "n": "fab",
+      "t": "ellipse",
+      "x": 161,
+      "y": 790,
+      "w": 53,
+      "h": 53,
+      "fill": {
+        "gradient": [
+          "#1ba560",
+          "#0e7a4a"
+        ]
+      }
+    }
+  ]
+}

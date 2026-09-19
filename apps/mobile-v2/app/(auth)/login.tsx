@@ -114,7 +114,13 @@ export default function Login() {
             </Text>
           </View>
 
-          <View style={{ paddingHorizontal: 22, marginTop: 28 }}>
+          {/*
+            22 left, 35 right. The board's fields are 319 wide at x22, so their
+            right edge is 341 and the column sits 6.5px left of centre. That is
+            the board's own asymmetry - the splash's 319-wide CTA is centred at
+            x29 - and it is kept rather than tidied.
+          */}
+          <View style={{ paddingLeft: 22, paddingRight: 35, marginTop: 28 }}>
             <Input
               label="Mobile Number or Email"
               icon="phone"

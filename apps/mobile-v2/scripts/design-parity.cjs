@@ -55,25 +55,70 @@ const EXECUTABLE = process.env.PW_CHROMIUM || '/opt/pw-browsers/chromium-1194/ch
     .map((s) => ({ n: s.n, chars: s.chars, y: s.y, x: s.x, w: s.w, align: s.align, skipX: !!s._skipX }));
 
   const measured = await page.evaluate((items) => {
+    /*
+     * Candidates are text nodes AND their nearest element, because a design
+     * text run is not always one DOM text node. "GreatSales" is rendered as
+     * <Text><Text>G</Text>reatSales</Text> to colour the leading letter, which
+     * is two text nodes and no single one of them says "GreatSales"; the
+     * element's textContent does.
+     */
+    const seen = new Set();
+    const candidates = [];
     const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    const nodes = [];
     let t;
-    while ((t = walk.nextNode())) if (t.textContent.trim()) nodes.push(t);
+    while ((t = walk.nextNode())) {
+      if (!t.textContent.trim()) continue;
+      for (const el of [t.parentElement, t.parentElement?.parentElement]) {
+        if (el && !seen.has(el)) {
+          seen.add(el);
+          candidates.push(el);
+        }
+      }
+    }
+
+    /*
+     * Matches are CONSUMED in document order. "3" appears twice on the home
+     * screen - the notification badge and a stat - and taking the first hit
+     * for both reported the stat as 238px out. The spec lists shapes roughly
+     * in document order, so consuming keeps the second "3" for the second
+     * entry that wants one.
+     */
+    const used = new Set();
+    const pick = (want) => {
+      const exact = candidates.find((el) => !used.has(el) && el.textContent.trim() === want);
+      if (exact) return exact;
+      return candidates.find((el) => !used.has(el) && el.textContent.trim().startsWith(want));
+    };
+
     return items.map((it) => {
-      // Exact first. Falling back to startsWith covers a design text run that
-      // the screen splits - the footer's two differently-coloured halves live
-      // in one Penpot shape and two nested <Text>s.
-      const want = it.chars.trim();
-      const hit =
-        nodes.find((n) => n.textContent.trim() === want) ||
-        nodes.find((n) => n.textContent.trim().startsWith(want));
-      if (!hit) return { n: it.n, missing: true };
-      const r = hit.parentElement.getBoundingClientRect();
-      const cs = getComputedStyle(hit.parentElement);
+      const el = pick(it.chars.trim());
+      if (!el) return { n: it.n, missing: true };
+      /*
+       * Consuming an element consumes its ANCESTORS, and deliberately NOT its
+       * descendants.
+       *
+       * Ancestors, because candidates include both a text node's parent and
+       * its grandparent: the notification badge's "3" offers two elements, and
+       * leaving the outer one available let it match a stat's "3" and report
+       * that 240px out.
+       *
+       * Not descendants, because one design text run is sometimes two nested
+       * ones in the render. The footer is a single Penpot shape with mixed
+       * fills, built as <Text>New to GreatSales? <Text>Contact Support</Text>
+       * </Text>; consuming the outer match's children took "Contact Support"
+       * with it and reported it missing.
+       */
+      used.add(el);
+      for (const other of candidates) {
+        if (other !== el && other.contains(el)) used.add(other);
+      }
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
       return {
         n: it.n,
         top: Math.round(r.top),
         left: Math.round(r.left),
+        right: Math.round(r.right),
         width: Math.round(r.width),
         fontSize: cs.fontSize,
         family: cs.fontFamily.split(',')[0].replace(/"/g, ''),
@@ -107,11 +152,19 @@ const EXECUTABLE = process.env.PW_CHROMIUM || '/opt/pw-browsers/chromium-1194/ch
      * a layout error. Centres are the same point in both.
      */
     const centred = it.align === 'center' || (it.x == null && it.w == null);
+    /*
+     * A right-aligned run is compared by its RIGHT edge, for the same reason a
+     * centred one is compared by its centre: Penpot's shape is a box and the
+     * browser lays the string to its own width, so only the aligned edge is
+     * the same point in both. "View All" sits in a 109-wide box at x234 and
+     * reads as 56px out on its left edge while its right edge is exact.
+     */
+    const rightAligned = it.align === 'right' && it.w != null;
     let dx = null;
     if (it.x != null && !it.skipX) {
-      dx = centred && it.w != null
-        ? Math.round(it.x + it.w / 2 - (m.left + m.width / 2))
-        : m.left - it.x;
+      if (rightAligned) dx = Math.round(it.x + it.w - m.right);
+      else if (centred && it.w != null) dx = Math.round(it.x + it.w / 2 - (m.left + m.width / 2));
+      else dx = m.left - it.x;
     }
     const bad = Math.abs(dy) > TOLERANCE || (dx != null && Math.abs(dx) > TOLERANCE);
     if (bad) failures++;
@@ -119,7 +172,7 @@ const EXECUTABLE = process.env.PW_CHROMIUM || '/opt/pw-browsers/chromium-1194/ch
       `${it.n.padEnd(13)}${String(it.y).padStart(9)}${String(m.top).padStart(10)}` +
         `${sign(dy).padStart(6)}${String(it.x ?? '-').padStart(11)}` +
         `${String(dx == null ? '-' : m.left).padStart(10)}${(dx == null ? '-' : sign(dx)).padStart(6)}` +
-        `${centred && it.x != null ? ' c' : '  '}` +
+        `${it.x == null ? '  ' : rightAligned ? ' r' : centred ? ' c' : '  '}` +
         `${String(m.fontSize).padStart(7)}   ${m.family}${bad ? '   ← off' : ''}`,
     );
   }

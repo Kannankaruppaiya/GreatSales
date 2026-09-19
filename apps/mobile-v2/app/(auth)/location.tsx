@@ -117,7 +117,8 @@ export default function Location() {
           <Pressable
             accessibilityRole="button"
             className="overflow-hidden"
-            style={{ position: 'absolute', left: 22, right: 22, top: at(616), height: 52, borderRadius: 13 }}
+            // 319 wide at x22, so right is 35 - see the note in login.tsx.
+            style={{ position: 'absolute', left: 22, right: 35, top: at(616), height: 52, borderRadius: 13 }}
           >
             <LinearGradient
               colors={['#0e7a4a', '#1ba560']}
@@ -139,7 +140,7 @@ export default function Location() {
             accessibilityRole="button"
             onPress={() => router.replace('/(auth)/preparing')}
             className="bg-quiet items-center justify-center"
-            style={{ position: 'absolute', left: 22, right: 22, top: at(686), height: 49, borderRadius: 13 }}
+            style={{ position: 'absolute', left: 22, right: 35, top: at(686), height: 49, borderRadius: 13 }}
           >
             <Text
               className="text-quiet-ink"
