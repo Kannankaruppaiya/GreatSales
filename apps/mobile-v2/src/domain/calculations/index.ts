@@ -1,12 +1,4 @@
-import type {
-  ProjectionLine,
-  Lead,
-  FollowUp,
-  Payment,
-  DashboardMetrics,
-  OrderItem,
-  TaxModeValue,
-} from '../types';
+import type { FollowUp, Payment, DashboardFollowUp, TaxModeValue } from '../types';
 
 export function getTodayIso(): string {
   const d = new Date();
@@ -35,17 +27,22 @@ export function getFollowUpCategory(
   return 'upcoming';
 }
 
+/**
+ * Line totals for an order being composed on screen, before it is posted.
+ *
+ * The API computes `lineTotal` and the order total itself; this exists only so
+ * the form can show a running figure while the user is still typing. Fields are
+ * `qty` and `price` because that is what OrderItemRow carries - the previous
+ * `item.quantity ?? item.qty` / `item.rate ?? item.price` chains were guessing
+ * between shapes the fixtures might produce, and the wire has exactly one.
+ */
 export function calculateOrderTotals(
-  items: Array<{ qty?: number; price?: number; quantity?: number; rate?: number }>,
+  items: Array<{ qty: number; price: number }>,
   taxMode: TaxModeValue = 'Percentage',
   taxRate: number | null = 18,
   customTaxAmount: number | null = 0,
 ): { subtotal: number; taxAmount: number; tax: number; total: number } {
-  const subtotal = items.reduce((sum, item) => {
-    const q = item.quantity ?? item.qty ?? 0;
-    const p = item.rate ?? item.price ?? 0;
-    return sum + q * p;
-  }, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.qty * item.price, 0);
   let taxAmount = 0;
 
   if (taxMode === 'Percentage' && taxRate != null) {
@@ -54,165 +51,128 @@ export function calculateOrderTotals(
     taxAmount = customTaxAmount;
   }
 
-  return {
-    subtotal,
-    taxAmount,
-    tax: taxAmount,
-    total: subtotal + taxAmount,
-  };
+  return { subtotal, taxAmount, tax: taxAmount, total: subtotal + taxAmount };
 }
 
-export function calculateDashboardMetrics(
-  projections: ProjectionLine[],
-  leads: Lead[],
-  followUps: FollowUp[],
-  payments: Payment[],
-  monthlyTarget = 3000000,
-): DashboardMetrics {
-  const recurringCommitted = projections.reduce((sum, p) => {
-    const val = p.committedValue ?? ((p.projectedQuantity ?? p.projectedQty ?? 0) * (p.rate ?? p.effectivePrice ?? p.basePrice ?? 0));
-    return sum + val;
-  }, 0);
-  const recurringAchieved = projections.reduce((sum, p) => {
-    const val = p.achievedValue ?? ((p.achievedQuantity ?? p.achievedQty ?? 0) * (p.rate ?? p.effectivePrice ?? p.basePrice ?? 0));
-    return sum + val;
-  }, 0);
-  const recurringPct =
-    recurringCommitted > 0 ? Math.round((recurringAchieved / recurringCommitted) * 100) : 0;
+/*
+ * calculateDashboardMetrics used to live here. It summed committed and achieved
+ * value over arrays of projections and leads, counted due and overdue
+ * follow-ups, and divided by a `monthlyTarget = 3000000` written into its own
+ * signature.
+ *
+ * It is gone because GET /dashboard already returns every one of those numbers
+ * in `kpis`, computed over the whole tenant with the real SalesTarget rows. The
+ * dashboard controller says why it exists: "One request replaces what the
+ * console previously assembled by paging every lead in the tenant and reducing
+ * them in the browser." The web console removed this calculation; this app had
+ * reintroduced it.
+ *
+ * Client-side it could not have been right in any case. List endpoints are
+ * cursor paginated at 20 rows, so summing what the app holds sums the first
+ * page - a tenant with 4,000 leads would have reported the total of twenty of
+ * them, confidently and to the rupee.
+ */
 
-  const activeLeads = leads.filter(
-    (l) => !['ClosedLost', 'NoRequirementOrCold', 'TrialProblem'].includes(l.stage),
-  );
-  const newSalesCommitted = activeLeads.reduce((sum, l) => sum + (l.totalValue ?? l.value ?? 0), 0);
-  const wonLeads = leads.filter((l) => l.stage === 'ClosedWon' || (l.stage as string) === 'OrderClosedWon');
-  const newSalesAchieved = wonLeads.reduce((sum, l) => sum + (l.totalValue ?? l.value ?? 0), 0);
-
-  const totalCommitted = recurringCommitted + newSalesCommitted;
-  const totalAchieved = recurringAchieved + newSalesAchieved;
-  const totalPct = totalCommitted > 0 ? Math.round((totalAchieved / totalCommitted) * 100) : 0;
-
-  const today = getTodayIso();
-  const followUpsDue = followUps.filter((f) => !f.done && f.dueDate === today).length;
-  const followUpsOverdue = followUps.filter((f) => !f.done && f.dueDate < today).length;
-
-  const target = monthlyTarget;
-  const targetPct = target > 0 ? Math.round((totalAchieved / target) * 100) : 0;
-
-  const pendingPaymentsTotal = payments.reduce((sum, p) => sum + (p.pending ?? (p.amount - (p.received ?? 0))), 0);
-  const redZonePaymentsCount = payments.filter((p) => {
-    const isRed = p.payZone === 'RedZone' || (p.paymentZone as string) === 'Red' || (p.paymentZone as string) === 'RedZone';
-    const pendingVal = p.pending ?? (p.amount - (p.received ?? 0));
-    return isRed && pendingVal > 0;
-  }).length;
-
-  return {
-    recurringCommitted,
-    recurringAchieved,
-    recurringPct,
-    newSalesCommitted,
-    newSalesAchieved,
-    totalCommitted,
-    totalAchieved,
-    totalPct,
-    achievementPercentage: totalPct,
-    followUpsDue,
-    followUpsOverdue,
-    target,
-    targetPct,
-    remainingGap: Math.max(0, totalCommitted - totalAchieved),
-    pendingPaymentsTotal,
-    redZonePaymentsCount,
-  };
+export interface RankedPriorityItem {
+  type: 'payment' | 'followup';
+  id: string;
+  urgencyScore: number;
+  /** Nullable because PaymentRow's are: an invoice may carry neither. */
+  customerName: string | null;
+  title: string;
+  amount: number | null;
+  dueDate: string | null;
+  daysOverdue: number;
+  isRedZone: boolean;
+  raw: Payment | FollowUp | DashboardFollowUp;
 }
 
-export type RankedPriorityItem =
-  | {
-      type: 'payment';
-      id: string;
-      raw: Payment;
-      urgencyScore: number;
-      customerName: string;
-      title: string;
-      amount: number;
-      dueDate: string;
-      agingDays: number;
-      isRedZone: boolean;
-      reminderCount: number;
-    }
-  | {
-      type: 'followup';
-      id: string;
-      raw: FollowUp;
-      urgencyScore: number;
-      customerName: string;
-      title: string;
-      amount?: number | null;
-      dueDate: string;
-      isOverdue: boolean;
-      priority: 'High' | 'Medium' | 'Low';
-    };
-
+/**
+ * Merges outstanding payments and open follow-ups into one list, most urgent
+ * first, for the actions screens (02B).
+ *
+ * This ranks the rows it is GIVEN. Feed it the dashboard's capped lists, which
+ * the server already selected as the most overdue, rather than a page of a list
+ * endpoint - otherwise it ranks an arbitrary twenty rows.
+ *
+ * Ranking uses days overdue and amount, and nothing else. The previous version
+ * weighted follow-ups by `f.priority` being High, Medium or Low: FollowUpRow
+ * has no priority field and the API has no such concept, so that branch was
+ * scoring a value only the fixtures ever produced. If follow-up priority is
+ * wanted, it is a column on the API first.
+ *
+ * Scores are BANDED, and each band's within-band term is clamped so it cannot
+ * reach the next one:
+ *
+ *   1000-1199  red-zone payment      (red account, or a bill over 60 days)
+ *    800- 999  overdue follow-up
+ *    500       follow-up due today
+ *    300- 499  other outstanding payment
+ *
+ * The clamp is the point. Without it `800 + daysOverdue * 10` is unbounded, so
+ * a follow-up left open long enough outranks every red-zone invoice no matter
+ * how large - a forgotten courtesy call above a 1.1 crore debt. Within a band
+ * the older and larger row still sorts first.
+ */
+const BAND = 199;
 export function calculatePriorityItems(
   payments: Payment[],
-  followUps: FollowUp[],
+  followUps: Array<FollowUp | DashboardFollowUp>,
 ): RankedPriorityItem[] {
   const items: RankedPriorityItem[] = [];
   const today = getTodayIso();
 
   for (const p of payments) {
-    const pendingAmount = p.pending ?? (p.amount - (p.received ?? 0));
-    if (pendingAmount <= 0) continue;
+    if (p.pending <= 0) continue;
 
-    const isRed =
-      p.payZone === 'RedZone' ||
-      (p.paymentZone as string) === 'Red' ||
-      (p.paymentZone as string) === 'RedZone' ||
-      p.agingDays > 60;
-
-    const reminderCount = [p.mail1, p.mail2, p.mail3, p.mail4].filter(Boolean).length;
-    const urgencyScore = isRed
-      ? 1000 + (p.agingDays || 0) * 2 + Math.min(100, Math.floor(pendingAmount / 100000))
-      : 300 + (p.agingDays || 0);
+    const agingDays = p.agingDays ?? 0;
+    // payZone is the API's enum; a red account or a bill older than 60 days.
+    const isRed = p.payZone === 'RedZone' || agingDays > 60;
 
     items.push({
       type: 'payment',
       id: p.id,
-      raw: p,
-      urgencyScore,
-      customerName: p.customerName || 'Customer',
-      title: `Invoice ${p.invoiceCode ?? p.invoiceNo ?? ''}`.trim(),
-      amount: pendingAmount,
+      urgencyScore: isRed
+        ? 1000 + Math.min(BAND, agingDays * 2 + Math.floor(p.pending / 100_000))
+        : 300 + Math.min(BAND, agingDays),
+      customerName: p.customerName,
+      title: p.invoiceNo ? `Invoice ${p.invoiceNo}` : 'Invoice',
+      amount: p.pending,
       dueDate: p.dueDate,
-      agingDays: p.agingDays || 0,
+      daysOverdue: agingDays,
       isRedZone: isRed,
-      reminderCount,
+      raw: p,
     });
   }
 
   for (const f of followUps) {
-    if (f.done) continue;
+    // DashboardFollowUp rows are open by construction; FollowUpRow carries done.
+    if ('done' in f && f.done) continue;
+
     const isOverdue = f.dueDate < today;
     const isToday = f.dueDate === today;
-    if (!isOverdue && !isToday && f.priority !== 'High') continue;
+    if (!isOverdue && !isToday) continue;
 
-    const prioWeight = f.priority === 'High' ? 120 : f.priority === 'Medium' ? 60 : 20;
-    const daysOverdue = isOverdue ? calculateAgingDays(f.dueDate) : 0;
-
-    const urgencyScore = isOverdue
-      ? 800 + daysOverdue * 10 + prioWeight
-      : 500 + prioWeight;
+    // The dashboard computes daysOverdue server-side; a list row has not.
+    const daysOverdue =
+      'daysOverdue' in f && f.daysOverdue != null
+        ? f.daysOverdue
+        : isOverdue
+          ? calculateAgingDays(f.dueDate)
+          : 0;
 
     items.push({
       type: 'followup',
       id: f.id,
-      raw: f,
-      urgencyScore,
-      customerName: f.customerName || f.title || 'Customer',
-      title: f.title,
+      urgencyScore: isOverdue ? 800 + Math.min(BAND, daysOverdue * 10) : 500,
+      // Neither row carries a customer name; the entity it hangs off does.
+      customerName: f.subtitle ?? f.title ?? '',
+      title: f.title ?? `${f.entityType} follow-up`,
       amount: f.amount,
       dueDate: f.dueDate,
-      isOverdue,
-      priority: f.priority || 'Medium',
+      daysOverdue,
+      isRedZone: false,
+      raw: f,
     });
   }
 

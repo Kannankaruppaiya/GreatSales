@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customerRepo, activityRepo } from '../repositories';
+import type { CustomerCreate, CustomerUpdate } from '@greatsales/shared';
 import { QUERY_KEYS, invalidateEntity } from '../lib/queryClient';
 import type { Customer } from '../domain/types';
 
@@ -21,7 +22,7 @@ export function useCustomer(id: string) {
 export function useCustomerActivities(customerId: string) {
   return useQuery({
     queryKey: QUERY_KEYS.customerActivity(customerId),
-    queryFn: () => activityRepo.listByCustomer(customerId),
+    queryFn: () => activityRepo.listByEntity('Customer', customerId),
     enabled: !!customerId,
   });
 }
@@ -29,7 +30,7 @@ export function useCustomerActivities(customerId: string) {
 export function useCreateCustomerMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'>) => customerRepo.create(input),
+    mutationFn: (input: CustomerCreate) => customerRepo.create(input),
     onSuccess: (newCust) => {
       queryClient.setQueryData(QUERY_KEYS.customer(newCust.id), newCust);
       invalidateEntity('customers');
@@ -40,7 +41,7 @@ export function useCreateCustomerMutation() {
 export function useUpdateCustomerMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: Partial<Customer> }) => customerRepo.update(id, input),
+    mutationFn: ({ id, input }: { id: string; input: CustomerUpdate }) => customerRepo.update(id, input),
     onSuccess: (updatedCust) => {
       queryClient.setQueryData(QUERY_KEYS.customer(updatedCust.id), updatedCust);
       invalidateEntity('customers');

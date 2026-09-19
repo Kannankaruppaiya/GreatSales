@@ -1,17 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { activityRepo } from '../repositories';
 import { QUERY_KEYS } from '../lib/queryClient';
-import type { Activity } from '../domain/types';
+import type { EntityTypeValue } from '../domain/types';
 
-export function useCustomerActivity(customerId: string) {
-  return useQuery({
-    queryKey: QUERY_KEYS.customerActivity(customerId),
-    queryFn: () => activityRepo.listByCustomer(customerId),
-    enabled: Boolean(customerId),
-  });
-}
-
-export function useEntityActivity(entityType: string, entityId: string) {
+/** Remarks logged against one record. The API calls these remarks. */
+export function useEntityActivity(entityType: EntityTypeValue, entityId: string) {
   return useQuery({
     queryKey: QUERY_KEYS.activities(entityType, entityId),
     queryFn: () => activityRepo.listByEntity(entityType, entityId),
@@ -19,16 +12,23 @@ export function useEntityActivity(entityType: string, entityId: string) {
   });
 }
 
+/** A customer's remarks are entity remarks; there is no separate endpoint. */
+export function useCustomerActivity(customerId: string) {
+  return useEntityActivity('Customer', customerId);
+}
+
 export function useLogActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: Omit<Activity, 'id' | 'timestamp'>) => activityRepo.log(input),
-    onSuccess: (data) => {
-      if (data.customerId) {
-        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customerActivity(data.customerId) });
-      }
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.activities(data.entityType, data.entityId) });
+    // RemarkRow's field is `text`, not `note`, and it has no customerId - the
+    // record it hangs off is (entityType, entityId).
+    mutationFn: (input: { entityType: EntityTypeValue; entityId: string; text: string }) =>
+      activityRepo.log(input),
+    onSuccess: (row) => {
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.activities(row.entityType, row.entityId),
+      });
     },
   });
 }

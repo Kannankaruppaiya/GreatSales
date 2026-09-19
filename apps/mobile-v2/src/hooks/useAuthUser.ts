@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authRepo } from '../repositories';
 import { QUERY_KEYS, invalidateEntity } from '../lib/queryClient';
-import type { User } from '../domain/types';
 
 export function useCurrentUser() {
   return useQuery({
@@ -42,47 +41,18 @@ export function useChangePassword() {
   });
 }
 
-export function useUpdateProfile() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (input: { name?: string; phone?: string }) => authRepo.updateProfile(input),
-    onSuccess: (updatedUser) => {
-      queryClient.setQueryData(QUERY_KEYS.currentUser, updatedUser);
-      invalidateEntity('profile');
-    },
-  });
-}
-
-export const useUpdateProfileMutation = useUpdateProfile;
-
-export function useUpdateAvatar() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (uri: string) => authRepo.updateAvatar(uri),
-    onSuccess: (newUrl) => {
-      queryClient.setQueryData(QUERY_KEYS.currentUser, (old: User | null | undefined) => {
-        if (!old) return old;
-        return { ...old, avatarUrl: newUrl };
-      });
-      invalidateEntity('profile');
-    },
-  });
-}
-
-export const useUpdateAvatarMutation = useUpdateAvatar;
-
-export function useRemoveAvatar() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => authRepo.removeAvatar(),
-    onSuccess: () => {
-      queryClient.setQueryData(QUERY_KEYS.currentUser, (old: User | null | undefined) => {
-        if (!old) return old;
-        return { ...old, avatarUrl: null };
-      });
-      invalidateEntity('profile');
-    },
-  });
-}
-
-export const useRemoveAvatarMutation = useRemoveAvatar;
+/*
+ * useUpdateProfile, useUpdateAvatar and useRemoveAvatar used to live here.
+ *
+ * They are gone because the API has none of it. UserRow carries no avatar
+ * field and no phone; AuthUser carries neither either; there is no
+ * self-service profile endpoint, only PATCH /users/:id, which is user
+ * administration and is not granted to a sales role - the only role that may
+ * sign in from mobile at all (AGENTS.md, CLIENT_ROLE_ALLOWLIST).
+ *
+ * The mutations wrote `avatarUrl` into the cached user on success, so the
+ * picture appeared to change and survived until the next fetch. That is the
+ * shape of every bug in this app before the fixtures came out.
+ *
+ * Adding any of it starts on the API.
+ */

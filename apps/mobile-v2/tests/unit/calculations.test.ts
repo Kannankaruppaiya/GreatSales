@@ -1,19 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import {
-  calculateDashboardMetrics,
   calculateOrderTotals,
   calculateAgingDays,
   getFollowUpCategory,
   calculatePriorityItems,
   getTodayIso,
 } from '../../src/domain/calculations';
-import type { ProjectionLine, Lead, FollowUp, Payment } from '../../src/domain/types';
+import type { FollowUp, Payment } from '../../src/domain/types';
 
 describe('Domain Calculations', () => {
   it('calculates order totals correctly with 18% GST', () => {
     const items = [
-      { quantity: 2, rate: 1000 },
-      { quantity: 1, rate: 3000 },
+      { qty: 2, price: 1000 },
+      { qty: 1, price: 3000 },
     ];
     const { subtotal, tax, total } = calculateOrderTotals(items);
     expect(subtotal).toBe(5000);
@@ -29,119 +28,86 @@ describe('Domain Calculations', () => {
     expect(calculateAgingDays(pastDate)).toBeGreaterThan(0);
   });
 
-  it('calculates dashboard metrics across recurring and new sales', () => {
-    const mockProjections: ProjectionLine[] = [
-      {
-        id: 'p1',
-        month: '2026-06',
-        customerId: 'c1',
-        customerName: 'Customer A',
-        productId: 'prod1',
-        productName: 'Oil A',
-        principalId: 'pr1',
-        principalName: 'Castrol',
-        sku: '1L',
-        projectedQuantity: 100,
-        achievedQuantity: 80,
-        salespersonId: 'usr1',
-        salespersonName: 'Rep 1',
-        rate: 500,
-        achievementPercentage: 80,
-        status: 'InProgress',
-      },
-    ];
+  /*
+   * The dashboard-metrics test that stood here is gone with the function.
+   * calculateDashboardMetrics summed committed and achieved value over arrays
+   * the client holds, against a monthlyTarget hardcoded in its signature; GET
+   * /dashboard returns all of it, computed over the whole tenant with the real
+   * SalesTarget rows. The test passed because the fixtures handed it whole
+   * arrays - over a cursor-paginated list it would have totalled 20 rows of
+   * however many the tenant has.
+   */
 
-    const mockLeads: Lead[] = [
-      {
-        id: 'l1',
-        title: 'Deal 1',
-        customerId: 'c1',
-        customerName: 'Customer A',
-        salespersonId: 'usr1',
-        salespersonName: 'Rep 1',
-        value: 200000,
-        probability: 90,
-        stage: 'OrderClosedWon',
-        expectedClose: '2026-06-30',
-        stageUpdatedAt: '2026-06-15',
-        createdAt: '2026-06-01',
-        updatedAt: '2026-06-15',
-      },
-    ];
-
-    const mockFollowUps: FollowUp[] = [];
-    const mockPayments: Payment[] = [];
-
-    const metrics = calculateDashboardMetrics(
-      mockProjections,
-      mockLeads,
-      mockFollowUps,
-      mockPayments
-    );
-
-    expect(metrics.recurringCommitted).toBe(50000);
-    expect(metrics.recurringAchieved).toBe(40000);
-    expect(metrics.newSalesCommitted).toBe(200000);
-    expect(metrics.newSalesAchieved).toBe(200000);
-    expect(metrics.totalCommitted).toBe(250000);
-    expect(metrics.totalAchieved).toBe(240000);
-    expect(metrics.achievementPercentage).toBe(96);
-  });
-
-  it('ranks priority items with red zone payments first, followed by overdue follow-ups', () => {
-    const mockPayments: Payment[] = [
+  it('ranks an overdue red-zone payment above an overdue follow-up, and drops settled and done rows', () => {
+    // Shapes are PaymentRow and FollowUpRow. The previous fixtures carried
+    // invoiceCode, paymentZone: 'Red', customerId on a follow-up and
+    // priority: 'High' - none of which the API sends. The test passed on them
+    // anyway, which is how the ranking came to branch on a field that does not
+    // exist.
+    const payments: Payment[] = [
       {
         id: 'pay_red',
+        refNo: 'PAY-0501',
         customerId: 'cust_05',
         customerName: 'Southern Auto Works & Castings',
         salespersonId: 'usr_megala',
         salespersonName: 'Megala',
-        invoiceCode: 'INV-2026-0501',
-        amount: 1120000,
-        pending: 1120000,
+        invoiceNo: 'INV-2026-0501',
+        invoiceDate: '2026-07-12',
+        amount: 1_120_000,
+        received: 0,
+        pending: 1_120_000,
         dueDate: '2026-07-12',
         agingDays: 63,
-        paymentZone: 'Red',
+        payZone: 'RedZone',
+        delayReason: null,
+        nextFollowUp: null,
+        mail1: true, mail2: true, mail3: true, mail4: false,
+        mail1At: null, mail2At: null, mail3At: null, mail4At: null,
         status: 'Overdue',
-        mail1: true,
-        mail2: true,
-        mail3: true,
-        mail4: false,
+        followups: [],
         createdAt: '2026-07-12',
         updatedAt: '2026-09-10',
       },
       {
-        id: 'pay_paid',
+        id: 'pay_settled',
+        refNo: 'PAY-0100',
         customerId: 'cust_01',
         customerName: 'ABC Industrial',
         salespersonId: 'usr_megala',
         salespersonName: 'Megala',
-        amount: 500000,
+        invoiceNo: 'INV-2026-0100',
+        invoiceDate: '2026-08-01',
+        amount: 500_000,
+        received: 500_000,
         pending: 0,
         dueDate: '2026-08-01',
         agingDays: 40,
+        payZone: null,
+        delayReason: null,
+        nextFollowUp: null,
+        mail1: false, mail2: false, mail3: false, mail4: false,
+        mail1At: null, mail2At: null, mail3At: null, mail4At: null,
         status: 'Paid',
-        mail1: false,
-        mail2: false,
-        mail3: false,
-        mail4: false,
+        followups: [],
         createdAt: '2026-08-01',
         updatedAt: '2026-09-01',
       },
     ];
 
-    const mockFollowUps: FollowUp[] = [
+    const followUps: FollowUp[] = [
       {
-        id: 'fu_urgent',
+        id: 'fu_overdue',
         entityType: 'Lead',
         entityId: 'lead_01',
-        customerId: 'cust_01',
-        customerName: 'ABC Industrial Components',
         salespersonId: 'usr_megala',
+        salespersonName: 'Megala',
         title: 'Oral Confirmation PO Close',
-        dueDate: '2026-09-10', // overdue relative to now
+        subtitle: 'ABC Industrial Components',
+        amount: 250_000,
+        dueDate: '2000-01-01', // safely in the past whenever this runs
         done: false,
-        priority: 'High',
+        note: null,
         createdAt: '2026-09-01',
         updatedAt: '2026-09-05',
       },
@@ -149,35 +115,73 @@ describe('Domain Calculations', () => {
         id: 'fu_done',
         entityType: 'Order',
         entityId: 'so_02',
-        customerId: 'cust_03',
         salespersonId: 'usr_megala',
+        salespersonName: 'Megala',
         title: 'Completed Delivery',
-        dueDate: '2026-09-01',
+        subtitle: null,
+        amount: null,
+        dueDate: '2000-01-01',
         done: true,
-        priority: 'Low',
+        note: null,
         createdAt: '2026-09-01',
         updatedAt: '2026-09-02',
       },
     ];
 
-    const ranked = calculatePriorityItems(mockPayments, mockFollowUps);
+    const ranked = calculatePriorityItems(payments, followUps);
 
-    // Done and Paid items should be excluded
-    expect(ranked.some((r) => r.id === 'pay_paid')).toBe(false);
-    expect(ranked.some((r) => r.id === 'fu_done')).toBe(false);
+    // A settled invoice and a completed follow-up are not work.
+    expect(ranked.map((r) => r.id)).toEqual(['pay_red', 'fu_overdue']);
 
-    // Active items should be present
-    expect(ranked.length).toBe(2);
-
-    // Red zone payment must rank #1
-    expect(ranked[0].id).toBe('pay_red');
     expect(ranked[0].type).toBe('payment');
-    if (ranked[0].type === 'payment') {
-      expect(ranked[0].isRedZone).toBe(true);
-    }
+    expect(ranked[0].isRedZone).toBe(true);
+    expect(ranked[0].title).toBe('Invoice INV-2026-0501');
 
-    // Overdue high-priority follow-up must rank #2
-    expect(ranked[1].id).toBe('fu_urgent');
     expect(ranked[1].type).toBe('followup');
+    // The follow-up falls back to its subtitle for a customer name: neither
+    // FollowUpRow nor DashboardFollowUp carries one.
+    expect(ranked[1].customerName).toBe('ABC Industrial Components');
+    expect(ranked[1].daysOverdue).toBeGreaterThan(0);
+  });
+
+  it('keeps a long-overdue follow-up below a red-zone payment', () => {
+    // The regression this pins: the follow-up term was `daysOverdue * 10`
+    // with no ceiling, so a row left open for a few weeks scored above any
+    // invoice - a forgotten courtesy call ranked over a 1.1 crore debt. Each
+    // band's within-band term is clamped now, so the bands hold at any age.
+    const ancient: FollowUp = {
+      id: 'fu_ancient',
+      entityType: 'Lead',
+      entityId: 'lead_99',
+      salespersonId: 'usr_megala',
+      salespersonName: 'Megala',
+      title: 'Forgotten call',
+      subtitle: null,
+      amount: null,
+      dueDate: '2000-01-01',
+      done: false,
+      note: null,
+      createdAt: '2000-01-01',
+      updatedAt: '2000-01-01',
+    };
+    const smallRedInvoice: Payment = {
+      id: 'pay_small_red',
+      refNo: 'PAY-9', customerId: 'c9', customerName: 'Tiny Co',
+      salespersonId: 'usr_megala', salespersonName: 'Megala',
+      invoiceNo: 'INV-9', invoiceDate: '2026-09-01',
+      amount: 1000, received: 0, pending: 1000,
+      dueDate: '2026-09-01', agingDays: 1, payZone: 'RedZone',
+      delayReason: null, nextFollowUp: null,
+      mail1: false, mail2: false, mail3: false, mail4: false,
+      mail1At: null, mail2At: null, mail3At: null, mail4At: null,
+      status: 'Overdue', followups: [],
+      createdAt: '2026-09-01', updatedAt: '2026-09-01',
+    };
+
+    const ranked = calculatePriorityItems([smallRedInvoice], [ancient]);
+
+    expect(ranked.map((r) => r.id)).toEqual(['pay_small_red', 'fu_ancient']);
+    expect(ranked[0].urgencyScore).toBeGreaterThanOrEqual(1000);
+    expect(ranked[1].urgencyScore).toBeLessThan(1000);
   });
 });

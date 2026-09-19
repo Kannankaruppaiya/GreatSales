@@ -13,11 +13,17 @@ export const queryClient = new QueryClient({
 
 export const QUERY_KEYS = {
   currentUser: ['currentUser'] as const,
-  dashboard: (ownerId?: string) => ['dashboard', ownerId || 'self'] as const,
-  oralDeals: (ownerId?: string) => ['dashboard', 'oralDeals', ownerId || 'self'] as const,
-  topProjections: (ownerId?: string) => ['dashboard', 'topProjections', ownerId || 'self'] as const,
-  priorityFollowUps: (ownerId?: string) => ['dashboard', 'priorityFollowUps', ownerId || 'self'] as const,
-  paymentAlerts: (ownerId?: string) => ['dashboard', 'paymentAlerts', ownerId || 'self'] as const,
+  /**
+   * One key for the whole dashboard aggregate, and it carries the window.
+   *
+   * There were five keys here - oralDeals, topProjections, priorityFollowUps
+   * and paymentAlerts beside this one - for five reads of the same GET
+   * /dashboard. None of them held the date range either, so switching from a
+   * month to a week hit the same cache entry and showed the previous window's
+   * numbers until it refetched.
+   */
+  dashboard: (ownerId: string | undefined, from: string, to: string) =>
+    ['dashboard', ownerId || 'self', from, to] as const,
 
   customers: (params?: any) => ['customers', params] as const,
   customer: (id: string) => ['customer', id] as const,

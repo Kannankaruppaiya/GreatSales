@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { followUpRepo } from '../repositories';
 import { QUERY_KEYS, invalidateEntity } from '../lib/queryClient';
-import type { FollowUp } from '../domain/types';
+import type { EntityTypeValue } from '../domain/types';
+import type { FollowUpCreate } from '@greatsales/shared';
 
 export function useFollowUps(params?: {
   filter?: 'all' | 'overdue' | 'today' | 'upcoming' | 'completed';
-  entityType?: string;
+  entityType?: EntityTypeValue;
 }) {
   return useQuery({
     queryKey: QUERY_KEYS.followups(params),
@@ -23,7 +24,7 @@ export function useFollowUp(id: string) {
 
 export function useCreateFollowUp() {
   return useMutation({
-    mutationFn: (input: Omit<FollowUp, 'id' | 'createdAt' | 'updatedAt'>) =>
+    mutationFn: (input: FollowUpCreate) =>
       followUpRepo.create(input),
     onSuccess: () => {
       invalidateEntity('followups');

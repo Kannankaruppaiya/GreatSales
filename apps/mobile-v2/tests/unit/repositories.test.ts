@@ -41,7 +41,7 @@ describe('Repository registry', () => {
   // queryFn just as it catches a rejection. Assertions here are synchronous to
   // match - `.rejects` would never see a promise.
   it.each(REPOSITORIES)('%s throws until a real implementation is wired', (name) => {
-    const repo = (registry as Record<string, Record<string, () => Promise<unknown>>>)[name];
+    const repo = (registry as unknown as Record<string, Record<string, () => Promise<unknown>>>)[name];
 
     // The Proxy answers any property with a throwing function, so the method
     // name here only has to be plausible - it stands in for every call a screen

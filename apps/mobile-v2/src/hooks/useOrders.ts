@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { orderRepo } from '../repositories';
+import type { OrderCreate } from '@greatsales/shared';
 import { QUERY_KEYS, invalidateEntity } from '../lib/queryClient';
 import type { SalesOrder, OrderStatusValue } from '../domain/types';
 
@@ -20,7 +21,7 @@ export function useOrder(id: string) {
 
 export function useCreateOrder() {
   return useMutation({
-    mutationFn: (input: Omit<SalesOrder, 'id' | 'code' | 'createdAt' | 'updatedAt' | 'statusHistory'>) =>
+    mutationFn: (input: OrderCreate) =>
       orderRepo.create(input),
     onSuccess: () => {
       invalidateEntity('orders');
