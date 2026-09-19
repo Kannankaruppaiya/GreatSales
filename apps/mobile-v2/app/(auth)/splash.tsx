@@ -1,4 +1,5 @@
-import { View, Text, ImageBackground, Pressable, useWindowDimensions } from 'react-native';
+import { View, Text, Pressable, useWindowDimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -31,13 +32,19 @@ export default function Splash() {
 
   return (
     <View className="flex-1 bg-surface">
-      <ImageBackground
-        source={require('../../assets/images/splash-bg.png')}
-        resizeMode="cover"
-        // 666 of 859. The white panel overlaps its last 27pt, which is what
-        // gives the panel its lift off the photograph.
-        style={{ position: 'absolute', left: 0, right: 0, top: 0, height: at(666) }}
-      >
+      {/*
+        expo-image rather than react-native's Image, because the photograph is
+        a WebP: 146KB at the source's own 760x1340, against the megabyte or two
+        the same picture costs as a PNG. React Native's built-in loader does
+        not decode WebP on iOS without extra setup; expo-image does, on every
+        platform, and it was already a dependency.
+      */}
+      <View style={{ position: 'absolute', left: 0, right: 0, top: 0, height: at(666) }}>
+        <Image
+          source={require('../../assets/images/splash-bg.webp')}
+          contentFit="cover"
+          style={{ width: '100%', height: '100%' }}
+        />
         {/* scrim-top: #06202c at 55% fading out over the first 260pt, so the
             mark and the wordmark stay legible whatever the photograph does. */}
         <LinearGradient
@@ -52,7 +59,7 @@ export default function Splash() {
             top: at(379), height: at(286),
           }}
         />
-      </ImageBackground>
+      </View>
 
       <SafeAreaView edges={['top']} className="flex-1">
         <View style={{ marginTop: at(62) - at(0) }}>

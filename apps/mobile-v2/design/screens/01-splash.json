@@ -16,8 +16,9 @@
       "id": "c514c1fb-1cda-8125-8008-a4944e8abbc8",
       "w": 760,
       "h": 1340,
-      "mtype": "image/jpeg",
-      "file": "assets/images/splash-bg.jpg"
+      "mtype": "image/webp",
+      "file": "assets/images/splash-bg.webp",
+      "_note": "Source in Penpot is JPEG at 760x1340; carried here as WebP at the same size, 146KB."
     }
   ],
   "shapes": [
