@@ -64,6 +64,13 @@
   --amber-strong: 201 122 9;      /* #c97a09 — 19 fills, 18 strokes */
   --amber-soft: 253 240 224;      /* #fdf0e0 — 20 */
 
+  /* On photography. The splash lays type over an image, where the ink and
+   * brand greens above are unreadable: #2fcb7c is the mark and the swoosh
+   * there, #06202c is the scrim that darkens the photo under them. */
+  --brand-on-photo: 47 203 124;   /* #2fcb7c */
+  --scrim: 6 32 44;               /* #06202c */
+  --brand-grad-end: 27 165 96;    /* #1ba560 — the splash CTA's gradient end */
+
   /* Control states, from board 08 — Buttons. */
   --disabled: 228 235 239;        /* #e4ebef — disabled button fill */
   --disabled-ink: 157 176 187;    /* #9db0bb — disabled label */

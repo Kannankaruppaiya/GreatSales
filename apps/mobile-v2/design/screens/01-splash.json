@@ -1,0 +1,229 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board 'Screen 01 Splash'",
+  "_board": {
+    "width": 376,
+    "height": 859,
+    "bezelRadius": 34,
+    "_note": "bezelRadius belongs to the mockup's phone frame, not the app."
+  },
+  "_excluded": [
+    "time \u2014 the mockup's status-bar clock; the OS draws the real one",
+    "status-icons \u2014 signal/wifi/battery, likewise the OS's"
+  ],
+  "images": [
+    {
+      "name": "splash-bg",
+      "id": "c514c1fb-1cda-8125-8008-a4944e8abbc8",
+      "w": 760,
+      "h": 1340,
+      "mtype": "image/jpeg",
+      "file": "assets/images/splash-bg.jpg"
+    }
+  ],
+  "shapes": [
+    {
+      "n": "splash-photo",
+      "t": "rect",
+      "x": 0,
+      "y": 0,
+      "w": 376,
+      "h": 666,
+      "fill": "image:splash-bg"
+    },
+    {
+      "n": "scrim-top",
+      "t": "rect",
+      "x": 0,
+      "y": 0,
+      "w": 376,
+      "h": 260,
+      "fill": {
+        "gradient": [
+          "#06202c@0.55",
+          "#06202c@0"
+        ],
+        "dir": "vertical"
+      }
+    },
+    {
+      "n": "scrim-bot",
+      "t": "rect",
+      "x": 0,
+      "y": 379,
+      "w": 376,
+      "h": 286,
+      "fill": {
+        "gradient": [
+          "#06202c@0",
+          "#06202c@0.5"
+        ],
+        "dir": "vertical"
+      }
+    },
+    {
+      "n": "logo-G",
+      "t": "text",
+      "y": 62,
+      "chars": "G",
+      "size": 42,
+      "weight": 800,
+      "family": "Plus Jakarta Sans",
+      "fill": "#2fcb7c",
+      "align": "center"
+    },
+    {
+      "n": "brand",
+      "t": "text",
+      "y": 135,
+      "chars": "GreatSales",
+      "size": 27,
+      "weight": 800,
+      "fill": "#ffffff",
+      "align": "center"
+    },
+    {
+      "n": "brand-sub",
+      "t": "text",
+      "y": 170,
+      "chars": "Field Sales CRM",
+      "size": 13,
+      "weight": 500,
+      "fill": "#ffffff",
+      "opacity": 0.88,
+      "align": "center"
+    },
+    {
+      "n": "hw1",
+      "t": "text",
+      "x": 39,
+      "y": 197,
+      "chars": "Every",
+      "size": 39,
+      "weight": 400,
+      "family": "Caveat",
+      "fill": "#ffffff",
+      "lineHeight": 1.05
+    },
+    {
+      "n": "hw2",
+      "t": "text",
+      "x": 63,
+      "y": 239,
+      "chars": "visit",
+      "size": 39,
+      "family": "Caveat"
+    },
+    {
+      "n": "hw3",
+      "t": "text",
+      "x": 47,
+      "y": 278,
+      "chars": "builds",
+      "size": 39,
+      "family": "Caveat"
+    },
+    {
+      "n": "hw4",
+      "t": "text",
+      "x": 68,
+      "y": 317,
+      "chars": "tomorrow",
+      "size": 39,
+      "family": "Caveat"
+    },
+    {
+      "n": "hw-swoosh",
+      "t": "path",
+      "x": 63,
+      "y": 366,
+      "w": 156,
+      "h": 23,
+      "path": {
+        "d": "M0,12.8 C37.7,19.2 102.7,9 148.2,0",
+        "viewBox": "0 0 148.2 15",
+        "stroke": "#2fcb7c",
+        "strokeWidth": 3.4,
+        "cap": "round"
+      }
+    },
+    {
+      "n": "panel",
+      "t": "rect",
+      "x": 0,
+      "y": 639,
+      "w": 376,
+      "h": 220,
+      "r": 31,
+      "fill": "#ffffff"
+    },
+    {
+      "n": "p1",
+      "t": "text",
+      "y": 655,
+      "chars": "Sell Smarter.",
+      "size": 25,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "center",
+      "lineHeight": 1.25
+    },
+    {
+      "n": "p2",
+      "t": "text",
+      "y": 686,
+      "chars": "Go Further.",
+      "size": 25,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "center",
+      "lineHeight": 1.25
+    },
+    {
+      "n": "p3",
+      "t": "text",
+      "y": 724,
+      "chars": "Track \u00b7 Engage \u00b7 Grow",
+      "size": 15,
+      "weight": 500,
+      "fill": "#6b8796",
+      "align": "center"
+    },
+    {
+      "n": "cta",
+      "t": "rect",
+      "x": 29,
+      "y": 761,
+      "w": 319,
+      "h": 49,
+      "r": 13,
+      "fill": {
+        "gradient": [
+          "#0e7a4a",
+          "#1ba560"
+        ],
+        "dir": "horizontal"
+      },
+      "_note": "Not the standard h46 r12 flat brand button; the splash CTA is its own shape."
+    },
+    {
+      "n": "cta-t",
+      "t": "text",
+      "y": 776,
+      "chars": "Get Started   \u2192",
+      "size": 18,
+      "weight": 700,
+      "fill": "#ffffff",
+      "align": "center"
+    },
+    {
+      "n": "p4",
+      "t": "text",
+      "y": 834,
+      "chars": "Trusted by 10,000+ field sales teams",
+      "size": 13,
+      "weight": 400,
+      "fill": "#8aa3b0",
+      "align": "center"
+    }
+  ]
+}

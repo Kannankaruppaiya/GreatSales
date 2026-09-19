@@ -51,7 +51,10 @@ module.exports = {
           soft2: c('--brand-soft2'),
           border: c('--brand-border'),
           ink: c('--brand-ink'),
+          onPhoto: c('--brand-on-photo'),
+          gradEnd: c('--brand-grad-end'),
         },
+        scrim: c('--scrim'),
         danger: {
           DEFAULT: c('--danger'),
           dark: c('--danger-dark'),

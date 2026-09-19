@@ -3,6 +3,7 @@
   "main": "expo-router/entry",
   "version": "2.0.0",
   "dependencies": {
+    "@expo-google-fonts/caveat": "^0.4.2",
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@greatsales/shared": "workspace:*",
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -15,6 +16,7 @@
     "expo-haptics": "~15.0.8",
     "expo-image": "~2.0.6",
     "expo-image-picker": "~16.0.6",
+    "expo-linear-gradient": "^57.0.2",
     "expo-linking": "~8.0.12",
     "expo-location": "~19.0.8",
     "expo-router": "~6.0.24",
