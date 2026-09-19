@@ -108,31 +108,51 @@
         "01B Screen 01B-E"
       ],
       "_reached_from": "01B's \"Allow Location Access\", granted branch."
+    },
+    {
+      "screen": "Actions Need Attention",
+      "route": "/actions",
+      "boards": [
+        "02B.1 Actions Overview"
+      ],
+      "_note": "Tab destination; no back control on the board. Two of its five rows — Proposals / Commitments and Others — have no board on the page, so they open nothing and are left un-pressable."
+    },
+    {
+      "screen": "Overdue Follow-ups",
+      "route": "/followups-overdue",
+      "boards": [
+        "02B.2 Overdue Follow-ups"
+      ],
+      "_reached_from": "02B.1's first row and its red banner."
+    },
+    {
+      "screen": "Payment / Outstanding",
+      "route": "/payments-outstanding",
+      "boards": [
+        "02B.3 Payment / Outstanding"
+      ],
+      "_reached_from": "02B.1's second row."
+    },
+    {
+      "screen": "Opportunities",
+      "route": "/opportunities-attention",
+      "boards": [
+        "02B.4 Opportunities"
+      ],
+      "_reached_from": "02B.1's third row."
+    },
+    {
+      "screen": "Opportunity Detail",
+      "route": "/opportunity-detail",
+      "boards": [
+        "02B.5 Opportunity Detail"
+      ],
+      "_reached_from": "02B.4's rows."
     }
   ],
   "remaining": {
     "_note": "Bases still to build, with the boards that are states of each. A state is a component on an existing screen, not a new route.",
     "flows": [
-      {
-        "base": "02B.1 Actions Overview",
-        "shapes": 67
-      },
-      {
-        "base": "02B.2 Overdue Follow-ups",
-        "shapes": 77
-      },
-      {
-        "base": "02B.3 Payment / Outstanding",
-        "shapes": 82
-      },
-      {
-        "base": "02B.4 Opportunities",
-        "shapes": 62
-      },
-      {
-        "base": "02B.5 Opportunity Detail",
-        "shapes": 55
-      },
       {
         "base": "02C.1 Follow-ups Overview",
         "shapes": 57,
@@ -292,6 +312,10 @@
         "shapes": 38
       }
     ],
-    "_left": 31
-  }
+    "_left": 26
+  },
+  "_unreached": [
+    "/actions has no entry point yet — no board links to 02B.1. It is a tab destination in the design (it carries the bar), so it belongs behind one of the four tabs; which one is not drawn.",
+    "/location-info (01B-INFO) — see its entry above."
+  ]
 }

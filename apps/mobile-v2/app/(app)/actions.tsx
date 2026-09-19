@@ -49,11 +49,20 @@ const CHIPS: Chip[] = [
   { key: 'payments', label: 'Payments', count: '3', tone: '#17a45e', w: 111, lx: 19, nx: 84 },
 ];
 
-type Row = { title: string; sub: string; count: string; tone: string; icon: ReactNode; href?: string };
+/**
+ * `go` is the list each row opens. Two of the five have no board on the page
+ * - Proposals / Commitments and Others - so they open nothing rather than
+ * being pointed at a near-enough screen, and the row stays un-pressable so
+ * the absence is visible rather than a tap that does nothing.
+ */
+type Row = {
+  title: string; sub: string; count: string; tone: string; icon: ReactNode;
+  go?: '/(app)/followups-overdue' | '/(app)/payments-outstanding' | '/(app)/opportunities-attention';
+};
 const ROWS: Row[] = [
-  { title: 'Overdue Follow-up', sub: 'Customer follow-ups pending', count: '5', tone: '#17a45e', icon: <PhoneOutline /> },
-  { title: 'Payment / Outstanding', sub: 'Payments overdue', count: '3', tone: '#17a45e', icon: <CardOutline /> },
-  { title: 'Opportunities', sub: 'Require your attention', count: '2', tone: '#17a45e', icon: <BarsSolid23 /> },
+  { title: 'Overdue Follow-up', sub: 'Customer follow-ups pending', count: '5', tone: '#17a45e', icon: <PhoneOutline />, go: '/(app)/followups-overdue' },
+  { title: 'Payment / Outstanding', sub: 'Payments overdue', count: '3', tone: '#17a45e', icon: <CardOutline />, go: '/(app)/payments-outstanding' },
+  { title: 'Opportunities', sub: 'Require your attention', count: '2', tone: '#17a45e', icon: <BarsSolid23 />, go: '/(app)/opportunities-attention' },
   { title: 'Proposals / Commitments', sub: 'Awaiting response', count: '2', tone: '#17a45e', icon: <FileOutline /> },
   // Zero is painted muted rather than green: nothing here is an achievement.
   { title: 'Others', sub: 'Miscellaneous items', count: '0', tone: '#8aa3b0', icon: <EllipsisGlyph /> },
@@ -149,7 +158,7 @@ export default function Actions() {
               text and rules. */}
           <Pressable
             accessibilityRole="button"
-            onPress={() => setChip('overdue')}
+            onPress={() => router.push('/(app)/followups-overdue')}
             style={{
               marginTop: 19, marginLeft: PAD_L, marginRight: PAD_R,
               height: 60, borderRadius: 16,
@@ -184,6 +193,8 @@ export default function Actions() {
               key={r.title}
               accessibilityRole="button"
               accessibilityLabel={`${r.title}, ${r.count}. ${r.sub}`}
+              disabled={!r.go}
+              onPress={() => r.go && router.push(r.go)}
               style={{
                 marginTop: i === 0 ? 18 : 10, marginLeft: PAD_L, marginRight: PAD_R,
                 height: 65, borderRadius: 16,

@@ -1,0 +1,312 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board '02B.5 Opportunity Detail'",
+  "_board": {
+    "width": 376,
+    "height": 859
+  },
+  "_excluded": [
+    "time / status-icons — the mockup status bar"
+  ],
+  "_layout": {
+    "flows": true,
+    "_note": "Flows; the summary card and the two row cards place their contents absolutely at the board's offsets."
+  },
+  "_state": "Content is the board's, unwired. The screen takes an opportunity id and reads GET /leads/:id rather than being handed a list row — a list row is a summary, and a detail built from one silently shows stale values after somebody else edits.",
+  "_tabs": "Details / Activity / Notes (3) switch what is BELOW the rule. The other two panels are boards 03E.2 and 03C.2; they are state on this screen, not routes.",
+  "_write": "The stage select is the one write this screen makes. It posts the change and re-reads; it must never set local state and assume, because the leads service stamps stageUpdatedAt and that is what the dashboard's achieved half is measured on.",
+  "shapes": [
+    {
+      "n": "h-title",
+      "t": "text",
+      "x": 57,
+      "y": 51,
+      "w": 261,
+      "chars": "Opportunity Details",
+      "size": 20,
+      "weight": 700,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "op-t",
+      "t": "text",
+      "x": 91,
+      "y": 119,
+      "chars": "New Outlet Expansion",
+      "size": 16,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "op-c",
+      "t": "text",
+      "x": 91,
+      "y": 142,
+      "chars": "TrendMart",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "op-st",
+      "t": "text",
+      "x": 115,
+      "y": 166,
+      "chars": "Action Required",
+      "size": 11,
+      "weight": 700,
+      "fill": "#c77a0a"
+    },
+    {
+      "n": "v-0",
+      "t": "text",
+      "x": 31,
+      "y": 223,
+      "w": 107,
+      "chars": "₹ 5.0L",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "l-0",
+      "t": "text",
+      "x": 31,
+      "y": 247,
+      "w": 107,
+      "chars": "Expected Value",
+      "size": 10,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "v-1",
+      "t": "text",
+      "x": 130,
+      "y": 223,
+      "w": 104,
+      "chars": "Medium",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "l-1",
+      "t": "text",
+      "x": 130,
+      "y": 247,
+      "w": 104,
+      "chars": "Probability",
+      "size": 10,
+      "weight": 500,
+      "fill": "#6b8796",
+      "align": "center"
+    },
+    {
+      "n": "v-2",
+      "t": "text",
+      "x": 231,
+      "y": 223,
+      "w": 113,
+      "chars": "30 Sep 2025",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "l-2",
+      "t": "text",
+      "x": 231,
+      "y": 247,
+      "w": 113,
+      "chars": "Expected Close",
+      "size": 10,
+      "weight": 500,
+      "fill": "#6b8796",
+      "align": "right"
+    },
+    {
+      "n": "stage-l",
+      "t": "text",
+      "x": 31,
+      "y": 301,
+      "chars": "Stage",
+      "size": 13,
+      "weight": 600,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "stage-v",
+      "t": "text",
+      "x": 137,
+      "y": 301,
+      "chars": "Proposal Sent",
+      "size": 13,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "tab-0",
+      "t": "text",
+      "x": 23,
+      "y": 370,
+      "w": 94,
+      "chars": "Details",
+      "size": 14,
+      "weight": 700,
+      "fill": "#17a45e",
+      "align": "center"
+    },
+    {
+      "n": "tab-1",
+      "t": "text",
+      "x": 137,
+      "y": 370,
+      "w": 94,
+      "chars": "Activity",
+      "size": 14,
+      "weight": 600,
+      "fill": "#6b8796",
+      "align": "center"
+    },
+    {
+      "n": "tab-2",
+      "t": "text",
+      "x": 254,
+      "y": 370,
+      "w": 103,
+      "chars": "Notes (3)",
+      "size": 14,
+      "weight": 600,
+      "fill": "#6b8796",
+      "align": "center"
+    },
+    {
+      "n": "na-h",
+      "t": "text",
+      "x": 33,
+      "y": 437,
+      "chars": "Next Action",
+      "size": 12,
+      "weight": 800,
+      "fill": "#c22b30"
+    },
+    {
+      "n": "na-t",
+      "t": "text",
+      "x": 69,
+      "y": 456,
+      "chars": "Follow up with client",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "na-d",
+      "t": "text",
+      "x": 69,
+      "y": 476,
+      "chars": "Overdue by 3 days",
+      "size": 12,
+      "weight": 600,
+      "fill": "#e5484d"
+    },
+    {
+      "n": "d-h",
+      "t": "text",
+      "x": 18,
+      "y": 525,
+      "chars": "Description",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "d-1",
+      "t": "text",
+      "x": 18,
+      "y": 548,
+      "chars": "Client is interested in opening 2 new outlets.",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796",
+      "lh": 1.5
+    },
+    {
+      "n": "d-2",
+      "t": "text",
+      "x": 18,
+      "y": 568,
+      "chars": "Waiting for final confirmation after proposal.",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796",
+      "lh": 1.5
+    },
+    {
+      "n": "c-h",
+      "t": "text",
+      "x": 18,
+      "y": 611,
+      "chars": "Customer",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "c-n",
+      "t": "text",
+      "x": 88,
+      "y": 654,
+      "chars": "TrendMart",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "c-o",
+      "t": "text",
+      "x": 88,
+      "y": 673,
+      "chars": "Ravi Kumar",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "c-p",
+      "t": "text",
+      "x": 108,
+      "y": 691,
+      "chars": "+91 98765 43210",
+      "size": 12,
+      "weight": 600,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "b1",
+      "t": "text",
+      "x": 70,
+      "y": 783,
+      "chars": "Log Activity",
+      "size": 14,
+      "weight": 700,
+      "fill": "#ffffff",
+      "_skipX": true,
+      "_note": "The row is centred in a 164-wide button; the board fixes the glyph at x44 and the label at x70."
+    },
+    {
+      "n": "b2",
+      "t": "text",
+      "x": 238,
+      "y": 784,
+      "chars": "View in Pipeline",
+      "size": 13,
+      "weight": 700,
+      "fill": "#0e7a4a",
+      "_skipX": true
+    }
+  ]
+}

@@ -236,3 +236,88 @@ export function SortOutline({ width = 21, height = 18, color = '#6b8796' }: {
     </Svg>
   );
 }
+
+/* --- 02B.4's tile and pill glyphs --------------------------------------- */
+
+/** A shopfront with an awning - 02B.4's outlet and product-line rows. */
+export function StoreOutline({ size = 23, color = '#0e7a4a' }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 23 23">
+      <Path
+        d="M3.83,19.17L3.83,6.23C3.83,5.44 4.48,4.79 5.27,4.79L11.98,4.79C12.77,4.79 13.42,5.44 13.42,6.23L13.42,19.17"
+        {...stroke(color)}
+      />
+      <Path d="M13.42,9.58L17.73,9.58C18.52,9.58 19.17,10.23 19.17,11.02L19.17,19.17" {...stroke(color)} />
+      <Path d="M2.4,19.17L20.6,19.17" {...stroke(color)} />
+      <Path d="M6.71,8.63L10.54,8.63M6.71,12.46L10.54,12.46M16.29,13.42L17.25,13.42" {...stroke(color)} />
+    </Svg>
+  );
+}
+
+/**
+ * The two 12-box glyphs that sit inside a status pill.
+ *
+ * They are NOT the 21-box and 20-box versions above at a smaller size. The
+ * board keeps the stroke at 2 while shrinking the box from 21 to 12, so the
+ * line is nearly twice as heavy relative to the shape - which is what makes
+ * a 12px glyph legible at all. Rendering the big one small would draw a
+ * hairline.
+ */
+export function AlertTriangleMini({ size = 12, color = '#c77a0a' }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 12 12">
+      <Path d="M6,2.1L10.5,9.7L1.5,9.7L6,2.1" {...stroke(color)} />
+      <Path d="M6,5L6,7" {...stroke(color)} />
+      <Path d="M6,8.3L6.01,8.3" {...stroke(color)} />
+    </Svg>
+  );
+}
+
+export function InfoCircleMini({ size = 12, color = '#2e76d6' }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 12 12">
+      <Ellipse cx={6} cy={6} rx={4.25} ry={4.25} {...stroke(color)} />
+      <Path d="M6,5.5L6,8.25" {...stroke(color)} />
+      <Path d="M6,3.9L6.01,3.9" {...stroke(color)} />
+    </Svg>
+  );
+}
+
+/* --- 02B.5's header, stage select and action buttons -------------------- */
+
+/** The overflow menu: three discs stacked, in a 27 box. */
+export function EllipsisVertical({ size = 27, color = '#0f3244' }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 27 27">
+      {[5.62, 13.5, 21.38].map((cy) => (
+        <Ellipse key={cy} cx={13.5} cy={cy} rx={1.91} ry={1.91} fill={color} />
+      ))}
+    </Svg>
+  );
+}
+
+/** A chevron pointing down, as a 3-point polyline at stroke 1.7. */
+export function ChevronDownStroke({ size = 17, color = '#6b8796' }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 17 17">
+      <Path
+        d="M2.13,4.25L8.5,13.81L14.88,4.25"
+        stroke={color}
+        strokeWidth={1.7}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </Svg>
+  );
+}
+
+/** A tick in a ring - 02B.5's "Log Activity". */
+export function CheckCircleOutline({ size = 20, color = '#ffffff' }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 20 20">
+      <Ellipse cx={10} cy={10} rx={7.08} ry={7.08} {...stroke(color)} />
+      <Path d="M6.67,10.17L8.83,12.33L13.33,7.83" {...stroke(color)} />
+    </Svg>
+  );
+}

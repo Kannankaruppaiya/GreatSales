@@ -1,0 +1,407 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board '02B.3 Payment / Outstanding'",
+  "_board": {
+    "width": 376,
+    "height": 859
+  },
+  "_excluded": [
+    "time / status-icons — the mockup status bar"
+  ],
+  "_layout": {
+    "flows": true,
+    "_note": "Flows; each 88-tall card places its contents absolutely at the board's offsets. The age pill follows the invoice number rather than sitting at the board's x141 — invoice codes happen to be one width here and will not always be."
+  },
+  "_state": "Rows are the board's, unwired. The amount is the invoice total MINUS what has been received, not the total: an invoice half paid is half outstanding, and the raised figure would overstate the book.",
+  "shapes": [
+    {
+      "n": "h-title",
+      "t": "text",
+      "x": 58,
+      "y": 51,
+      "w": 261,
+      "chars": "Payment / Outstanding",
+      "size": 20,
+      "weight": 700,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "s-ph",
+      "t": "text",
+      "x": 60,
+      "y": 114,
+      "chars": "Search customers or invoice...",
+      "size": 14,
+      "weight": 500,
+      "fill": "#8aa3b0"
+    },
+    {
+      "n": "av-0",
+      "t": "text",
+      "x": 32,
+      "y": 188,
+      "w": 39,
+      "chars": "AD",
+      "size": 12,
+      "weight": 800,
+      "fill": "#0e7a4a",
+      "align": "center"
+    },
+    {
+      "n": "nm-0",
+      "t": "text",
+      "x": 81,
+      "y": 174,
+      "chars": "ABC Distributors",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "amt-0",
+      "t": "text",
+      "x": 258,
+      "y": 174,
+      "w": 83,
+      "chars": "₹ 2.4L",
+      "size": 14,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "inv-0",
+      "t": "text",
+      "x": 81,
+      "y": 196,
+      "chars": "INV-1034",
+      "size": 12,
+      "weight": 600,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "age-0",
+      "t": "text",
+      "x": 151,
+      "y": 195,
+      "chars": "7d",
+      "size": 10,
+      "weight": 700,
+      "fill": "#e5484d"
+    },
+    {
+      "n": "st-0",
+      "t": "text",
+      "x": 91,
+      "y": 225,
+      "chars": "Overdue",
+      "size": 11,
+      "weight": 700,
+      "fill": "#c22b30"
+    },
+    {
+      "n": "av-1",
+      "t": "text",
+      "x": 32,
+      "y": 284,
+      "w": 39,
+      "chars": "MR",
+      "size": 12,
+      "weight": 800,
+      "fill": "#0e7a4a",
+      "align": "center"
+    },
+    {
+      "n": "nm-1",
+      "t": "text",
+      "x": 81,
+      "y": 270,
+      "chars": "Metro Retail",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "amt-1",
+      "t": "text",
+      "x": 258,
+      "y": 270,
+      "w": 83,
+      "chars": "₹ 1.8L",
+      "size": 14,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "inv-1",
+      "t": "text",
+      "x": 81,
+      "y": 292,
+      "chars": "INV-9987",
+      "size": 12,
+      "weight": 600,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "age-1",
+      "t": "text",
+      "x": 151,
+      "y": 292,
+      "chars": "12d",
+      "size": 10,
+      "weight": 700,
+      "fill": "#e5484d"
+    },
+    {
+      "n": "st-1",
+      "t": "text",
+      "x": 91,
+      "y": 321,
+      "chars": "Overdue",
+      "size": 11,
+      "weight": 700,
+      "fill": "#c22b30"
+    },
+    {
+      "n": "av-2",
+      "t": "text",
+      "x": 32,
+      "y": 380,
+      "w": 39,
+      "chars": "FM",
+      "size": 12,
+      "weight": 800,
+      "fill": "#0e7a4a",
+      "align": "center"
+    },
+    {
+      "n": "nm-2",
+      "t": "text",
+      "x": 81,
+      "y": 366,
+      "chars": "FreshMart",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "amt-2",
+      "t": "text",
+      "x": 258,
+      "y": 366,
+      "w": 83,
+      "chars": "₹ 95K",
+      "size": 14,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "inv-2",
+      "t": "text",
+      "x": 81,
+      "y": 389,
+      "chars": "INV-9912",
+      "size": 12,
+      "weight": 600,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "age-2",
+      "t": "text",
+      "x": 151,
+      "y": 388,
+      "chars": "15d",
+      "size": 10,
+      "weight": 700,
+      "fill": "#e5484d"
+    },
+    {
+      "n": "st-2",
+      "t": "text",
+      "x": 91,
+      "y": 417,
+      "chars": "Overdue",
+      "size": 11,
+      "weight": 700,
+      "fill": "#c22b30"
+    },
+    {
+      "n": "av-3",
+      "t": "text",
+      "x": 32,
+      "y": 476,
+      "w": 39,
+      "chars": "RS",
+      "size": 12,
+      "weight": 800,
+      "fill": "#0e7a4a",
+      "align": "center"
+    },
+    {
+      "n": "nm-3",
+      "t": "text",
+      "x": 81,
+      "y": 463,
+      "chars": "RK Stores",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "amt-3",
+      "t": "text",
+      "x": 258,
+      "y": 463,
+      "w": 83,
+      "chars": "₹ 3.2L",
+      "size": 14,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "inv-3",
+      "t": "text",
+      "x": 81,
+      "y": 485,
+      "chars": "INV-9843",
+      "size": 12,
+      "weight": 600,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "age-3",
+      "t": "text",
+      "x": 151,
+      "y": 484,
+      "chars": "18d",
+      "size": 10,
+      "weight": 700,
+      "fill": "#e5484d"
+    },
+    {
+      "n": "st-3",
+      "t": "text",
+      "x": 91,
+      "y": 513,
+      "chars": "Overdue",
+      "size": 11,
+      "weight": 700,
+      "fill": "#c22b30"
+    },
+    {
+      "n": "av-4",
+      "t": "text",
+      "x": 32,
+      "y": 572,
+      "w": 39,
+      "chars": "CS",
+      "size": 12,
+      "weight": 800,
+      "fill": "#0e7a4a",
+      "align": "center"
+    },
+    {
+      "n": "nm-4",
+      "t": "text",
+      "x": 81,
+      "y": 559,
+      "chars": "City Super Market",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "amt-4",
+      "t": "text",
+      "x": 258,
+      "y": 559,
+      "w": 83,
+      "chars": "₹ 1.1L",
+      "size": 14,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "inv-4",
+      "t": "text",
+      "x": 81,
+      "y": 581,
+      "chars": "INV-9786",
+      "size": 12,
+      "weight": 600,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "age-4",
+      "t": "text",
+      "x": 151,
+      "y": 580,
+      "chars": "25d",
+      "size": 10,
+      "weight": 700,
+      "fill": "#e5484d"
+    },
+    {
+      "n": "st-4",
+      "t": "text",
+      "x": 91,
+      "y": 610,
+      "chars": "Overdue",
+      "size": 11,
+      "weight": 700,
+      "fill": "#c22b30"
+    },
+    {
+      "n": "nav-l-0",
+      "t": "text",
+      "x": 3,
+      "y": 821,
+      "w": 78,
+      "chars": "Home",
+      "size": 10,
+      "weight": 700,
+      "fill": "#17a45e",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-1",
+      "t": "text",
+      "x": 78,
+      "y": 821,
+      "w": 78,
+      "chars": "Pipeline",
+      "size": 10,
+      "weight": 600,
+      "fill": "#8aa3b0",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-2",
+      "t": "text",
+      "x": 220,
+      "y": 821,
+      "w": 78,
+      "chars": "Customers",
+      "size": 10,
+      "weight": 600,
+      "fill": "#8aa3b0",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-3",
+      "t": "text",
+      "x": 296,
+      "y": 821,
+      "w": 78,
+      "chars": "More",
+      "size": 10,
+      "weight": 600,
+      "fill": "#8aa3b0",
+      "align": "center"
+    }
+  ]
+}

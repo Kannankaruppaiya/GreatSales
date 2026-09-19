@@ -1,0 +1,300 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board '02B.4 Opportunities'",
+  "_board": {
+    "width": 376,
+    "height": 859
+  },
+  "_excluded": [
+    "time / status-icons — the mockup status bar"
+  ],
+  "_layout": {
+    "flows": true,
+    "_note": "ONE 631-tall card with hairlines between five 126-pitch rows, not five cards. No tab bar on this board: it is pushed onto the stack, which is why it keeps its back chevron."
+  },
+  "_state": "Rows are the board's, unwired: leads with an open stage and a nextAction set, ordered by value. The amount is the lead's value, NOT probability-weighted — this is a worklist, and discounting the number being chased makes it useless for that.",
+  "_pills": "The board's pill widths (135, 142, 81) are what those three labels happen to measure. StatusPill sizes to its content at the board's insets — 7 before a glyph, 10 before a bare label — so the LABEL lands where the board puts it, which is what is measured.",
+  "shapes": [
+    {
+      "n": "h-title",
+      "t": "text",
+      "x": 57,
+      "y": 51,
+      "w": 261,
+      "chars": "Opportunities",
+      "size": 20,
+      "weight": 700,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "s-ph",
+      "t": "text",
+      "x": 59,
+      "y": 114,
+      "chars": "Search opportunities...",
+      "size": 14,
+      "weight": 500,
+      "fill": "#8aa3b0"
+    },
+    {
+      "n": "ti-0",
+      "t": "text",
+      "x": 88,
+      "y": 184,
+      "chars": "New Outlet Expansion",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "amt-0",
+      "t": "text",
+      "x": 254,
+      "y": 184,
+      "w": 86,
+      "chars": "₹ 5.0L",
+      "size": 14,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "cus-0",
+      "t": "text",
+      "x": 88,
+      "y": 204,
+      "chars": "TrendMart",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "st-0",
+      "t": "text",
+      "x": 113,
+      "y": 228,
+      "chars": "Action Required",
+      "size": 11,
+      "weight": 700,
+      "fill": "#c77a0a"
+    },
+    {
+      "n": "note-0",
+      "t": "text",
+      "x": 88,
+      "y": 251,
+      "chars": "Share updated proposal",
+      "size": 12,
+      "weight": 500,
+      "fill": "#8aa3b0"
+    },
+    {
+      "n": "ti-1",
+      "t": "text",
+      "x": 88,
+      "y": 311,
+      "chars": "Product Upgrade",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "amt-1",
+      "t": "text",
+      "x": 254,
+      "y": 311,
+      "w": 86,
+      "chars": "₹ 2.8L",
+      "size": 14,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "cus-1",
+      "t": "text",
+      "x": 88,
+      "y": 330,
+      "chars": "Value Plus",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "st-1",
+      "t": "text",
+      "x": 113,
+      "y": 354,
+      "chars": "Decision Pending",
+      "size": 11,
+      "weight": 700,
+      "fill": "#2e76d6"
+    },
+    {
+      "n": "note-1",
+      "t": "text",
+      "x": 88,
+      "y": 377,
+      "chars": "Client reviewing the proposal",
+      "size": 12,
+      "weight": 500,
+      "fill": "#8aa3b0"
+    },
+    {
+      "n": "ti-2",
+      "t": "text",
+      "x": 88,
+      "y": 437,
+      "chars": "Annual Supply Contract",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "amt-2",
+      "t": "text",
+      "x": 254,
+      "y": 437,
+      "w": 86,
+      "chars": "₹ 12.5L",
+      "size": 14,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "cus-2",
+      "t": "text",
+      "x": 88,
+      "y": 456,
+      "chars": "Greenfield Traders",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "st-2",
+      "t": "text",
+      "x": 98,
+      "y": 480,
+      "chars": "Follow Up",
+      "size": 11,
+      "weight": 700,
+      "fill": "#0e7a4a"
+    },
+    {
+      "n": "note-2",
+      "t": "text",
+      "x": 88,
+      "y": 503,
+      "chars": "Need to schedule a meeting",
+      "size": 12,
+      "weight": 500,
+      "fill": "#8aa3b0"
+    },
+    {
+      "n": "ti-3",
+      "t": "text",
+      "x": 88,
+      "y": 563,
+      "chars": "New Product Line",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "amt-3",
+      "t": "text",
+      "x": 254,
+      "y": 563,
+      "w": 86,
+      "chars": "₹ 3.6L",
+      "size": 14,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "cus-3",
+      "t": "text",
+      "x": 88,
+      "y": 582,
+      "chars": "Urban Needs",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "st-3",
+      "t": "text",
+      "x": 113,
+      "y": 606,
+      "chars": "Action Required",
+      "size": 11,
+      "weight": 700,
+      "fill": "#c77a0a"
+    },
+    {
+      "n": "note-3",
+      "t": "text",
+      "x": 88,
+      "y": 629,
+      "chars": "Share product details",
+      "size": 12,
+      "weight": 500,
+      "fill": "#8aa3b0"
+    },
+    {
+      "n": "ti-4",
+      "t": "text",
+      "x": 88,
+      "y": 689,
+      "chars": "Territory Expansion",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "amt-4",
+      "t": "text",
+      "x": 254,
+      "y": 689,
+      "w": 86,
+      "chars": "₹ 7.2L",
+      "size": 14,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "cus-4",
+      "t": "text",
+      "x": 88,
+      "y": 708,
+      "chars": "City Mart",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "st-4",
+      "t": "text",
+      "x": 98,
+      "y": 732,
+      "chars": "Follow Up",
+      "size": 11,
+      "weight": 700,
+      "fill": "#0e7a4a"
+    },
+    {
+      "n": "note-4",
+      "t": "text",
+      "x": 88,
+      "y": 755,
+      "chars": "Client interested, awaiting confirmation",
+      "size": 12,
+      "weight": 500,
+      "fill": "#8aa3b0"
+    }
+  ]
+}
