@@ -43,6 +43,13 @@ export class PaymentsController {
     return this.service.list(user, query);
   }
 
+  /** Get a single payment by id. Scoped to the caller like the list is. */
+  @Get(':id')
+  @RequirePermissions('payment.read')
+  getById(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.service.getById(user, id);
+  }
+
   /** Create a payment (may be a manual entry with no linked customer). */
   @Post()
   @RequirePermissions('payment.write')

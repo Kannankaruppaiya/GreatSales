@@ -82,6 +82,26 @@ describe('CustomersService (integration)', () => {
     expect(other.items).toHaveLength(0);
   });
 
+  it('serves one customer by id, and hides another salesperson\'s behind a 404', async () => {
+    const list = await service.list(admin('tenant_acme', 'acme'), { limit: 20 });
+    const id = list.items[0].id;
+
+    expect((await service.getById(admin('tenant_acme', 'acme'), id)).id).toBe(
+      id,
+    );
+    expect(
+      (await service.getById(sales('tenant_acme', 'acme', 1), id)).id,
+    ).toBe(id);
+
+    // Regression. getById filtered on tenant alone while list() also applied
+    // resolveOwnerScope, so this call used to RETURN the account - a sales
+    // role could read any customer in the tenant by asking for its id, and ids
+    // travel through payment rows, follow-ups and shared links.
+    await expect(
+      service.getById(sales('tenant_acme', 'acme', 2), id),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('creates a customer and returns it enriched', async () => {
     const created = await service.create(admin('tenant_acme', 'acme'), {
       name: 'Acme New Buyer',

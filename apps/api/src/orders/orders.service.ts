@@ -206,6 +206,26 @@ export class OrdersService {
    * raised an order — leaving the customer committed twice and the line
    * pointing at whichever order happened to write its id last.
    */
+  /**
+   * One order by id.
+   *
+   * Scoped with resolveOwnerScope exactly as list() is. Without it a sales
+   * role could read any row in the tenant by id - including ones the list
+   * deliberately hides from them - which is the IDOR the list scope exists to
+   * prevent. A row outside the caller's scope is a 404, not a 403: telling
+   * them it exists but is not theirs is the same disclosure by another name.
+   */
+  async getById(user: RequestUser, id: string): Promise<OrderRow> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const ownerId = await this.resolveOwnerScope(db, user);
+    const found = await db.salesOrder.findFirst({
+      where: { id, deletedAt: null, ...(ownerId ? { salespersonId: ownerId } : {}) },
+      include: ORDER_INCLUDE,
+    });
+    if (!found) throw new NotFoundException('Order not found');
+    return toRow(found);
+  }
+
   async create(user: RequestUser, body: OrderCreate): Promise<OrderRow> {
     const db = this.prisma.forTenant(user.tenantId);
     const salespersonId = (await this.isSalesOnly(db, user.roleId))

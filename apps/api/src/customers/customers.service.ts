@@ -155,10 +155,27 @@ export class CustomersService {
   /**
    * Fetch a single customer by id with tenant RLS isolation.
    */
+  /**
+   * One customer by id.
+   *
+   * The owner scope here is a fix, not decoration. This method used to filter
+   * on tenant alone while list() filtered on resolveOwnerScope as well, so a
+   * sales role could read any account in the tenant - including the ones the
+   * list deliberately withholds from them - by asking for its id. Ids travel:
+   * they appear in payment rows, follow-ups and shared links.
+   *
+   * A row outside the caller's scope is a 404 rather than a 403, because
+   * "exists, but not yours" is the same disclosure in a politer envelope.
+   */
   async getById(user: RequestUser, id: string): Promise<CustomerRow> {
     const db = this.prisma.forTenant(user.tenantId);
+    const ownerId = await this.resolveOwnerScope(db, user);
     const existing = await db.customer.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(ownerId ? { salespersonId: ownerId } : {}),
+      },
       include: CUSTOMER_INCLUDE,
     });
     if (!existing) throw new NotFoundException('Customer not found');

@@ -52,6 +52,13 @@ export class MappingsController {
   }
 
   /** Map a product to a customer. */
+  /** Get a single mapping by id. Scoped to the caller like the list is. */
+  @Get(':id')
+  @RequirePermissions('projection.read')
+  getById(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.service.getById(user, id);
+  }
+
   @Post()
   @RequirePermissions('projection.write')
   create(

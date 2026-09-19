@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type {
   MappingCreate,
@@ -146,6 +146,26 @@ export class MappingsService {
       nextCursor: hasMore ? items[items.length - 1].id : null,
       total,
     };
+  }
+
+  /**
+   * One mapping by id.
+   *
+   * Scoped with resolveOwnerScope exactly as list() is. Without it a sales
+   * role could read any row in the tenant by id - including ones the list
+   * deliberately hides from them - which is the IDOR the list scope exists to
+   * prevent. A row outside the caller's scope is a 404, not a 403: telling
+   * them it exists but is not theirs is the same disclosure by another name.
+   */
+  async getById(user: RequestUser, id: string): Promise<MappingRow> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const ownerId = await this.resolveOwnerScope(db, user);
+    const found = await db.mapping.findFirst({
+      where: { id, deletedAt: null, ...(ownerId ? { salespersonId: ownerId } : {}) },
+      include: MAPPING_INCLUDE,
+    });
+    if (!found) throw new NotFoundException('Mapping not found');
+    return toRow(found);
   }
 
   async create(user: RequestUser, body: MappingCreate): Promise<MappingRow> {

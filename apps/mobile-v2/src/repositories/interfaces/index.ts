@@ -126,7 +126,13 @@ export interface ProjectionRepository {
     status?: string;
     principalId?: string;
   }): Promise<CursorPage<ProjectionLine>>;
-  getById(id: string): Promise<ProjectionLine | null>;
+  /*
+   * No getById. Every other resource gained GET /:id because the design has a
+   * detail screen for it; projections have none, and a ProjectionLine is not a
+   * row the API can simply fetch - it comes out of the worksheet engine, which
+   * resolves price from the line, its mapping and the product catalogue. Adding
+   * an interface method the API cannot serve is how the fixtures started.
+   */
   updateStatus(id: string, status: ProjStatusValue, note?: string): Promise<ProjectionLine>;
 }
 

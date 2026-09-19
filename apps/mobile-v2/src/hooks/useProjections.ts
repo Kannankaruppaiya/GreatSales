@@ -10,13 +10,14 @@ export function useProjections(params?: { search?: string; status?: string; prin
   });
 }
 
-export function useProjection(id: string) {
-  return useQuery({
-    queryKey: QUERY_KEYS.projection(id),
-    queryFn: () => projectionRepo.getById(id),
-    enabled: Boolean(id),
-  });
-}
+/*
+ * useProjection(id) stood here. It is gone with ProjectionRepository.getById:
+ * the API has no GET /projections/:id, and a ProjectionLine is not a row it
+ * could simply return - the worksheet engine resolves each line's price from
+ * the line, its mapping and the product catalogue. No screen in the design
+ * needs one; the projections that appear do so through the dashboard's
+ * topOpenProjections and the list.
+ */
 
 export function useUpdateProjectionStatus() {
   const queryClient = useQueryClient();

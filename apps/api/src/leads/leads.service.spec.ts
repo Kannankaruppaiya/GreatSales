@@ -76,6 +76,36 @@ describe('LeadsService (integration)', () => {
     expect(other.items).toHaveLength(0);
   });
 
+  it('serves one lead by id, and hides another salesperson\'s behind a 404', async () => {
+    const list = await service.list(admin('tenant_acme', 'acme'), { limit: 20 });
+    const id = list.items.find((l) => l.customerName === 'Acme Corp Prospect')!
+      .id;
+
+    // The owner and an admin both get the row.
+    expect((await service.getById(admin('tenant_acme', 'acme'), id)).id).toBe(
+      id,
+    );
+    expect(
+      (await service.getById(sales('tenant_acme', 'acme', 1), id)).id,
+    ).toBe(id);
+
+    // Sales two, whose list is empty, must not reach it by id either - that is
+    // the whole point of scoping getById the way list() is scoped. NotFound
+    // rather than Forbidden: "exists, but not yours" is the same disclosure.
+    await expect(
+      service.getById(sales('tenant_acme', 'acme', 2), id),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('does not serve a lead by id across tenants (RLS)', async () => {
+    const list = await service.list(admin('tenant_acme', 'acme'), { limit: 20 });
+    const id = list.items[0].id;
+
+    await expect(
+      service.getById(admin('tenant_globex', 'globex'), id),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('creates a lead with line items and sums their value', async () => {
     const created = await service.create(admin('tenant_acme', 'acme'), {
       customerName: 'Acme Fresh Lead',

@@ -113,6 +113,26 @@ export class FollowUpsService {
   }
 
   /** Create a follow-up. Sales-only callers always own what they create. */
+  /**
+   * One follow-up by id.
+   *
+   * Scoped with resolveOwnerScope exactly as list() is. Without it a sales
+   * role could read any row in the tenant by id - including ones the list
+   * deliberately hides from them - which is the IDOR the list scope exists to
+   * prevent. A row outside the caller's scope is a 404, not a 403: telling
+   * them it exists but is not theirs is the same disclosure by another name.
+   */
+  async getById(user: RequestUser, id: string): Promise<FollowUpRow> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const ownerId = await this.resolveOwnerScope(db, user);
+    const found = await db.followUp.findFirst({
+      where: { id, ...(ownerId ? { salespersonId: ownerId } : {}) },
+      include: FOLLOWUP_INCLUDE,
+    });
+    if (!found) throw new NotFoundException('Follow-up not found');
+    return toRow(found);
+  }
+
   async create(user: RequestUser, body: FollowUpCreate): Promise<FollowUpRow> {
     const db = this.prisma.forTenant(user.tenantId);
     const salespersonId = (await this.isSalesOnly(db, user.roleId))

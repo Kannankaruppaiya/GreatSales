@@ -203,6 +203,26 @@ export class PaymentsService {
    * entries), but a sales-only caller always owns what they create. The
    * pending/status snapshot is computed from amount/received/dueDate.
    */
+  /**
+   * One payment by id.
+   *
+   * Scoped with resolveOwnerScope exactly as list() is. Without it a sales
+   * role could read any row in the tenant by id - including ones the list
+   * deliberately hides from them - which is the IDOR the list scope exists to
+   * prevent. A row outside the caller's scope is a 404, not a 403: telling
+   * them it exists but is not theirs is the same disclosure by another name.
+   */
+  async getById(user: RequestUser, id: string): Promise<PaymentRow> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const ownerId = await this.resolveOwnerScope(db, user);
+    const found = await db.payment.findFirst({
+      where: { id, deletedAt: null, ...(ownerId ? ownerWhere(ownerId) : {}) },
+      include: PAYMENT_INCLUDE,
+    });
+    if (!found) throw new NotFoundException('Payment not found');
+    return toRow(found, businessToday());
+  }
+
   async create(user: RequestUser, body: PaymentCreate): Promise<PaymentRow> {
     const db = this.prisma.forTenant(user.tenantId);
     const salespersonId = (await this.isSalesOnly(db, user.roleId))

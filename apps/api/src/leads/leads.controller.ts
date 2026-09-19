@@ -42,6 +42,13 @@ export class LeadsController {
     return this.service.list(user, query);
   }
 
+  /** Get a single lead by id. Scoped to the caller like the list is. */
+  @Get(':id')
+  @RequirePermissions('lead.read')
+  getById(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.service.getById(user, id);
+  }
+
   /** Create a lead (with optional line items). */
   @Post()
   @RequirePermissions('lead.write')

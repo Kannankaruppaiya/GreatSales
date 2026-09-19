@@ -49,6 +49,13 @@ export class FollowUpsController {
     return this.service.list(user, query);
   }
 
+  /** Get a single follow-up by id. Scoped to the caller like the list is. */
+  @Get(':id')
+  @RequirePermissions('projection.read')
+  getById(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.service.getById(user, id);
+  }
+
   /** Create a follow-up. */
   @Post()
   @RequirePermissions('projection.write')

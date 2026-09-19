@@ -42,6 +42,13 @@ export class OrdersController {
     return this.service.list(user, query);
   }
 
+  /** Get a single order by id. Scoped to the caller like the list is. */
+  @Get(':id')
+  @RequirePermissions('order.read')
+  getById(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.service.getById(user, id);
+  }
+
   /** Create an order with its line items (total computed server-side). */
   @Post()
   @RequirePermissions('order.write')
