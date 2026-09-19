@@ -26,5 +26,6 @@ done <<'SCREENS'
 01b-location:/location
 01c-preparing:/preparing
 01d-sales-home:/home
+02a-1-sales-progress:/sales-progress
 SCREENS
 exit $fail

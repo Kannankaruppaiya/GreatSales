@@ -28,3 +28,29 @@ export function Hills({ height = 82 }: { height?: number }) {
     </Svg>
   );
 }
+
+/**
+ * The blue-grey three-layer variant, from Screen 02A Sales Progress.
+ *
+ * A different picture from the green two-layer one above, not a recolour: it
+ * has three ridges with their own silhouettes, at #e6f1f4, #d8eaef and
+ * #cae1e8, and it stands 85 tall against the other's 82.
+ */
+export function HillsCool({ height = 85 }: { height?: number }) {
+  return (
+    <Svg width="100%" height={height} viewBox="2974.64 4074.15 376 85" preserveAspectRatio="none">
+      <Path
+        fill="#e6f1f4"
+        d="M2974.64,4115.88L3026.68,4091.15L3065.71,4108.15L3115.15,4083.42L3169.80,4106.61L3221.84,4089.61L3271.28,4109.70L3320.72,4092.70L3350.64,4106.61L3350.64,4159.15L2974.64,4159.15Z"
+      />
+      <Path
+        fill="#d8eaef"
+        d="M2974.64,4128.24L3031.89,4108.15L3083.93,4123.61L3141.17,4101.97L3198.42,4120.52L3253.06,4105.06L3305.10,4123.61L3350.64,4111.24L3350.64,4159.15L2974.64,4159.15Z"
+      />
+      <Path
+        fill="#cae1e8"
+        d="M2974.64,4142.15L3037.09,4126.70L3099.54,4139.06L3169.80,4122.06L3234.85,4137.52L3297.30,4125.15L3350.64,4135.97L3350.64,4159.15L2974.64,4159.15Z"
+      />
+    </Svg>
+  );
+}

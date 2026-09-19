@@ -1,0 +1,321 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board '02A Screen 02A.1'",
+  "_board": {
+    "width": 376,
+    "height": 859
+  },
+  "_excluded": [
+    "bg radius 31 — the mockup phone frame",
+    "time / status-icons — the mockup status bar"
+  ],
+  "_layout": {
+    "flows": true
+  },
+  "_state": "Numbers are the board's, unwired. All of them are in the dashboard aggregate (kpis.recurringCommitted, recurringAchieved, totalPct, followUpsDue), so this becomes useToday(granularity) with the period pill choosing the granularity.",
+  "shapes": [
+    {
+      "n": "mountains",
+      "t": "group",
+      "y": 775,
+      "h": 85,
+      "_note": "three ridges, #e6f1f4 / #d8eaef / #cae1e8 — a different picture from the green two-layer hills"
+    },
+    {
+      "n": "scr-title",
+      "t": "text",
+      "y": 52,
+      "w": 376,
+      "chars": "Sales Progress",
+      "size": 18,
+      "weight": 700,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "period",
+      "t": "rect",
+      "x": 24,
+      "y": 89,
+      "w": 329,
+      "h": 47,
+      "r": 13,
+      "fill": "#ffffff",
+      "stroke": "1px #e2ecf0"
+    },
+    {
+      "n": "period-t",
+      "t": "text",
+      "x": 71,
+      "y": 103,
+      "chars": "This Month (Sep 2026)",
+      "size": 14,
+      "weight": 600,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "gauge",
+      "t": "group",
+      "x": 58,
+      "y": 146,
+      "w": 260,
+      "h": 151,
+      "_note": "180° arc, centre (3162.64,3580.53) r111.8 stroke 20; track #dde7ec, fill is 16 segments ramping #0c7146 → #34c57d. Computed, not copied."
+    },
+    {
+      "n": "g-lbl",
+      "t": "text",
+      "y": 203,
+      "w": 376,
+      "chars": "Achievement",
+      "size": 11,
+      "weight": 500,
+      "fill": "#6b8796",
+      "align": "center"
+    },
+    {
+      "n": "g-val",
+      "t": "text",
+      "y": 219,
+      "w": 376,
+      "chars": "72%",
+      "size": 34,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "g-sub",
+      "t": "text",
+      "y": 268,
+      "w": 376,
+      "chars": "₹ 12.5L / ₹ 17.5L",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0e7a4a",
+      "align": "center"
+    },
+    {
+      "n": "delta",
+      "t": "rect",
+      "x": 24,
+      "y": 312,
+      "w": 329,
+      "h": 55,
+      "r": 13,
+      "fill": "#eff8f3"
+    },
+    {
+      "n": "delta-v",
+      "t": "text",
+      "x": 175,
+      "y": 322,
+      "chars": "+12%",
+      "size": 16,
+      "weight": 700,
+      "fill": "#0e7a4a"
+    },
+    {
+      "n": "delta-s",
+      "t": "text",
+      "y": 344,
+      "w": 376,
+      "chars": "vs. last month",
+      "size": 11,
+      "weight": 400,
+      "fill": "#6b8796",
+      "align": "center"
+    },
+    {
+      "n": "tile-0",
+      "t": "rect",
+      "x": 24,
+      "y": 380,
+      "w": 157,
+      "h": 78,
+      "r": 13,
+      "fill": "#eff8f3"
+    },
+    {
+      "n": "tile-v-0",
+      "t": "text",
+      "x": 71,
+      "y": 394,
+      "chars": "₹ 17.5L",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "tile-l-0",
+      "t": "text",
+      "x": 71,
+      "y": 418,
+      "chars": "Committed Value",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "tile-v-1",
+      "t": "text",
+      "x": 242,
+      "y": 394,
+      "chars": "₹ 12.5L",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "tile-l-1",
+      "t": "text",
+      "x": 242,
+      "y": 418,
+      "chars": "Achieved Value",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "tile-v-2",
+      "t": "text",
+      "x": 71,
+      "y": 483,
+      "chars": "₹ 28.4L",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "tile-l-2",
+      "t": "text",
+      "x": 71,
+      "y": 506,
+      "chars": "Pipeline Value",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "tile-v-3",
+      "t": "text",
+      "x": 242,
+      "y": 483,
+      "chars": "18",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "tile-l-3",
+      "t": "text",
+      "x": 242,
+      "y": 506,
+      "chars": "New Sales",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "tile-v-4",
+      "t": "text",
+      "x": 71,
+      "y": 571,
+      "chars": "24",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "tile-l-4",
+      "t": "text",
+      "x": 71,
+      "y": 595,
+      "chars": "Follow-ups",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "tile-v-5",
+      "t": "text",
+      "x": 242,
+      "y": 571,
+      "chars": "7",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "tile-l-5",
+      "t": "text",
+      "x": 242,
+      "y": 595,
+      "chars": "Due This Week",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "cta",
+      "t": "rect",
+      "x": 24,
+      "y": 658,
+      "w": 329,
+      "h": 52,
+      "r": 13,
+      "fill": {
+        "gradient": [
+          "#0e7a4a",
+          "#1ba560"
+        ],
+        "dir": "horizontal"
+      }
+    },
+    {
+      "n": "cta-t",
+      "t": "text",
+      "x": 102,
+      "y": 674,
+      "chars": "View Detailed Breakdown  →",
+      "size": 15,
+      "weight": 700,
+      "fill": "#ffffff",
+      "_skipX": true,
+      "_note": "Row is centred; Penpot's 234-wide box and the glyph run are different measurements."
+    },
+    {
+      "n": "q1",
+      "t": "text",
+      "x": 24,
+      "y": 723,
+      "w": 329,
+      "chars": "“Consistent efforts",
+      "size": 18,
+      "weight": 400,
+      "family": "Caveat",
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "q2",
+      "t": "text",
+      "x": 24,
+      "y": 747,
+      "w": 329,
+      "chars": "create extraordinary results.”",
+      "size": 18,
+      "weight": 400,
+      "family": "Caveat",
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "q-swoosh",
+      "t": "group",
+      "x": 125,
+      "y": 773,
+      "w": 125,
+      "h": 18
+    }
+  ]
+}
