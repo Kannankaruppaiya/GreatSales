@@ -153,8 +153,11 @@ export default function Splash() {
           <Pressable
             accessibilityRole="button"
             onPress={() => router.replace('/(auth)/login')}
-            className="mt-4 w-full overflow-hidden"
-            style={{ height: 49, borderRadius: 13 }}
+            className="w-full overflow-hidden"
+            // 17 above and 24 below are the board's own gaps: p3 ends at 744
+            // and the CTA starts at 761; the CTA ends at 810 and the footnote
+            // sits at 834.
+            style={{ marginTop: 17, height: 49, borderRadius: 13 }}
           >
             <LinearGradient
               colors={['#0e7a4a', '#1ba560']}
@@ -173,7 +176,7 @@ export default function Splash() {
 
           <Text
             className="text-center text-faint2"
-            style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, lineHeight: 13 * 1.3, marginTop: 14 }}
+            style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, lineHeight: 13 * 1.3, marginTop: 24 }}
           >
             Trusted by 10,000+ field sales teams
           </Text>

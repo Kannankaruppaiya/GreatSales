@@ -51,7 +51,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "check-types": "tsc --noEmit",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "design:parity": "node scripts/design-parity.cjs"
   },
   "private": true
 }
