@@ -1,0 +1,253 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board '02A Screen 02A.4'",
+  "_board": {
+    "width": 376,
+    "height": 859
+  },
+  "_excluded": [
+    "bg radius 31 — the mockup phone frame",
+    "time / status-icons — the mockup status bar"
+  ],
+  "_layout": {
+    "flows": true,
+    "_note": "Flows; the banner, the three insight cards and the three action rows each place their own contents at the board's offsets inside a fixed-height box."
+  },
+  "_reached_from": "02A.3's \"View Details\". No board on page 'mobiles' carries a prototype interaction, so this is inferred: 02A.4 is the only 02A board nothing else reaches, and it repeats 02A.3's title and period pill.",
+  "_state": "Content is the board's, unwired. The banner is kpis.totalPct; the three insights restate achieved-vs-previous, pipelineValue and followUpsDue - the SAME aggregate 02A.3 reads, in sentences rather than figures, so it must be fed from it rather than separately.",
+  "shapes": [
+    {
+      "n": "scr-title",
+      "t": "text",
+      "y": 52,
+      "w": 376,
+      "chars": "Sales Progress",
+      "size": 18,
+      "weight": 700,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "period-t",
+      "t": "text",
+      "x": 70,
+      "y": 103,
+      "chars": "This Month (Sep 2026)",
+      "size": 14,
+      "weight": 600,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "banner-t",
+      "t": "text",
+      "x": 91,
+      "y": 167,
+      "chars": "You are on track!",
+      "size": 15,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "banner-d",
+      "t": "text",
+      "x": 91,
+      "y": 188,
+      "w": 218,
+      "chars": "Keep going! You're 72% towards your monthly target.",
+      "size": 11,
+      "weight": 400,
+      "fill": "#6b8796",
+      "lh": 1.45
+    },
+    {
+      "n": "sec-1",
+      "t": "text",
+      "x": 23,
+      "y": 263,
+      "chars": "Insights",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "va-1",
+      "t": "text",
+      "x": 221,
+      "y": 264,
+      "w": 117,
+      "chars": "View All",
+      "size": 12,
+      "weight": 600,
+      "fill": "#0e7a4a",
+      "align": "right"
+    },
+    {
+      "n": "ins-t-0",
+      "t": "text",
+      "x": 75,
+      "y": 301,
+      "chars": "Strong Growth",
+      "size": 13,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "ins-d-0",
+      "t": "text",
+      "x": 75,
+      "y": 319,
+      "w": 263,
+      "chars": "Your achieved value is 12% higher than last month.",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796",
+      "lh": 1.45
+    },
+    {
+      "n": "ins-t-1",
+      "t": "text",
+      "x": 75,
+      "y": 379,
+      "chars": "More Opportunities",
+      "size": 13,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "ins-d-1",
+      "t": "text",
+      "x": 75,
+      "y": 397,
+      "w": 263,
+      "chars": "You have 28.4L in pipeline. Focus on high probability deals.",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796",
+      "lh": 1.45
+    },
+    {
+      "n": "ins-t-2",
+      "t": "text",
+      "x": 75,
+      "y": 457,
+      "chars": "Stay on Schedule",
+      "size": 13,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "ins-d-2",
+      "t": "text",
+      "x": 75,
+      "y": 475,
+      "w": 263,
+      "chars": "You have 7 follow-ups due this week. Keep the momentum.",
+      "size": 10,
+      "weight": 400,
+      "fill": "#6b8796",
+      "lh": 1.45
+    },
+    {
+      "n": "sec-2",
+      "t": "text",
+      "x": 23,
+      "y": 533,
+      "chars": "Next Best Actions",
+      "size": 16,
+      "weight": 800,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "va-2",
+      "t": "text",
+      "x": 221,
+      "y": 535,
+      "w": 117,
+      "chars": "View All",
+      "size": 12,
+      "weight": 600,
+      "fill": "#0e7a4a",
+      "align": "right"
+    },
+    {
+      "n": "act-t-0",
+      "t": "text",
+      "x": 73,
+      "y": 575,
+      "chars": "Follow up on 7 pending opportunities",
+      "size": 12,
+      "weight": 500,
+      "fill": "#123e52",
+      "lh": 1.35
+    },
+    {
+      "n": "act-t-1",
+      "t": "text",
+      "x": 73,
+      "y": 635,
+      "chars": "Focus on 5 high-value pipeline deals",
+      "size": 12,
+      "weight": 500,
+      "fill": "#123e52",
+      "lh": 1.35
+    },
+    {
+      "n": "act-t-2",
+      "t": "text",
+      "x": 73,
+      "y": 695,
+      "chars": "Convert 3 proposals to orders",
+      "size": 12,
+      "weight": 500,
+      "fill": "#123e52",
+      "lh": 1.35
+    },
+    {
+      "n": "nav-l-0",
+      "t": "text",
+      "x": 10,
+      "y": 840,
+      "w": 83,
+      "chars": "Home",
+      "size": 10,
+      "weight": 700,
+      "fill": "#17a45e",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-1",
+      "t": "text",
+      "x": 78,
+      "y": 840,
+      "w": 83,
+      "chars": "Pipeline",
+      "size": 10,
+      "weight": 500,
+      "fill": "#93a9b5",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-2",
+      "t": "text",
+      "x": 214,
+      "y": 840,
+      "w": 83,
+      "chars": "Customers",
+      "size": 10,
+      "weight": 500,
+      "fill": "#93a9b5",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-3",
+      "t": "text",
+      "x": 282,
+      "y": 840,
+      "w": 83,
+      "chars": "More",
+      "size": 10,
+      "weight": 500,
+      "fill": "#93a9b5",
+      "align": "center"
+    }
+  ]
+}

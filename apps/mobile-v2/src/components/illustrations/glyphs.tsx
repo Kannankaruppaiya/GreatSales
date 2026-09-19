@@ -127,7 +127,11 @@ const BOLT_D = 'M11.9,1.31L3.5,12.16L9.01,12.16L8.66,19.69L17.33,8.57L11.55,8.57
 
 const ARROW_UR_D = 'M3.25,9.75L9.75,3.25L5.2,3.25M9.75,3.25L9.75,7.8';
 
-/** Committed value - a concentric target. */
+/**
+ * A concentric target. The board draws it at 22 on 02A.3's first card, 23 in
+ * 02A.4's banner and 21 on its second action; as with the calendar, all three
+ * are one glyph at three sizes.
+ */
 export function TargetGlyph({ size = 22, color = BRAND }: { size?: number; color?: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 22 22">
@@ -172,8 +176,16 @@ export function PersonPlusGlyph({ size = 22, color = BRAND }: { size?: number; c
   );
 }
 
-/** Follow-ups - the 22-box calendar. Not the 26-box one on 01B. */
-export function Calendar22Glyph({ size = 22, color = BRAND }: { size?: number; color?: string }) {
+/**
+ * The solid calendar the 02A screens use. Not the 26-box one on 01B, which
+ * puts its day-dots a shade higher.
+ *
+ * The board draws it in a 22 box on 02A.3, a 23 on 02A.4's third insight and
+ * a 21 on its first action, and all three are the same glyph to three decimal
+ * places - every offset is the same fraction of the box - so one viewBox
+ * serves all of them and `size` is the only difference.
+ */
+export function CalendarSolidGlyph({ size = 22, color = BRAND }: { size?: number; color?: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 22 22">
       <Path d={CAL22_D} fill={color} fillRule="evenodd" />
@@ -231,6 +243,63 @@ export function ArrowUpRightGlyph({ size = 13, color }: { size?: number; color: 
         strokeLinejoin="round"
         fill="none"
       />
+    </Svg>
+  );
+}
+
+/* --- and Screen 02A.4's, which shares the target and the calendar above. --- */
+
+const TREND_UP_D =
+  'M3.45,16.67L9.58,10.54L13.03,13.99L18.02,9.01L18.02,12.46L20.13,12.46L20.13,5.56L13.23,5.56L13.23,7.67L16,7.67L13.03,10.64L9.58,7.19L1.92,14.95Z';
+
+const GROUP_D =
+  'M8.15,10.54C10,10.54 11.5,9.04 11.5,7.19C11.5,5.33 10,3.83 8.15,3.83C6.29,3.83 4.79,5.33 4.79,7.19C4.79,9.04 6.29,10.54 8.15,10.54ZM14.85,10.54C16.44,10.54 17.73,9.25 17.73,7.67C17.73,6.08 16.44,4.79 14.85,4.79C13.27,4.79 11.98,6.08 11.98,7.67C11.98,9.25 13.27,10.54 14.85,10.54ZM8.15,12.46C5.27,12.46 0.96,13.99 0.96,16.77L0.96,19.17L15.33,19.17L15.33,16.77C15.33,13.99 11.02,12.46 8.15,12.46ZM15.05,12.46C14.18,12.46 13.32,12.55 12.55,12.75C13.9,13.8 14.38,15.05 14.38,16.77L14.38,19.17L21.08,19.17L21.08,16.77C21.08,14.18 17.63,12.46 15.05,12.46Z';
+
+const DOC_LINES_D =
+  'M5.25,2.1L12.25,2.1L16.63,6.47L16.63,18.9L5.25,18.9L5.25,2.1ZM11.73,3.67L11.73,7.35L15.4,7.35L11.73,3.67ZM7.35,10.5L13.65,10.5L13.65,12.16L7.35,12.16ZM7.35,13.82L13.65,13.82L13.65,15.49L7.35,15.49Z';
+
+/** An arrow stepping up over a ridge - 02A.4's banner, and its first insight. */
+export function TrendUpGlyph({ size = 23, color = BRAND }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 23 23">
+      <Path d={TREND_UP_D} fill={color} />
+    </Svg>
+  );
+}
+
+/** Four people - 02A.4's "More Opportunities". */
+export function GroupGlyph({ size = 23, color = BRAND }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 23 23">
+      <Path d={GROUP_D} fill={color} fillRule="evenodd" />
+    </Svg>
+  );
+}
+
+/** A folded document with two rules - 02A.4's "Convert proposals to orders". */
+export function DocumentGlyph({ size = 21, color = BRAND }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 21 21">
+      <Path d={DOC_LINES_D} fill={color} fillRule="evenodd" />
+    </Svg>
+  );
+}
+
+/**
+ * The three ridges inside 02A.4's banner.
+ *
+ * A different picture from the screen's own hills and from 02A.1's: the same
+ * three-layer idea in the banner's mint rather than the page's blue-grey, at
+ * 329×36 rather than full width. It stretches with the banner, which is why
+ * it is preserveAspectRatio="none" - the ridges are texture, not a shape
+ * anybody measures.
+ */
+export function BannerRidges({ width = 329, height = 36 }: { width?: number | string; height?: number }) {
+  return (
+    <Svg width={width} height={height} viewBox="0 0 329 36" preserveAspectRatio="none">
+      <Path d="M0,17.67L45.54,7.2L79.69,14.4L122.95,3.93L170.76,13.75L216.3,6.55L259.56,15.05L302.82,7.85L329,13.75L329,36L0,36Z" fill="#dceee6" />
+      <Path d="M0,22.91L50.09,14.4L95.63,20.94L145.72,11.78L195.81,19.64L243.62,13.09L289.16,20.94L329,15.71L329,36L0,36Z" fill="#d0e8de" />
+      <Path d="M0,28.8L54.64,22.25L109.29,27.49L170.76,20.29L227.68,26.84L282.33,21.6L329,26.18L329,36L0,36Z" fill="#c4e2d6" />
     </Svg>
   );
 }

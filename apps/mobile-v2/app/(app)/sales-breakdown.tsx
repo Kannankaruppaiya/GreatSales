@@ -8,7 +8,7 @@ import { TrendChart } from '../../src/components/ui/TrendChart';
 import { ICONS } from '../../src/design-system/icons';
 import {
   TargetGlyph, RisingBarsGlyph, StackGlyph, PersonPlusGlyph,
-  Calendar22Glyph, ClockGlyph, Calendar20Glyph, BoltGlyph,
+  CalendarSolidGlyph, ClockGlyph, Calendar20Glyph, BoltGlyph,
 } from '../../src/components/illustrations/glyphs';
 
 /**
@@ -57,7 +57,7 @@ const KPIS = [
   { value: '₹ 12.5L', label: 'Achieved Value', delta: '+12%', since: 'vs. last month', icon: <RisingBarsGlyph {...GLYPH} /> },
   { value: '₹ 28.4L', label: 'Pipeline Value', delta: '+18%', since: 'vs. last month', icon: <StackGlyph {...GLYPH} /> },
   { value: '18', label: 'New Sales', delta: '+50%', since: 'vs. last month', icon: <PersonPlusGlyph {...GLYPH} /> },
-  { value: '24', label: 'Follow-ups', delta: '+14%', since: 'vs. last month', icon: <Calendar22Glyph {...GLYPH} /> },
+  { value: '24', label: 'Follow-ups', delta: '+14%', since: 'vs. last month', icon: <CalendarSolidGlyph {...GLYPH} /> },
   { value: '7', label: 'Due This Week', delta: '+75%', since: 'vs. last week', tone: 'bad' as const, icon: <ClockGlyph {...GLYPH} /> },
 ];
 
@@ -181,8 +181,12 @@ export default function SalesBreakdown() {
             >
               Progress Trend
             </Text>
+            {/* 02A.4, the insights over these same figures. No board on the
+                page carries a prototype interaction, so this link is
+                inferred - see the note at the top of sales-insights.tsx. */}
             <Pressable
               accessibilityRole="button"
+              onPress={() => router.push('/(app)/sales-insights')}
               hitSlop={10}
               className="flex-row items-center"
               style={{ position: 'absolute', right: 25 }}
