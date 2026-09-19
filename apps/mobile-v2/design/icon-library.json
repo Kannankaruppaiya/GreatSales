@@ -1,0 +1,23 @@
+{
+  "_source": "Penpot file V4, page '00 — GreatSales Mobile Design System', board '07 — Icon Library (Lucide 24×24)'",
+  "_spec": "Lucide · 24×24 · stroke 2 · round cap & join · one family only · ink by default, primary green for accent",
+  "_inkDefault": "#0f3244",
+  "_note": "The names the DESIGN uses. lucide-react-native 0.475 still exports 'funnel' as Filter; the rename landed after that release, so the map in src/design-system/icons.tsx translates that one name and no other.",
+  "names": [
+    "house", "layout-grid", "users", "ellipsis", "ellipsis-vertical", "plus",
+    "minus", "bell", "search", "funnel", "sliders-horizontal", "arrow-left",
+    "arrow-right", "arrow-up-right", "arrow-down-right", "chevron-right",
+    "chevron-left", "chevron-down", "chevron-up", "chevrons-up-down", "x",
+    "menu", "check", "circle-check-big", "circle-alert", "triangle-alert",
+    "circle-x", "info", "circle-help", "eye", "eye-off", "lock", "user",
+    "user-plus", "building-2", "briefcase", "phone", "mail", "message-square",
+    "map-pin", "map", "navigation", "route", "calendar", "calendar-check",
+    "clock", "alarm-clock", "history", "trending-up", "trending-down",
+    "target", "chart-column", "chart-pie", "activity", "percent",
+    "indian-rupee", "wallet", "credit-card", "banknote", "receipt",
+    "file-text", "clipboard-list", "package", "truck", "square-pen",
+    "trash-2", "refresh-cw", "log-out", "settings", "shield-check", "star",
+    "tag", "shopping-cart", "scan-line", "send", "save", "external-link",
+    "list", "layers", "circle-plus", "flame", "flag", "trophy"
+  ]
+}
