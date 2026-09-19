@@ -3,7 +3,20 @@ import { projectionRepo } from '../repositories';
 import { QUERY_KEYS, invalidateEntity } from '../lib/queryClient';
 import type { ProjStatusValue } from '../domain/types';
 
-export function useProjections(params?: { search?: string; status?: string; principalId?: string }) {
+/**
+ * The projections worksheet for one period.
+ *
+ * `period` is required and is a YYYY-MM, because that is what a projection is
+ * keyed by - a commitment IS a month (AGENTS.md), and a day or a week resolves
+ * to the month containing it. The previous signature offered `status` and no
+ * period at all, which the endpoint would have rejected.
+ */
+export function useProjections(params: {
+  period: string;
+  search?: string;
+  principalId?: string;
+  ownerId?: string;
+}) {
   return useQuery({
     queryKey: QUERY_KEYS.projections(params),
     queryFn: () => projectionRepo.list(params),

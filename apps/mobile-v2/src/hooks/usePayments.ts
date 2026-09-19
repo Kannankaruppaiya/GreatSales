@@ -22,8 +22,12 @@ export function useRecordPayment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, amount, note }: { id: string; amount: number; note?: string }) =>
-      paymentRepo.recordPayment(id, amount, note),
+    // receivedTotal, not the instalment: PATCH assigns `received` and the API
+    // has no increment, so the screen computes the new total from the row it
+    // is showing and that figure is what gets written. A note is a separate
+    // record - addRemark - because the payment body has nowhere to put one.
+    mutationFn: ({ id, receivedTotal }: { id: string; receivedTotal: number }) =>
+      paymentRepo.recordPayment(id, receivedTotal),
     onSuccess: (updated) => {
       queryClient.setQueryData(QUERY_KEYS.payment(updated.id), updated);
       invalidateEntity('payments');

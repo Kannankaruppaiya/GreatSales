@@ -19,6 +19,8 @@ import type {
   EntityTypeValue,
 } from '../../domain/types';
 import type {
+  ProjectionListResponse,
+  NotificationListResponse,
   CustomerCreate,
   CustomerUpdate,
   LeadCreate,
@@ -49,11 +51,17 @@ import type {
  * typecheck was happy about.
  */
 
-/** Common paging argument. Omit `cursor` for the first page. */
-export interface PageParams {
+/**
+ * Common paging argument. Omit `cursor` for the first page.
+ *
+ * A type alias rather than an interface so it stays assignable to
+ * Record<string, unknown>, which is what buildQuery takes: TypeScript gives
+ * implicit index signatures to aliases and not to interfaces.
+ */
+export type PageParams = {
   cursor?: string;
   limit?: number;
-}
+};
 
 export interface ProductRepository {
   list(params?: PageParams & { search?: string }): Promise<CursorPage<Product>>;
@@ -71,7 +79,11 @@ export interface AuthRepository {
    * API admits only `sales` from mobile (AGENTS.md, CLIENT_ROLE_ALLOWLIST) and
    * refuses anything else with a 403 after the password verifies.
    */
-  login(email: string, password: string): Promise<{ user: SessionUser; token: string }>;
+  login(
+    tenantId: string,
+    email: string,
+    password: string,
+  ): Promise<{ user: SessionUser; token: string }>;
   logout(allSessions?: boolean): Promise<void>;
   getCurrentUser(): Promise<SessionUser | null>;
   changePassword(oldPw: string, newPw: string): Promise<void>;
@@ -121,18 +133,21 @@ export interface LeadRepository {
 }
 
 export interface ProjectionRepository {
-  list(params?: PageParams & {
-    search?: string;
-    status?: string;
-    principalId?: string;
-  }): Promise<CursorPage<ProjectionLine>>;
-  /*
-   * No getById. Every other resource gained GET /:id because the design has a
-   * detail screen for it; projections have none, and a ProjectionLine is not a
-   * row the API can simply fetch - it comes out of the worksheet engine, which
-   * resolves price from the line, its mapping and the product catalogue. Adding
-   * an interface method the API cannot serve is how the fixtures started.
+  /**
+   * The worksheet for ONE period, with its summary - not a page of rows.
+   *
+   * ProjectionListResponse is { lines, summary } and the query requires a
+   * `period`: a projection is keyed by YYYY-MM because a commitment IS a
+   * month (AGENTS.md), so there is nothing to paginate through and no cursor
+   * to carry. Declaring this as CursorPage<ProjectionLine> like the others
+   * would have compiled against a shape the endpoint never returns.
    */
+  list(params: {
+    period: string;
+    principalId?: string;
+    ownerId?: string;
+    search?: string;
+  }): Promise<ProjectionListResponse>;
   updateStatus(id: string, status: ProjStatusValue, note?: string): Promise<ProjectionLine>;
 }
 
@@ -151,7 +166,16 @@ export interface PaymentRepository {
     payZone?: string;
   }): Promise<CursorPage<Payment>>;
   getById(id: string): Promise<Payment | null>;
-  recordPayment(id: string, amount: number, note?: string): Promise<Payment>;
+  /**
+   * Sets the CUMULATIVE amount received, not the instalment just collected.
+   *
+   * PATCH /payments/:id assigns `received`; the API has no increment. Reading
+   * the row and adding to it inside this method would be a lost update - two
+   * collectors banking against one invoice would leave only the later figure.
+   * The caller passes the new total, computed from the row it is already
+   * showing, so the number that gets written is the one the user saw.
+   */
+  recordPayment(id: string, receivedTotal: number): Promise<Payment>;
   sendReminder(id: string, stage: ReminderStage): Promise<Payment>;
   addRemark(id: string, note: string): Promise<void>;
 }
@@ -180,7 +204,11 @@ export interface MappingRepository {
 }
 
 export interface NotificationRepository {
-  list(params?: PageParams): Promise<CursorPage<Notification>>;
+  /**
+   * Items plus `unread`, which counts the WHOLE inbox rather than this page -
+   * that is what the badge shows, and it is why this is not a CursorPage.
+   */
+  list(params?: PageParams): Promise<NotificationListResponse>;
   markAsRead(id: string): Promise<void>;
   markAllAsRead(): Promise<void>;
 }

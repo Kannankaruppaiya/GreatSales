@@ -12,8 +12,15 @@ export function useCurrentUser() {
 export function useLogin() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ email, password }: { email: string; password: string }) =>
-      authRepo.login(email, password),
+    mutationFn: ({
+      tenantId,
+      email,
+      password,
+    }: {
+      tenantId: string;
+      email: string;
+      password: string;
+    }) => authRepo.login(tenantId, email, password),
     onSuccess: (data) => {
       queryClient.setQueryData(QUERY_KEYS.currentUser, data.user);
       invalidateEntity('dashboard');
