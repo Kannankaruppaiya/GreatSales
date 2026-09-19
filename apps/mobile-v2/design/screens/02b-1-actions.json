@@ -1,0 +1,345 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board '02B.1 Actions Overview'",
+  "_board": {
+    "width": 376,
+    "height": 859
+  },
+  "_excluded": [
+    "time / status-icons — the mockup status bar"
+  ],
+  "_note": "This board has no phone-frame rect; its background is the board's own #f8fbfc. It is also the first board of the app's SECOND visual generation: 18/19 margins, 16 radii, a 79-tall tab bar and the board-07 OUTLINE icon family at stroke 2.",
+  "_layout": {
+    "flows": true,
+    "_note": "Flows; each card places its own contents absolutely at the board's offsets inside a fixed-height box."
+  },
+  "_state": "Counts are the board's, unwired. All five come from ONE aggregate — followups, payments, leads and orders each already answer a count for the signed-in salesperson — because five separate calls would let the chips disagree with the rows.",
+  "_empty": "`h-left` is an empty 27 box on the board. Left empty: this is a tab destination, so there is nothing behind it.",
+  "shapes": [
+    {
+      "n": "h-title",
+      "t": "text",
+      "x": 57,
+      "y": 51,
+      "w": 261,
+      "chars": "Actions Need Attention",
+      "size": 20,
+      "weight": 700,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "chip-0",
+      "t": "text",
+      "x": 46,
+      "y": 119,
+      "chars": "All",
+      "size": 13,
+      "weight": 700,
+      "fill": "#ffffff"
+    },
+    {
+      "n": "chip-0n",
+      "t": "text",
+      "x": 74,
+      "y": 119,
+      "chars": "12",
+      "size": 13,
+      "weight": 800,
+      "fill": "#ffffff"
+    },
+    {
+      "n": "chip-1",
+      "t": "text",
+      "x": 149,
+      "y": 119,
+      "chars": "Overdue",
+      "size": 13,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "chip-1n",
+      "t": "text",
+      "x": 207,
+      "y": 119,
+      "chars": "5",
+      "size": 13,
+      "weight": 800,
+      "fill": "#e5484d"
+    },
+    {
+      "n": "chip-2",
+      "t": "text",
+      "x": 266,
+      "y": 119,
+      "chars": "Payments",
+      "size": 13,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "chip-2n",
+      "t": "text",
+      "x": 331,
+      "y": 119,
+      "chars": "3",
+      "size": 13,
+      "weight": 800,
+      "fill": "#17a45e"
+    },
+    {
+      "n": "al-t",
+      "t": "text",
+      "x": 63,
+      "y": 174,
+      "chars": "5 items are overdue",
+      "size": 14,
+      "weight": 700,
+      "fill": "#c22b30"
+    },
+    {
+      "n": "al-d",
+      "t": "text",
+      "x": 63,
+      "y": 194,
+      "chars": "Take action to keep your pipeline healthy.",
+      "size": 12,
+      "weight": 500,
+      "fill": "#a86063"
+    },
+    {
+      "n": "r-t-0",
+      "t": "text",
+      "x": 70,
+      "y": 256,
+      "chars": "Overdue Follow-up",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "r-s-0",
+      "t": "text",
+      "x": 70,
+      "y": 275,
+      "chars": "Customer follow-ups pending",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "r-n-0",
+      "t": "text",
+      "x": 273,
+      "y": 259,
+      "w": 49,
+      "chars": "5",
+      "size": 22,
+      "weight": 800,
+      "fill": "#17a45e",
+      "align": "right"
+    },
+    {
+      "n": "r-t-1",
+      "t": "text",
+      "x": 70,
+      "y": 331,
+      "chars": "Payment / Outstanding",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "r-s-1",
+      "t": "text",
+      "x": 70,
+      "y": 351,
+      "chars": "Payments overdue",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "r-n-1",
+      "t": "text",
+      "x": 273,
+      "y": 334,
+      "w": 49,
+      "chars": "3",
+      "size": 22,
+      "weight": 800,
+      "fill": "#17a45e",
+      "align": "right"
+    },
+    {
+      "n": "r-t-2",
+      "t": "text",
+      "x": 70,
+      "y": 407,
+      "chars": "Opportunities",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "r-s-2",
+      "t": "text",
+      "x": 70,
+      "y": 426,
+      "chars": "Require your attention",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "r-n-2",
+      "t": "text",
+      "x": 273,
+      "y": 409,
+      "w": 49,
+      "chars": "2",
+      "size": 22,
+      "weight": 800,
+      "fill": "#17a45e",
+      "align": "right"
+    },
+    {
+      "n": "r-t-3",
+      "t": "text",
+      "x": 70,
+      "y": 482,
+      "chars": "Proposals / Commitments",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "r-s-3",
+      "t": "text",
+      "x": 70,
+      "y": 502,
+      "chars": "Awaiting response",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "r-n-3",
+      "t": "text",
+      "x": 273,
+      "y": 485,
+      "w": 49,
+      "chars": "2",
+      "size": 22,
+      "weight": 800,
+      "fill": "#17a45e",
+      "align": "right"
+    },
+    {
+      "n": "r-t-4",
+      "t": "text",
+      "x": 70,
+      "y": 558,
+      "chars": "Others",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "r-s-4",
+      "t": "text",
+      "x": 70,
+      "y": 577,
+      "chars": "Miscellaneous items",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "r-n-4",
+      "t": "text",
+      "x": 273,
+      "y": 560,
+      "w": 49,
+      "chars": "0",
+      "size": 22,
+      "weight": 800,
+      "fill": "#8aa3b0",
+      "align": "right"
+    },
+    {
+      "n": "q1",
+      "t": "text",
+      "x": 31,
+      "y": 645,
+      "w": 313,
+      "chars": "“Consistent follow-ups",
+      "size": 20,
+      "weight": 400,
+      "family": "Caveat",
+      "fill": "#3e6374",
+      "align": "center"
+    },
+    {
+      "n": "q2",
+      "t": "text",
+      "x": 31,
+      "y": 668,
+      "w": 313,
+      "chars": "create bigger opportunities.”",
+      "size": 20,
+      "weight": 400,
+      "family": "Caveat",
+      "fill": "#3e6374",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-0",
+      "t": "text",
+      "x": 3,
+      "y": 821,
+      "w": 78,
+      "chars": "Home",
+      "size": 10,
+      "weight": 700,
+      "fill": "#17a45e",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-1",
+      "t": "text",
+      "x": 78,
+      "y": 821,
+      "w": 78,
+      "chars": "Pipeline",
+      "size": 10,
+      "weight": 600,
+      "fill": "#8aa3b0",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-2",
+      "t": "text",
+      "x": 220,
+      "y": 821,
+      "w": 78,
+      "chars": "Customers",
+      "size": 10,
+      "weight": 600,
+      "fill": "#8aa3b0",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-3",
+      "t": "text",
+      "x": 295,
+      "y": 821,
+      "w": 78,
+      "chars": "More",
+      "size": 10,
+      "weight": 600,
+      "fill": "#8aa3b0",
+      "align": "center"
+    }
+  ]
+}

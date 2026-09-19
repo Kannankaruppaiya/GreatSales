@@ -33,5 +33,6 @@ done <<'SCREENS'
 02a-1-sales-progress:/sales-progress
 02a-3-breakdown:/sales-breakdown
 02a-4-insights:/sales-insights
+02b-1-actions:/actions
 SCREENS
 exit $fail
