@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,6 +7,7 @@ import { HillsCool } from '../../src/components/ui/Hills';
 import { Gauge } from '../../src/components/ui/Gauge';
 import { StatTile } from '../../src/components/ui/StatTile';
 import { QuoteSwoosh } from '../../src/components/illustrations/SkyIllustration';
+import { BottomSheet, SheetRow } from '../../src/components/ui/BottomSheet';
 import { ICONS } from '../../src/design-system/icons';
 import {
   SolidCalendar, SolidBars, SolidPin, SolidPersonAdd,
@@ -26,6 +28,16 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
  * aggregate - kpis.recurringCommitted, recurringAchieved, totalPct,
  * followUpsDue - so this screen becomes useToday(granularity) with the period
  * pill choosing the granularity.
+ *
+ * Board 02A.2 "Select Period" is NOT a second screen. Comparing the two
+ * boards' shapes, 02A.2 is this board plus twenty-nine: a dim, a sheet, and
+ * its rows. So it is this screen with the sheet open.
+ *
+ * The seven periods map onto the app's four granularities and nothing else:
+ * this week, this month, last month and this year resolve to a granularity
+ * and an anchor, and the quarters and the custom range have no resolver yet.
+ * Those three are shown as the design shows them and marked, rather than
+ * quietly dropped or quietly faked.
  */
 const ChevronLeft = ICONS['chevron-left'];
 const ChevronDown = ICONS['chevron-down'];
@@ -41,9 +53,26 @@ const TILES = [
 
 const DESIGN_TOP = 52;
 
+/**
+ * The board's seven rows. `resolvable` marks the ones packages/shared's
+ * resolveRange can answer today; the rest need a resolver before they can be
+ * more than a label.
+ */
+const PERIODS = [
+  { key: 'week', label: 'This Week', resolvable: true },
+  { key: 'month', label: 'This Month', resolvable: true },
+  { key: 'lastMonth', label: 'Last Month', resolvable: true },
+  { key: 'quarter', label: 'This Quarter', resolvable: false },
+  { key: 'lastQuarter', label: 'Last Quarter', resolvable: false },
+  { key: 'year', label: 'This Year', resolvable: true },
+  { key: 'custom', label: 'Custom Range', resolvable: false },
+] as const;
+
 export default function SalesProgress() {
   const insets = useSafeAreaInsets();
   const topPad = Math.max(0, DESIGN_TOP - insets.top);
+  const [periodOpen, setPeriodOpen] = useState(false);
+  const [period, setPeriod] = useState<(typeof PERIODS)[number]['key']>('month');
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fbfc' }}>
@@ -77,6 +106,7 @@ export default function SalesProgress() {
               resolved on read - never a stored range (AGENTS.md). */}
           <Pressable
             accessibilityRole="button"
+            onPress={() => setPeriodOpen(true)}
             className="flex-row items-center bg-surface"
             style={{
               marginTop: 13, marginHorizontal: 24, height: 47, borderRadius: 13,
@@ -196,6 +226,39 @@ export default function SalesProgress() {
           </View>
         </ScrollView>
       </SafeAreaView>
+
+      <BottomSheet open={periodOpen} onClose={() => setPeriodOpen(false)} title="Select Period">
+        <View style={{ marginTop: 20 }}>
+          {PERIODS.map((p) => (
+            <View key={p.key} style={{ marginBottom: 4 }}>
+              <SheetRow
+                label={p.label}
+                selected={p.key === period}
+                showChevron={!p.resolvable}
+                onPress={() => { setPeriod(p.key); setPeriodOpen(false); }}
+                icon={<SolidCalendar size={21} color={p.key === period ? '#0e7a4a' : '#6b8796'} />}
+              />
+            </View>
+          ))}
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setPeriodOpen(false)}
+          className="overflow-hidden"
+          style={{ marginTop: 24, marginHorizontal: 23, height: 52, borderRadius: 13 }}
+        >
+          <LinearGradient
+            colors={['#0e7a4a', '#1ba560']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Text className="text-white" style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, lineHeight: 25 }}>
+              Apply
+            </Text>
+          </LinearGradient>
+        </Pressable>
+      </BottomSheet>
     </View>
   );
 }
