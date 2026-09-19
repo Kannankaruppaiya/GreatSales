@@ -8,8 +8,8 @@ from Penpot: select the shape, then Export in the right-hand panel.
 | Design name | Size | Used on | Lands as |
 | --- | --- | --- | --- |
 | `splash-bg` | 760×1340 | Screen 01 Splash | `splash-bg.webp` ✅ in place |
-| `02c-road` | 760×330 | 02C.1 Follow-ups Overview | `02c-road.png` |
-| `var0` | 1536×1024 | 03.2 All Stages | `stages-bg.png` |
+| `02c-road` | 760×330 | 02C.1 Follow-ups Overview | `02c-road.png` ✅ in place |
+| `var0` | 1536×1024 | 03.2 All Stages | `stages-bg.webp` ✅ in place |
 | `megala-avatar` | 240×240 | 5 screens | — see below |
 
 `splash-bg.webp` is the real photograph, at the source's own 760×1340 and
@@ -25,3 +25,8 @@ screen) instead.
 
 The remaining files here are the stock Expo template icons and still need
 replacing with the real app icon and splash.
+
+`02c-road.png` is a 388KB PNG of a photograph, which is four to six times what
+the same picture costs as WebP. It arrived as a PNG and there is no converter
+in this environment; re-exporting it from Penpot as WebP, or running it
+through `cwebp`, would pay for itself on a phone over mobile data.
