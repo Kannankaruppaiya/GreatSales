@@ -34,5 +34,6 @@ done <<'SCREENS'
 02a-3-breakdown:/sales-breakdown
 02a-4-insights:/sales-insights
 02b-1-actions:/actions
+02b-2-overdue:/followups-overdue
 SCREENS
 exit $fail

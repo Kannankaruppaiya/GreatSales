@@ -192,3 +192,47 @@ export function PlusStroke({ size = 29, color = '#ffffff' }: P) {
     </Svg>
   );
 }
+
+/* --- the 02B list header's three, and the list row's chevron ------------- */
+
+/** The back chevron: a 3-point polyline at stroke 2.2, as on 02A. */
+export function ChevronLeftStroke({ size = 27, color = '#0f3244' }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 27 27">
+      <Path
+        d="M16.88,4.5L7.88,13.5L16.88,22.5"
+        stroke={color}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </Svg>
+  );
+}
+
+/** The magnifier inside the search field. */
+export function SearchOutline({ size = 20, color = MUTED }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 20 20">
+      <Ellipse cx={8.75} cy={8.75} rx={5.42} ry={5.42} {...stroke(color)} />
+      <Path d="M12.83,12.83L16.67,16.67" {...stroke(color)} />
+    </Svg>
+  );
+}
+
+/**
+ * Three rules of decreasing length - the sort control.
+ *
+ * It is drawn in a 21x18 box rather than a square one, so it takes a width
+ * and a height.
+ */
+export function SortOutline({ width = 21, height = 18, color = '#6b8796' }: {
+  width?: number; height?: number; color?: string;
+}) {
+  return (
+    <Svg width={width} height={height} viewBox="0 0 21 18">
+      <Path d="M3.5,5.25L17.5,5.25M5.25,9L15.75,9M7.88,12.75L13.13,12.75" {...stroke(color)} />
+    </Svg>
+  );
+}

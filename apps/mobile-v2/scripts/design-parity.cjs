@@ -66,9 +66,9 @@ const EXECUTABLE = process.env.PW_CHROMIUM || '/opt/pw-browsers/chromium-1194/ch
   await page.waitForTimeout(2500);
 
   const wanted = spec.shapes
-    // A placeholder is an attribute on the input, not a text node, so it can
-    // never be found by walking text. The design records it; this cannot
-    // measure it.
+    // `_placeholder` used to mean "unmeasurable". It no longer does - an
+    // input's placeholder is measured below - and now means only "the design
+    // records this and no screen renders it".
     .filter((s) => s.chars && !s._placeholder)
     .map((s) => ({ n: s.n, chars: s.chars, y: s.y, x: s.x, w: s.w, align: s.align, skipX: !!s._skipX }));
 
@@ -89,8 +89,26 @@ const EXECUTABLE = process.env.PW_CHROMIUM || '/opt/pw-browsers/chromium-1194/ch
       for (const el of [t.parentElement, t.parentElement?.parentElement]) {
         if (el && !seen.has(el)) {
           seen.add(el);
-          candidates.push(el);
+          candidates.push({ el, text: el.textContent.trim() });
         }
+      }
+    }
+
+    /*
+     * An input's placeholder is rendered text on the screen and has to be
+     * measurable, or a search field placed 30px out passes.
+     *
+     * It is not a text node, so it is collected separately and its position
+     * is derived rather than read: the box is the INPUT's, and the text sits
+     * one padding and border in, vertically centred in it. That is how the
+     * browser lays a placeholder out, and it is what the design's own text
+     * shape describes.
+     */
+    for (const input of document.querySelectorAll('input[placeholder], textarea[placeholder]')) {
+      const ph = input.getAttribute('placeholder').trim();
+      if (ph && !seen.has(input)) {
+        seen.add(input);
+        candidates.push({ el: input, text: ph, isPlaceholder: true });
       }
     }
 
@@ -103,14 +121,15 @@ const EXECUTABLE = process.env.PW_CHROMIUM || '/opt/pw-browsers/chromium-1194/ch
      */
     const used = new Set();
     const pick = (want) => {
-      const exact = candidates.find((el) => !used.has(el) && el.textContent.trim() === want);
+      const exact = candidates.find((c) => !used.has(c.el) && c.text === want);
       if (exact) return exact;
-      return candidates.find((el) => !used.has(el) && el.textContent.trim().startsWith(want));
+      return candidates.find((c) => !used.has(c.el) && c.text.startsWith(want));
     };
 
     return items.map((it) => {
-      const el = pick(it.chars.trim());
-      if (!el) return { n: it.n, missing: true };
+      const hit = pick(it.chars.trim());
+      if (!hit) return { n: it.n, missing: true };
+      const el = hit.el;
       /*
        * Consuming an element consumes its ANCESTORS, and deliberately NOT its
        * descendants.
@@ -128,16 +147,33 @@ const EXECUTABLE = process.env.PW_CHROMIUM || '/opt/pw-browsers/chromium-1194/ch
        */
       used.add(el);
       for (const other of candidates) {
-        if (other !== el && other.contains(el)) used.add(other);
+        if (other.el !== el && other.el.contains(el)) used.add(other.el);
       }
       const r = el.getBoundingClientRect();
       const cs = getComputedStyle(el);
+
+      // For a placeholder the box is the field's; the text is inset by the
+      // padding and border, and centred in what is left.
+      let top = r.top;
+      let left = r.left;
+      let width = r.width;
+      if (hit.isPlaceholder) {
+        const px = (v) => parseFloat(v) || 0;
+        const lh = px(cs.lineHeight) || px(cs.fontSize) * 1.2;
+        const inner = r.height - px(cs.paddingTop) - px(cs.paddingBottom)
+          - px(cs.borderTopWidth) - px(cs.borderBottomWidth);
+        top = r.top + px(cs.borderTopWidth) + px(cs.paddingTop) + (inner - lh) / 2;
+        left = r.left + px(cs.borderLeftWidth) + px(cs.paddingLeft);
+        width = r.width - px(cs.borderLeftWidth) - px(cs.paddingLeft)
+          - px(cs.borderRightWidth) - px(cs.paddingRight);
+      }
+
       return {
         n: it.n,
-        top: Math.round(r.top),
-        left: Math.round(r.left),
-        right: Math.round(r.right),
-        width: Math.round(r.width),
+        top: Math.round(top),
+        left: Math.round(left),
+        right: Math.round(left + width),
+        width: Math.round(width),
         fontSize: cs.fontSize,
         family: cs.fontFamily.split(',')[0].replace(/"/g, ''),
       };

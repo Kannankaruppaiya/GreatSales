@@ -1,0 +1,413 @@
+{
+  "_source": "Penpot file V4, page 'mobiles', board '02B.2 Overdue Follow-ups'",
+  "_board": {
+    "width": 376,
+    "height": 859
+  },
+  "_excluded": [
+    "time / status-icons — the mockup status bar"
+  ],
+  "_layout": {
+    "flows": true,
+    "_note": "Flows; each card places its own contents absolutely at the board's offsets inside a fixed 78-tall box."
+  },
+  "_state": "Rows are the board's, unwired: followups past dueDate and still open, ordered by age. ONE list request — the repository already scopes to the signed-in salesperson — not a customer fetch per row. It needs paging; CursorPage is what the repository returns, so the ScrollView becomes a FlatList with onEndReached.",
+  "shapes": [
+    {
+      "n": "h-title",
+      "t": "text",
+      "x": 58,
+      "y": 51,
+      "w": 261,
+      "chars": "Overdue Follow-ups",
+      "size": 20,
+      "weight": 700,
+      "fill": "#0f3244",
+      "align": "center"
+    },
+    {
+      "n": "s-ph",
+      "t": "text",
+      "x": 60,
+      "y": 114,
+      "chars": "Search customers or notes...",
+      "size": 14,
+      "weight": 500,
+      "fill": "#8aa3b0"
+    },
+    {
+      "n": "av-0",
+      "t": "text",
+      "x": 32,
+      "y": 186,
+      "w": 39,
+      "chars": "SR",
+      "size": 12,
+      "weight": 800,
+      "fill": "#0e7a4a",
+      "align": "center"
+    },
+    {
+      "n": "nm-0",
+      "t": "text",
+      "x": 81,
+      "y": 174,
+      "chars": "Skyline Retail",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "age-0",
+      "t": "text",
+      "y": 176,
+      "chars": "3d",
+      "size": 10,
+      "weight": 700,
+      "fill": "#e5484d",
+      "_skipX": true,
+      "_note": "The board hand-places the pill per card (190, 168, 219, 168, 176) — the name's own width plus a gap. Every one of those is wrong for a real customer name, so the row flows and x is not compared."
+    },
+    {
+      "n": "amt-0",
+      "t": "text",
+      "x": 258,
+      "y": 174,
+      "w": 83,
+      "chars": "₹ 1.2L",
+      "size": 14,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "own-0",
+      "t": "text",
+      "x": 81,
+      "y": 194,
+      "chars": "Ravi Kumar",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "note-0",
+      "t": "text",
+      "x": 81,
+      "y": 220,
+      "chars": "Follow-up on product demo",
+      "size": 12,
+      "weight": 500,
+      "fill": "#8aa3b0"
+    },
+    {
+      "n": "av-1",
+      "t": "text",
+      "x": 32,
+      "y": 272,
+      "w": 39,
+      "chars": "MM",
+      "size": 12,
+      "weight": 800,
+      "fill": "#0e7a4a",
+      "align": "center"
+    },
+    {
+      "n": "nm-1",
+      "t": "text",
+      "x": 81,
+      "y": 260,
+      "chars": "Modern Mart",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "age-1",
+      "t": "text",
+      "y": 262,
+      "chars": "5d",
+      "size": 10,
+      "weight": 700,
+      "fill": "#e5484d",
+      "_skipX": true,
+      "_note": "The board hand-places the pill per card (190, 168, 219, 168, 176) — the name's own width plus a gap. Every one of those is wrong for a real customer name, so the row flows and x is not compared."
+    },
+    {
+      "n": "amt-1",
+      "t": "text",
+      "x": 258,
+      "y": 260,
+      "w": 83,
+      "chars": "₹ 85K",
+      "size": 14,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "own-1",
+      "t": "text",
+      "x": 81,
+      "y": 279,
+      "chars": "Priya Sharma",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "note-1",
+      "t": "text",
+      "x": 81,
+      "y": 305,
+      "chars": "Share updated quotation",
+      "size": 12,
+      "weight": 500,
+      "fill": "#8aa3b0"
+    },
+    {
+      "n": "av-2",
+      "t": "text",
+      "x": 32,
+      "y": 358,
+      "w": 39,
+      "chars": "GT",
+      "size": 12,
+      "weight": 800,
+      "fill": "#0e7a4a",
+      "align": "center"
+    },
+    {
+      "n": "nm-2",
+      "t": "text",
+      "x": 81,
+      "y": 346,
+      "chars": "Greenfield Traders",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "age-2",
+      "t": "text",
+      "y": 347,
+      "chars": "7d",
+      "size": 10,
+      "weight": 700,
+      "fill": "#e5484d",
+      "_skipX": true,
+      "_note": "The board hand-places the pill per card (190, 168, 219, 168, 176) — the name's own width plus a gap. Every one of those is wrong for a real customer name, so the row flows and x is not compared."
+    },
+    {
+      "n": "amt-2",
+      "t": "text",
+      "x": 258,
+      "y": 346,
+      "w": 83,
+      "chars": "₹ 2.3L",
+      "size": 14,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "own-2",
+      "t": "text",
+      "x": 81,
+      "y": 365,
+      "chars": "Arjun Nair",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "note-2",
+      "t": "text",
+      "x": 81,
+      "y": 391,
+      "chars": "Check stock availability",
+      "size": 12,
+      "weight": 500,
+      "fill": "#8aa3b0"
+    },
+    {
+      "n": "av-3",
+      "t": "text",
+      "x": 32,
+      "y": 444,
+      "w": 39,
+      "chars": "UN",
+      "size": 12,
+      "weight": 800,
+      "fill": "#0e7a4a",
+      "align": "center"
+    },
+    {
+      "n": "nm-3",
+      "t": "text",
+      "x": 81,
+      "y": 431,
+      "chars": "Urban Needs",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "age-3",
+      "t": "text",
+      "y": 433,
+      "chars": "10d",
+      "size": 10,
+      "weight": 700,
+      "fill": "#e5484d",
+      "_skipX": true,
+      "_note": "The board hand-places the pill per card (190, 168, 219, 168, 176) — the name's own width plus a gap. Every one of those is wrong for a real customer name, so the row flows and x is not compared."
+    },
+    {
+      "n": "amt-3",
+      "t": "text",
+      "x": 258,
+      "y": 431,
+      "w": 83,
+      "chars": "₹ 1.5L",
+      "size": 14,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "own-3",
+      "t": "text",
+      "x": 81,
+      "y": 451,
+      "chars": "Karthik V",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "note-3",
+      "t": "text",
+      "x": 81,
+      "y": 477,
+      "chars": "Follow-up after meeting",
+      "size": 12,
+      "weight": 500,
+      "fill": "#8aa3b0"
+    },
+    {
+      "n": "av-4",
+      "t": "text",
+      "x": 32,
+      "y": 530,
+      "w": 39,
+      "chars": "VS",
+      "size": 12,
+      "weight": 800,
+      "fill": "#0e7a4a",
+      "align": "center"
+    },
+    {
+      "n": "nm-4",
+      "t": "text",
+      "x": 81,
+      "y": 517,
+      "chars": "Value Stores",
+      "size": 14,
+      "weight": 700,
+      "fill": "#0f3244"
+    },
+    {
+      "n": "age-4",
+      "t": "text",
+      "y": 519,
+      "chars": "12d",
+      "size": 10,
+      "weight": 700,
+      "fill": "#e5484d",
+      "_skipX": true,
+      "_note": "The board hand-places the pill per card (190, 168, 219, 168, 176) — the name's own width plus a gap. Every one of those is wrong for a real customer name, so the row flows and x is not compared."
+    },
+    {
+      "n": "amt-4",
+      "t": "text",
+      "x": 258,
+      "y": 517,
+      "w": 83,
+      "chars": "₹ 90K",
+      "size": 14,
+      "weight": 800,
+      "fill": "#0f3244",
+      "align": "right"
+    },
+    {
+      "n": "own-4",
+      "t": "text",
+      "x": 81,
+      "y": 537,
+      "chars": "Sneha R",
+      "size": 12,
+      "weight": 500,
+      "fill": "#6b8796"
+    },
+    {
+      "n": "note-4",
+      "t": "text",
+      "x": 81,
+      "y": 563,
+      "chars": "Confirm order decision",
+      "size": 12,
+      "weight": 500,
+      "fill": "#8aa3b0"
+    },
+    {
+      "n": "nav-l-0",
+      "t": "text",
+      "x": 3,
+      "y": 821,
+      "w": 78,
+      "chars": "Home",
+      "size": 10,
+      "weight": 700,
+      "fill": "#17a45e",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-1",
+      "t": "text",
+      "x": 78,
+      "y": 821,
+      "w": 78,
+      "chars": "Pipeline",
+      "size": 10,
+      "weight": 600,
+      "fill": "#8aa3b0",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-2",
+      "t": "text",
+      "x": 220,
+      "y": 821,
+      "w": 78,
+      "chars": "Customers",
+      "size": 10,
+      "weight": 600,
+      "fill": "#8aa3b0",
+      "align": "center"
+    },
+    {
+      "n": "nav-l-3",
+      "t": "text",
+      "x": 295,
+      "y": 821,
+      "w": 78,
+      "chars": "More",
+      "size": 10,
+      "weight": 600,
+      "fill": "#8aa3b0",
+      "align": "center"
+    }
+  ],
+  "_defect": "The amount and the row chevron COLLIDE on the board. The amount is right-aligned to x341 and the chevron's ink runs 337.5-345.4, so they overlap by about 4px on every row. Reproduced as drawn, because parity against the board is the contract; it needs a decision from the design rather than a quiet 6px nudge here."
+}

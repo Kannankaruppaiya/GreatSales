@@ -7,8 +7,8 @@
     "_note": "bezelRadius is the mockup's phone frame, not the app."
   },
   "_excluded": [
-    "time / status-icons \u2014 the mockup's status bar; the OS draws the real one",
-    "bg radius 34 \u2014 the phone frame"
+    "time / status-icons — the mockup's status bar; the OS draws the real one",
+    "bg radius 34 — the phone frame"
   ],
   "_layout": {
     "gutter": 22,
@@ -171,8 +171,7 @@
       "chars": "+91 98765 43210",
       "size": 15,
       "weight": 400,
-      "fill": "#9cb2bd",
-      "_placeholder": true
+      "fill": "#9cb2bd"
     },
     {
       "n": "lbl2",
@@ -211,8 +210,7 @@
       "chars": "Enter your password",
       "size": 15,
       "weight": 400,
-      "fill": "#9cb2bd",
-      "_placeholder": true
+      "fill": "#9cb2bd"
     },
     {
       "n": "in2-eye",
