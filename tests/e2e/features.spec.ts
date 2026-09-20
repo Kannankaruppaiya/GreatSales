@@ -3,13 +3,12 @@ import { MGMT_ID } from "./fixtures/test-data";
 import { loginAsAdmin } from "./helpers/auth";
 
 test.describe("GreatSales All Features Suite", () => {
-  test("1. Dashboard Feature: renders executive overview, KPI metrics, and modals", async ({ page }) => {
+  test("1. Dashboard Feature: renders executive overview and KPI metrics", async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto(`/managements/${MGMT_ID}/dashboard`);
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByRole("heading", { name: /Executive Overview/i })).toBeVisible();
-    await expect(page.getByText(/Commercial Sales Pulse/i)).toBeVisible();
 
     // Verify KPI cards
     await expect(page.getByText(/Recurring committed/i)).toBeVisible();
@@ -17,24 +16,9 @@ test.describe("GreatSales All Features Suite", () => {
     await expect(page.getByText(/New sales committed/i)).toBeVisible();
     await expect(page.getByText(/Total committed/i)).toBeVisible();
 
-    // Open & close New Sales Lead modal
-    const addLeadBtn = page.locator('button:has-text("New Sales Lead")');
-    await expect(addLeadBtn).toBeVisible();
-    await addLeadBtn.click();
-    const leadModal = page.locator('[role="dialog"]');
-    await expect(leadModal).toBeVisible();
-    await leadModal.locator('button:has-text("Cancel"), button[aria-label="Close"], button:has-text("Discard")').first().click();
-    await expect(leadModal).not.toBeVisible();
-
-    // Open & close Add Customer modal
-    const addCustBtn = page.locator('button:has-text("Add Customer")');
-    if (await addCustBtn.isVisible()) {
-      await addCustBtn.click();
-      const custModal = page.locator('[role="dialog"]');
-      await expect(custModal).toBeVisible();
-      await custModal.locator('button:has-text("Cancel"), button[aria-label="Close"]').first().click();
-      await expect(custModal).not.toBeVisible();
-    }
+    // The dashboard's quick-action bar is gone; the lead and customer modals
+    // are opened from the Leads and Customers pages, which tests 3 and 7 below
+    // already do.
   });
 
   test("2. Recurring Projections Feature: renders table and search filter", async ({ page }) => {

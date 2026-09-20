@@ -1,5 +1,13 @@
-import { REMINDER_ORDINALS, REMINDER_STAGES } from '@greatsales/shared';
-import type { PaymentStatusValue, ReminderStage } from '@greatsales/shared';
+import {
+  REMINDER_ORDINALS,
+  REMINDER_STAGES,
+  creditDays,
+} from '@greatsales/shared';
+import type {
+  PaymentStatusValue,
+  PaymentTermsValue,
+  ReminderStage,
+} from '@greatsales/shared';
 
 /**
  * Pure payment arithmetic — no Prisma, no I/O — so it is unit-testable in
@@ -32,15 +40,67 @@ export function deriveStatus(
   return 'Pending';
 }
 
-/** Whole days elapsed past the due date (0 if not yet due, null if no due date). */
-export function agingDays(
+function wholeDaysBetween(from: string, to: string): number {
+  return Math.floor((Date.parse(to) - Date.parse(from)) / 86_400_000);
+}
+
+/**
+ * When an invoice falls due.
+ *
+ * Derived, not invented: the invoice date plus whatever credit the customer
+ * was granted. An explicitly recorded due date wins, because somebody typed it
+ * — Add Payment has the field — and a one-off arrangement is a fact about that
+ * invoice, not something a rule should override.
+ *
+ * The import used to add a flat 30 days here for every customer in the ledger.
+ * That is now only what a customer with NO terms recorded falls back to.
+ */
+export function dueDateFor(
+  invoiceDate: string | null,
+  terms: PaymentTermsValue | null | undefined,
+  storedDueDate: string | null = null,
+): string | null {
+  if (storedDueDate) return storedDueDate;
+  if (!invoiceDate) return null;
+  const due = new Date(
+    Date.parse(invoiceDate) + creditDays(terms) * 86_400_000,
+  );
+  return due.toISOString().slice(0, 10);
+}
+
+/**
+ * How old the invoice is: whole days since it was raised.
+ *
+ * THIS is what the Aging column means, and it did not use to. It counted from
+ * the DUE date, so a row dated 22 Oct 2024 read "664d" on a day 694 days after
+ * it — the 30 days of credit, silently subtracted from a number printed
+ * beside the very date it was counting from. Anybody who checked it with a
+ * calendar found it wrong, and they were right.
+ *
+ * Never negative: an invoice dated in the future is 0 days old, not -5.
+ */
+export function invoiceAgeDays(
+  invoiceDate: string | null,
+  today: string,
+): number | null {
+  if (!invoiceDate) return null;
+  return Math.max(0, wholeDaysBetween(invoiceDate, today));
+}
+
+/**
+ * How far past its due date an invoice has gone; 0 while it is still within
+ * terms.
+ *
+ * The old `agingDays` arithmetic, kept under the name that actually describes
+ * it. This is the number the "overdue 90+ days" figure is about — an invoice
+ * can be 100 days old and not overdue at all.
+ */
+export function overdueDays(
   dueDate: string | null,
   today: string,
 ): number | null {
   if (!dueDate) return null;
-  const ms = Date.parse(today) - Date.parse(dueDate);
-  const days = Math.floor(ms / 86_400_000);
-  return days > 0 ? days : 0;
+  return Math.max(0, wholeDaysBetween(dueDate, today));
 }
 
 /**

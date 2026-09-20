@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { MGMT_ID } from "../fixtures/test-data";
 import { loginAsAdmin } from "../helpers/auth";
+import { monthPicker, monthTriggerText, offeredMonths, pickMonth } from "../helpers/month-picker";
 
 test.describe("Recurring Projections Page", () => {
   test.beforeEach(async ({ page }) => {
@@ -33,11 +34,22 @@ test.describe("Recurring Projections Page", () => {
   });
 
   test("Scenario 2.3: period selector changes projection month", async ({ page }) => {
-    const periodSelect = page.locator("select").first();
-    await expect(periodSelect).toBeVisible();
+    const picker = monthPicker(page, "Worksheet month");
+    await expect(picker).toBeVisible();
 
-    // Select different month
-    await periodSelect.selectOption({ index: 1 });
+    // A month that is not the one already showing, taken from what the picker
+    // will actually accept. `selectOption({ index: 1 })` was "the second
+    // option", which on a control that opens on the current month was
+    // sometimes the month already selected — and then this asserted that
+    // changing nothing changes the table.
+    const shown = await picker.innerText();
+    const year = new Date().getFullYear();
+    const other = (await offeredMonths(page, [year], "Worksheet month")).find(
+      (p) => !shown.includes(monthTriggerText(p)),
+    );
+    expect(other, "the picker offers only the month already selected").toBeTruthy();
+
+    await pickMonth(page, other!, "Worksheet month");
     await page.waitForLoadState("networkidle");
     await expect(page.locator("table")).toBeVisible();
   });

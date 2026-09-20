@@ -3,6 +3,7 @@ import { Button, Dialog, Input, Select } from "@/components/ui";
 import { DateField } from "@/components/DateField";
 import { ApiError } from "@/lib/api";
 import { inr } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { useAuthRole } from "@/store/auth";
 import { useUpdatePayment } from "@/features/payments/queries";
 import { RemarksPanel } from "@/features/remarks/RemarksPanel";
@@ -144,7 +145,11 @@ export function PaymentDetailModal({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5 text-[11px] text-muted">
+        {/* Two numbers, because they answer two questions and used to be one.
+            Aging is how old the invoice is; overdue is how far past the date
+            this customer's own credit terms give it. An invoice can be 100
+            days old and nothing owed yet. */}
+        <div className="grid grid-cols-3 gap-2.5 text-2xs text-muted">
           <div>
             Status:{" "}
             <span className="font-bold text-ink">{statusLabel}</span>
@@ -153,6 +158,21 @@ export function PaymentDetailModal({
             Aging:{" "}
             <span className="font-bold text-ink tabular-nums">
               {payment.agingDays != null ? `${payment.agingDays}d` : "—"}
+            </span>
+          </div>
+          <div>
+            Overdue:{" "}
+            <span
+              className={cn(
+                "font-bold tabular-nums",
+                payment.overdueDays ? "text-red" : "text-ink",
+              )}
+            >
+              {payment.overdueDays == null
+                ? "—"
+                : payment.overdueDays === 0
+                  ? "Within terms"
+                  : `${payment.overdueDays}d`}
             </span>
           </div>
         </div>

@@ -23,6 +23,7 @@ function makePayment(overrides: Partial<PaymentRow>): PaymentRow {
     pending: 1000,
     dueDate: "2026-07-31",
     agingDays: 20,
+    overdueDays: 0,
     payZone: "GreenZone",
     delayReason: null,
     nextFollowUp: null,

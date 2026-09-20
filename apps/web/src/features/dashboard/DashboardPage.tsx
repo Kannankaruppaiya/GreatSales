@@ -1,37 +1,17 @@
 import { useState } from "react";
-import {
-  Building2,
-  Plus,
-  ShoppingCart,
-  Target,
-  TrendingUp,
-} from "lucide-react";
 import { periodLabel } from "@/data/months";
 import { usePeriodRange, useUi } from "@/store/ui";
 import { useAuth, useAuthRole, useHasPermission } from "@/store/auth";
 import { inr, lakhs, longDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { Button, Card } from "@/components/ui";
 import { CompareLegend, GroupedBars } from "@/components/charts";
+import { Card } from "@/components/ui";
 import { QueryBoundary } from "@/components/common/QueryBoundary";
 import { LeadDetailModal } from "@/features/leads/LeadDetailModal";
-import { ProjectionFollowUpModal } from "@/features/projections/ProjectionFollowUpModal";
-import { CustomerDrawer } from "@/features/customers/CustomerDrawer";
-import { AddLeadModal } from "@/features/leads/AddLeadModal";
-import { AddCustomerModal } from "@/features/customers/AddCustomerModal";
-import { CreateSalesOrderModal } from "@/features/orders/CreateSalesOrderModal";
-import { toast } from "@/store/toastStore";
-import { useUpdateProjection } from "@/features/projections/queries";
-import {
-  PROJ_STATUS_LABELS,
-  projStatusFromLabel,
-  type ProjectionLine,
-} from "@/features/projections/types";
 import type { LeadRow } from "@/features/leads/types";
 import { useDashboard } from "@/features/dashboard/queries";
 import { SetTargetsModal } from "@/features/dashboard/SetTargetsModal";
 import { FollowUpsDueModal } from "@/features/dashboard/FollowUpsDueModal";
-import { TopOpenProjectionsCard } from "@/features/dashboard/TopOpenProjectionsCard";
 import type { DashboardBreakdown } from "@/features/dashboard/types";
 
 // The stage/status lists that used to live here moved to the server with the
@@ -54,13 +34,7 @@ export default function DashboardPage() {
   const ownerId = ownerFilter === "ALL" ? undefined : ownerFilter;
 
   const [selectedLead, setSelectedLead] = useState<LeadRow | null>(null);
-  const [selectedFuProj, setSelectedFuProj] = useState<ProjectionLine | null>(null);
-  const [selectedDrawerCustId, setSelectedDrawerCustId] = useState<string | null>(null);
 
-  // Quick action modal states
-  const [showAddLead, setShowAddLead] = useState(false);
-  const [showAddCustomer, setShowAddCustomer] = useState(false);
-  const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [showTargets, setShowTargets] = useState(false);
   const [showFollowUps, setShowFollowUps] = useState(false);
   // Presentation only — the API enforces the same key on PUT /targets.
@@ -86,7 +60,6 @@ export default function DashboardPage() {
 
   // ONE request for the whole page scoped by period and topbar salesperson filter.
   const dashQuery = useDashboard(range, { ownerId, enabled });
-  const updateProjection = useUpdateProjection();
 
   const kpis = dashQuery.data?.kpis;
   const recurringCommitted = kpis?.recurringCommitted ?? 0;
@@ -113,63 +86,29 @@ export default function DashboardPage() {
     achieved: r.achieved,
   }));
   const oralDeals = dashQuery.data?.oralConfirmationDeals ?? [];
-  const topOpenProjections = dashQuery.data?.topOpenProjections ?? [];
   const principalStats = dashQuery.data?.byPrincipal ?? [];
-  // The aggregate already names every salesperson in scope, so the quick-add
-  // modal gets its options without a second request.
-  const salespeopleOptions = (dashQuery.data?.bySalesperson ?? []).map((r: DashboardBreakdown) => ({
-    id: r.id,
-    name: r.name,
-  }));
   const categoryStats = dashQuery.data?.byCategory ?? [];
 
   return (
     <div className="space-y-5">
-      {/* Enterprise Executive Banner with Quick Actions */}
-      <div className="rounded-2xl border border-line bg-gradient-to-r from-surface via-surface to-brand-soft/30 p-5 shadow-xs flex items-center justify-between gap-4 flex-wrap">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="grid h-6 w-6 place-items-center rounded-lg bg-brand text-white shadow-2xs">
-              <TrendingUp className="h-3.5 w-3.5" />
-            </span>
-            <span className="text-xs font-extrabold uppercase tracking-wider text-brand-ink">
-              Commercial Sales Pulse · {windowLabel}
-            </span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-black text-ink tracking-tight font-sans">
-            Revenue Performance & Pipeline Tracker
-          </h1>
-          <p className="text-xs text-muted">
-            Track commitments, actual realizations, hot deals, and overdue credit collections in real time.
-          </p>
-        </div>
+      {/*
+        No banner, and no quick actions either.
 
-        {/* Management gets no create buttons — it reads the workspace rather
-            than adding to it — but targets are precisely management's job, so
-            that button sits outside the block that hides the rest. */}
-        {(role !== "mgmt" || canManageTargets) && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {role !== "mgmt" && (
-              <>
-                <Button size="sm" onClick={() => setShowAddLead(true)}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> New Sales Lead
-                </Button>
-                <Button size="sm" variant="secondary" onClick={() => setShowAddCustomer(true)}>
-                  <Building2 className="h-3.5 w-3.5 mr-1" /> Add Customer
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowCreateOrder(true)}>
-                  <ShoppingCart className="h-3.5 w-3.5 mr-1" /> Create Order
-                </Button>
-              </>
-            )}
-            {canManageTargets && (
-              <Button size="sm" variant="outline" onClick={() => setShowTargets(true)}>
-                <Target className="h-3.5 w-3.5 mr-1" /> Targets
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
+        The banner went first — an eyebrow, a headline and a line of copy, all
+        telling somebody who had just clicked "Dashboard" what page they were
+        on, for the top sixth of the screen. The buttons that had sat beside it
+        followed: New Sales Lead, Add Customer and Create Order each open a
+        modal that the Leads, Customers and Sales Orders pages already open,
+        from a button on the page that owns the record. A second door to the
+        same room, on a page about neither.
+
+        Targets had no other door, so it did not simply go: it moved into the
+        Total achieved tile, which is the number a target is about. See below —
+        the affordance there now covers a target that exists as well as one
+        that does not, which the "Set a target" link alone did not.
+
+        What is left is the figures, which is what anyone opens this page for.
+      */}
 
       <QueryBoundary
         isLoading={dashQuery.isLoading}
@@ -237,13 +176,17 @@ export default function DashboardPage() {
                       ? `${totalPct.toFixed(1)}% of committed`
                       : "—"}
               </div>
-              {!dashQuery.isLoading && target == null && canManageTargets && (
+              {/* The only way into the targets editor now that the button
+                  bar is gone, so it has to answer for BOTH states: a link that
+                  appeared only when no target was set would have left a target
+                  that exists impossible to change or clear. */}
+              {!dashQuery.isLoading && canManageTargets && (
                 <button
                   type="button"
                   onClick={() => setShowTargets(true)}
                   className="mt-1 text-3xs font-bold uppercase tracking-wider text-brand-ink/70 hover:text-brand-ink cursor-pointer"
                 >
-                  Set a target
+                  {target == null ? "Set a target" : "Edit target"}
                 </button>
               )}
             </div>
@@ -352,13 +295,6 @@ export default function DashboardPage() {
                 </QueryBoundary>
               </Card>
 
-              {/* 2. Top open projections */}
-              <TopOpenProjectionsCard
-                rows={topOpenProjections}
-                windowLabel={windowLabel}
-                onCustomer={(id) => setSelectedDrawerCustId(id)}
-                onLogFollowUp={(p) => setSelectedFuProj(p)}
-              />
             </div>
           ) : (
             /* Admin & Management Dashboard Views */
@@ -377,18 +313,6 @@ export default function DashboardPage() {
                   </div>
                 </QueryBoundary>
               </Card>
-
-              {/* 2. Top open projections — the aggregate has always carried
-                  these for every role; only the sales branch rendered them, so
-                  an administrator was sent ten lines a page it never drew.
-                  Management reads the workspace rather than writing to it, so
-                  it gets the table and not the follow-up action. */}
-              <TopOpenProjectionsCard
-                rows={topOpenProjections}
-                windowLabel={windowLabel}
-                onCustomer={(id) => setSelectedDrawerCustId(id)}
-                onLogFollowUp={role === "mgmt" ? undefined : (p) => setSelectedFuProj(p)}
-              />
 
               {/* 3. Deals at Oral Confirmation */}
               <Card className="p-0 overflow-hidden shadow-xs border-line">
@@ -528,55 +452,14 @@ export default function DashboardPage() {
         />
       )}
 
-      {selectedFuProj && (
-        <ProjectionFollowUpModal
-          open={!!selectedFuProj}
-          onClose={() => setSelectedFuProj(null)}
-          title={`${selectedFuProj.customerName} · ${selectedFuProj.productName}`}
-          subtitle={`${selectedFuProj.principalName} · Proj ${selectedFuProj.committedQty || 0} units @ ₹${selectedFuProj.price || 0} = ${inr(selectedFuProj.projValue || 0)} · Achieved ${selectedFuProj.achievedQty || 0} · Status: ${PROJ_STATUS_LABELS[selectedFuProj.status] ?? selectedFuProj.status}`}
-          currentDate={selectedFuProj.nextFollowUp}
-          currentProb={selectedFuProj.probability ?? undefined}
-          currentStatus={PROJ_STATUS_LABELS[selectedFuProj.status] ?? selectedFuProj.status}
-          projectionId={selectedFuProj.id}
-          onSave={(nextDate, _note, prob, nextStatusLabel) => {
-            const rawStatus = projStatusFromLabel(nextStatusLabel);
-            updateProjection.mutate(
-              {
-                id: selectedFuProj.id,
-                patch: {
-                  nextFollowUp: nextDate,
-                  probability: prob ?? null,
-                  ...(rawStatus ? { status: rawStatus } : {}),
-                },
-              },
-              {
-                onSuccess: () => toast.success("Follow-up updated successfully"),
-                onError: () => toast.error("Failed to update follow-up"),
-              },
-            );
-          }}
-        />
-      )}
-
-      <CustomerDrawer
-        customerId={selectedDrawerCustId}
-        onClose={() => setSelectedDrawerCustId(null)}
-      />
-
-      <AddLeadModal
-        open={showAddLead}
-        onClose={() => setShowAddLead(false)}
-        salespeople={salespeopleOptions}
-        // No industries: this page no longer loads leads, and there is still
-        // no industries endpoint to ask (checklists/03-API.md C.3.12). The
-        // modal already handles an empty list ("No industries yet"), and
-        // refetching every lead to fill one dropdown is what this slice
-        // removed. The Leads page, which does load leads, still offers them.
-        industries={[]}
-      />
-      <AddCustomerModal open={showAddCustomer} onClose={() => setShowAddCustomer(false)} />
-      <CreateSalesOrderModal open={showCreateOrder} onClose={() => setShowCreateOrder(false)} />
-
+      {/*
+        The follow-up modal and the customer drawer went with the Top open
+        projections table: its rows were the only thing that ever opened
+        either, so both were left permanently shut. Dead state that reads as
+        live is worse than no state — the next person to touch this page would
+        have spent an afternoon working out why a drawer wired to a `null` that
+        nothing assigns never appears.
+      */}
       {showTargets && (
         <SetTargetsModal
           open

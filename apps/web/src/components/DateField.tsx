@@ -1,78 +1,43 @@
-import { useId, useState } from "react";
+import { useRef, useState } from "react";
 import { Select } from "@/components/ui";
+import {
+  CalendarActions,
+  CalendarDayView,
+  CalendarPopover,
+  CalendarTrigger,
+  dateLabel,
+  isIsoDate,
+  pad,
+  today,
+} from "@/components/Calendar";
 import { cn } from "@/lib/utils";
 
 /**
- * A date, entered as three dropdowns: day, month, year.
+ * A date, picked from a calendar.
  *
- * This replaces `<input type="date">` everywhere in the console, for two
- * reasons.
+ * This replaces `<input type="date">` everywhere in the console, and before
+ * that replaced the three dropdowns — day, month, year — that themselves
+ * replaced it.
  *
- * The one that is a correctness problem: a native date input renders in the
+ * The reason the native input had to go has not changed: it renders in the
  * BROWSER's locale, so the same field reads `09/08/2026` to one user and
  * `08/09/2026` to another and neither can tell which half is the month. This
  * product is used in India, where dates are written day-first, on a browser
- * that is very often set to en-US, where they are not. A month named `Sep`
- * cannot be misread as a day.
+ * that is very often set to en-US, where they are not. And the native control
+ * looks like a different feature in every browser — Chrome's spinner, Safari's
+ * wheel, Firefox's own panel — none of them matching anything else on the page.
  *
- * The other is that the native control looks like a different feature in every
- * browser — Chrome's spinner, Safari's wheel, Firefox's own panel — and none of
- * them match anything else on the page.
+ * The dropdowns fixed the ambiguity and cost something for it: three decisions
+ * and up to forty options for one date, and no way to see that the 15th is a
+ * Saturday. A calendar is one decision and answers that by being looked at.
  *
- * The contract is deliberately the same as the input it replaces: `value` and
- * the string handed to `onChange` are both `YYYY-MM-DD`, or `""` for no date.
- * Nothing upstream had to learn a new shape.
+ * The ambiguity guarantee survives because it moved to the CLOSED field, which
+ * always reads `09 Sep 2026` — month in words, nothing to misread.
+ *
+ * The contract is deliberately unchanged, again: `value` and the string handed
+ * to `onChange` are both `YYYY-MM-DD`, or `""` for no date. Nothing upstream
+ * had to learn a new shape either time.
  */
-
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-] as const;
-
-/**
- * How many days a month has, February included.
- *
- * `new Date(Date.UTC(y, m, 0))` is day zero of the NEXT month, which is the
- * last day of this one — so leap years are the calendar's problem rather than a
- * rule written here that is wrong every hundredth year.
- */
-function daysInMonth(year: number, month1to12: number): number {
-  return new Date(Date.UTC(year, month1to12, 0)).getUTCDate();
-}
-
-/** One date, as far as it has been filled in. */
-interface Parts {
-  y: number | null;
-  m: number | null;
-  d: number | null;
-}
-
-/** `"2026-09-10"` → `{ y: 2026, m: 9, d: 10 }`. Anything else → all null. */
-function parse(value: string): Parts {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? "");
-  if (!match) return { y: null, m: null, d: null };
-  return { y: +match[1], m: +match[2], d: +match[3] };
-}
-
-const pad = (n: number) => String(n).padStart(2, "0");
-
-/** The inverse of {@link parse}. A part-filled date has no value, so: `""`. */
-function format({ y, m, d }: Parts): string {
-  if (y == null || m == null || d == null) return "";
-  return `${y}-${pad(m)}-${pad(d)}`;
-}
-
-/**
- * How far the year dropdown reaches either side of today.
- *
- * Computed from the clock on every render, never a written-down list: a
- * hardcoded range runs out, and the field it is attached to then cannot record
- * next year at all. Five each way covers an old invoice and a forward
- * commitment; a date outside it is still selectable if the record already
- * carries one, because the year it holds is always added to the options.
- */
-const YEAR_SPAN = 5;
-
 export function DateField({
   id,
   label,
@@ -81,177 +46,88 @@ export function DateField({
   disabled,
   required,
   className,
+  placeholder = "Select date",
 }: {
-  /** Goes on the DAY select, so an existing `<label htmlFor>` still lands. */
+  /** Goes on the trigger, so an existing `<label htmlFor>` still lands. */
   id?: string;
   /**
    * What this date is, for assistive tech — "Due date", "Invoice date". The
-   * three selects announce as "Due date, Month" rather than a bare "Month",
-   * which on a form with two dates is the difference between usable and not.
+   * trigger announces as "Due date: 09 Sep 2026", which on a form with two
+   * dates is the difference between usable and not.
    */
   label: string;
   /** `YYYY-MM-DD`, or `""` for no date. */
   value: string;
-  /** Called with `YYYY-MM-DD`, or `""` while the date is incomplete. */
+  /** Called with `YYYY-MM-DD`, or `""` when the date is cleared. */
   onChange: (value: string) => void;
   disabled?: boolean;
   required?: boolean;
   className?: string;
+  placeholder?: string;
 }) {
-  const fallbackId = useId();
-  const dayId = id ?? `${fallbackId}-day`;
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
-  /**
-   * The three selections, held HERE rather than derived from `value`.
-   *
-   * A partly-filled date has no `YYYY-MM-DD` to be, so `value` is `""` until
-   * all three are chosen. Deriving the selects from it therefore emptied the
-   * whole control the moment any one of them was cleared: clear the day to
-   * change it and the month and year you had already picked vanished with it.
-   */
-  const [draft, setDraft] = useState<Parts>(() => parse(value));
-
-  /**
-   * Re-sync when `value` changes from OUTSIDE — a form reset, or a different
-   * record loaded into the same modal.
-   *
-   * The comparison is against the draft's own idea of the date, not against
-   * `""`. `value` goes empty every time this control is mid-edit, and treating
-   * that as an external change would wipe the draft on the first keystroke —
-   * the bug this state exists to fix, reintroduced through the back door.
-   */
-  const [seenValue, setSeenValue] = useState(value);
-  if (value !== seenValue) {
-    setSeenValue(value);
-    if (value !== format(draft)) setDraft(parse(value));
-  }
-
-  const { y, m, d } = draft;
-  const thisYear = new Date().getFullYear();
-
-  const years: number[] = [];
-  for (let i = thisYear + YEAR_SPAN; i >= thisYear - YEAR_SPAN; i--) years.push(i);
-  // A record from outside the window keeps its own year rather than silently
-  // reading as blank and being saved back as something else.
-  if (y != null && !years.includes(y)) {
-    years.push(y);
-    years.sort((a, b) => b - a);
-  }
-
-  // Until the month is known, offer 31 — otherwise picking the day first would
-  // be impossible for the 29th, 30th and 31st, and people fill these left to
-  // right.
-  const dayCount = y != null && m != null ? daysInMonth(y, m) : 31;
-
-  /**
-   * Record one selection, and report the date if it is now complete.
-   *
-   * `""` while incomplete is exactly what the input this replaced reported, so
-   * a form that treats empty as "not set" keeps working without knowing
-   * anything changed.
-   *
-   * The day is clamped rather than cleared when a shorter month is chosen: 31
-   * January then February means the end of February, which is what the person
-   * meant, and clearing it would quietly discard a choice they had made.
-   */
-  const update = (next: Partial<Parts>) => {
-    const merged: Parts = { ...draft, ...next };
-    if (merged.y != null && merged.m != null && merged.d != null) {
-      merged.d = Math.min(merged.d, daysInMonth(merged.y, merged.m));
-    }
-    setDraft(merged);
-    const formatted = format(merged);
-    setSeenValue(formatted);
-    onChange(formatted);
+  const close = () => {
+    setOpen(false);
+    // Back to the field, not to the top of the document — the panel that had
+    // focus is about to stop existing.
+    triggerRef.current?.focus();
   };
 
-  const asNumber = (raw: string) => (raw === "" ? null : Number(raw));
+  const commit = (next: string) => {
+    onChange(next);
+    close();
+  };
 
   return (
-    <div
-      role="group"
-      aria-label={label}
-      /**
-       * Wraps rather than crushes.
-       *
-       * Several of these sit in a two-column grid inside a modal, which leaves
-       * about 195px — less than three selects need. Without `flex-wrap` the
-       * month, as the only flexible one, collapsed to its chevron and the field
-       * read "24 | ‹› | 2026": the one part a date is genuinely ambiguous
-       * without was the part that disappeared. Each select carries a min-width
-       * so a tight column pushes the year onto a second line instead.
-       */
-      className={cn("flex flex-wrap items-center gap-1.5", className)}
-    >
-      <Select
-        id={dayId}
-        aria-label={`${label} — day`}
-        className="w-[4.25rem] shrink-0"
-        selectClassName="pl-2.5 pr-7"
+    <div className={cn("w-fit max-w-full", className)}>
+      <CalendarTrigger
+        id={id}
+        buttonRef={triggerRef}
+        open={open}
+        onToggle={() => setOpen((v) => !v)}
+        text={dateLabel(value)}
+        placeholder={placeholder}
+        ariaLabel={label}
         disabled={disabled}
         required={required}
-        value={d ?? ""}
-        onChange={(e) => update({ d: asNumber(e.target.value) })}
+      />
+      <CalendarPopover
+        open={open}
+        onClose={close}
+        anchorRef={triggerRef}
+        label={`Choose ${label.toLowerCase()}`}
       >
-        <option value="">Day</option>
-        {Array.from({ length: dayCount }, (_, i) => i + 1).map((n) => (
-          <option key={n} value={n}>
-            {n}
-          </option>
-        ))}
-      </Select>
-
-      <Select
-        aria-label={`${label} — month`}
-        // Grows to fill a narrow column and stops there. Left to `flex-1` on a
-        // full-width row it stretched to 290px around the word "Sep", which
-        // reads as a layout accident rather than a field.
-        className="min-w-[4.75rem] max-w-[8rem] flex-1"
-        selectClassName="pl-2.5 pr-7"
-        disabled={disabled}
-        required={required}
-        value={m ?? ""}
-        onChange={(e) => update({ m: asNumber(e.target.value) })}
-      >
-        <option value="">Month</option>
-        {MONTHS.map((name, i) => (
-          <option key={name} value={i + 1}>
-            {name}
-          </option>
-        ))}
-      </Select>
-
-      <Select
-        aria-label={`${label} — year`}
-        className="w-[5rem] shrink-0"
-        selectClassName="pl-2.5 pr-7"
-        disabled={disabled}
-        required={required}
-        value={y ?? ""}
-        onChange={(e) => update({ y: asNumber(e.target.value) })}
-      >
-        <option value="">Year</option>
-        {years.map((year) => (
-          <option key={year} value={year}>
-            {year}
-          </option>
-        ))}
-      </Select>
+        <CalendarDayView
+          selected={isIsoDate(value) ? value : ""}
+          onPick={commit}
+          footer={
+            <CalendarActions
+              // Clearing was free with the dropdowns — you picked the blank
+              // option. A calendar has no blank cell, so an optional date needs
+              // somewhere to say "no date" or it can never be un-set again.
+              onClear={value && !required ? () => commit("") : undefined}
+              onToday={() => commit(today())}
+            />
+          }
+        />
+      </CalendarPopover>
     </div>
   );
 }
 
 /**
- * A date AND a time, as four dropdowns.
+ * A date AND a time: a calendar, plus a half-hour time list.
  *
  * `<input type="datetime-local">` carries every problem the date input does and
  * adds its own: a 12-hour browser shows AM/PM and a 24-hour one does not, so
  * "delivery by 07:30" is genuinely ambiguous between two users looking at the
  * same order.
  *
- * The time is a fixed half-hour list rather than free entry, because this field
- * records a delivery commitment. Nobody promises 14:07, and the half hours are
- * two clicks instead of four keystrokes.
+ * The time stays a fixed half-hour list rather than a calendar or free entry,
+ * because this field records a delivery commitment. Nobody promises 14:07, and
+ * the half hours are two clicks instead of four keystrokes.
  *
  * Contract, again, matches the input it replaces: `YYYY-MM-DDTHH:mm`, or `""`.
  */
@@ -288,7 +164,7 @@ export function DateTimeField({
   className?: string;
 }) {
   /**
-   * The two halves, held here for the same reason DateField holds its three.
+   * The two halves, held here rather than derived from `value`.
    *
    * A date with no time is not a moment, so `value` is `""` until both are
    * set — and reading the halves back OUT of `value` therefore made the field
@@ -330,7 +206,6 @@ export function DateTimeField({
           setDatePart(next);
           emit(next, timePart);
         }}
-        className="flex-1 min-w-[15rem]"
       />
       <Select
         aria-label={`${label} — time`}

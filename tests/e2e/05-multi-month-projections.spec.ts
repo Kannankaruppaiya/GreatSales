@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { TENANT, URLS, SEEDED_CREDENTIALS } from "./fixtures/test-data";
+import { monthPicker, monthTriggerText, pickMonth } from "./helpers/month-picker";
 
 test.describe("Multi-Month Projections & Analytics Verification", () => {
   test.beforeEach(async ({ page }) => {
@@ -18,9 +19,11 @@ test.describe("Multi-Month Projections & Analytics Verification", () => {
     await page.goto(URLS.projections);
     await page.waitForLoadState("networkidle");
 
-    // Month filter defaults to or is set to Sep 2026
-    const monthSelect = page.locator("select").first();
-    await expect(monthSelect).toBeVisible();
+    // The month control, named. `locator("select").first()` meant "whichever
+    // dropdown happens to be first in the DOM", which stopped being the month
+    // the day the page grew a second one — and stopped being a `select` at all
+    // when the month control became a calendar.
+    await expect(monthPicker(page, "Worksheet month")).toBeVisible();
 
     // Verify projection rows exist
     const rows = page.locator("table tbody tr");
@@ -55,14 +58,15 @@ test.describe("Multi-Month Projections & Analytics Verification", () => {
       };
     });
 
-    const monthSelect = page.locator("select").first();
-
     for (const m of testMonths) {
-      await monthSelect.selectOption({ label: m.label });
+      await pickMonth(page, m.value, "Worksheet month");
       await page.waitForLoadState("networkidle");
 
-      // Verify selected value in dropdown
-      await expect(monthSelect).toHaveValue(m.value);
+      // The closed control reads the month back in words — which is the whole
+      // point of it, and the only place the selection is visible now.
+      await expect(monthPicker(page, "Worksheet month")).toHaveText(
+        new RegExp(monthTriggerText(m.value)),
+      );
 
       // Verify table rows load for selected period
       const firstRow = page.locator("table tbody tr").first();
@@ -112,9 +116,13 @@ test.describe("Multi-Month Projections & Analytics Verification", () => {
     await page.goto(URLS.projections);
     await page.waitForLoadState("networkidle");
 
-    // Select Sep 2026
-    const monthSelect = page.locator("select").first();
-    await monthSelect.selectOption({ label: "Sep 2026" });
+    // The current month, which is what the seed fills.
+    const now = new Date();
+    await pickMonth(
+      page,
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+      "Worksheet month",
+    );
     await page.waitForLoadState("networkidle");
 
     // Locate first Achieved Quantity numeric input

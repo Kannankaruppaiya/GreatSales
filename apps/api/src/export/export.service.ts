@@ -165,7 +165,13 @@ export class ExportService {
         { header: 'Received', value: (r) => r.received },
         { header: 'Pending', value: (r) => r.pending },
         { header: 'Due date', value: (r) => r.dueDate },
+        // Two columns, because they are two numbers. Aging is the age of the
+        // invoice; overdue is how far past the date this customer's credit
+        // terms give it. One column used to carry the second under the first's
+        // name, which is how a spreadsheet of receivables came out 30 days
+        // short of what the invoice dates said.
         { header: 'Aging (days)', value: (r) => r.agingDays },
+        { header: 'Overdue (days)', value: (r) => r.overdueDays },
         { header: 'Pay zone', value: (r) => r.payZone },
         { header: 'Status', value: (r) => r.status },
         { header: 'Delay reason', value: (r) => r.delayReason },

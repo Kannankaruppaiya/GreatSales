@@ -1,35 +1,39 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DateField, DateTimeField } from "@/components/DateField";
 
 /**
- * The day / month / year control that replaced `<input type="date">`.
+ * The calendar that replaced `<input type="date">` — and, before this, the
+ * three dropdowns that had replaced it first.
  *
- * Three behaviours here look obviously right in the source and are the ones
- * that break silently.
+ * Two things have to survive the move from dropdowns to a grid, and both look
+ * obviously fine in the source while breaking silently.
  *
- * A part-filled date has no `YYYY-MM-DD`, so `value` is `""` until all three
- * are chosen — which means the selects CANNOT be derived from `value`, or
- * clearing any one of them empties the whole control. That is not a
- * hypothetical: the first version did exactly that, and clearing the day to
- * change it threw away the month and year the user had already picked.
+ * The AMBIGUITY guarantee, which is why the native input was dropped in the
+ * first place: this product is used in India, day-first, on browsers very often
+ * set to en-US, month-first. A closed date field therefore has to spell the
+ * month in words. `09 Mar 2026` cannot be read as the 3rd of September; any
+ * arrangement of digits can.
  *
- * The day list has to follow the month, including February in a leap year, and
- * a day already chosen has to survive a move to a shorter month rather than
- * disappearing.
+ * And the CONTRACT, `YYYY-MM-DD` in and out, because eight forms were changed
+ * to use this control and none of them were taught a new shape either time it
+ * was rebuilt.
  *
- * And the contract has to stay `YYYY-MM-DD`, because eight forms were changed
- * to use this and none of them were taught a new shape.
+ * The rest is the things a grid has that a dropdown did not have to think
+ * about: clearing an optional date now that there is no blank option, reaching
+ * a year that is nowhere near this one, and moving without a mouse.
  */
 
 /** A controlled host, so the tests exercise the real value round-trip. */
 function Host({
   initial = "",
+  required,
   onValue,
 }: {
   initial?: string;
+  required?: boolean;
   onValue?: (v: string) => void;
 }) {
   const [value, setValue] = useState(initial);
@@ -38,6 +42,7 @@ function Host({
       <DateField
         id="test-date"
         label="Due date"
+        required={required}
         value={value}
         onChange={(v) => {
           setValue(v);
@@ -49,118 +54,176 @@ function Host({
   );
 }
 
-const day = () => screen.getByLabelText("Due date — day");
-const month = () => screen.getByLabelText("Due date — month");
-const year = () => screen.getByLabelText("Due date — year");
+const trigger = () => screen.getByRole("button", { name: /^Due date/ });
 const value = () => screen.getByTestId("value").textContent;
-
-/** Option labels, minus the "Day"/"Month"/"Year" placeholder. */
-const optionsOf = (el: HTMLElement) =>
-  [...(el as HTMLSelectElement).options].slice(1).map((o) => o.value);
+const calendar = () => screen.getByRole("dialog", { name: "Choose due date" });
+const openCalendar = async (user: ReturnType<typeof userEvent.setup>) => {
+  await user.click(trigger());
+  return calendar();
+};
 
 describe("DateField", () => {
-  it("shows an existing date across the three dropdowns", () => {
+  it("shows an existing date with the month in words", () => {
     render(<Host initial="2026-03-09" />);
-    expect((day() as HTMLSelectElement).value).toBe("9");
-    expect((month() as HTMLSelectElement).value).toBe("3");
-    expect((year() as HTMLSelectElement).value).toBe("2026");
+    // Not 09/03 or 03/09. The whole reason the native input was dropped is
+    // that those two read as different days to different users.
+    expect(trigger()).toHaveTextContent("09 Mar 2026");
   });
 
-  it("reports nothing until all three are chosen, then the ISO date", async () => {
+  it("prompts when there is no date", () => {
+    render(<Host />);
+    expect(trigger()).toHaveTextContent("Select date");
+    expect(value()).toBe("");
+  });
+
+  it("reports the ISO date when a day is picked, and closes", async () => {
     const user = userEvent.setup();
     const onValue = vi.fn();
-    render(<Host onValue={onValue} />);
+    render(<Host initial="2026-06-01" onValue={onValue} />);
 
-    await user.selectOptions(day(), "15");
-    expect(value()).toBe("");
-    await user.selectOptions(month(), "6");
-    expect(value()).toBe("");
+    const panel = await openCalendar(user);
+    await user.click(panel.querySelector('[data-day="2026-06-15"]')!);
 
-    await user.selectOptions(year(), "2026");
-    // The same shape `<input type="date">` produced, so the eight forms that
-    // now use this did not have to learn anything new.
+    // The same shape `<input type="date">` produced, so the forms that use
+    // this did not have to learn anything new.
     expect(value()).toBe("2026-06-15");
+    expect(onValue).toHaveBeenCalledWith("2026-06-15");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger()).toHaveTextContent("15 Jun 2026");
   });
 
-  it("keeps the month and year when the day is cleared", async () => {
+  it("opens on the month the date is in, not on today", async () => {
+    const user = userEvent.setup();
+    render(<Host initial="2024-02-10" />);
+    const panel = await openCalendar(user);
+    expect(panel).toHaveTextContent("Feb 2024");
+  });
+
+  it("pages months without changing the value until a day is clicked", async () => {
     const user = userEvent.setup();
     render(<Host initial="2026-06-15" />);
 
-    await user.selectOptions(day(), "");
+    const panel = await openCalendar(user);
+    await user.click(screen.getByRole("button", { name: "Next month" }));
 
-    // The date is incomplete so there is no value — but the two selections the
-    // user did not touch are still on screen. Deriving the selects from `value`
-    // wiped both, and the user had to pick all three again to change one.
+    expect(panel).toHaveTextContent("Jul 2026");
+    // Looking at July is not choosing July.
+    expect(value()).toBe("2026-06-15");
+  });
+
+  it("shows February's real length, leap year included", async () => {
+    const user = userEvent.setup();
+    render(<Host initial="2024-02-01" />);
+    const panel = await openCalendar(user);
+
+    expect(panel.querySelector('[data-day="2024-02-29"]')).toBeTruthy();
+    expect(panel.querySelector('[data-day="2024-02-30"]')).toBeNull();
+  });
+
+  it("reaches a distant year through the header, not a list", async () => {
+    const user = userEvent.setup();
+    render(<Host initial="2026-06-15" />);
+    await openCalendar(user);
+
+    // A dropdown had to guess how far either way anyone would ever go, and
+    // then could not reach past its own guess. Two clicks up the header
+    // instead: days → months → years.
+    await user.click(screen.getByRole("button", { name: /choose a month/ }));
+    await user.click(screen.getByRole("button", { name: /choose a year/ }));
+    await user.click(screen.getByRole("button", { name: "Previous years" }));
+    await user.click(screen.getByRole("button", { name: "2013" }));
+    await user.click(screen.getByRole("button", { name: "March 2013" }));
+    await user.click(calendar().querySelector('[data-day="2013-03-04"]')!);
+
+    expect(value()).toBe("2013-03-04");
+  });
+
+  it("clears an optional date, which a grid has no blank cell for", async () => {
+    const user = userEvent.setup();
+    render(<Host initial="2026-06-15" />);
+
+    await openCalendar(user);
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+
     expect(value()).toBe("");
-    expect((month() as HTMLSelectElement).value).toBe("6");
-    expect((year() as HTMLSelectElement).value).toBe("2026");
+    expect(trigger()).toHaveTextContent("Select date");
   });
 
-  it("offers the right number of days for the month, leap year included", async () => {
+  it("offers no Clear on a required date", async () => {
     const user = userEvent.setup();
-    render(<Host initial="2024-01-31" />);
-    expect(optionsOf(day())).toHaveLength(31);
+    render(<Host initial="2026-06-15" required />);
 
-    await user.selectOptions(month(), "2"); // February 2024 — a leap year
-    expect(optionsOf(day())).toHaveLength(29);
-
-    await user.selectOptions(month(), "4"); // April
-    expect(optionsOf(day())).toHaveLength(30);
+    await openCalendar(user);
+    expect(screen.queryByRole("button", { name: "Clear" })).not.toBeInTheDocument();
   });
 
-  it("clamps a day the new month does not have, rather than clearing it", async () => {
+  it("jumps to today from wherever it has wandered to", async () => {
     const user = userEvent.setup();
-    render(<Host initial="2024-01-31" />);
+    render(<Host initial="2019-01-01" />);
 
-    await user.selectOptions(month(), "2");
-    // The 31st of January meant the end of the month; the end of February is
-    // the honest reading. Clearing it would silently discard a real choice.
-    expect(value()).toBe("2024-02-29");
+    await openCalendar(user);
+    await user.click(screen.getByRole("button", { name: "Today" }));
 
-    await user.selectOptions(year(), "2025"); // no longer a leap year
-    expect(value()).toBe("2025-02-28");
+    const now = new Date();
+    const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+      now.getDate(),
+    ).padStart(2, "0")}`;
+    expect(value()).toBe(iso);
   });
 
-  it("offers 31 days before a month is known", () => {
-    // People fill these left to right, so the 29th, 30th and 31st have to be
-    // reachable before the month narrows the list.
-    render(<Host />);
-    expect(optionsOf(day())).toHaveLength(31);
+  it("moves by arrow key, including off the edge of the month", async () => {
+    const user = userEvent.setup();
+    render(<Host initial="2026-06-30" />);
+
+    const panel = await openCalendar(user);
+    // The grid is 42 buttons; without roving focus the only way through it is
+    // 42 presses of Tab.
+    (panel.querySelector('[data-day="2026-06-30"]') as HTMLElement).focus();
+    await user.keyboard("{ArrowRight}");
+    expect(calendar()).toHaveTextContent("Jul 2026");
+    await user.keyboard("{Enter}");
+
+    expect(value()).toBe("2026-07-01");
   });
 
-  it("keeps a stored year that falls outside the selectable window", () => {
-    // An invoice from long ago must not read as blank and be saved back as
-    // something else the next time somebody edits the record.
-    render(<Host initial="1999-05-04" />);
-    expect((year() as HTMLSelectElement).value).toBe("1999");
-    expect(optionsOf(year())).toContain("1999");
+  it("closes on Escape without choosing anything", async () => {
+    const user = userEvent.setup();
+    render(<Host initial="2026-06-15" />);
+
+    await openCalendar(user);
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(value()).toBe("2026-06-15");
   });
 
-  it("spans years either side of today, computed from the clock", () => {
-    render(<Host />);
-    const years = optionsOf(year()).map(Number);
-    const now = new Date().getFullYear();
-    // Not a written-down list: a hardcoded range runs out, and the field can
-    // then no longer record next year at all.
-    expect(years).toContain(now);
-    expect(years).toContain(now + 1);
-    expect(Math.max(...years)).toBeGreaterThan(now);
-    expect(Math.min(...years)).toBeLessThan(now);
-  });
-
-  it("takes a new date handed in from outside", () => {
+  it("takes a new date handed in from outside", async () => {
     // A different record loaded into the same modal has to replace what is on
-    // screen — the draft state must not outlive the record it belonged to.
+    // screen — nothing this control holds may outlive the record it belonged
+    // to.
     const { rerender } = render(
       <DateField label="Due date" value="2026-01-02" onChange={() => {}} />,
     );
-    expect((day() as HTMLSelectElement).value).toBe("2");
+    expect(trigger()).toHaveTextContent("02 Jan 2026");
 
-    rerender(
-      <DateField label="Due date" value="2026-07-21" onChange={() => {}} />,
-    );
-    expect((day() as HTMLSelectElement).value).toBe("21");
-    expect((month() as HTMLSelectElement).value).toBe("7");
+    rerender(<DateField label="Due date" value="2026-07-21" onChange={() => {}} />);
+    expect(trigger()).toHaveTextContent("21 Jul 2026");
+
+    const user = userEvent.setup();
+    const panel = await openCalendar(user);
+    expect(panel).toHaveTextContent("Jul 2026");
+  });
+
+  it("keeps a stored date far outside any sensible window", () => {
+    // An invoice from long ago must not read as blank and be saved back as
+    // something else the next time somebody edits the record.
+    render(<Host initial="1999-05-04" />);
+    expect(trigger()).toHaveTextContent("04 May 1999");
+  });
+
+  it("names the field it belongs to, so two dates on one form are tellable apart", () => {
+    render(<Host initial="2026-03-09" />);
+    expect(trigger()).toHaveAccessibleName("Due date: 09 Mar 2026");
   });
 });
 
@@ -175,13 +238,22 @@ describe("DateTimeField", () => {
     );
   }
 
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-08-01T09:00:00"));
+  });
+  afterEach(() => vi.useRealTimers());
+
   it("reports nothing until both halves are set, then the ISO datetime", async () => {
     const user = userEvent.setup();
     render(<TimeHost />);
 
-    await user.selectOptions(screen.getByLabelText("Expected delivery — day"), "4");
-    await user.selectOptions(screen.getByLabelText("Expected delivery — month"), "8");
-    await user.selectOptions(screen.getByLabelText("Expected delivery — year"), "2026");
+    await user.click(screen.getByRole("button", { name: /^Expected delivery/ }));
+    await user.click(
+      screen
+        .getByRole("dialog", { name: "Choose expected delivery" })
+        .querySelector('[data-day="2026-08-04"]')!,
+    );
     // A date with no time is not a moment, and the input this replaced said
     // the same thing by staying empty.
     expect(value()).toBe("");
@@ -193,8 +265,7 @@ describe("DateTimeField", () => {
   it("writes the time in words, so neither clock convention can be misread", () => {
     render(<TimeHost />);
     const times = [
-      ...(screen.getByLabelText("Expected delivery — time") as HTMLSelectElement)
-        .options,
+      ...(screen.getByLabelText("Expected delivery — time") as HTMLSelectElement).options,
     ].map((o) => o.text);
     expect(times).toContain("7:30 AM");
     expect(times).toContain("2:30 PM");

@@ -47,23 +47,36 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 }
 
 /**
- * Buckets an already server-computed `agingDays` value. This is pure client
- * grouping over a number the API supplied — it never recomputes the number
- * itself (see PaymentRow.agingDays in features/payments/types.ts).
+ * The aging ladder.
+ *
+ * It used to stop at "150+", which on this ledger meant a five-month-old
+ * invoice and a five-YEAR-old one shared a bucket — 141 invoices, every one of
+ * them in the last rung, which is a column that has stopped saying anything.
+ * Past six months the useful question changes from "how late" to "which
+ * financial year", so the tail is a half-year, a year, and beyond.
+ *
+ * Pure client grouping over a number the API supplied; it never recomputes the
+ * number itself (see PaymentRow.agingDays in features/payments/types.ts).
  */
+const AGING_BUCKETS = [
+  { label: "0-30", upTo: 30 },
+  { label: "31-60", upTo: 60 },
+  { label: "61-90", upTo: 90 },
+  { label: "91-180", upTo: 180 },
+  { label: "181-365", upTo: 365 },
+  { label: "365+", upTo: Infinity },
+] as const;
+
 function agingBucket(days: number | null): string {
   if (days == null) return "-";
-  if (days <= 30) return "0-30";
-  if (days <= 60) return "31-60";
-  if (days <= 90) return "61-90";
-  if (days <= 120) return "91-120";
-  if (days <= 150) return "121-150";
-  return "150+";
+  return (AGING_BUCKETS.find((b) => days <= b.upTo) ?? AGING_BUCKETS[AGING_BUCKETS.length - 1]).label;
 }
 
+/** Three tones over six buckets, and the thresholds are bucket edges — a badge
+ *  that changed colour mid-bucket made the two readings disagree. */
 function agingTone(days: number | null): string {
   if (days == null || days <= 60) return "bg-brand-soft text-brand-ink";
-  if (days <= 120) return "bg-amber-soft text-amber";
+  if (days <= 180) return "bg-amber-soft text-amber";
   return "bg-red-soft text-red";
 }
 
@@ -177,8 +190,11 @@ export default function PaymentsPage() {
   // recomputes those fields.
   const totalPending = rows.reduce((s, r) => s + r.pending, 0);
   const redTotal = rows.filter((r) => r.payZone === "RedZone").reduce((s, r) => s + r.pending, 0);
+  // Overdue, not old. An invoice can be 100 days old and perfectly current —
+  // a Credit45 customer has until day 45 — so this counts from the due date
+  // the customer's own terms give it, which is what `overdueDays` is.
   const over90Total = rows
-    .filter((r) => r.agingDays != null && r.agingDays > 90)
+    .filter((r) => r.overdueDays != null && r.overdueDays > 90)
     .reduce((s, r) => s + r.pending, 0);
   // The follow-ups on these invoices, counted from the same rows the Follow-ups
   // page lists and the dashboard tile counts.
@@ -195,7 +211,7 @@ export default function PaymentsPage() {
     (f) => f.dueDate <= todayStr,
   ).length;
 
-  const buckets = ["0-30", "31-60", "61-90", "91-120", "121-150", "150+"];
+  const buckets = AGING_BUCKETS.map((b) => b.label);
   const zoneList = [...PAY_ZONE_VALUES, "Unassigned"];
 
   const byZone: Record<string, { count: number; pending: number }> = {};
@@ -413,7 +429,15 @@ export default function PaymentsPage() {
                       <th className="py-2.5 px-3">Ref no.</th>
                       <th className="py-2.5 px-3">Date</th>
                       <th className="py-2.5 px-3 min-w-[250px]">Party</th>
-                      <th className="py-2.5 px-3 text-right">Aging</th>
+                      {/* Named on the column, because "aging" is exactly the
+                          word two people read two ways — and this one used to
+                          mean the other one. */}
+                      <th
+                        className="py-2.5 px-3 text-right"
+                        title="Days since the invoice date"
+                      >
+                        Aging
+                      </th>
                       <th className="py-2.5 px-3 text-right">Amount</th>
                       <th className="py-2.5 px-3 text-right font-bold text-ink">Pending</th>
                       <th className="py-2.5 px-3 text-right">Received</th>

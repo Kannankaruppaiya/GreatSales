@@ -2,7 +2,13 @@ import { inr, lakhs, pct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /* Lightweight, dependency-free SVG/CSS charts tuned for a data-dense
- * B2B dashboard. Committed = brand green, Achieved = amber accent. */
+ * B2B dashboard. Committed = brand green, Achieved = amber accent.
+ *
+ * Flat: a bar is a rectangle whose HEIGHT is the number, so a rounded cap
+ * shortens it by the radius and a vertical gradient makes the top read lighter
+ * than the bottom — two ways of drawing a value as something slightly other
+ * than what it is. The legend swatches were already flat and solid, so the
+ * bars now match the key that explains them. */
 
 export function CompareLegend() {
   return (
@@ -55,7 +61,7 @@ export function GroupedBars({
                 {/* Committed Bar Column */}
                 <div className="flex h-full flex-col justify-end items-center flex-1 max-w-[26px]">
                   <div
-                    className="w-full rounded-t-md bg-gradient-to-t from-emerald-700 to-emerald-500 shadow-xs group-hover:brightness-110 transition-all duration-300 relative cursor-pointer"
+                    className="w-full bg-emerald-600 group-hover:brightness-110 transition-all duration-300 relative cursor-pointer"
                     style={{ height: `${commHeightPct}%` }}
                     title={`Committed: ${inr(d.committed)}`}
                   />
@@ -64,7 +70,7 @@ export function GroupedBars({
                 {/* Achieved Bar Column */}
                 <div className="flex h-full flex-col justify-end items-center flex-1 max-w-[26px]">
                   <div
-                    className="w-full rounded-t-md bg-gradient-to-t from-amber-600 to-amber-400 shadow-xs group-hover:brightness-110 transition-all duration-300 relative cursor-pointer"
+                    className="w-full bg-amber group-hover:brightness-110 transition-all duration-300 relative cursor-pointer"
                     style={{ height: `${achHeightPct}%` }}
                     title={`Achieved: ${inr(d.achieved)}`}
                   />
