@@ -23,7 +23,12 @@
 import { randomBytes } from 'node:crypto';
 import { hash } from '@node-rs/argon2';
 import { PrismaClient } from '@prisma/client';
-import { PERMISSIONS, ROLE_PERMISSIONS } from '@greatsales/shared';
+import {
+  PASSWORD_FAILURE_MESSAGE,
+  PERMISSIONS,
+  ROLE_PERMISSIONS,
+  validatePassword,
+} from '@greatsales/shared';
 
 const prisma = new PrismaClient();
 
@@ -32,13 +37,18 @@ function arg(name: string): string | undefined {
   return i === -1 ? undefined : process.argv[i + 1];
 }
 
+function flag(name: string): boolean {
+  return process.argv.includes(`--${name}`);
+}
+
 function requireArg(name: string): string {
   const v = arg(name);
   if (!v) {
     console.error(`Missing --${name}`);
     console.error(
       'Usage: pnpm db:provision -- --tenant <slug> --name "<Company>" ' +
-        '--admin-email <email> [--admin-name "<Name>"] [--region <region>]',
+        '--admin-email <email> [--admin-name "<Name>"] [--region <region>] ' +
+        '[--admin-password <password>] [--allow-weak-password]',
     );
     process.exit(1);
   }
@@ -51,6 +61,8 @@ async function main(): Promise<void> {
   const adminEmail = requireArg('admin-email').toLowerCase();
   const adminName = arg('admin-name') ?? 'Administrator';
   const region = arg('region') ?? 'IN';
+  const chosenPassword = arg('admin-password');
+  const allowWeakPassword = flag('allow-weak-password');
 
   if (!/^[a-z0-9_]+$/.test(slug)) {
     throw new Error(
@@ -87,10 +99,42 @@ async function main(): Promise<void> {
     return found.id;
   };
 
-  // A generated password, shown once. Long enough that it does not matter if
-  // it is never changed by an admin who ignores the prompt — though the
-  // mustChangePassword guard means they cannot ignore it.
-  const password = randomBytes(12).toString('base64url');
+  // Two ways to set the first credential.
+  //
+  // By default it is generated and shown once, with mustChangePassword set, so
+  // it is a hand-over secret rather than a credential the operator keeps.
+  //
+  // --admin-password instead hands the tenant over with a credential its owner
+  // already knows, so no first-sign-in change is forced. It is checked against
+  // the same policy the API enforces; a password that fails is refused unless
+  // --allow-weak-password is passed, and that escape hatch is closed outside
+  // development so a production tenant can never be stood up on a weak secret.
+  if (chosenPassword) {
+    const verdict = validatePassword(chosenPassword, {
+      name: adminName,
+      email: adminEmail,
+      username: adminEmail,
+    });
+    if (!verdict.ok) {
+      const why = PASSWORD_FAILURE_MESSAGE[verdict.reason];
+      if (!allowWeakPassword) {
+        throw new Error(
+          `--admin-password fails the password policy: ${why} ` +
+            'Choose a compliant password, or pass --allow-weak-password ' +
+            '(development only).',
+        );
+      }
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+          '--allow-weak-password is refused when NODE_ENV=production. ' +
+            `The password fails the policy: ${why}`,
+        );
+      }
+      console.warn(`  ! Weak password accepted for development: ${why}`);
+    }
+  }
+
+  const password = chosenPassword ?? randomBytes(12).toString('base64url');
   const passwordHash = await hash(password, {
     memoryCost: 19456,
     timeCost: 2,
@@ -133,10 +177,12 @@ async function main(): Promise<void> {
         username: adminEmail,
         passwordHash,
         roleId: `role_admin_${key}`,
-        // The password below is known to whoever runs this script, so it is a
-        // shared secret until the admin replaces it. The guard enforces that
-        // at first sign-in rather than trusting them to remember.
-        mustChangePassword: true,
+        // A generated password is known to whoever ran this script, so it is a
+        // shared secret until the admin replaces it, and the guard enforces
+        // that at first sign-in rather than trusting them to remember. A
+        // password supplied with --admin-password was chosen by the owner
+        // already, so there is nothing to hand over and nothing to force.
+        mustChangePassword: chosenPassword === undefined,
       },
     });
   });
@@ -149,7 +195,11 @@ async function main(): Promise<void> {
   console.log(`  Admin email    ${adminEmail}`);
   console.log(`  Password       ${password}`);
   console.log('  ------------------------------------------------');
-  console.log('  Shown once. The admin must change it at first sign-in.');
+  console.log(
+    chosenPassword
+      ? '  Set from --admin-password. No first-sign-in change is forced.'
+      : '  Shown once. The admin must change it at first sign-in.',
+  );
   console.log('');
 }
 
