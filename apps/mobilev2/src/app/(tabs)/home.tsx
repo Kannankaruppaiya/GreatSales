@@ -16,11 +16,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Bell,
   CalendarDays,
+  ChevronRight,
   ClipboardList,
   MapPin,
   Phone,
+  Search,
   ShoppingCart,
   Target,
+  TrendingUp,
   UserPlus,
 } from "lucide-react-native";
 
@@ -86,6 +89,14 @@ export default function HomeScreen() {
       <View style={[styles.brandBar, { paddingTop: insets.top + space.sm }]}>
         <Wordmark />
         <View style={styles.brandActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Search"
+            onPress={() => router.push("/search")}
+            hitSlop={8}
+          >
+            <Search size={22} color={color.ink} strokeWidth={icon.strokeWidth} />
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={
@@ -169,6 +180,62 @@ export default function HomeScreen() {
             />
           </View>
         )}
+      </View>
+
+      {/*
+       * The two overviews behind Home — 02A Sales Progress and 02B Actions
+       * Need Attention. They carry no count of their own: each screen derives
+       * its figures from its own queries, and a number repeated here from a
+       * different query is how the same thing comes to have two values.
+       */}
+      <View style={styles.section}>
+        <View style={styles.drillList}>
+          <Card
+            onPress={() => router.push("/sales-progress")}
+            accessibilityLabel="Sales progress"
+            style={styles.drillCard}
+          >
+            <View style={styles.drillRow}>
+              <IconPlate size={38}>
+                <TrendingUp
+                  size={18}
+                  color={color.primaryDark}
+                  strokeWidth={2}
+                />
+              </IconPlate>
+              <View style={styles.drillText}>
+                <Text variant="cardTitle">Sales Progress</Text>
+                <Text variant="caption" tone="muted">
+                  Target, achievement and the gap this month
+                </Text>
+              </View>
+              <ChevronRight size={18} color={color.muted2} strokeWidth={2} />
+            </View>
+          </Card>
+
+          <Card
+            onPress={() => router.push("/actions")}
+            accessibilityLabel="Actions need attention"
+            style={styles.drillCard}
+          >
+            <View style={styles.drillRow}>
+              <IconPlate size={38}>
+                <ClipboardList
+                  size={18}
+                  color={color.primaryDark}
+                  strokeWidth={2}
+                />
+              </IconPlate>
+              <View style={styles.drillText}>
+                <Text variant="cardTitle">Actions Need Attention</Text>
+                <Text variant="caption" tone="muted">
+                  Overdue follow-ups, outstanding payments, open proposals
+                </Text>
+              </View>
+              <ChevronRight size={18} color={color.muted2} strokeWidth={2} />
+            </View>
+          </Card>
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -329,6 +396,10 @@ const styles = StyleSheet.create({
   kpiRow: { flexDirection: "row", gap: space.md },
   kpiPressable: { flex: 1 },
   kpiTile: { gap: 2, minHeight: 92, justifyContent: "center" },
+  drillList: { gap: space.md },
+  drillCard: { padding: space.lg, borderRadius: radius.listCard },
+  drillRow: { flexDirection: "row", alignItems: "center", gap: space.md },
+  drillText: { flex: 1, gap: 2 },
   actionRow: { flexDirection: "row", justifyContent: "space-between" },
   quickAction: { alignItems: "center", gap: space.sm, width: 70 },
   followUpList: { gap: space.md },

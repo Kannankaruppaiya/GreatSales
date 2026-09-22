@@ -32,7 +32,11 @@
     "share": "node scripts/share.mjs",
     "box": "node scripts/box.mjs",
     "deploy:aws": "node scripts/deploy-aws.mjs",
+    "domain:cutover": "node scripts/cutover-domain.mjs",
     "icons": "node scripts/make-icons.mjs",
+    "design:setup": "node tools/penpot-to-code/setup.mjs",
+    "design:code": "npx --yes tsx tools/penpot-to-code/render.mjs",
+    "design:all": "npx --yes tsx tools/penpot-to-code/build-all.mjs",
     "backup:drill": "node scripts/backup-drill.mjs",
     "apk": "pnpm --filter mobile exec npx eas build --platform android --profile preview"
   },

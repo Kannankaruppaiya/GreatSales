@@ -32,3 +32,23 @@
 		format json
 	}
 }
+
+# www -> the bare name, permanently.
+#
+# A separate site block, deliberately, so the main block above keeps carrying
+# exactly ONE name: a comma-separated SITE_ADDRESS would have to be quoted in
+# .env, and an UNQUOTED "a, b" breaks `set -a; . ./.env` in the deploy script
+# (bash reads it as a variable assignment followed by a command).
+#
+# Caddy provisions a certificate for this name too, which is the entire point:
+# GoDaddy points www at the apex by default, so without this block a visitor
+# typing www. reaches this box and is shown a certificate warning for a name we
+# never asked for -- which is indistinguishable from an attack.
+#
+# The default is an http:// address on an unpublished port: http:// means Caddy
+# does NOT try to obtain a certificate for it, so while the box is still serving
+# its bare IP this block sits inert instead of failing ACME challenges for a
+# hostname that does not exist yet.
+{$WWW_SITE_ADDRESS:http://localhost:9080} {
+	redir https://{$PRIMARY_HOST:localhost}{uri} permanent
+}

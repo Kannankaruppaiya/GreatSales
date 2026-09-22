@@ -333,9 +333,35 @@ export default function OpportunityDetailScreen() {
 
                 {lead.products.length > 0 ? (
                   <View style={styles.block}>
-                    <Text variant="caption" style={styles.blockTitle}>
-                      Products
-                    </Text>
+                    {/*
+                     * The heading is the way into 03F, where each line is
+                     * checked against the customer's mapping. Without it that
+                     * screen has no entry point on the opportunity it belongs
+                     * to.
+                     */}
+                    <View style={styles.blockHeader}>
+                      <Text variant="caption" style={styles.blockTitle}>
+                        Products
+                      </Text>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Products and pricing"
+                        hitSlop={8}
+                        onPress={() =>
+                          router.push(`/lead/${lead.id}/products`)
+                        }
+                        style={styles.blockAction}
+                      >
+                        <Text variant="caption" tone="primary">
+                          Check pricing
+                        </Text>
+                        <ChevronRight
+                          size={14}
+                          color={color.primary}
+                          strokeWidth={2}
+                        />
+                      </Pressable>
+                    </View>
                     <Card flush style={styles.productCard}>
                       {lead.products.map((product, i) => (
                         <View key={product.id}>
@@ -601,6 +627,12 @@ const styles = StyleSheet.create({
   section: { gap: space.xl },
   block: { gap: space.sm },
   blockTitle: { fontFamily: font.bold, color: color.ink },
+  blockHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  blockAction: { flexDirection: "row", alignItems: "center", gap: 2 },
   relatedCard: { padding: space.lg },
   relatedRow: { flexDirection: "row", alignItems: "center", gap: space.md },
   relatedText: { flex: 1, gap: 2 },

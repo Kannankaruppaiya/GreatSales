@@ -20,8 +20,8 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const BUCKET = process.env.GS_BACKUP_BUCKET ?? 'greatsales-backups-887793660359-euw2';
-const REGION = process.env.AWS_REGION ?? 'eu-west-2';
+const BUCKET = process.env.GS_BACKUP_BUCKET ?? 'greatsales-backups-887793660359-aps1';
+const REGION = process.env.AWS_REGION ?? 'ap-south-1';
 
 const aws = (args) =>
   execFileSync('aws', [...args, '--region', REGION, '--output', 'json'], {

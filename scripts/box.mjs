@@ -12,8 +12,8 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
-const INSTANCE = process.env.GS_INSTANCE_ID ?? 'i-0cc1f215b9bb900ad';
-const REGION = process.env.AWS_REGION ?? 'eu-west-2';
+const INSTANCE = process.env.GS_INSTANCE_ID ?? 'i-08e5747f469972dc8';
+const REGION = process.env.AWS_REGION ?? 'ap-south-1';
 
 const arg = process.argv[2];
 if (!arg) {
@@ -22,11 +22,19 @@ if (!arg) {
 }
 const script = arg === '-' ? readFileSync(0, 'utf8') : arg;
 
+// PYTHONIOENCODING/PYTHONUTF8: the AWS CLI is a Python program, and on a
+// Windows console it DIES trying to print any character cp1252 cannot encode.
+// A command whose output contains one -- a seed script's emoji, a box name with
+// an accent -- then fails here with a charmap error while having succeeded
+// perfectly well on the box, which reads as a failed command. deploy-aws.mjs
+// has carried this fix for a while; box.mjs did not, and a production seed
+// looked like it had hung because of it.
 const aws = (args) =>
   JSON.parse(
     execFileSync('aws', [...args, '--region', REGION, '--output', 'json'], {
       encoding: 'utf8',
       maxBuffer: 32 * 1024 * 1024,
+      env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' },
     }),
   );
 

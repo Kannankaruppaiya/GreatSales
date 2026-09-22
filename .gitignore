@@ -60,3 +60,12 @@ backups/
 
 # Attachments written by the local storage driver (development only).
 .storage/
+
+# Image tarballs staged for deploy. A deploy that fails between `docker save`
+# and the upload leaves a ~260MB file sitting in the repo root.
+images.tar
+images.tar.gz
+
+# Penpot -> code: both regenerate from the Penpot file in seconds (pnpm design:all)
+design-dumps/
+design-reference/generated/

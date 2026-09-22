@@ -1,0 +1,41 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DeployImagesMumbai",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:ListBucket"],
+      "Resource": [
+        "arn:aws:s3:::greatsales-deploy-887793660359-aps1",
+        "arn:aws:s3:::greatsales-deploy-887793660359-aps1/*"
+      ]
+    },
+    {
+      "Sid": "BackupsMumbaiWrite",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject"],
+      "Resource": "arn:aws:s3:::greatsales-backups-887793660359-aps1/*"
+    },
+    {
+      "Sid": "AttachmentsMumbai",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::greatsales-attachments-887793660359-aps1/*"
+    },
+    {
+      "Sid": "AttachmentsMumbaiList",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": "arn:aws:s3:::greatsales-attachments-887793660359-aps1"
+    },
+    {
+      "Sid": "LegacyLondonBackupsRestoreOnly",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:ListBucket"],
+      "Resource": [
+        "arn:aws:s3:::greatsales-backups-887793660359-euw2",
+        "arn:aws:s3:::greatsales-backups-887793660359-euw2/*"
+      ]
+    }
+  ]
+}

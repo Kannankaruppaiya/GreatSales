@@ -694,9 +694,21 @@ export class SyntheticSource implements MutableDataSource {
     expectedDeliveryAt?: string | null;
     deliveryAddress?: string | null;
     paymentTerms?: Order["paymentTerms"];
+    notes?: string | null;
+    projectionId?: string | null;
   }): Promise<Order> {
     const customer = this.data.customers.find((c) => c.id === input.customerId);
     if (!customer) throw new Error(`No customer ${input.customerId}`);
+
+    const projection = input.projectionId
+      ? this.data.projections.find((p) => p.id === input.projectionId)
+      : undefined;
+    if (input.projectionId && !projection) {
+      throw new Error(`No projection ${input.projectionId}`);
+    }
+    if (projection?.salesOrderId) {
+      throw new Error("That projection has already been converted to an order.");
+    }
 
     const lines = input.lines.map((line, i) => {
       const product = this.data.products.find((p) => p.id === line.productId);
@@ -731,9 +743,14 @@ export class SyntheticSource implements MutableDataSource {
       issuedAt: nowIso,
       expectedDeliveryAt: input.expectedDeliveryAt ?? null,
       deliveryAddress: input.deliveryAddress ?? customer.area,
+      notes: input.notes ?? null,
+      projectionId: projection?.id ?? null,
       statusHistory: [{ status: "Created", at: nowIso }],
     };
     this.data.orders.unshift(row);
+    // The link is written in the same step as the order, so the worksheet can
+    // never show a line as converted with no order behind it.
+    if (projection) projection.salesOrderId = row.id;
     return settle(row, this.latency);
   }
 
@@ -790,6 +807,10 @@ export class SyntheticSource implements MutableDataSource {
     // source refuses too, so a stale screen cannot write through.
     if (row.locked)
       throw new Error("This period is locked and cannot be edited.");
+    if (row.salesOrderId)
+      throw new Error(
+        "This line has become a sales order and cannot be edited.",
+      );
     Object.assign(row, input);
     row.projectedValue = row.projectedQty * row.price;
     row.achievedValue = row.achievedQty * row.price;
@@ -801,6 +822,10 @@ export class SyntheticSource implements MutableDataSource {
     if (!row) return;
     if (row.locked)
       throw new Error("This period is locked and cannot be edited.");
+    if (row.salesOrderId)
+      throw new Error(
+        "This line has become a sales order and cannot be deleted.",
+      );
     this.data.projections = this.data.projections.filter((p) => p.id !== id);
     await settle(undefined, this.latency);
   }

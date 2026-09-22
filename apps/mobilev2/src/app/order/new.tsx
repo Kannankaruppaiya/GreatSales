@@ -66,14 +66,36 @@ interface Line {
   qty: number;
   price: number;
   /** Where the price came from, so the review can say so. */
-  priceSource: "mapping" | "list";
+  priceSource: PriceSource;
+}
+
+/**
+ * `quoted` is the price already agreed on the opportunity or the projection
+ * this order is being raised from; `custom` is one typed here. Both used to be
+ * recorded as "list price", which told the reviewer the opposite of the truth.
+ */
+type PriceSource = "mapping" | "list" | "quoted" | "custom";
+
+const PRICE_SOURCE_LABEL: Record<PriceSource, string> = {
+  mapping: "Agreed price",
+  list: "List price",
+  quoted: "Quoted price",
+  custom: "Custom price",
+};
+
+/** Where this order came from, so the review can name it. */
+interface Origin {
+  kind: "opportunity" | "projection";
+  label: string;
+  /** Set for a projection, so the created order links back to the line. */
+  projectionId?: string;
 }
 
 export default function NewOrderScreen() {
   const params = useLocalSearchParams<{
     leadId?: string;
     customerId?: string;
-    productId?: string;
+    projectionId?: string;
   }>();
   const router = useRouter();
   const source = useData();
@@ -91,17 +113,131 @@ export default function NewOrderScreen() {
   >(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [origin, setOrigin] = useState<Origin | null>(null);
   const [created, setCreated] = useState<{
     soNumber: string;
     id: string;
     total: number;
   } | null>(null);
 
-  // Coming from an opportunity or a projection, the customer and often the
-  // products are already known; the flow opens on the products step.
+  /**
+   * Turn a line that has already been quoted — on an opportunity or on a
+   * projection — into an order line. The quoted price wins over the mapping and
+   * the list price: it is what was put to the customer, and an order that
+   * silently re-prices it is not the deal that was agreed. Where no price was
+   * quoted the usual mapping-then-list fallback applies.
+   */
+  const resolveQuotedLine = useCallback(
+    async (
+      customerId: string,
+      quoted: {
+        productId: string | null;
+        productName: string;
+        qty: number | null;
+        price: number | null;
+        unit?: string | null;
+      },
+    ): Promise<Line | null> => {
+      const page = await source.listProducts({
+        search: quoted.productName,
+        limit: 20,
+      });
+      const product =
+        page.items.find((p) => p.id === quoted.productId) ??
+        page.items.find((p) => p.name === quoted.productName) ??
+        null;
+      if (!product) return null;
+
+      const mappings = await source.listMappings({
+        customerId,
+        productId: product.id,
+        limit: 5,
+      });
+      const agreed =
+        mappings.items.find((m) => m.productId === product.id)?.agreedPrice ??
+        null;
+
+      const price = quoted.price ?? agreed ?? product.listPrice;
+      return {
+        productId: product.id,
+        productName: product.name,
+        principal: product.principal,
+        unit: quoted.unit ?? product.unit,
+        qty: quoted.qty && quoted.qty > 0 ? quoted.qty : 1,
+        price,
+        priceSource:
+          quoted.price != null
+            ? "quoted"
+            : agreed != null
+              ? "mapping"
+              : "list",
+      };
+    },
+    [source],
+  );
+
+  // Coming from an opportunity or a projection, the customer and the products
+  // are already known; the flow opens on the products step with them filled in,
+  // rather than asking the salesperson the questions they have just answered.
   useEffect(() => {
     let live = true;
     (async () => {
+      if (params.projectionId) {
+        const projection = await source.getProjection(params.projectionId);
+        if (!live || !projection) return;
+        const row = await source.getCustomer(projection.customerId);
+        if (!live || !row) return;
+        setCustomer({ id: row.id, title: row.name, subtitle: row.area });
+        setAddress(row.area ?? "");
+        setTerms(row.paymentTerms ?? null);
+        const line = await resolveQuotedLine(row.id, {
+          productId: projection.productId,
+          productName: projection.productName,
+          qty: projection.projectedQty,
+          price: projection.price,
+        });
+        if (!live) return;
+        if (line) setLines([line]);
+        setOrigin({
+          kind: "projection",
+          label: `${projection.productName} · ${projection.period}`,
+          projectionId: projection.id,
+        });
+        setStep(1);
+        return;
+      }
+
+      if (params.leadId) {
+        const lead = await source.getLead(params.leadId);
+        if (!live || !lead) return;
+        const page = await source.listCustomers({
+          search: lead.customerName,
+          limit: 10,
+        });
+        const row =
+          page.items.find((c) => c.name === lead.customerName) ?? page.items[0];
+        if (!row) return;
+        setCustomer({ id: row.id, title: row.name, subtitle: row.area });
+        setAddress(row.area ?? "");
+        setTerms(row.paymentTerms ?? null);
+        const resolved = await Promise.all(
+          lead.products.map((product) =>
+            resolveQuotedLine(row.id, {
+              productId: product.productId,
+              productName: product.productName,
+              qty: product.qty,
+              price: product.price,
+              unit: product.unit,
+            }),
+          ),
+        );
+        if (!live) return;
+        setLines(resolved.filter((line): line is Line => line != null));
+        setOrigin({ kind: "opportunity", label: lead.customerName });
+        setStep(1);
+        return;
+      }
+
       if (params.customerId) {
         const row = await source.getCustomer(params.customerId);
         if (live && row) {
@@ -110,27 +246,18 @@ export default function NewOrderScreen() {
           setTerms(row.paymentTerms ?? null);
           setStep(1);
         }
-        return;
       }
-      if (!params.leadId) return;
-      const lead = await source.getLead(params.leadId);
-      if (!live || !lead) return;
-      const page = await source.listCustomers({
-        search: lead.customerName,
-        limit: 10,
-      });
-      const row =
-        page.items.find((c) => c.name === lead.customerName) ?? page.items[0];
-      if (!row) return;
-      setCustomer({ id: row.id, title: row.name, subtitle: row.area });
-      setAddress(row.area ?? "");
-      setTerms(row.paymentTerms ?? null);
-      setStep(1);
     })();
     return () => {
       live = false;
     };
-  }, [source, params.customerId, params.leadId]);
+  }, [
+    source,
+    resolveQuotedLine,
+    params.customerId,
+    params.leadId,
+    params.projectionId,
+  ]);
 
   const loadCustomers = useCallback(
     async (search: string): Promise<EntityOption[]> => {
@@ -232,6 +359,10 @@ export default function NewOrderScreen() {
           : null,
         deliveryAddress: address.trim() || null,
         paymentTerms: terms ?? undefined,
+        notes: notes.trim() || null,
+        // Links the created order to the projection line it came from, which is
+        // what lets the worksheet show the order's real status.
+        projectionId: origin?.projectionId ?? null,
       });
       setCreated({
         soNumber: order.soNumber,
@@ -364,12 +495,13 @@ export default function NewOrderScreen() {
                     {line.productName}
                   </Text>
                   <Chip
-                    label={
-                      line.priceSource === "mapping"
-                        ? "Agreed price"
-                        : "List price"
+                    label={PRICE_SOURCE_LABEL[line.priceSource]}
+                    tone={
+                      line.priceSource === "mapping" ||
+                      line.priceSource === "quoted"
+                        ? "mint"
+                        : "neutral"
                     }
-                    tone={line.priceSource === "mapping" ? "mint" : "neutral"}
                   />
                 </View>
 
@@ -398,7 +530,7 @@ export default function NewOrderScreen() {
                     setLines((c) =>
                       c.map((l) =>
                         l.productId === line.productId
-                          ? { ...l, price, priceSource: "list" }
+                          ? { ...l, price, priceSource: "custom" }
                           : l,
                       ),
                     );
@@ -463,6 +595,19 @@ export default function NewOrderScreen() {
           <View style={styles.section}>
             <Panel style={styles.review}>
               <KeyValueRow label="Customer" value={customer?.title ?? ""} />
+              {origin ? (
+                <>
+                  <RowDivider />
+                  <KeyValueRow
+                    label={
+                      origin.kind === "projection"
+                        ? "From projection"
+                        : "From opportunity"
+                    }
+                    value={origin.label}
+                  />
+                </>
+              ) : null}
               <RowDivider />
               <KeyValueRow
                 label="Delivery"
@@ -497,8 +642,8 @@ export default function NewOrderScreen() {
                         {line.productName}
                       </Text>
                       <Text variant="caption" tone="muted">
-                        {line.qty} {line.unit} × {money(line.price)}
-                        {line.priceSource === "list" ? " · list price" : ""}
+                        {line.qty} {line.unit} × {money(line.price)} ·{" "}
+                        {PRICE_SOURCE_LABEL[line.priceSource].toLowerCase()}
                       </Text>
                     </View>
                     <Text variant="cardTitle">

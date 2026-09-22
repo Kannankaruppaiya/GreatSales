@@ -1,9 +1,11 @@
 /**
  * 11 — More / Sales Account.
  *
- * Account-level utilities and secondary navigation only. The design board is
- * explicit that no core sales workflow belongs here — those live in Home,
- * Pipeline, Customers and the + launcher.
+ * Account and app only: profile, notifications, settings, help, about. No
+ * business module is repeated here — customers, orders, payments, mapping,
+ * projections and search each have their own way in, and a second copy of a
+ * module in More is a second navigator competing with the tab bar. Search is
+ * reached from the Home header, which is the one canonical entry to it.
  *
  * Rows that depend on a backend capability the API does not have are not shown
  * rather than shown-and-broken; see BACKEND_CAPABILITIES.
@@ -16,7 +18,6 @@ import {
   ChevronRight,
   CircleHelp,
   Info,
-  Search,
   Settings,
   User,
   Bell,
@@ -52,16 +53,9 @@ const ROWS: MenuRow[] = [
     Icon: Bell,
   },
   {
-    key: "search",
-    label: "Search",
-    hint: "Find across customers, leads and orders",
-    href: "/search",
-    Icon: Search,
-  },
-  {
     key: "settings",
     label: "App Settings",
-    hint: "Language, theme and date format",
+    hint: "Theme and date format",
     href: "/settings",
     Icon: Settings,
   },

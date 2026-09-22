@@ -26,8 +26,6 @@ export function CommandPaletteModal({
   const navigate = useNavigate();
   const role = useAuthRole();
   const managementId = useUi((s) => s.activeManagementId) || DEFAULT_MANAGEMENT_ID;
-  // Only the pages this role can actually reach — the palette used to offer
-  // every page to everyone, so a sales user could jump into the admin surfaces.
   const pages = useMemo(
     () =>
       featuresFor(role).map((f) => ({

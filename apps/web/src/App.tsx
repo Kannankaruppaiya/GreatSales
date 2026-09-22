@@ -14,12 +14,8 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { RoleGuard } from "@/features/auth/RoleGuard";
 import { RequireOwner } from "@/features/auth/RequireOwner";
 import type { LoginRole } from "@/features/auth/LoginPage";
-import { loginPathForPath, roleForPath, rolePathFor } from "@/lib/rolePath";
+import { loginPathFor, loginPathForPath, roleForPath, rolePathFor } from "@/lib/rolePath";
 
-// Lazy like every page, and for a stronger reason than code size: this is the
-// only static import that reaches `trackerStore`, the client-side mock the
-// management feature still reads (roadmap F14). Keeping it lazy keeps that
-// whole subtree off the pre-auth path.
 const ManagementProvider = lazy(() =>
   import("@/features/management/ManagementProvider").then((m) => ({
     default: m.ManagementProvider,
@@ -86,16 +82,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!authed) {
-    // The role leads every signed-in URL, so an expired session on
-    // /sales/managements/... goes back to /sales/login and nowhere wider.
-    const door = loginPathForPath(location.pathname);
-    if (!door) return <NoSharedLogin />;
+    const door = loginPathForPath(location.pathname) ?? loginPathFor("sales");
     return <Navigate to={door} state={{ from: location }} replace />;
   }
 
-  // An admin-set password is a shared secret until its owner replaces it. The
-  // server refuses every other endpoint while this flag is set, so routing
-  // anywhere else would only produce a 403 the user cannot act on.
   if (mustChange && location.pathname !== CHANGE_PASSWORD_PATH) {
     return <Navigate to={CHANGE_PASSWORD_PATH} replace />;
   }
@@ -104,16 +94,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 
-/**
- * The role segment in the URL has to agree with the session.
- *
- * Every signed-in page now lives under one — `/admin/managements/:id/dashboard`
- * — so the address says who is signed in. This checks the claim: a salesperson
- * who edits `sales` to `admin` in the address bar is sent back to their own
- * space rather than rendering an admin shell. It is legibility and
- * defence-in-depth, not the authorization itself: the API still decides every
- * request against the token, and always did.
- */
 function RequireRolePath({ children }: { children: React.ReactNode }) {
   const { rolePath } = useParams<{ rolePath?: string }>();
   const role = useAuthRole();
@@ -140,27 +120,10 @@ function LegacyManagementRedirect() {
   );
 }
 
-/**
- * What sits where the shared sign-in page used to.
- *
- * Not a form and not a list of the four doors: advertising them would put every
- * portal one click from the administrator one again, which is what the tab
- * switcher on the login page did. Staff are given their own address.
- */
-function NoSharedLogin() {
-  return (
-    <div className="grid min-h-screen place-items-center px-6">
-      <div className="max-w-md space-y-3 text-center">
-        <h1 className="text-base font-extrabold text-ink">
-          This is not a sign-in address
-        </h1>
-        <p className="text-sm leading-relaxed text-muted">
-          GreatSales gives each role its own sign-in page. Use the address your
-          administrator gave you, or ask them for it.
-        </p>
-      </div>
-    </div>
-  );
+function LoginDoorRedirect() {
+  const { roleParam } = useParams<{ roleParam?: string }>();
+  const named = roleForPath(roleParam);
+  return <Navigate to={loginPathFor(named ?? "sales")} replace />;
 }
 
 function PublicAuthRoute({ initialRole }: { initialRole?: LoginRole }) {
@@ -199,7 +162,6 @@ function PublicAuthRoute({ initialRole }: { initialRole?: LoginRole }) {
   );
 }
 
-/** Route handler for direct role paths (e.g. /super-admin, /admin, /management) */
 function RoleDirectRoute({ role: targetRole }: { role: "super_admin" | "admin" | "mgmt" | "sales" }) {
   const authed = useIsAuthed();
   const activeManagementId = useUi((s) => s.activeManagementId) || DEFAULT_MANAGEMENT_ID;
@@ -218,15 +180,18 @@ function RoleDirectRoute({ role: targetRole }: { role: "super_admin" | "admin" |
   return <Navigate to={`/managements/${activeManagementId}/dashboard`} replace />;
 }
 
-/** Sends the authenticated user to the right entry point based on role:
- *  super_admin → management list home
- *  admin / mgmt → their management dashboard */
+
 function RootRedirect() {
   const role = useAuthRole();
   const isOwner = useIsOwner();
   const activeManagementId = useUi((s) => s.activeManagementId) || DEFAULT_MANAGEMENT_ID;
   if (isOwner || role === "super_admin") return <Navigate to="/managements" replace />;
-  return <Navigate to={`/managements/${activeManagementId}/dashboard`} replace />;
+  return (
+    <Navigate
+      to={`/${rolePathFor(role)}/managements/${activeManagementId}/dashboard`}
+      replace
+    />
+  );
 }
 
 function AppLayout() {
@@ -288,11 +253,13 @@ export default function App() {
       <Routes>
         {/* Dedicated Role Login Routes */}
         {/* There is no shared /login. It used to be a fifth door that served
-            everybody and defaulted to the administrator form, which is the
+            everybody and defaulted to the ADMINISTRATOR form, which is the
             thing the four per-role addresses exist to prevent. Someone who
-            reaches it is told to use their own address. */}
-        <Route path="/login" element={<NoSharedLogin />} />
-        <Route path="/login/:roleParam" element={<NoSharedLogin />} />
+            reaches it is sent to the door their address names, and to the
+            SALES one when it names none — the least privileged of the four, so
+            a guessed URL can never land on the administrator form again. */}
+        <Route path="/login" element={<LoginDoorRedirect />} />
+        <Route path="/login/:roleParam" element={<LoginDoorRedirect />} />
         <Route path="/super-admin/login" element={<PublicAuthRoute initialRole="super_admin" />} />
         <Route path="/superadmin/login" element={<Navigate to="/super-admin/login" replace />} />
         <Route path="/admin/login" element={<PublicAuthRoute initialRole="admin" />} />

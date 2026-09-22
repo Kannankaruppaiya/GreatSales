@@ -56,16 +56,27 @@ export default function ProjectionDetailScreen() {
 
   const state = useAsync(async () => {
     const projection = id ? await source.getProjection(id) : null;
-    if (!projection) return { projection: null, followUps: [] };
-    const followUps = await source.listFollowUps({
-      customerId: projection.customerId,
-      limit: 20,
-    });
-    return { projection, followUps: followUps.items };
+    if (!projection) return { projection: null, followUps: [], order: null };
+    const [followUps, order] = await Promise.all([
+      source.listFollowUps({ customerId: projection.customerId, limit: 20 }),
+      projection.salesOrderId
+        ? source.getOrder(projection.salesOrderId)
+        : Promise.resolve(null),
+    ]);
+    return { projection, followUps: followUps.items, order };
   }, [source, id]);
 
   const projection = state.data?.projection ?? null;
   const locked = projection?.locked ?? false;
+  const order = state.data?.order ?? null;
+  /**
+   * A line that has become a sales order is a record of what was ordered, not
+   * a plan any more: it can be read and it can be opened, and it is neither
+   * edited nor deleted. The source refuses both as well, so this is the
+   * screen agreeing with the rule rather than being the rule.
+   */
+  const converted = projection?.salesOrderId != null;
+  const readOnly = locked || converted;
 
   const [qty, setQty] = useState("");
   const [price, setPrice] = useState("");
@@ -87,7 +98,7 @@ export default function ProjectionDetailScreen() {
 
   /** Every edit on this screen is a partial update of the same row. */
   async function patch(input: Record<string, unknown>) {
-    if (!projection || !isMutable(source) || locked) return;
+    if (!projection || !isMutable(source) || readOnly) return;
     setSaving(true);
     setError(null);
     setSaved(false);
@@ -197,6 +208,36 @@ export default function ProjectionDetailScreen() {
               </Panel>
             ) : null}
 
+            {converted ? (
+              <Panel tone="mint">
+                <View style={styles.lockRow}>
+                  <ShoppingCart
+                    size={17}
+                    color={color.primaryDark}
+                    strokeWidth={2}
+                  />
+                  <Text
+                    variant="caption"
+                    tone="primaryDark"
+                    style={styles.lockText}
+                  >
+                    {order
+                      ? `This line became sales order ${order.soNumber}. It is kept as the record of what was ordered, so it is no longer edited here.`
+                      : "This line has become a sales order, so it is no longer edited here."}
+                  </Text>
+                </View>
+                {order ? (
+                  <Button
+                    label="View Sales Order"
+                    variant="secondary"
+                    block
+                    onPress={() => router.push(`/order/${order.id}`)}
+                    style={styles.convertedAction}
+                  />
+                ) : null}
+              </Panel>
+            ) : null}
+
             <Panel style={styles.panel}>
               <KeyValueRow
                 label="Projected"
@@ -218,7 +259,7 @@ export default function ProjectionDetailScreen() {
               />
             </Panel>
 
-            {!locked ? (
+            {!readOnly ? (
               <>
                 <Text variant="section">Update</Text>
 
@@ -387,7 +428,7 @@ export default function ProjectionDetailScreen() {
               ))
             )}
 
-            {!locked ? (
+            {!readOnly ? (
               <>
                 <Button
                   label="Convert to Sales Order"
@@ -399,10 +440,12 @@ export default function ProjectionDetailScreen() {
                       strokeWidth={2}
                     />
                   }
+                  // The projection itself is the context: the order screen
+                  // reads the customer, the product, the quantity and the
+                  // agreed price from it, and links the created order back to
+                  // this line.
                   onPress={() =>
-                    router.push(
-                      `/order/new?customerId=${projection.customerId}&productId=${projection.productId}`,
-                    )
+                    router.push(`/order/new?projectionId=${projection.id}`)
                   }
                   style={styles.heading}
                 />
@@ -472,6 +515,7 @@ const styles = StyleSheet.create({
   lockRow: { flexDirection: "row", alignItems: "flex-start", gap: space.md },
   lockText: { flex: 1 },
   panel: { paddingVertical: space.xs },
+  convertedAction: { marginTop: space.md },
   pair: { flexDirection: "row", gap: space.md },
   pairItem: { flex: 1 },
   heading: { marginTop: space.md },

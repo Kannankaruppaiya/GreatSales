@@ -93,6 +93,7 @@ export interface SyntheticOrder {
   status: OrderStatusValue;
   lines: SyntheticOrderLine[];
   subtotal: number;
+  /** Whole percent — 18 means 18%, not 1800%. */
   taxRate: number;
   tax: number;
   total: number;
@@ -100,6 +101,10 @@ export interface SyntheticOrder {
   issuedAt: string;
   expectedDeliveryAt: string | null;
   deliveryAddress: string | null;
+  /** Delivery instructions typed when the order was raised. */
+  notes: string | null;
+  /** The recurring-projection line this order was raised from, if any. */
+  projectionId: string | null;
   /** Status → timestamp, in the order the statuses were reached. */
   statusHistory: { status: OrderStatusValue; at: string }[];
 }
@@ -170,6 +175,14 @@ export interface SyntheticProjection {
   nextFollowUpAt: string | null;
   targetDate: string | null;
   remarks: string | null;
+  /**
+   * The sales order raised from this line, once one has been.
+   *
+   * The same field exists on the server's `Projection`. A line that has become
+   * an order cannot be edited into a different deal or deleted, and the
+   * worksheet shows the order's real status rather than a typed label.
+   */
+  salesOrderId: string | null;
   /** A locked period is read-only: no edit, no delete, no roll-forward. */
   locked: boolean;
 }
@@ -541,6 +554,8 @@ export function generateDataset(
       issuedAt: iso(now, issuedOffset),
       expectedDeliveryAt: iso(now, issuedOffset + rng.int(3, 21)),
       deliveryAddress: `${customer.area}, ${customer.name}`,
+      notes: null,
+      projectionId: null,
       statusHistory,
     });
   }
@@ -659,6 +674,7 @@ export function generateDataset(
         nextFollowUpAt: rng.chance(0.5) ? iso(now, rng.int(1, 20)) : null,
         targetDate: rng.chance(0.6) ? iso(now, rng.int(3, 45)) : null,
         remarks: rng.chance(0.35) ? rng.pick(REMARK_NOTES) : null,
+        salesOrderId: null,
         locked,
       });
     }

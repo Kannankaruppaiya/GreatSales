@@ -173,7 +173,7 @@ export default function OrderSummaryScreen() {
             <View style={styles.totals}>
               <TotalRow label="Subtotal" value={money(order.subtotal)} />
               <TotalRow
-                label={`Tax (${Math.round(order.taxRate * 100)}%)`}
+                label={`Tax (${order.taxRate}%)`}
                 value={money(order.tax)}
               />
               <View style={styles.rule} />

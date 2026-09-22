@@ -2,7 +2,7 @@
 /**
  * Deploy GreatSales to the production EC2 box.
  *
- * The box has 4GB of RAM and runs Postgres; building there would compete with
+ * The box has 2GB of RAM and runs Postgres; building there would compete with
  * a live database for memory and has no upside, so images are built here and
  * shipped as tarballs through S3. The box is reached with SSM Run Command, not
  * SSH: there is no key to lose and port 22 is closed in the security group.
@@ -11,19 +11,51 @@
  * so they never travel through this machine, a command line, or a log.
  *
  *   node scripts/deploy-aws.mjs            build, push, deploy
- *   node scripts/deploy-aws.mjs --skip-build   reuse the last uploaded images
+ *   node scripts/deploy-aws.mjs --skip-build   reuse the images already in S3
+ *   node scripts/deploy-aws.mjs --no-rebuild   reuse the LOCAL images, ship them again
+ *   node scripts/deploy-aws.mjs --only web     ship ONLY the web image (fast frontend deploy)
  */
 import { execFileSync, execSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { createReadStream, createWriteStream, mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pipeline } from 'node:stream/promises';
+import { createGzip } from 'node:zlib';
 
-const REGION = 'eu-west-2';
-const INSTANCE = 'i-0cc1f215b9bb900ad';
-const BUCKET = 'greatsales-deploy-887793660359-euw2';
+const REGION = 'ap-south-1';
+const INSTANCE = 'i-08e5747f469972dc8';
+const BUCKET = 'greatsales-deploy-887793660359-aps1';
 const REMOTE = '/opt/greatsales';
+const ARCHIVE = 'images.tar.gz';
 
+// Two different kinds of "don't build", because they fail for different reasons:
+// --skip-build   the images in S3 are already the ones you want; ship nothing.
+// --no-rebuild   the LOCAL images are good but S3 does not have them (a failed
+//                upload, a new bucket). Rebuilding to recover from that is a
+//                10-minute npm install that can itself fail on a bad link.
 const skipBuild = process.argv.includes('--skip-build');
+const noRebuild = process.argv.includes('--no-rebuild');
+
+// --only web  ships just the web image. The two images are ~230MB and ~27MB, so
+// on a slow uplink a one-line frontend change costs 20 minutes of upload for
+// 27MB of actual difference. Only meaningful for a box that ALREADY has the
+// other image loaded -- a fresh box needs a full deploy first.
+const ALL_APPS = ['api', 'web'];
+const onlyIndex = process.argv.indexOf('--only');
+const APPS =
+  onlyIndex === -1
+    ? ALL_APPS
+    : (process.argv[onlyIndex + 1] ?? '').split(',').map((a) => a.trim()).filter(Boolean);
+for (const app of APPS) {
+  if (!ALL_APPS.includes(app)) {
+    console.error(`--only takes ${ALL_APPS.join(' and ')}, got "${app}"`);
+    process.exit(2);
+  }
+}
+if (APPS.length === 0) {
+  console.error('--only needs at least one image');
+  process.exit(2);
+}
 const tag = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
 
 const log = (m) => console.log(`\n\x1b[36m▸ ${m}\x1b[0m`);
@@ -80,20 +112,111 @@ function onBox(name, script) {
 
 // ---------------------------------------------------------------------------
 if (!skipBuild) {
-  log(`Building images (tag ${tag})`);
-  // The box is x86_64; this machine may not be, and a silently mismatched
-  // architecture only shows up as "exec format error" at container start.
-  for (const app of ['api', 'web']) {
-    sh(
-      `docker build --platform linux/amd64 -f apps/${app}/Dockerfile ` +
-        `-t greatsales/${app}:${tag} -t greatsales/${app}:latest .`,
-    );
+  if (noRebuild) {
+    log('Reusing the local images');
+    // Refuse to ship what is not there, and refuse to ship the wrong CPU: an
+    // arm64 image loads happily on the box and only fails at container start
+    // with "exec format error", long after the deploy reported success.
+    for (const app of APPS) {
+      const arch = shOut(
+        `docker image inspect greatsales/${app}:latest --format "{{.Architecture}}"`,
+      );
+      if (arch !== 'amd64') {
+        throw new Error(
+          `greatsales/${app}:latest is ${arch}, but the box is amd64. Rebuild without --no-rebuild.`,
+        );
+      }
+      console.log(`  greatsales/${app}:latest (${arch})`);
+    }
+  } else {
+    log(`Building images (tag ${tag}): ${APPS.join(', ')}`);
+    // The box is x86_64; this machine may not be, and a silently mismatched
+    // architecture only shows up as "exec format error" at container start.
+    for (const app of APPS) {
+      sh(
+        `docker build --platform linux/amd64 -f apps/${app}/Dockerfile ` +
+          `-t greatsales/${app}:${tag} -t greatsales/${app}:latest .`,
+      );
+    }
   }
 
-  log('Saving and uploading images');
-  sh(`docker save greatsales/api:latest greatsales/web:latest -o images.tar`);
-  sh(`aws s3 cp images.tar s3://${BUCKET}/images.tar --region ${REGION}`);
+  log('Saving images');
+  sh(
+    `docker save ${APPS.map((a) => `greatsales/${a}:latest`).join(' ')} -o images.tar`,
+  );
+
+  // MEASURED, not assumed: this only saves about 2.5% (258.5MiB -> 251.9MiB).
+  // buildkit already stores layers compressed, so `docker save` output is
+  // essentially incompressible -- the earlier claim here that gzip would cut it
+  // to a third was wrong. It is kept because `docker load` sniffs the magic
+  // bytes (so the box needs no extra step) and a few MB off a ~20 minute upload
+  // is still free, but do NOT expect it to make a slow deploy fast. If you want
+  // that, the fix is a registry the box pulls from, not better compression.
+  // Done with node's zlib rather than a `| gzip` pipe because execSync runs
+  // through cmd.exe on Windows, where that pipe does not exist.
+  log('Compressing');
+  await pipeline(
+    createReadStream('images.tar'),
+    createGzip({ level: 6 }),
+    createWriteStream(ARCHIVE),
+  );
   rmSync('images.tar', { force: true });
+  const localSize = statSync(ARCHIVE).size;
+  console.log(`  ${(localSize / 1024 / 1024).toFixed(1)}MB compressed`);
+
+  // `aws s3 cp` has been seen exiting 0 on a transfer that stopped less than
+  // half way through, leaving the PREVIOUS object in place and no multipart
+  // upload to find. A deploy then either 404s on the box or, worse, silently
+  // ships the last image again. Trust the bucket, not the exit status -- and
+  // because this is a home uplink pushing ~250MB, expect it to need more than
+  // one go rather than failing the whole deploy on the first stall.
+  const ATTEMPTS = 4;
+  let remoteSize = -1;
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    log(`Uploading images (attempt ${attempt} of ${ATTEMPTS})`);
+    try {
+      sh(
+        `aws s3 cp ${ARCHIVE} s3://${BUCKET}/${ARCHIVE} --region ${REGION} --only-show-errors`,
+        {
+          env: {
+            ...process.env,
+            // Fewer, larger parts and adaptive retries: the default 10-way
+            // concurrency is what saturates and then stalls a thin uplink.
+            AWS_MAX_ATTEMPTS: '10',
+            AWS_RETRY_MODE: 'adaptive',
+            AWS_REQUEST_CHECKSUM_CALCULATION: 'when_supported',
+          },
+        },
+      );
+    } catch (e) {
+      console.error(`  upload attempt ${attempt} errored: ${e.message}`);
+    }
+
+    try {
+      remoteSize = Number(
+        JSON.parse(
+          shOut(
+            `aws s3api head-object --bucket ${BUCKET} --key ${ARCHIVE} --region ${REGION}`,
+          ),
+        ).ContentLength,
+      );
+    } catch {
+      remoteSize = -1; // no object at all
+    }
+
+    if (remoteSize === localSize) {
+      console.log(`  verified ${remoteSize} bytes in s3://${BUCKET}/${ARCHIVE}`);
+      break;
+    }
+    console.error(
+      `  incomplete: S3 has ${remoteSize} bytes, local archive is ${localSize}`,
+    );
+    if (attempt === ATTEMPTS) {
+      throw new Error(
+        `upload did not complete after ${ATTEMPTS} attempts. Nothing was deployed.`,
+      );
+    }
+  }
 }
 
 log('Uploading compose + Caddyfile');
@@ -112,9 +235,9 @@ for i in $(seq 1 60); do [ -f ${REMOTE}/.provisioned ] && break; sleep 5; done
 
 aws s3 cp s3://${BUCKET}/docker-compose.yml ./docker-compose.yml --region ${REGION}
 aws s3 cp s3://${BUCKET}/Caddyfile ./Caddyfile --region ${REGION}
-aws s3 cp s3://${BUCKET}/images.tar ./images.tar --region ${REGION}
-docker load -i images.tar
-rm -f images.tar
+aws s3 cp s3://${BUCKET}/${ARCHIVE} ./${ARCHIVE} --region ${REGION}
+docker load -i ${ARCHIVE}
+rm -f ${ARCHIVE}
 
 # Generate secrets ONCE. A re-run must not rotate them: the JWT secrets would
 # invalidate every signed-in session and the DB passwords would lock the API
@@ -126,12 +249,12 @@ POSTGRES_PASSWORD=$(openssl rand -hex 24)
 APP_DB_PASSWORD=$(openssl rand -hex 24)
 JWT_ACCESS_SECRET=$(openssl rand -hex 32)
 JWT_REFRESH_SECRET=$(openssl rand -hex 32)
-CORS_ORIGIN=http://18.130.99.225
+CORS_ORIGIN=http://35.154.59.213
 SITE_ADDRESS=:80
 SENTRY_DSN=
 STORAGE_DRIVER=s3
-S3_BUCKET=greatsales-attachments-887793660359-euw2
-S3_REGION=eu-west-2
+S3_BUCKET=greatsales-attachments-887793660359-aps1
+S3_REGION=ap-south-1
 ENVEOF
   chmod 600 .env
   echo "generated ${REMOTE}/.env"
@@ -181,7 +304,7 @@ set -euo pipefail
 cd /opt/greatsales
 STAMP=\$(date -u +%Y%m%dT%H%M%SZ)
 DAY=\$(date -u +%Y/%m/%d)
-DEST="s3://greatsales-backups-887793660359-euw2/postgres/\${DAY}/pg_dump-\${STAMP}.sql.gz"
+DEST="s3://greatsales-backups-887793660359-aps1/postgres/\${DAY}/pg_dump-\${STAMP}.sql.gz"
 # One line on purpose. This pipeline was written across three lines with
 # continuations that did not survive being embedded in this script, leaving a
 # bare "|" at the start of a line: bash refused the file, and because the
@@ -190,7 +313,7 @@ DEST="s3://greatsales-backups-887793660359-euw2/postgres/\${DAY}/pg_dump-\${STAM
 # empty for as long as the timer had existed.
 # The size is counted in the stream rather than read back with head-object,
 # because the instance role can write to this bucket and not read it.
-docker compose exec -T postgres pg_dump -U greatsales -d greatsales --clean --if-exists | gzip -9 | tee >(wc -c > /tmp/gs-backup-size) | aws s3 cp - "\$DEST" --region eu-west-2
+docker compose exec -T postgres pg_dump -U greatsales -d greatsales --clean --if-exists | gzip -9 | tee >(wc -c > /tmp/gs-backup-size) | aws s3 cp - "\$DEST" --region ap-south-1
 
 # pipefail fails the unit on a failed pg_dump, but a stream that dies early
 # still uploads whatever it managed. A dump this small is not a database.
@@ -242,4 +365,4 @@ curl -fsS -o /dev/null -w "web %{http_code}
 `,
 );
 
-log(`Deployed. http://18.130.99.225  (tag ${tag})`);
+log(`Deployed. http://35.154.59.213  (tag ${tag})`);

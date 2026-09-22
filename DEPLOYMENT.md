@@ -48,14 +48,14 @@ pnpm staging:down
 
 | Concern | What runs it |
 |---|---|
-| Host | One EC2 instance, eu-west-2, reached over **SSM Run Command** (no SSH, port 22 closed) |
+| Host | One EC2 instance, ap-south-1 (Mumbai), reached over **SSM Run Command** (no SSH, port 22 closed) |
 | Orchestration | `docker compose` with `deploy/docker-compose.prod.yml` — 5 services |
 | API compute | `api` container from `greatsales/api:${IMAGE_TAG}` |
-| Database | `postgres:16-alpine` container on the same box, `pgdata` volume |
+| Database | `postgres:16-alpine` container on the same box, `pgdata` volume (tuned for 2GB) |
 | Migrations | `db-migrate` one-shot container, run before the API starts |
 | Web console | `web` container — nginx serving the built SPA |
-| Edge / TLS | `caddy:2-alpine` — automatic Let's Encrypt on an `sslip.io` hostname |
-| Images | built on the developer machine, shipped as a tarball through S3 (the box has 4GB and must not build) |
+| Edge / TLS | `caddy:2-alpine` — automatic Let's Encrypt on `greatworksapp.in` |
+| Images | built on the developer machine, shipped as a tarball through S3 (the box has 2GB and must not build) |
 | Backups | nightly `pg_dump` to S3 via systemd timer; verify with `pnpm backup:drill` |
 | Mobile | Expo EAS build + OTA channels |
 | Observability | Sentry |

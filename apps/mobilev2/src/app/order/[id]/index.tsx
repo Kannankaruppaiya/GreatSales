@@ -17,7 +17,14 @@
 import React, { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Check, FileText, Package, Plus } from "lucide-react-native";
+import {
+  ChartColumn,
+  Check,
+  ChevronRight,
+  FileText,
+  Package,
+  Plus,
+} from "lucide-react-native";
 import type { OrderStatusValue } from "@greatsales/shared";
 
 import {
@@ -197,7 +204,7 @@ export default function OrderDetailScreen() {
             <Panel tone="mint" style={styles.panel}>
               <KeyValueRow label="Subtotal" value={money(order.subtotal)} />
               <KeyValueRow
-                label={`Tax (${Math.round(order.taxRate * 100)}%)`}
+                label={`Tax (${order.taxRate}%)`}
                 value={money(order.tax)}
               />
               <RowDivider />
@@ -230,7 +237,37 @@ export default function OrderDetailScreen() {
                 value={order.deliveryAddress}
                 emptyText="Not set"
               />
+              {/*
+               * Shown because it is stored: the notes typed on the order screen
+               * used to be collected, reviewed and then dropped on save, which
+               * is worse than not asking for them.
+               */}
+              {order.notes ? (
+                <>
+                  <RowDivider />
+                  <KeyValueRow label="Notes" value={order.notes} />
+                </>
+              ) : null}
             </Panel>
+
+            {order.projectionId ? (
+              <Card
+                onPress={() => router.push(`/projection/${order.projectionId}`)}
+                accessibilityLabel="Open the projection this order came from"
+              >
+                <View style={styles.originRow}>
+                  <ChartColumn
+                    size={17}
+                    color={color.primaryDark}
+                    strokeWidth={2}
+                  />
+                  <Text variant="caption" tone="muted" style={styles.originText}>
+                    Raised from a recurring projection
+                  </Text>
+                  <ChevronRight size={16} color={color.muted2} strokeWidth={2} />
+                </View>
+              </Card>
+            ) : null}
 
             <Text variant="section" style={styles.heading}>
               Status
@@ -379,6 +416,8 @@ export default function OrderDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  originRow: { flexDirection: "row", alignItems: "center", gap: space.md },
+  originText: { flex: 1 },
   body: { paddingHorizontal: space.gutter, gap: space.lg },
   headRow: { flexDirection: "row", alignItems: "center", gap: space.md },
   headText: { flex: 1, gap: 2 },

@@ -491,16 +491,40 @@ export class ApiSource implements MutableDataSource {
     });
   }
 
-  createOrder(input: {
+  /**
+   * POST /orders takes `OrderCreateSchema` from @greatsales/shared, which is
+   * not this app's line shape: it wants `items`, an order `code` and the owning
+   * `salespersonId`, and it names the delivery note `deliveryInstructions`. The
+   * body is built here rather than posted through, so the screen keeps talking
+   * in the terms the design uses.
+   */
+  async createOrder(input: {
     customerId: string;
     lines: { productId: string; qty: number; price: number }[];
     expectedDeliveryAt?: string | null;
     deliveryAddress?: string | null;
     paymentTerms?: Order["paymentTerms"];
+    notes?: string | null;
+    projectionId?: string | null;
   }): Promise<Order> {
+    const user = await this.getCurrentUser();
     return request<Order>("/orders", {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        code: `SO-${Date.now()}`,
+        customerId: input.customerId,
+        salespersonId: user.id,
+        items: input.lines.map((line) => ({
+          productId: line.productId,
+          qty: line.qty,
+          price: line.price,
+        })),
+        paymentTerms: input.paymentTerms ?? null,
+        deliveryAddress: input.deliveryAddress ?? null,
+        expectedDelivery: input.expectedDeliveryAt ?? null,
+        deliveryInstructions: input.notes ?? null,
+        ...(input.projectionId ? { projectionId: input.projectionId } : {}),
+      }),
     });
   }
 

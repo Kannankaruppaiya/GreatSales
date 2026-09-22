@@ -229,6 +229,16 @@ export interface MutableDataSource extends DataSource {
     expectedDeliveryAt?: string | null;
     deliveryAddress?: string | null;
     paymentTerms?: Order["paymentTerms"];
+    /** Delivery instructions typed on the order. */
+    notes?: string | null;
+    /**
+     * The recurring-projection line this order is being raised from.
+     *
+     * `OrderCreateSchema` in @greatsales/shared takes it and links the two in
+     * one transaction, which is what lets the projection worksheet show the
+     * order's real status instead of a label somebody typed.
+     */
+    projectionId?: string | null;
   }): Promise<Order>;
 
   createMapping(input: {

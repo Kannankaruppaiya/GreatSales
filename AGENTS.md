@@ -77,6 +77,59 @@ pnpm icons                                             # redraw every favicon an
   `/managements/:managementId/<feature key>` (keys live in `apps/web/src/data/features.ts`) and
   watch for a non-200 in the network log.
 
+## Turning a Penpot screen into code
+
+`tools/penpot-to-code/` drives [FigmaToCode](https://github.com/bernaferrari/FigmaToCode)'s code
+generators against our Penpot boards. FigmaToCode is a Figma plugin, but its generators only read
+a plain Figma REST `JSON_REST_V1` node tree; the Figma API is used before them, to build that tree
+and to flatten vectors. So we build the tree ourselves.
+
+**Setup, once:** `pnpm design:setup` clones FigmaToCode to `~/FigmaToCode` (outside this repo: it
+is GPL-3.0 and used as a dev-time tool, never linked into the product) and installs its backend
+deps with pnpm 11. `PENPOT_TOKEN` in `.env.local` (Penpot → Settings → Access tokens) lets the
+build pull the real images.
+
+**Every board at once** — 75 screens in about three seconds:
+
+```bash
+pnpm design:all                       # defaults to ~/Downloads/greatsales-penpot-file.json
+pnpm design:all --page mobiles --only "03A"
+```
+
+It writes, per board, a compact dump under `design-dumps/`, a standalone page and Tailwind JSX
+under `design-reference/generated/`, plus an `index.html` contact sheet of every screen. Both
+directories are gitignored: they regenerate from the Penpot file in seconds.
+
+The input is the JSON Penpot's API returns for `get-file`. **Cloudflare challenges plain HTTP
+clients on Penpot's `/api/` paths**, so curl and Node cannot fetch it even with a valid token; it
+has to come from a browser tab that is already on design.penpot.app:
+
+```js
+const r = await fetch('/api/rpc/command/get-file?id=' + FILE_ID,
+  { headers: { Authorization: 'Token ' + TOKEN, Accept: 'application/json' } });
+const a = document.createElement('a');
+a.href = URL.createObjectURL(new Blob([await r.text()], { type: 'application/json' }));
+a.download = 'greatsales-penpot-file.json'; a.click();
+```
+
+Images are the exception — `/assets/by-file-media-id/<id>` is not behind the challenge, so
+`pull-images.mjs` fetches them straight from Node during the build.
+
+**One board, live:** run `tools/penpot-to-code/penpot-extract.js` in the Penpot MCP with
+`BOARD_NAME` set, save what it returns as `design-dumps/<board>.json`, then
+`pnpm design:code design-dumps/<board>.json --framework Tailwind --mode jsx -o out.jsx`.
+Frameworks: `HTML`, `Tailwind`, `Flutter`, `SwiftUI`, `Compose`. Use this when the live selection
+matters; it costs ~24 KB of conversation per screen, because the plugin sandbox has no DOM, no
+compression and no way to reach a local receiver, so every byte travels through the MCP result.
+
+Three things were wrong before this pipeline matched Penpot, and they will bite again if the
+mapping is rewritten: a Penpot shape's `transform` applies **about the centre of its selrect**
+(applied raw, 503 of 2096 paths flew off their own viewBox); a path's box excludes its stroke, so
+the SVG viewBox, not the selrect, is the node's box; and an inline `<svg>` sits on the text
+baseline, so icons need `svg { display: block }` or short ones drop to the bottom of their line
+box. Text keeps its per-run styles through this path, because the file format carries a style on
+every run.
+
 ---
 
 # PRODUCTION: THE AWS BOX
@@ -85,19 +138,24 @@ Settled facts. Do not re-derive them and do not go looking in the console.
 
 | | |
 | --- | --- |
-| Instance | `i-0cc1f215b9bb900ad` — c7i-flex.large, 2 vCPU / 4GB, eu-west-2a |
-| Address | https://18-130-99-225.sslip.io — Elastic IP `18.130.99.225` (`eipalloc-03b19235f5f3140d5`) |
+| Instance | `i-08e5747f469972dc8` — t3.small, 2 vCPU / 2GB, ap-south-1a (Mumbai) |
+| Address | **https://greatworksapp.in** (and `www.`, which 301s to it) — Elastic IP `35.154.59.213` (`eipalloc-0bee29ea84de2920e`). Let's Encrypt via Caddy, cut over 2026-09-20. |
+| Security group | `sg-0eb64bff751477705` — 80/tcp, 443/tcp, 443/udp. Port 22 is not open. |
+| Memory | 2GB + a 2GB swapfile (`vm.swappiness=10`). Postgres is tuned DOWN for this box — see below. |
 | Access | **SSM Run Command only.** There is no SSH key and port 22 is closed. |
 | App root | `/opt/greatsales` — compose file, Caddyfile, `.env` (mode 600), `backup.sh` |
 | Secrets | generated ON the box at first deploy, never in git, never on a command line |
 | Buckets | `greatsales-deploy-…` (image tarballs), `greatsales-backups-…` (pg_dump) |
 | Backup | nightly 02:15 UTC, systemd timer `greatsales-backup.timer` → S3 |
-| Alerting | SNS `greatsales-alerts` in **both** eu-west-2 and us-east-1 → kannankaruppaiya10@gmail.com |
+| Alerting | SNS `greatsales-alerts` in **both** ap-south-1 and us-east-1 → kannankaruppaiya10@gmail.com |
 
 ```bash
 pnpm deploy:aws                             # build here, ship through S3, deploy over SSM
 pnpm deploy:aws --skip-build                # redeploy the images already in S3
+pnpm deploy:aws --no-rebuild                # reship the LOCAL images (a failed upload), no rebuild
 pnpm box 'docker compose ps'                # run any shell command on the box over SSM
+pnpm domain:cutover                         # IP -> https://greatworksapp.in (checks DNS first)
+pnpm domain:cutover -- --rollback           # back to plain HTTP on the IP
 pnpm backup:drill                           # restore the newest S3 dump and diff it against live
 ```
 
@@ -109,7 +167,7 @@ pnpm backup:drill                           # restore the newest S3 dump and dif
 - **Take a backup before any deploy that carries a migration**: `pnpm box 'bash
   /opt/greatsales/backup.sh'` writes a dump to S3 and prints its size. The nightly timer is
   not close enough when you are about to change the schema.
-- **Images are built on the developer machine, never on the box.** 4GB is enough to RUN the
+- **Images are built on the developer machine, never on the box.** 2GB is enough to RUN the
   stack beside Postgres and nowhere near enough to build it.
 - The deploy is ordered `migrate → rotate greatsales_app's password → start the API`. That
   order is not cosmetic: the RLS migration creates the role with the literal password
@@ -120,26 +178,118 @@ pnpm backup:drill                           # restore the newest S3 dump and dif
 
 ## The hostname and its certificate
 
-`sslip.io` resolves `18-130-99-225.sslip.io` to `18.130.99.225` with no registrar, no DNS
-records to keep and no signup, and it sits on the Public Suffix List so Let's Encrypt treats
-each name under it as its own registrable domain rather than sharing one rate limit with
-every other user. Caddy fetches and renews the certificate on its own.
+**Done, 2026-09-20.** `greatworksapp.in` is registered at **GoDaddy** (not Route 53) and its
+DNS is served by GoDaddy's nameservers (`ns53`/`ns54.domaincontrol.com`). The zone holds one
+`A @ -> 35.154.59.213` (TTL 600) and GoDaddy's default `CNAME www -> @`. Caddy holds two
+separate Let's Encrypt certificates, one per site block, and renews them itself.
 
-To move to a real domain later, point an A record at the Elastic IP and change two lines in
-`/opt/greatsales/.env` — `SITE_ADDRESS` (the bare hostname) and `CORS_ORIGIN` (the same host
-as an `https://` URL) — then `docker compose up -d --force-recreate caddy api`. Both have to
-change together: the console is served from the API's origin, and the env contract rejects a
-`CORS_ORIGIN` that does not match.
+This is the method GoDaddy itself documents for an external server — an A record while the
+domain uses GoDaddy nameservers. The alternatives were checked and rejected: changing
+nameservers would require a Route 53 hosted zone for no benefit, and GoDaddy **Forwarding**
+both *locks the `@` A record* and does not support HTTPS at all.
 
-`apps/mobile/app.json` carries the same URL in `extra.apiBaseUrl`, which is what a release
-build falls back to when there is no Metro host to infer from.
+There is **no CAA record** (so nothing restricts which CA may issue) and **no DS record** (so
+DNSSEC is off). If either changes, certificate renewal is the first thing that breaks.
+
+Do not edit `.env` by hand for this. `pnpm domain:cutover` refuses unless the name already
+resolves to the Elastic IP (a failed ACME challenge burns a per-domain weekly rate limit),
+changes both lines together, recreates `caddy` and `api`, verifies HTTPS from OUTSIDE the box,
+and restores the previous `.env` automatically if the stack does not come back. Once a hostname
+is set Caddy stops answering on the bare IP, so a failed cutover is an outage, not a cosmetic
+problem — which is why the check runs before anything is touched.
+
+`www` is handled. `deploy/Caddyfile` carries a second site block that takes a certificate for
+`www.<host>` and 301s it to the bare name, so there is exactly one origin and no certificate
+warning for people who type www. The block is driven by `WWW_SITE_ADDRESS` / `PRIMARY_HOST`,
+whose defaults (`http://localhost:9080`, `localhost`) make it **inert**: an `http://` address
+asks Caddy for no certificate at all, so it sits idle while the box serves its bare IP.
+
+`pnpm domain:cutover` decides whether to switch it on by resolving `www.<host>` first, and
+leaves it off unless that name already points at this box — enabling it for a name that does
+not resolve would fail an ACME challenge on every retry, and Let's Encrypt counts those per
+registered domain per week, which can cost you the real certificate.
+
+Both shapes of this file were validated with `caddy validate` on the box before it shipped
+(2026-09-20): IP mode and www-enabled mode both report `Valid configuration`. Do that again
+after editing it — a Caddyfile that fails to parse takes the entire site down on restart:
+
+```bash
+pnpm box 'docker run --rm -e SITE_ADDRESS=":80" -v /opt/greatsales/Caddyfile:/etc/caddy/Caddyfile:ro caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile'
+```
+
+### A page reload used to sign you out — fixed by HTTPS, do not "fix" it in code
+
+Kept because the symptom is misleading. The refresh cookie is set `secure: !isDev`
+(`apps/api/src/auth/auth.controller.ts`), so while the box served plain HTTP the browser
+never stored it, and any full page load landed on the sign-in door. Verified resolved on
+2026-09-20: a login over `https://greatworksapp.in` now returns
+`Set-Cookie: gs_rt=...; HttpOnly; Secure; SameSite=Lax`.
+
+If this ever reappears, the cause is the site being reached over plain HTTP — never relax
+`secure`.
+
+The Elastic IP is what makes this survive: stop and start the instance and the ephemeral public
+address changes, but the EIP does not, so the A record never has to be touched again. Do not
+release it — the previous box's EIP was released when it was terminated, which is why this one
+has a new address.
+
+`SITE_ADDRESS` and `CORS_ORIGIN` in `/opt/greatsales/.env` carry that hostname and **must change
+together** — the console is served from the API's own origin, and the env contract rejects a
+`CORS_ORIGIN` that does not match. After editing both:
+
+```bash
+pnpm box 'cd /opt/greatsales && docker compose up -d --force-recreate caddy api'
+```
+
+Order matters on a first cutover: point DNS first, confirm it resolves, and only then set
+`SITE_ADDRESS` to the hostname. Caddy asks Let's Encrypt for a certificate the moment it starts
+with a name, and a failed challenge against a name that does not resolve yet burns attempts
+against the rate limit.
+
+`apps/mobile/app.json` carries the same URL in `extra.apiBaseUrl`, which is what a release build
+falls back to when there is no Metro host to infer from.
+
+## What is on the production database right now
+
+**Seeded with the Promech dataset on 2026-09-20**, deliberately, so the live site is not empty:
+417 customers, 282 projections, 234 products, 141 payments, 12 users, in `tenant_promech`.
+
+This was done with `seed-promech.ts` and `ALLOW_DESTRUCTIVE_SEED=1`. Understand what that means
+before repeating it: **the seed TRUNCATEs every table first**. It does not merge, and it will
+destroy real tenant data. The guard in `prisma/seed-guard.ts` refuses on `NODE_ENV=production`
+and on a non-local host precisely to stop this happening by accident; the override is the honest
+way to say "I mean it", and faking `NODE_ENV=development` is not.
+
+**Take a backup first** (`pnpm box 'bash /opt/greatsales/backup.sh'`) — it was done here, and the
+pre-seed dump is in the backups bucket if the old state is ever needed.
+
+### The logins, which are NOT the dev ones
+
+The seed creates `admin@greatsales.local` / `admin` and everyone else on `1234`. Those are fine
+on a laptop and unacceptable on a public domain, so every account was changed immediately after
+seeding:
+
+| | |
+| --- | --- |
+| Workspace | `tenant_promech` — "Promech" |
+| Admin | `greatworksramesh@gmail.com` — the password its owner chose |
+| The 11 demo users | `<name>@greatsales.local`, all sharing one strong password |
+
+Changed with `PATCH /users/:id`, **not** `POST /users/:id/reset-password`: the reset endpoint
+sets `mustChangePassword`, which would force a password change on every demo account at first
+sign-in and defeat the point of having them. `PATCH` re-hashes and leaves the flag alone.
+
+The shared password must not contain a 4+ character fragment of any user's own name, email
+local-part or username — and note that **`promech` is itself a username**, so a password built
+around the company name is rejected for that account and no other, which is a confusing failure
+if you do not know to expect it.
 
 ## Alerting, and what it does and does not cover
 
 | Alarm | Region | Fires when |
 | --- | --- | --- |
-| `greatsales-prod-unreachable` | us-east-1 | A Route 53 health check against `https://…/api/v1/health/ready` fails from AWS's external checkers. Covers the app, Caddy, the certificate and the network — not just the box. |
-| `greatsales-box-status-check-failed` | eu-west-2 | EC2 reports the instance itself unhealthy. |
+| `greatsales-prod-unreachable` | us-east-1 | Repointed to `greatworksapp.in` on 2026-09-20 and back to **OK** within 90s, after 11 days in ALARM pointing at the terminated box. Its `FullyQualifiedDomainName` is the one thing to update whenever the hostname changes — the check is HTTPS with SNI, so it also proves the certificate. A Route 53 health check against `https://…/api/v1/health/ready` fails from AWS's external checkers. Covers the app, Caddy, the certificate and the network — not just the box. |
+| `greatsales-box-status-check-failed` | ap-south-1 | EC2 reports the instance itself unhealthy. |
 
 The health check is external on purpose: a heartbeat published *by* the box cannot tell you
 that the box is unreachable *from outside*, which is the failure the customer actually sees.
@@ -157,7 +307,7 @@ customer with an `industryId` that does not exist — Prisma throws a foreign ke
 filter reports it, and nothing is written:
 
 ```bash
-curl -X POST https://18-130-99-225.sslip.io/api/v1/customers -H "Authorization: Bearer $TOK"   -H 'Content-Type: application/json'   -d '{"name":"__sentry_probe__","salespersonId":"<a real user id>","industryId":"nope"}'
+curl -X POST https://greatworksapp.in/api/v1/customers -H "Authorization: Bearer $TOK"   -H 'Content-Type: application/json'   -d '{"name":"__sentry_probe__","salespersonId":"<a real user id>","industryId":"nope"}'
 ```
 
 ## Onboarding a customer
@@ -172,6 +322,21 @@ pnpm db:provision -- --tenant acme --name "Acme Industrial" --admin-email ops@ac
 It only ever inserts: it refuses a tenant id that already exists, upserts the global permission
 catalogue, and prints the generated admin password once. The admin is created with
 `mustChangePassword`, so that password is a hand-over secret rather than a credential.
+
+`--admin-password <password>` sets a chosen credential instead of a generated one and clears
+`mustChangePassword`, so the owner signs in with the password they were given. It is checked
+against the same policy the API enforces (`packages/shared/src/password.ts`); a password that
+fails is refused unless `--allow-weak-password` is also passed, and that escape hatch is
+itself refused when `NODE_ENV=production`.
+
+A second dev workspace exists alongside Promech: `tenant_trade` — "Trade", admin
+`admin@trade.com` / `Admin@2026` (below the 12-character policy, so it was created with
+`--allow-weak-password`; it has no data). **Every seed script TRUNCATEs the whole database, so
+`db:seed:promech` destroys it.** Recreate it with:
+
+```bash
+pnpm db:provision -- --tenant trade --name "Trade" --admin-email admin@trade.com --admin-name "Trade Admin" --admin-password 'Admin@2026' --allow-weak-password
+```
 
 ## Still open
 

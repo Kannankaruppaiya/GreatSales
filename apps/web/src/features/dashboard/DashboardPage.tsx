@@ -314,6 +314,65 @@ export default function DashboardPage() {
                 </QueryBoundary>
               </Card>
 
+              {/* 2. Principal Performance & Category Mix */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Principal Performance */}
+                <Card className="p-4 shadow-xs border-line">
+                  <div className="font-bold text-sm text-ink mb-3">Principal performance this month</div>
+                  <div className="space-y-3">
+                    {/* All of them, not the first six. The heading promises
+                        principal performance and the list arrives sorted by
+                        committed value, so truncating it silently dropped the
+                        smallest brands off a card that claimed to cover them. */}
+                    {principalStats.map((pr) => {
+                      const achPct = pr.committed > 0 ? (pr.achieved / pr.committed) * 100 : 0;
+                      return (
+                        <div key={pr.name} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-bold">
+                            <span className="text-ink">{pr.name}</span>
+                            <span className="text-muted tabular-nums">
+                              {inr(pr.achieved)} / {inr(pr.committed)} ({achPct.toFixed(0)}%)
+                            </span>
+                          </div>
+                          <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
+                            <div
+                              className="h-full bg-brand rounded-full transition-all"
+                              style={{ width: `${Math.min(100, achPct)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+
+                {/* Customer Category Mix */}
+                <Card className="p-4 shadow-xs border-line">
+                  <div className="font-bold text-sm text-ink mb-3">Customer category mix</div>
+                  <div className="space-y-3">
+                    {categoryStats.map((c) => {
+                      const achPct = c.committed > 0 ? (c.achieved / c.committed) * 100 : 0;
+                      return (
+                        <div key={c.tier} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs font-bold">
+                            <span className="text-ink">{c.tier} Customers</span>
+                            <span className="text-muted tabular-nums">
+                              {inr(c.achieved)} / {inr(c.committed)} ({achPct.toFixed(0)}%)
+                            </span>
+                          </div>
+                          <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
+                            <div
+                              className="h-full bg-brand rounded-full transition-all"
+                              style={{ width: `${Math.min(100, achPct)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              </div>
+
               {/* 3. Deals at Oral Confirmation */}
               <Card className="p-0 overflow-hidden shadow-xs border-line">
                 <div className="p-3.5 border-b border-line flex items-center justify-between bg-surface-2/40">
@@ -379,65 +438,6 @@ export default function DashboardPage() {
                   </div>
                 </QueryBoundary>
               </Card>
-
-              {/* 3. Principal Performance & Category Mix */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Principal Performance */}
-                <Card className="p-4 shadow-xs border-line">
-                  <div className="font-bold text-sm text-ink mb-3">Principal performance this month</div>
-                  <div className="space-y-3">
-                    {/* All of them, not the first six. The heading promises
-                        principal performance and the list arrives sorted by
-                        committed value, so truncating it silently dropped the
-                        smallest brands off a card that claimed to cover them. */}
-                    {principalStats.map((pr) => {
-                      const achPct = pr.committed > 0 ? (pr.achieved / pr.committed) * 100 : 0;
-                      return (
-                        <div key={pr.name} className="space-y-1">
-                          <div className="flex items-center justify-between text-xs font-bold">
-                            <span className="text-ink">{pr.name}</span>
-                            <span className="text-muted tabular-nums">
-                              {inr(pr.achieved)} / {inr(pr.committed)} ({achPct.toFixed(0)}%)
-                            </span>
-                          </div>
-                          <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
-                            <div
-                              className="h-full bg-brand rounded-full transition-all"
-                              style={{ width: `${Math.min(100, achPct)}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </Card>
-
-                {/* Customer Category Mix */}
-                <Card className="p-4 shadow-xs border-line">
-                  <div className="font-bold text-sm text-ink mb-3">Customer category mix</div>
-                  <div className="space-y-3">
-                    {categoryStats.map((c) => {
-                      const achPct = c.committed > 0 ? (c.achieved / c.committed) * 100 : 0;
-                      return (
-                        <div key={c.tier} className="space-y-1">
-                          <div className="flex items-center justify-between text-xs font-bold">
-                            <span className="text-ink">{c.tier} Customers</span>
-                            <span className="text-muted tabular-nums">
-                              {inr(c.achieved)} / {inr(c.committed)} ({achPct.toFixed(0)}%)
-                            </span>
-                          </div>
-                          <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
-                            <div
-                              className="h-full bg-brand rounded-full transition-all"
-                              style={{ width: `${Math.min(100, achPct)}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </Card>
-              </div>
             </div>
           )}
         </div>

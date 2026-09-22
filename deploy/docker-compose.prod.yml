@@ -26,16 +26,26 @@ services:
     # but an unpublished port cannot be reached even from the box itself.
     volumes:
       - pgdata:/var/lib/postgresql/data
+    # Tuned for the 2GB box, NOT for a database server with the machine to
+    # itself. The API, nginx and Caddy share these 2GB, so the old 4GB-box
+    # values (shared_buffers=1GB, effective_cache_size=2GB) would have handed
+    # Postgres half the RAM and promised it all of it -- the planner would then
+    # choose plans for a cache that does not exist, and the OOM killer picks
+    # the biggest process, which is Postgres itself.
     command:
       - postgres
       - -c
-      - shared_buffers=1GB
+      - shared_buffers=384MB
       - -c
-      - effective_cache_size=2GB
+      - effective_cache_size=1GB
       - -c
-      - work_mem=16MB
+      - work_mem=8MB
       - -c
-      - maintenance_work_mem=256MB
+      - maintenance_work_mem=96MB
+      # A backend costs several MB, so an unbounded pool is how a small box
+      # dies. Nothing here opens anywhere near 50.
+      - -c
+      - max_connections=50
       - -c
       - shared_preload_libraries=pg_stat_statements
       - -c
@@ -85,8 +95,8 @@ services:
       SENTRY_DSN: ${SENTRY_DSN:-}
       # Production requires S3 storage for attachments.
       STORAGE_DRIVER: ${STORAGE_DRIVER:-s3}
-      S3_BUCKET: ${S3_BUCKET:-greatsales-attachments-887793660359-euw2}
-      S3_REGION: ${S3_REGION:-eu-west-2}
+      S3_BUCKET: ${S3_BUCKET:-greatsales-attachments-887793660359-aps1}
+      S3_REGION: ${S3_REGION:-ap-south-1}
     depends_on:
       postgres:
         condition: service_healthy
@@ -117,6 +127,12 @@ services:
       # A bare ":80" serves plain HTTP on the IP. A hostname makes Caddy fetch
       # and renew a Let's Encrypt certificate on its own.
       SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+      # The www redirect block. These carry DEFAULTS here rather than being
+      # passed through empty: Caddy treats a set-but-empty var as set, and an
+      # empty site address or redirect target is a config parse error that would
+      # take Caddy -- and therefore the whole site -- down on boot.
+      WWW_SITE_ADDRESS: ${WWW_SITE_ADDRESS:-http://localhost:9080}
+      PRIMARY_HOST: ${PRIMARY_HOST:-localhost}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
