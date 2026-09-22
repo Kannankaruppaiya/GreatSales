@@ -20,6 +20,10 @@ import { codedForbidden } from '../common/error-codes';
 import { PeriodLocksService } from '../period-locks/period-locks.service';
 import { businessToday } from '../common/business-day';
 import {
+  clearRecordFollowUp,
+  syncRecordFollowUp,
+} from '../followups/record-followup';
+import {
   applyFilters,
   sortLines,
   summarize,
@@ -55,6 +59,7 @@ function dec(v: Prisma.Decimal | null): number | null {
 function ymd(d: Date | null): string | null {
   return d == null ? null : d.toISOString().slice(0, 10);
 }
+
 
 @Injectable()
 export class ProjectionsService {
@@ -198,7 +203,18 @@ export class ProjectionsService {
         data,
         include: PROJECTION_INCLUDE,
       });
-      return toLine(
+
+      // The worksheet's "Log follow-up" button lands here. Writing only the
+      // date column left the Follow-ups page, the dashboard tile and the
+      // mobile screen — all of which list `FollowUp` rows — with no idea the
+      // follow-up existed. Mirrored inside this transaction so the two can
+      // never disagree, and only under this branch so a price edit cannot
+      // reopen a task that was already ticked off.
+      //
+      // Built from the wire line rather than the raw row so the task's amount
+      // is the worksheet's own `projValue`, priced by the same engine instead
+      // of by a second copy of the price-precedence rule.
+      const line = toLine(
         toEngineLine(
           updated,
           await this.primaryContactNames(db, [updated.mapping.customer.id]),
@@ -206,6 +222,25 @@ export class ProjectionsService {
           await this.activityCounts(db, 'followUp', [updated.id]),
         ),
       );
+
+      if ('nextFollowUp' in patch) {
+        await syncRecordFollowUp(db, user.tenantId, {
+          entityType: 'Projection',
+          entityId: updated.id,
+          salespersonId: line.salespersonId,
+          dueDate: updated.nextFollowUp,
+          title: `Follow up — ${line.customerName}`,
+          subtitle: `${line.productName} · ${line.principalName} · ${line.period}`,
+          amount: line.projValue,
+        });
+        // The badge counts FollowUp rows, so it is one higher (or lower) than
+        // the count read a few lines above.
+        line.followUpCount = (
+          await this.activityCounts(db, 'followUp', [updated.id])
+        ).get(updated.id) ?? 0;
+      }
+
+      return line;
     });
   }
 
@@ -367,6 +402,8 @@ export class ProjectionsService {
       }
 
       await db.projection.delete({ where: { id } });
+      // A line that is gone must not leave its follow-up on somebody's list.
+      await clearRecordFollowUp(db, 'Projection', id);
     });
   }
 

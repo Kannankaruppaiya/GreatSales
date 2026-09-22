@@ -52,8 +52,13 @@ export const STALE_AFTER: Record<WriteTarget, readonly string[]> = {
     "payments",
     "dashboard",
   ],
-  /** The dashboard's committed new-sales value and its oral-confirmation list. */
-  leads: ["leads", "dashboard"],
+  /**
+   * The dashboard's committed new-sales value and its oral-confirmation list —
+   * and the follow-ups family, because `Lead.nextFollowUp` is mirrored into a
+   * `FollowUp` row (apps/api/src/followups/record-followup.ts), so setting a
+   * lead's next follow-up changes what the Follow-ups page lists.
+   */
+  leads: ["leads", "dashboard", "followups"],
   /**
    * An order raised from a projection writes `Projection.salesOrderId` in the
    * same transaction, and `ProjectionLine` carries `salesOrderId`/
@@ -73,15 +78,28 @@ export const STALE_AFTER: Record<WriteTarget, readonly string[]> = {
    * payments block IS this family filtered by customer.
    */
   payments: ["payments"],
-  /** Feeds the KPI row, the top-open list and the achievement percentages. */
-  projections: ["projections", "dashboard"],
+  /**
+   * Feeds the KPI row, the top-open list and the achievement percentages —
+   * and the follow-ups family, because the worksheet's "Log follow-up" button
+   * writes `Projection.nextFollowUp`, which is mirrored into a `FollowUp` row
+   * (apps/api/src/followups/record-followup.ts). Without it, logging a
+   * follow-up on the worksheet left the Follow-ups page showing the list as it
+   * was before — which is precisely the disagreement the mirror exists to end.
+   */
+  projections: ["projections", "dashboard", "followups"],
   /** A mapping IS the price a projection line resolves through. */
   mappings: ["mappings", "projections", "dashboard"],
   /** `basePrice` is a mapping's catalog column and a projection's fallback price. */
   products: ["products", "principals", "mappings", "projections", "orders"],
   principals: ["principals", "products", "mappings", "projections"],
-  /** The dashboard carries the outstanding-follow-ups count and its list. */
-  followups: ["followups", "dashboard", "projections"],
+  /**
+   * The dashboard carries the outstanding-follow-ups count and its list, and
+   * the worksheet carries the per-line badge. `leads` joins them because
+   * completing or deleting a mirrored task clears that record's
+   * `nextFollowUp` column — the write-back in followups.service.ts — so the
+   * leads list would otherwise keep showing a date for finished work.
+   */
+  followups: ["followups", "dashboard", "projections", "leads"],
   /**
    * A note logged against a record.
    *

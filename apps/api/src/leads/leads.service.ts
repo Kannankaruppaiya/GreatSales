@@ -17,6 +17,10 @@ import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { assertOwnerNotTransferred } from '../common/entity-access';
 import { contactWrites, contactsFor, primaryOf } from '../common/contacts';
+import {
+  clearRecordFollowUp,
+  syncRecordFollowUp,
+} from '../followups/record-followup';
 
 /**
  * Prisma include graph for a {@link LeadRow}. NOTE: `Lead.industryId` is a loose
@@ -80,6 +84,21 @@ function toRow(
     createdAt: l.createdAt.toISOString(),
     updatedAt: l.updatedAt.toISOString(),
   };
+}
+
+/**
+ * Context line for a lead's mirrored follow-up, so the Follow-ups page shows
+ * what the task is about rather than a bare name. Stage first, because that is
+ * what decides the next move.
+ *
+ * The stage is split out of its PascalCase rather than run through the web's
+ * DEAL_STAGE_LABELS map: that map lives in the client and says
+ * "Negotiation / Oral Confirmation", and a second copy here would be one more
+ * thing to keep in step for the sake of a slash.
+ */
+function leadSubtitle(lead: { stage: string; area: string | null }): string {
+  const stage = lead.stage.replace(/([a-z])([A-Z])/g, '$1 $2');
+  return [stage, lead.area].filter(Boolean).join(' · ');
 }
 
 @Injectable()
@@ -252,6 +271,20 @@ export class LeadsService {
       include: LEAD_INCLUDE,
     });
 
+    // A lead created with a follow-up date gets the matching task, for the
+    // same reason the update path does: `Lead.nextFollowUp` is a date on this
+    // row, while the Follow-ups page and the dashboard list `FollowUp` rows.
+    if (created.nextFollowUp) {
+      await syncRecordFollowUp(db, user.tenantId, {
+        entityType: 'Lead',
+        entityId: created.id,
+        salespersonId: created.salespersonId,
+        dueDate: created.nextFollowUp,
+        title: `Follow up — ${created.customerName}`,
+        subtitle: leadSubtitle(created),
+      });
+    }
+
     // Contacts are written after the lead, not nested inside it: `Contact` is
     // polymorphic (entityType + entityId) rather than a relation, so there is
     // no id to point at until the row exists.
@@ -365,6 +398,19 @@ export class LeadsService {
       include: LEAD_INCLUDE,
     });
 
+    // Only under this branch: a patch that moves the stage must not reopen a
+    // follow-up the salesperson already ticked off on the Follow-ups page.
+    if ('nextFollowUp' in patch) {
+      await syncRecordFollowUp(db, user.tenantId, {
+        entityType: 'Lead',
+        entityId: updated.id,
+        salespersonId: updated.salespersonId,
+        dueDate: updated.nextFollowUp,
+        title: `Follow up — ${updated.customerName}`,
+        subtitle: leadSubtitle(updated),
+      });
+    }
+
     // Contacts are REPLACED for the same reason line items are: a contact has
     // no identity a client can address, and "these are the contacts now" is the
     // only instruction that can express somebody having left the account.
@@ -405,6 +451,8 @@ export class LeadsService {
     const db = this.prisma.forTenant(user.tenantId);
     await this.assertOwned(db, user, id);
     await db.lead.update({ where: { id }, data: { deletedAt: new Date() } });
+    // A deleted lead must not leave its follow-up on somebody's list.
+    await clearRecordFollowUp(db, 'Lead', id);
   }
 
   private async assertOwned(

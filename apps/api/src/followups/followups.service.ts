@@ -13,6 +13,10 @@ import type {
   RequestUser,
 } from '@greatsales/shared';
 import { PrismaService, type TenantPrisma } from '../prisma/prisma.service';
+import {
+  recordBehindFollowUpId,
+  type RecordFollowUpEntity,
+} from './record-followup';
 
 /** Prisma include graph that carries everything a {@link FollowUpRow} needs. */
 const FOLLOWUP_INCLUDE = { salesperson: true } satisfies Prisma.FollowUpInclude;
@@ -161,6 +165,19 @@ export class FollowUpsService {
       data,
       include: FOLLOWUP_INCLUDE,
     });
+
+    // The other half of the mirror. A task that IS a projection's or lead's
+    // `nextFollowUp` column has to write back, or ticking it off here would
+    // leave the worksheet still showing the date — and still counting the line
+    // under "Needs follow-up" — for something already done.
+    if (patch.done !== undefined || patch.dueDate !== undefined) {
+      await this.writeBackToRecord(
+        db,
+        id,
+        updated.done ? null : updated.dueDate,
+      );
+    }
+
     return toRow(updated);
   }
 
@@ -169,6 +186,40 @@ export class FollowUpsService {
     const db = this.prisma.forTenant(user.tenantId);
     await this.assertOwned(db, user, id);
     await db.followUp.delete({ where: { id } });
+    await this.writeBackToRecord(db, id, null);
+  }
+
+  /**
+   * Push a mirrored task's date back onto the record that owns it; a no-op for
+   * an ordinary follow-up, which points at a record without being one of its
+   * fields.
+   *
+   * The period lock is deliberately NOT consulted. It freezes a month's
+   * figures, and a follow-up date is not a figure — refusing the write would
+   * only mean the worksheet and the Follow-ups page disagreed about a task the
+   * salesperson had already completed.
+   */
+  private async writeBackToRecord(
+    db: TenantPrisma,
+    followUpId: string,
+    dueDate: Date | null,
+  ): Promise<void> {
+    const record = recordBehindFollowUpId(followUpId);
+    if (!record) return;
+
+    const table: Record<RecordFollowUpEntity, () => Promise<unknown>> = {
+      Projection: () =>
+        db.projection.updateMany({
+          where: { id: record.entityId },
+          data: { nextFollowUp: dueDate },
+        }),
+      Lead: () =>
+        db.lead.updateMany({
+          where: { id: record.entityId },
+          data: { nextFollowUp: dueDate },
+        }),
+    };
+    await table[record.entityType]();
   }
 
   private async assertOwned(

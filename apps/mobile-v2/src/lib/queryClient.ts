@@ -58,12 +58,12 @@ export type WriteTarget =
 
 export const STALE_AFTER: Record<WriteTarget, readonly string[]> = {
   customers: ['customers', 'customer', 'mappings', 'projections', 'orders', 'payments', 'dashboard'],
-  leads: ['leads', 'lead', 'dashboard'],
+  leads: ['leads', 'lead', 'dashboard', 'followups', 'followup'],
   orders: ['orders', 'order', 'projections', 'dashboard', 'customer'],
   payments: ['payments', 'payment', 'customers', 'customer', 'dashboard'],
-  projections: ['projections', 'projection', 'dashboard'],
+  projections: ['projections', 'projection', 'dashboard', 'followups', 'followup'],
   mappings: ['mappings', 'mapping', 'projections', 'dashboard', 'customer'],
-  followups: ['followups', 'followup', 'dashboard', 'projections'],
+  followups: ['followups', 'followup', 'dashboard', 'projections', 'projection', 'leads', 'lead'],
   profile: ['currentUser', 'dashboard'],
   dashboard: ['dashboard', 'currentUser'],
 };

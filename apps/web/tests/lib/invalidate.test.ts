@@ -29,15 +29,27 @@ describe("invalidateAfter", () => {
     // The bug this exists for: a follow-up logged from a dashboard tile used
     // to refresh the follow-ups page and leave the tile showing the old count.
     // `projections` joined the list when the worksheet started printing a
-    // follow-up count on every line — same failure, a different badge.
-    expect(rootsOf(spy)).toEqual(["dashboard", "followups", "projections"]);
+    // follow-up count on every line — same failure, a different badge. `leads`
+    // joined it when completing a mirrored task started clearing the record's
+    // own `nextFollowUp` column.
+    expect(rootsOf(spy)).toEqual([
+      "dashboard",
+      "followups",
+      "leads",
+      "projections",
+    ]);
   });
 
   it("asks for each root once when two writes overlap", async () => {
     const qc = new QueryClient();
     const spy = vi.spyOn(qc, "invalidateQueries");
     await invalidateAfter(qc, "projections", "mappings");
-    expect(rootsOf(spy)).toEqual(["dashboard", "mappings", "projections"]);
+    expect(rootsOf(spy)).toEqual([
+      "dashboard",
+      "followups",
+      "mappings",
+      "projections",
+    ]);
   });
 
   it("names its own family first, so a call site reads as one statement", () => {
@@ -68,6 +80,17 @@ describe("invalidateAfter", () => {
       "people",
     ];
     for (const t of feeds) expect(STALE_AFTER[t]).toContain("dashboard");
+  });
+
+  /**
+   * `Projection.nextFollowUp` and `Lead.nextFollowUp` are mirrored into
+   * `FollowUp` rows by the API, so a write to either record can change what
+   * the Follow-ups page lists. Logging a follow-up on the worksheet and
+   * finding that page unchanged is the bug this line prevents coming back.
+   */
+  it("refreshes the follow-ups list after a projection or lead write", () => {
+    expect(STALE_AFTER.projections).toContain("followups");
+    expect(STALE_AFTER.leads).toContain("followups");
   });
 
   it("does not refetch unrelated families", () => {

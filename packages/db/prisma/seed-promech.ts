@@ -1178,6 +1178,63 @@ async function main() {
     })),
   });
 
+  // The mirrored tasks. `Projection.nextFollowUp` and `Lead.nextFollowUp` are
+  // date columns on their own rows; the Follow-ups page, the dashboard tile
+  // and the mobile screen all list `FollowUp` rows. The API keeps the two in
+  // step on every write (apps/api/src/followups/record-followup.ts) — the seed
+  // has to do the same, or a freshly seeded database would start out with
+  // dozens of follow-up dates that no follow-up list knows about.
+  //
+  // Same derived ids and the same title/subtitle shape as the API's mirror, so
+  // re-saving a line after a seed updates the row rather than adding a second.
+  const [projWithFollowUp, leadsWithFollowUp] = await Promise.all([
+    prisma.projection.findMany({
+      where: { nextFollowUp: { not: null } },
+      include: {
+        mapping: {
+          include: { customer: true, product: { include: { principal: true } } },
+        },
+      },
+    }),
+    prisma.lead.findMany({ where: { nextFollowUp: { not: null } } }),
+  ]);
+
+  await prisma.followUp.createMany({
+    data: [
+      ...projWithFollowUp.map((p) => ({
+        id: `fu_proj_${p.id}`,
+        tenantId: TENANT_ID,
+        entityType: "Projection" as const,
+        entityId: p.id,
+        salespersonId: p.mapping.salespersonId,
+        title: `Follow up — ${p.mapping.customer.name}`,
+        subtitle: `${p.mapping.product.name} · ${p.mapping.product.principal.name} · ${p.period}`,
+        amount: dec(
+          Number(p.committedQty) *
+            Number(p.price ?? p.mapping.customPrice ?? p.mapping.product.basePrice ?? 0),
+        ),
+        dueDate: p.nextFollowUp!,
+        done: false,
+        note: null,
+      })),
+      ...leadsWithFollowUp.map((l) => ({
+        id: `fu_lead_${l.id}`,
+        tenantId: TENANT_ID,
+        entityType: "Lead" as const,
+        entityId: l.id,
+        salespersonId: l.salespersonId,
+        title: `Follow up — ${l.customerName}`,
+        subtitle: [l.stage.replace(/([a-z])([A-Z])/g, "$1 $2"), l.area]
+          .filter(Boolean)
+          .join(" · "),
+        amount: null,
+        dueDate: l.nextFollowUp!,
+        done: false,
+        note: null,
+      })),
+    ],
+  });
+
   const counts = {
     tenants: await prisma.tenant.count(),
     users: await prisma.user.count(),
