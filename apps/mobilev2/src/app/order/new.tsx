@@ -41,7 +41,7 @@ import {
   type EntityOption,
 } from "@/components/form";
 import { useData } from "@/data/provider";
-import { isMutable } from "@/data/source";
+import { describeError } from "@/data/http";
 import { color, radius, space } from "@/design/tokens";
 import { longDate, money, moneyShort } from "@/lib/format";
 import { PAYMENT_TERMS_LABELS } from "@/lib/labels";
@@ -62,7 +62,7 @@ interface Line {
   productId: string;
   productName: string;
   principal: string;
-  unit: string;
+  unit: string | null;
   qty: number;
   price: number;
   /** Where the price came from, so the review can say so. */
@@ -157,7 +157,9 @@ export default function NewOrderScreen() {
         mappings.items.find((m) => m.productId === product.id)?.agreedPrice ??
         null;
 
-      const price = quoted.price ?? agreed ?? product.listPrice;
+      // Nothing to price it from means zero, for the salesperson to type in —
+      // the review step refuses a zero-value order, so it cannot slip through.
+      const price = quoted.price ?? agreed ?? product.listPrice ?? 0;
       return {
         productId: product.id,
         productName: product.name,
@@ -166,11 +168,7 @@ export default function NewOrderScreen() {
         qty: quoted.qty && quoted.qty > 0 ? quoted.qty : 1,
         price,
         priceSource:
-          quoted.price != null
-            ? "quoted"
-            : agreed != null
-              ? "mapping"
-              : "list",
+          quoted.price != null ? "quoted" : agreed != null ? "mapping" : "list",
       };
     },
     [source],
@@ -320,7 +318,7 @@ export default function NewOrderScreen() {
         principal: product.principal,
         unit: product.unit,
         qty: 1,
-        price: agreed ?? product.listPrice,
+        price: agreed ?? product.listPrice ?? 0,
         priceSource: agreed != null ? "mapping" : "list",
       },
     ]);
@@ -343,7 +341,7 @@ export default function NewOrderScreen() {
           : true;
 
   async function submit() {
-    if (!customer || lines.length === 0 || !isMutable(source)) return;
+    if (!customer || lines.length === 0) return;
     setSaving(true);
     setError(null);
     try {
@@ -353,12 +351,13 @@ export default function NewOrderScreen() {
           productId: l.productId,
           qty: l.qty,
           price: l.price,
+          unit: l.unit,
         })),
         expectedDeliveryAt: deliveryAt
           ? new Date(`${deliveryAt}T10:00:00`).toISOString()
           : null,
         deliveryAddress: address.trim() || null,
-        paymentTerms: terms ?? undefined,
+        paymentTerms: terms ?? null,
         notes: notes.trim() || null,
         // Links the created order to the projection line it came from, which is
         // what lets the worksheet show the order's real status.
@@ -370,9 +369,7 @@ export default function NewOrderScreen() {
         total: order.total,
       });
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "The order could not be created.",
-      );
+      setError(describeError(e));
     } finally {
       setSaving(false);
     }
@@ -507,7 +504,7 @@ export default function NewOrderScreen() {
 
                 <View style={styles.qtyRow}>
                   <Text variant="caption" tone="muted" style={styles.qtyLabel}>
-                    Quantity ({line.unit})
+                    {line.unit ? `Quantity (${line.unit})` : "Quantity"}
                   </Text>
                   <Stepper
                     value={line.qty}

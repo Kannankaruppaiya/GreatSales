@@ -1,39 +1,44 @@
 /**
  * How a projection's status reads and what colour it carries.
  *
- * Kept out of `labels.ts` because the status is this app's own field rather
- * than a wire enum from `@greatsales/shared`; putting it there would suggest
- * the contract owns it.
+ * The statuses are the API's own (`PROJ_STATUS_VALUES` in @greatsales/shared)
+ * and so are their labels; only the colour is this app's. The tones group the
+ * thirteen statuses the way the worksheet reads them: still being worked,
+ * committed, at risk, and finished.
  */
+import {
+  PROJ_STATUS_LABELS,
+  PROJ_STATUS_VALUES,
+  type ProjStatusValue,
+} from "@greatsales/shared";
+
 import type { ChipTone } from "@/components/ui";
 
-export type ProjectionStatus = "Open" | "Committed" | "AtRisk" | "Closed";
+export { currentPeriod } from "./format";
 
-export const PROJECTION_STATUS_LABELS: Record<ProjectionStatus, string> = {
-  Open: "Open",
-  Committed: "Committed",
-  AtRisk: "At Risk",
-  Closed: "Closed",
+export type ProjectionStatus = ProjStatusValue;
+
+export const PROJECTION_STATUS_LABELS: Record<ProjStatusValue, string> =
+  PROJ_STATUS_LABELS;
+
+export const PROJECTION_STATUS_TONES: Record<ProjStatusValue, ChipTone> = {
+  ProjectionCreated: "steel",
+  FollowUpPending: "amber",
+  CustomerInterested: "steel",
+  WaitingApproval: "amber",
+  POExpected: "steel",
+  POReceived: "mint",
+  OrderPlaced: "mint",
+  PartiallyConfirmed: "mint",
+  Confirmed: "mint",
+  Completed: "neutral",
+  DeferredToNextMonth: "amber",
+  Lost: "red",
+  Cancelled: "neutral",
 };
 
-export const PROJECTION_STATUS_TONES: Record<ProjectionStatus, ChipTone> = {
-  Open: "steel",
-  Committed: "mint",
-  AtRisk: "amber",
-  Closed: "neutral",
-};
-
-export const PROJECTION_STATUSES: ProjectionStatus[] = [
-  "Open",
-  "Committed",
-  "AtRisk",
-  "Closed",
-];
-
-/** `YYYY-MM` for the month we are in now. */
-export function currentPeriod(now: Date = new Date()): string {
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
+export const PROJECTION_STATUSES: readonly ProjStatusValue[] =
+  PROJ_STATUS_VALUES;
 
 /**
  * The month a projections screen should open on.
@@ -46,7 +51,7 @@ export function defaultPeriod(
   periods: { period: string }[],
   now: Date = new Date(),
 ): string | null {
-  const current = currentPeriod(now);
+  const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   if (periods.some((p) => p.period === current)) return current;
   return periods[0]?.period ?? null;
 }

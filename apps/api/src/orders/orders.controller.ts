@@ -43,6 +43,13 @@ export class OrdersController {
   }
 
   /** Create an order with its line items (total computed server-side). */
+  /** One order. 404 outside the caller's scope. */
+  @Get(':id')
+  @RequirePermissions('order.read')
+  get(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.service.get(user, id);
+  }
+
   @Post()
   @RequirePermissions('order.write')
   create(

@@ -42,6 +42,23 @@ export class LeadsController {
     return this.service.list(user, query);
   }
 
+  /**
+   * Count and worth of the caller's leads per stage — the pipeline header and
+   * stage rail. Declared before `:id` so the literal path wins the match.
+   */
+  @Get('stage-summary')
+  @RequirePermissions('lead.read')
+  stageSummary(@CurrentUser() user: RequestUser) {
+    return this.service.stageSummary(user);
+  }
+
+  /** One lead. 404 for a lead outside the caller's scope. */
+  @Get(':id')
+  @RequirePermissions('lead.read')
+  get(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.service.get(user, id);
+  }
+
   /** Create a lead (with optional line items). */
   @Post()
   @RequirePermissions('lead.write')

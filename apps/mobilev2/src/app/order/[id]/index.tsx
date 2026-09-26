@@ -10,11 +10,14 @@
  * reaching the customer, and so on. A stage the order has not reached yet has
  * no duration, and shows as pending rather than as zero.
  *
- * 08N's actions are only the ones a salesperson can carry out. There is no
- * edit or cancel here: the write surface has `createOrder` and nothing else
- * for orders, so offering either would be a button that cannot work.
+ * 08N's actions are the ones the API lets a salesperson take on their own
+ * order: move it one rung along the fulfilment ladder, cancel it with a
+ * reason, or — while it is still only Created — delete it. The ladder rules
+ * (one rung at a time, nothing out of Cancelled) are the server's; this
+ * screen offers the next rung and nothing else, so it cannot ask for a move
+ * the server would refuse.
  */
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
@@ -33,6 +36,7 @@ import {
   Card,
   Chip,
   EmptyState,
+  Input,
   KeyValueRow,
   Panel,
   RowDivider,
@@ -47,8 +51,12 @@ import {
   ORDER_STATUS_LABELS,
   ORDER_STATUS_TONES,
   PAYMENT_TERMS_LABELS,
+  labelFor,
 } from "@/lib/labels";
 import { useAsync } from "@/lib/useAsync";
+import { describeError } from "@/data/http";
+import { confirmAction } from "@/lib/confirm";
+import { leave } from "@/lib/nav";
 
 /** The order the statuses are reached in, for the timeline's unreached steps. */
 const FLOW: OrderStatusValue[] = [
@@ -83,18 +91,72 @@ export default function OrderDetailScreen() {
 
   const state = useAsync(async () => {
     const order = id ? await source.getOrder(id) : null;
-    if (!order) return { order: null, invoices: [] };
-    const invoices = await source.listInvoices({
-      customerId: order.customerId,
-      limit: 50,
-    });
-    return {
-      order,
-      invoices: invoices.items.filter((i) => i.orderId === order.id),
-    };
+    return { order };
   }, [source, id]);
 
   const order = state.data?.order ?? null;
+
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [reason, setReason] = useState("");
+
+  /** The rung after the current one, or null at the top of the ladder. */
+  const next: OrderStatusValue | null = (() => {
+    if (!order || order.status === "Cancelled") return null;
+    const i = FLOW.indexOf(order.status);
+    return i >= 0 && i < FLOW.length - 1 ? FLOW[i + 1]! : null;
+  })();
+
+  async function run(work: () => Promise<unknown>) {
+    setBusy(true);
+    setActionError(null);
+    try {
+      await work();
+      state.reload();
+    } catch (e) {
+      setActionError(describeError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function advance(status: OrderStatusValue) {
+    if (!order) return;
+    const ok = await confirmAction({
+      title: `Mark as ${ORDER_STATUS_LABELS[status]}?`,
+      message: `${order.soNumber} moves to ${ORDER_STATUS_LABELS[status]}. The time is recorded on its timeline.`,
+      confirmLabel: "Update",
+    });
+    if (ok) await run(() => source.setOrderStatus(order.id, status));
+  }
+
+  async function cancel() {
+    if (!order) return;
+    await run(async () => {
+      await source.cancelOrder(order.id, reason.trim());
+      setCancelOpen(false);
+      setReason("");
+    });
+  }
+
+  async function remove() {
+    if (!order) return;
+    const ok = await confirmAction({
+      title: "Delete this order?",
+      message: `${order.soNumber} has not been acknowledged yet. Deleting removes it from your orders.`,
+      confirmLabel: "Delete",
+      cancelLabel: "Keep it",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await source.deleteOrder(order.id);
+      leave(router, "/orders");
+    } catch (e) {
+      setActionError(describeError(e));
+    }
+  }
 
   const reached = useMemo(() => {
     const map = new Map<OrderStatusValue, string>();
@@ -191,8 +253,7 @@ export default function OrderDetailScreen() {
                         {line.productName}
                       </Text>
                       <Text variant="caption" tone="muted" numberOfLines={1}>
-                        {quantity(line.qty, line.unit)} × {money(line.price)} ·{" "}
-                        {line.principal}
+                        {quantity(line.qty, line.unit)} × {money(line.price)}
                       </Text>
                     </View>
                     <Text variant="cardTitle">{money(line.value)}</Text>
@@ -204,7 +265,9 @@ export default function OrderDetailScreen() {
             <Panel tone="mint" style={styles.panel}>
               <KeyValueRow label="Subtotal" value={money(order.subtotal)} />
               <KeyValueRow
-                label={`Tax (${order.taxRate}%)`}
+                label={
+                  order.taxRate != null ? `Tax (${order.taxRate}%)` : "Tax"
+                }
                 value={money(order.tax)}
               />
               <RowDivider />
@@ -216,7 +279,10 @@ export default function OrderDetailScreen() {
                 label="Payment terms"
                 value={
                   order.paymentTerms
-                    ? PAYMENT_TERMS_LABELS[order.paymentTerms]
+                    ? labelFor(
+                        PAYMENT_TERMS_LABELS as Record<string, string>,
+                        order.paymentTerms,
+                      )
                     : null
                 }
                 emptyText="Not set"
@@ -261,10 +327,18 @@ export default function OrderDetailScreen() {
                     color={color.primaryDark}
                     strokeWidth={2}
                   />
-                  <Text variant="caption" tone="muted" style={styles.originText}>
+                  <Text
+                    variant="caption"
+                    tone="muted"
+                    style={styles.originText}
+                  >
                     Raised from a recurring projection
                   </Text>
-                  <ChevronRight size={16} color={color.muted2} strokeWidth={2} />
+                  <ChevronRight
+                    size={16}
+                    color={color.muted2}
+                    strokeWidth={2}
+                  />
                 </View>
               </Card>
             ) : null}
@@ -364,29 +438,90 @@ export default function OrderDetailScreen() {
               </Panel>
             ) : null}
 
-            {(state.data?.invoices.length ?? 0) > 0 ? (
-              <>
-                <Text variant="section" style={styles.heading}>
-                  Invoices
+            {/*
+              The ledger does not link an invoice to the order it billed —
+              invoices arrive from accounting keyed to the customer — so the
+              honest link is to the customer's receivables, not a guessed list.
+            */}
+            <Card
+              onPress={() => router.push(`/customer/${order.customerId}`)}
+              accessibilityLabel={`Open ${order.customerName}'s account and receivables`}
+              style={styles.invoiceRow}
+            >
+              <View style={styles.headRow}>
+                <View style={styles.headText}>
+                  <Text variant="cardTitle">{order.customerName}</Text>
+                  <Text variant="caption" tone="muted">
+                    Account, outstanding and invoices
+                  </Text>
+                </View>
+                <ChevronRight size={16} color={color.muted2} strokeWidth={2} />
+              </View>
+            </Card>
+
+            {order.status !== "Cancelled" ? (
+              <View style={styles.actions}>
+                <Text variant="section">Update Order</Text>
+                {next ? (
+                  <Button
+                    label={`Mark as ${ORDER_STATUS_LABELS[next]}`}
+                    block
+                    loading={busy}
+                    onPress={() => void advance(next)}
+                  />
+                ) : null}
+                {cancelOpen ? (
+                  <Panel style={styles.cancelPanel}>
+                    <Input
+                      label="Why is it being cancelled?"
+                      value={reason}
+                      onChangeText={setReason}
+                      placeholder="Customer postponed, wrong grade ordered…"
+                      multiline
+                    />
+                    <Button
+                      label="Cancel Order"
+                      variant="destructive"
+                      block
+                      loading={busy}
+                      disabled={reason.trim().length < 3}
+                      onPress={() => void cancel()}
+                    />
+                    <Button
+                      label="Keep Order"
+                      variant="tertiary"
+                      block
+                      onPress={() => setCancelOpen(false)}
+                    />
+                  </Panel>
+                ) : (
+                  <Button
+                    label="Cancel Order"
+                    variant="tertiary"
+                    block
+                    onPress={() => setCancelOpen(true)}
+                  />
+                )}
+                {order.status === "Created" ? (
+                  <Button
+                    label="Delete Order"
+                    variant="tertiary"
+                    block
+                    onPress={() => void remove()}
+                  />
+                ) : null}
+                {actionError ? (
+                  <Text variant="caption" tone="red">
+                    {actionError}
+                  </Text>
+                ) : null}
+              </View>
+            ) : order.cancelReason ? (
+              <Panel tone="red">
+                <Text variant="caption" tone="redDark">
+                  Cancelled: {order.cancelReason}
                 </Text>
-                {state.data?.invoices.map((invoice) => (
-                  <Card
-                    key={invoice.id}
-                    onPress={() => router.push(`/invoice/${invoice.id}`)}
-                    style={styles.invoiceRow}
-                  >
-                    <View style={styles.headRow}>
-                      <View style={styles.headText}>
-                        <Text variant="cardTitle">{invoice.invoiceNumber}</Text>
-                        <Text variant="caption" tone="muted">
-                          Due {longDate(invoice.dueAt)}
-                        </Text>
-                      </View>
-                      <Text variant="cardTitle">{money(invoice.pending)}</Text>
-                    </View>
-                  </Card>
-                ))}
-              </>
+              </Panel>
             ) : null}
 
             <Button
@@ -416,6 +551,8 @@ export default function OrderDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  actions: { gap: space.md, marginTop: space.lg },
+  cancelPanel: { gap: space.md },
   originRow: { flexDirection: "row", alignItems: "center", gap: space.md },
   originText: { flex: 1 },
   body: { paddingHorizontal: space.gutter, gap: space.lg },

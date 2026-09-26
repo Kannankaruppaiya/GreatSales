@@ -52,6 +52,13 @@ export class MappingsController {
   }
 
   /** Map a product to a customer. */
+  /** One mapping. 404 outside the caller's scope. */
+  @Get(':id')
+  @RequirePermissions('projection.read')
+  get(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.service.get(user, id);
+  }
+
   @Post()
   @RequirePermissions('projection.write')
   create(

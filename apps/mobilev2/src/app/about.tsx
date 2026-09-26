@@ -7,7 +7,7 @@
  * generated rows or the live API.
  */
 import React from "react";
-import { Alert, Linking, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import {
   AppBar,
@@ -19,22 +19,11 @@ import {
   Text,
 } from "@/components/ui";
 import { AppMark } from "@/components/brand/BrandMark";
-import { API_BASE_URL, DATA_SOURCE } from "@/data/config";
+import { API_BASE_URL } from "@/data/config";
 import { space } from "@/design/tokens";
 import { APP_NAME, APP_TAGLINE, APP_VERSION } from "@/lib/app-info";
 
-const LEGAL_URL = "https://greatsales.app/legal";
-
 export default function AboutScreen() {
-  async function open(url: string) {
-    try {
-      if (!(await Linking.canOpenURL(url))) throw new Error("unsupported");
-      await Linking.openURL(url);
-    } catch {
-      Alert.alert("Cannot open the browser", url);
-    }
-  }
-
   return (
     <Screen tabBarSpacing bleed>
       <AppBar title="About" />
@@ -57,17 +46,9 @@ export default function AboutScreen() {
           <KeyValueRow label="Built for" value="Field sales" />
           <RowDivider />
           <KeyValueRow
-            label="Data source"
-            value={
-              DATA_SOURCE === "synthetic" ? "Generated sample data" : "Live API"
-            }
+            label="Server"
+            value={API_BASE_URL.replace("/api/v1", "")}
           />
-          {DATA_SOURCE === "api" ? (
-            <>
-              <RowDivider />
-              <KeyValueRow label="API" value={API_BASE_URL} />
-            </>
-          ) : null}
         </Panel>
 
         <Panel>
@@ -76,16 +57,6 @@ export default function AboutScreen() {
             customers behind it, what was ordered and what is still owed.
           </Text>
         </Panel>
-
-        <Text
-          variant="secondary"
-          tone="primaryDark"
-          align="center"
-          onPress={() => open(LEGAL_URL)}
-          style={styles.link}
-        >
-          Terms and privacy
-        </Text>
       </View>
     </Screen>
   );
@@ -95,5 +66,4 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: space.gutter, gap: space.lg },
   identity: { alignItems: "center", gap: space.sm, paddingVertical: space.xxl },
   panel: { paddingVertical: space.xs },
-  link: { marginTop: space.md },
 });

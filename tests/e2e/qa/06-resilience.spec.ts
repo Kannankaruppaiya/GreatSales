@@ -99,8 +99,12 @@ test.describe("Resilience & session", () => {
     await page.getByRole("button", { name: /Add Customer/i }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByPlaceholder(/Anand Automotive/i).fill(name);
+    // The owner is required; without it Create is disabled and the first click
+    // would never fire, which would make this test pass for the wrong reason.
+    await dialog.locator("#cust-salesperson").selectOption({ index: 1 });
 
     const submit = dialog.getByRole("button", { name: /Create Customer/i });
+    await expect(submit).toBeEnabled();
     await submit.click();
     await submit.click({ force: true, timeout: 2000 }).catch(() => {
       /* the button is disabled or gone by now — that is the point */
@@ -186,14 +190,16 @@ test.describe("Resilience & session", () => {
     await expect(palette).not.toBeVisible({ timeout: 10000 });
   });
 
-  test("an unknown top-level route tells an anonymous visitor nothing", async ({ page }) => {
+  test("an unknown top-level route sends an anonymous visitor to the sales door, never the admin one", async ({
+    page,
+  }) => {
     await page.goto("/definitely-not-a-route");
-    // The catch-all sits behind ProtectedRoute, and a path with no role segment
-    // has no door to send anyone to. It used to be asserted that this lands on
-    // /login; there is deliberately no shared sign-in page any more — offering
-    // one would put every portal a click from the administrator's — so the app
-    // says so in place, without moving and without naming the four addresses.
-    await expect(page.getByText(/not a sign-in address/i)).toBeVisible({ timeout: 10000 });
-    await expect(page.locator("#login-email")).toHaveCount(0);
+    // A path that names no role falls back to the SALES sign-in — the least
+    // privileged of the four doors — so a guessed URL can never land on the
+    // administrator form (App.tsx, ProtectedRoute / LoginDoorRedirect). The
+    // server still checks the portal against the role behind the password.
+    await expect(page).toHaveURL(/\/sales\/login$/, { timeout: 10000 });
+    await expect(page.locator("#login-email")).toBeVisible();
+    await expect(page).not.toHaveURL(/\/(admin|super-admin|management)\/login/);
   });
 });

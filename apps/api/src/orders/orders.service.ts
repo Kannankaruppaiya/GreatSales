@@ -51,6 +51,13 @@ const ORDER_INCLUDE = {
     include: { changedBy: true },
     orderBy: { at: 'asc' as const },
   },
+  // The recurring-projection line this order was raised from, if any. One at
+  // most: converting a line links it, and a converted line cannot convert again.
+  projections: {
+    where: { deletedAt: null },
+    select: { id: true },
+    take: 1,
+  },
 } satisfies Prisma.SalesOrderInclude;
 
 type OrderWithGraph = Prisma.SalesOrderGetPayload<{
@@ -70,6 +77,7 @@ function toRow(o: OrderWithGraph): OrderRow {
     salespersonId: o.salespersonId,
     salespersonName: o.salesperson.name,
     createdById: o.createdById,
+    projectionId: o.projections[0]?.id ?? null,
     date: o.date.toISOString(),
     status: o.status,
     subtotal: dec(o.subtotal) ?? 0,
@@ -206,7 +214,67 @@ export class OrdersService {
    * raised an order — leaving the customer committed twice and the line
    * pointing at whichever order happened to write its id last.
    */
+  /** One order, or 404 — including one owned by another salesperson. */
+  async get(user: RequestUser, id: string): Promise<OrderRow> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const ownerId = await this.resolveOwnerScope(db, user);
+    const order = await db.salesOrder.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+        ...(ownerId ? { salespersonId: ownerId } : {}),
+      },
+      include: ORDER_INCLUDE,
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    return toRow(order);
+  }
+
+  /**
+   * The next `SO-<year>-<nnnn>` for the tenant, read on the transaction's own
+   * connection. Numeric max rather than a string sort, so SO-2026-10000 comes
+   * after SO-2026-9999; soft-deleted orders count, because the unique index
+   * on (tenant, code) still holds their codes.
+   */
+  private async nextCode(tx: TenantPrisma, year: number): Promise<string> {
+    const prefix = `SO-${year}-`;
+    const rows = await tx.$queryRaw<{ n: number | null }[]>`
+      SELECT MAX(CAST(SUBSTRING(code FROM ${prefix.length + 1}::int) AS INTEGER))::int AS n
+      FROM "SalesOrder"
+      WHERE code ~ ${`^${prefix}[0-9]+$`}
+    `;
+    const next = (rows[0]?.n ?? 0) + 1;
+    return `${prefix}${String(next).padStart(4, '0')}`;
+  }
+
+  /**
+   * Create an order. With no code supplied the server numbers it; two
+   * creates racing for the same number meet on the unique index and the loser
+   * retries with the next one, so numbering never needs a table lock.
+   */
   async create(user: RequestUser, body: OrderCreate): Promise<OrderRow> {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await this.createOnce(user, body);
+      } catch (e) {
+        const duplicateCode =
+          e instanceof Prisma.PrismaClientKnownRequestError &&
+          e.code === 'P2002';
+        if (!duplicateCode) throw e;
+        if (body.code) {
+          throw new ConflictException(
+            `An order numbered ${body.code} already exists`,
+          );
+        }
+        if (attempt >= 5) throw e;
+      }
+    }
+  }
+
+  private async createOnce(
+    user: RequestUser,
+    body: OrderCreate,
+  ): Promise<OrderRow> {
     const db = this.prisma.forTenant(user.tenantId);
     const salespersonId = (await this.isSalesOnly(db, user.roleId))
       ? user.userId
@@ -273,10 +341,16 @@ export class OrdersService {
           }
         }
 
+        const code =
+          body.code ??
+          (await this.nextCode(
+            tx as unknown as TenantPrisma,
+            new Date(body.date ?? Date.now()).getFullYear(),
+          ));
         const order = await tx.salesOrder.create({
           data: {
             tenant: { connect: { id: user.tenantId } },
-            code: body.code,
+            code,
             customer: { connect: { id: body.customerId } },
             salesperson: { connect: { id: salespersonId } },
             createdBy: { connect: { id: user.userId } },

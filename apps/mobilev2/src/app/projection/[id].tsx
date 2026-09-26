@@ -12,7 +12,7 @@
  * through.
  */
 import React, { useEffect, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { CalendarDays, Lock, ShoppingCart, Trash2 } from "lucide-react-native";
 
@@ -37,7 +37,9 @@ import {
   toDateKey,
 } from "@/components/form";
 import { useData } from "@/data/provider";
-import { isMutable } from "@/data/source";
+import { describeError } from "@/data/http";
+import type { ProjectionPatch } from "@/data/source";
+import { confirmAction } from "@/lib/confirm";
 import { color, space } from "@/design/tokens";
 import { longDate, money, percent, quantity } from "@/lib/format";
 import {
@@ -48,6 +50,7 @@ import {
   type ProjectionStatus,
 } from "@/lib/projection-labels";
 import { useAsync } from "@/lib/useAsync";
+import { leave } from "@/lib/nav";
 
 export default function ProjectionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -56,14 +59,22 @@ export default function ProjectionDetailScreen() {
 
   const state = useAsync(async () => {
     const projection = id ? await source.getProjection(id) : null;
-    if (!projection) return { projection: null, followUps: [], order: null };
-    const [followUps, order] = await Promise.all([
-      source.listFollowUps({ customerId: projection.customerId, limit: 20 }),
+    if (!projection)
+      return { projection: null, followUps: [], remarks: [], order: null };
+    const line = { entityType: "Projection" as const, entityId: projection.id };
+    const [followUps, timeline, order] = await Promise.all([
+      source.listFollowUps({ entity: line, sort: "latest", limit: 20 }),
+      source.listActivities(line),
       projection.salesOrderId
         ? source.getOrder(projection.salesOrderId)
         : Promise.resolve(null),
     ]);
-    return { projection, followUps: followUps.items, order };
+    return {
+      projection,
+      followUps: followUps.items,
+      remarks: timeline.filter((a) => a.kind === "Note"),
+      order,
+    };
   }, [source, id]);
 
   const projection = state.data?.projection ?? null;
@@ -80,7 +91,7 @@ export default function ProjectionDetailScreen() {
 
   const [qty, setQty] = useState("");
   const [price, setPrice] = useState("");
-  const [remarks, setRemarks] = useState("");
+  const [remark, setRemark] = useState("");
   const [sheet, setSheet] = useState<"status" | "followUp" | "target" | null>(
     null,
   );
@@ -93,12 +104,11 @@ export default function ProjectionDetailScreen() {
     if (!projection) return;
     setQty(String(projection.projectedQty));
     setPrice(String(projection.price));
-    setRemarks(projection.remarks ?? "");
   }, [projection?.id]);
 
   /** Every edit on this screen is a partial update of the same row. */
-  async function patch(input: Record<string, unknown>) {
-    if (!projection || !isMutable(source) || readOnly) return;
+  async function patch(input: ProjectionPatch) {
+    if (!projection || readOnly) return;
     setSaving(true);
     setError(null);
     setSaved(false);
@@ -107,9 +117,30 @@ export default function ProjectionDetailScreen() {
       setSaved(true);
       state.reload();
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "The projection could not be saved.",
+      setError(describeError(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /**
+   * A remark is a dated note on the line's timeline, kept alongside the
+   * earlier ones — the same record the web worksheet's remarks column counts.
+   */
+  async function addRemark() {
+    const text = remark.trim();
+    if (!projection || !text) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await source.addRemark(
+        { entityType: "Projection", entityId: projection.id },
+        text,
       );
+      setRemark("");
+      state.reload();
+    } catch (e) {
+      setError(describeError(e));
     } finally {
       setSaving(false);
     }
@@ -120,39 +151,25 @@ export default function ProjectionDetailScreen() {
   const numbersChanged =
     projection != null &&
     (qtyValue !== projection.projectedQty || priceValue !== projection.price);
-  const remarksChanged =
-    projection != null && remarks.trim() !== (projection.remarks ?? "");
-
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!projection) return;
-    Alert.alert(
-      "Delete this projection?",
-      `${projection.customerName} · ${projection.productName} for ${periodLabel(projection.period)} will be removed from the month. This cannot be undone.`,
-      [
-        { text: "Keep it", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            if (!isMutable(source)) return;
-            try {
-              await source.deleteProjection(projection.id);
-              router.back();
-            } catch (e) {
-              setError(
-                e instanceof Error ? e.message : "It could not be deleted.",
-              );
-            }
-          },
-        },
-      ],
-    );
+    const ok = await confirmAction({
+      title: "Delete this projection?",
+      message: `${projection.customerName} · ${projection.productName} for ${periodLabel(projection.period)} will be removed from the month. This cannot be undone.`,
+      confirmLabel: "Delete",
+      cancelLabel: "Keep it",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await source.deleteProjection(projection.id);
+      leave(router, "/projections");
+    } catch (e) {
+      setError(describeError(e));
+    }
   }
 
-  const achievement =
-    projection && projection.projectedValue > 0
-      ? (projection.achievedValue / projection.projectedValue) * 100
-      : 0;
+  const achievement = projection?.achievementPct ?? 0;
 
   return (
     <Screen
@@ -255,7 +272,12 @@ export default function ProjectionDetailScreen() {
               <RowDivider />
               <KeyValueRow
                 label="Probability"
-                value={percent(projection.probability)}
+                value={
+                  projection.probability != null
+                    ? percent(projection.probability)
+                    : null
+                }
+                emptyText="Not set"
               />
             </Panel>
 
@@ -339,20 +361,20 @@ export default function ProjectionDetailScreen() {
                 />
 
                 <Input
-                  label="Remarks"
-                  value={remarks}
-                  onChangeText={setRemarks}
+                  label="Add a remark"
+                  value={remark}
+                  onChangeText={setRemark}
                   placeholder="Where this stands"
                   multiline
                   numberOfLines={3}
                 />
                 <Button
-                  label="Save Remarks"
+                  label="Add Remark"
                   variant="secondary"
                   block
-                  disabled={!remarksChanged}
+                  disabled={remark.trim().length === 0}
                   loading={saving}
-                  onPress={() => patch({ remarks: remarks.trim() || null })}
+                  onPress={addRemark}
                 />
               </>
             ) : (
@@ -376,12 +398,6 @@ export default function ProjectionDetailScreen() {
                   }
                   emptyText="Not set"
                 />
-                <RowDivider />
-                <KeyValueRow
-                  label="Remarks"
-                  value={projection.remarks}
-                  emptyText="None"
-                />
               </Panel>
             )}
 
@@ -396,12 +412,38 @@ export default function ProjectionDetailScreen() {
             ) : null}
 
             <Text variant="section" style={styles.heading}>
+              Remarks
+            </Text>
+            {(state.data?.remarks.length ?? 0) === 0 ? (
+              <Panel>
+                <Text variant="body" tone="muted">
+                  No remarks on this line yet.
+                </Text>
+              </Panel>
+            ) : (
+              <Card flush>
+                {state.data?.remarks.map((r, index) => (
+                  <View key={r.id}>
+                    {index > 0 ? <RowDivider /> : null}
+                    <View style={styles.remarkRow}>
+                      <Text variant="body">{r.summary}</Text>
+                      <Text variant="caption" tone="muted">
+                        {longDate(r.at)}
+                        {r.actorName ? ` · ${r.actorName}` : ""}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </Card>
+            )}
+
+            <Text variant="section" style={styles.heading}>
               Follow-up log
             </Text>
             {(state.data?.followUps.length ?? 0) === 0 ? (
               <Panel>
                 <Text variant="body" tone="muted">
-                  No follow-ups recorded for this customer yet.
+                  No follow-ups on this line yet.
                 </Text>
               </Panel>
             ) : (
@@ -420,9 +462,7 @@ export default function ProjectionDetailScreen() {
                         {longDate(followUp.dueAt)}
                       </Text>
                     </View>
-                    {followUp.completedAt ? (
-                      <Chip label="Done" tone="mint" />
-                    ) : null}
+                    {followUp.done ? <Chip label="Done" tone="mint" /> : null}
                   </View>
                 </Card>
               ))
@@ -487,9 +527,7 @@ export default function ProjectionDetailScreen() {
             ? projection.nextFollowUpAt.slice(0, 10)
             : null
         }
-        onChange={(next) =>
-          patch({ nextFollowUpAt: new Date(`${next}T10:00:00`).toISOString() })
-        }
+        onChange={(next) => patch({ nextFollowUpAt: next })}
         min={toDateKey(new Date())}
         title="Next follow-up"
       />
@@ -499,9 +537,7 @@ export default function ProjectionDetailScreen() {
         value={
           projection?.targetDate ? projection.targetDate.slice(0, 10) : null
         }
-        onChange={(next) =>
-          patch({ targetDate: new Date(`${next}T10:00:00`).toISOString() })
-        }
+        onChange={(next) => patch({ targetDate: next })}
         title="Expected closure"
       />
     </Screen>
@@ -509,6 +545,7 @@ export default function ProjectionDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  remarkRow: { padding: space.lg, gap: 2 },
   body: { paddingHorizontal: space.gutter, gap: space.lg },
   headRow: { flexDirection: "row", alignItems: "center", gap: space.md },
   headText: { flex: 1, gap: 2 },

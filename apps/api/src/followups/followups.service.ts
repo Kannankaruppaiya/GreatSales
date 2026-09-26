@@ -25,7 +25,7 @@ type FollowUpWithGraph = Prisma.FollowUpGetPayload<{
   include: typeof FOLLOWUP_INCLUDE;
 }>;
 
-function toRow(f: FollowUpWithGraph): FollowUpRow {
+function toRow(f: FollowUpWithGraph, entityName: string | null): FollowUpRow {
   return {
     id: f.id,
     entityType: f.entityType,
@@ -34,6 +34,7 @@ function toRow(f: FollowUpWithGraph): FollowUpRow {
     salespersonName: f.salesperson.name,
     title: f.title,
     subtitle: f.subtitle,
+    entityName,
     amount: f.amount == null ? null : f.amount.toNumber(),
     dueDate: f.dueDate.toISOString().slice(0, 10),
     done: f.done,
@@ -41,6 +42,109 @@ function toRow(f: FollowUpWithGraph): FollowUpRow {
     createdAt: f.createdAt.toISOString(),
     updatedAt: f.updatedAt.toISOString(),
   };
+}
+
+type EntityRef = Pick<FollowUpWithGraph, 'entityType' | 'entityId'>;
+
+/**
+ * Resolve what each follow-up is about, one query per entity type present.
+ *
+ * A follow-up points at its record by (type, id) with no foreign key, so the
+ * name cannot be joined. Grouping by type keeps this at most five queries for
+ * a page of any size, rather than one per row.
+ */
+async function entityNames(
+  db: TenantPrisma,
+  refs: EntityRef[],
+): Promise<Map<string, string>> {
+  const ids = (type: EntityRef['entityType']) => [
+    ...new Set(
+      refs.filter((r) => r.entityType === type).map((r) => r.entityId),
+    ),
+  ];
+  const key = (type: string, id: string) => `${type}:${id}`;
+  const out = new Map<string, string>();
+  const put = (type: string, rows: { id: string; name: string | null }[]) => {
+    for (const r of rows) if (r.name) out.set(key(type, r.id), r.name);
+  };
+
+  const [customers, leads, orders, payments, projections] = await Promise.all([
+    ids('Customer').length
+      ? db.customer.findMany({
+          where: { id: { in: ids('Customer') } },
+          select: { id: true, name: true },
+        })
+      : [],
+    ids('Lead').length
+      ? db.lead.findMany({
+          where: { id: { in: ids('Lead') } },
+          select: { id: true, customerName: true },
+        })
+      : [],
+    ids('Order').length
+      ? db.salesOrder.findMany({
+          where: { id: { in: ids('Order') } },
+          select: {
+            id: true,
+            code: true,
+            customer: { select: { name: true } },
+          },
+        })
+      : [],
+    ids('Payment').length
+      ? db.payment.findMany({
+          where: { id: { in: ids('Payment') } },
+          select: {
+            id: true,
+            customerName: true,
+            customer: { select: { name: true } },
+          },
+        })
+      : [],
+    ids('Projection').length
+      ? db.projection.findMany({
+          where: { id: { in: ids('Projection') } },
+          select: {
+            id: true,
+            mapping: { select: { customer: { select: { name: true } } } },
+          },
+        })
+      : [],
+  ]);
+  put('Customer', customers);
+  put(
+    'Lead',
+    leads.map((l) => ({ id: l.id, name: l.customerName })),
+  );
+  put(
+    'Order',
+    orders.map((o) => ({
+      id: o.id,
+      name: o.customer ? `${o.code} · ${o.customer.name}` : o.code,
+    })),
+  );
+  put(
+    'Payment',
+    payments.map((p) => ({
+      id: p.id,
+      name: p.customer?.name ?? p.customerName,
+    })),
+  );
+  put(
+    'Projection',
+    projections.map((p) => ({ id: p.id, name: p.mapping.customer.name })),
+  );
+  return out;
+}
+
+async function toRows(
+  db: TenantPrisma,
+  rows: FollowUpWithGraph[],
+): Promise<FollowUpRow[]> {
+  const names = await entityNames(db, rows);
+  return rows.map((f) =>
+    toRow(f, names.get(`${f.entityType}:${f.entityId}`) ?? null),
+  );
 }
 
 @Injectable()
@@ -65,15 +169,40 @@ export class FollowUpsService {
         : {}),
       ...(query.done !== undefined ? { done: query.done } : {}),
       ...(query.search
-        ? { title: { contains: query.search, mode: 'insensitive' } }
+        ? {
+            OR: [
+              { title: { contains: query.search, mode: 'insensitive' } },
+              { subtitle: { contains: query.search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+      ...(query.dueFrom || query.dueTo
+        ? {
+            dueDate: {
+              ...(query.dueFrom
+                ? { gte: new Date(`${query.dueFrom}T00:00:00.000Z`) }
+                : {}),
+              ...(query.dueTo
+                ? { lte: new Date(`${query.dueTo}T23:59:59.999Z`) }
+                : {}),
+            },
+          }
         : {}),
     };
+
+    // Ends in `id` so the cursor always has a total order to resume from.
+    const orderBy: Prisma.FollowUpOrderByWithRelationInput[] =
+      query.sort === 'due'
+        ? [{ dueDate: 'asc' }, { id: 'asc' }]
+        : query.sort === '-due'
+          ? [{ dueDate: 'desc' }, { id: 'asc' }]
+          : [{ id: 'asc' }];
 
     const [rows, total] = await db.$transaction([
       db.followUp.findMany({
         where,
         include: FOLLOWUP_INCLUDE,
-        orderBy: { id: 'asc' },
+        orderBy,
         take: query.limit + 1,
         ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
       }),
@@ -83,7 +212,7 @@ export class FollowUpsService {
     const hasMore = rows.length > query.limit;
     const page = hasMore ? rows.slice(0, query.limit) : rows;
     return {
-      items: page.map(toRow),
+      items: await toRows(db, page),
       nextCursor: hasMore ? page[page.length - 1].id : null,
       total,
     };
@@ -113,7 +242,20 @@ export class FollowUpsService {
       include: FOLLOWUP_INCLUDE,
       orderBy: { dueDate: 'asc' },
     });
-    return rows.map(toRow);
+    return toRows(db, rows);
+  }
+
+  /** One follow-up, or 404 — including one owned by another salesperson. */
+  async get(user: RequestUser, id: string): Promise<FollowUpRow> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const ownerId = await this.resolveOwnerScope(db, user);
+    const row = await db.followUp.findFirst({
+      where: { id, ...(ownerId ? { salespersonId: ownerId } : {}) },
+      include: FOLLOWUP_INCLUDE,
+    });
+    if (!row) throw new NotFoundException('Follow-up not found');
+    const [out] = await toRows(db, [row]);
+    return out;
   }
 
   /** Create a follow-up. Sales-only callers always own what they create. */
@@ -138,7 +280,8 @@ export class FollowUpsService {
       },
       include: FOLLOWUP_INCLUDE,
     });
-    return toRow(created);
+    const [row] = await toRows(db, [created]);
+    return row;
   }
 
   /** Partial edit (commonly to mark done). Sales may only edit their own. */
@@ -178,7 +321,8 @@ export class FollowUpsService {
       );
     }
 
-    return toRow(updated);
+    const [row] = await toRows(db, [updated]);
+    return row;
   }
 
   /** Hard delete — the FollowUp table has no soft-delete column. */

@@ -39,6 +39,16 @@ pnpm icons                                             # redraw every favicon an
   (`.claude/settings.json`) already injects its one-line form at the start of every session.
 - Logins: `admin@greatsales.local` / `admin`, everyone else `<username>@greatsales.local` /
   `1234`, tenant `tenant_promech`.
+- **The salesperson's mobile app is `apps/mobilev2`.** Run it in a browser with the
+  `mobilev2-web` launch config (Expo web on :8082; the first bundle takes a few
+  minutes cold). Sign in with workspace `promech`, `megala@greatsales.local` /
+  `1234` — an admin or manager is refused on mobile by the API, by design. The
+  local `apps/api/.env` `CORS_ORIGIN` must list `http://localhost:8082` (it is
+  gitignored, so a fresh clone needs it added). `pnpm parity` reports what a
+  salesperson can do on the web but not in this app; `pnpm wiring` counts it as
+  the `mobilev2` client. It is the only mobile app — the earlier `apps/mobile`
+  was deleted on 2026-09-25, and mobilev2 took over its store identity
+  (`com.greatsales.crm`), EAS project and Sentry crash reporting.
 - `pnpm smoke` names its own fix when it fails — a refused connection or a wrong dataset each
   print the one command that repairs it. Trust that line instead of investigating.
 - `pnpm test:e2e:qa` drives a real browser, so it needs the API on :3001 and the Promech
@@ -246,7 +256,7 @@ Order matters on a first cutover: point DNS first, confirm it resolves, and only
 with a name, and a failed challenge against a name that does not resolve yet burns attempts
 against the rate limit.
 
-`apps/mobile/app.json` carries the same URL in `extra.apiBaseUrl`, which is what a release build
+`apps/mobilev2/app.json` carries the same URL in `extra.apiBaseUrl`, which is what a release build
 falls back to when there is no Metro host to infer from.
 
 ## What is on the production database right now
@@ -572,7 +582,9 @@ Three things about this are easy to undo by accident:
 
 There is no shared `/login`. Each role signs in at its own address —
 `/super-admin/login`, `/admin/login`, `/management/login`, `/sales/login` — and
-`/login` renders a page telling the visitor to use theirs. Signed-in URLs lead
+`/login`, or any address that names no role, sends the visitor to the **sales**
+door — the least privileged, so a guessed URL never lands on the administrator
+form. Signed-in URLs lead
 with the role (`/admin/managements/:id/dashboard`), so an expired session is
 returned to the right door and nowhere wider, and sign-out goes to the door the
 person came through. `RequireRolePath` rejects a segment the session does not

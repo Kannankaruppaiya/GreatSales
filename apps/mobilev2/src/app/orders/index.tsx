@@ -22,7 +22,6 @@ import {
   Screen,
   SearchBar,
   SkeletonList,
-  SyntheticBanner,
   Text,
 } from "@/components/ui";
 import { useData } from "@/data/provider";
@@ -82,8 +81,6 @@ export default function OrdersScreen() {
           onPress={() => router.push("/order/new")}
         />
       </View>
-
-      <SyntheticBanner />
 
       <View style={styles.searchRow}>
         <SearchBar

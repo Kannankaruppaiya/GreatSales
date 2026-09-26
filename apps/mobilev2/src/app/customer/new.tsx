@@ -28,7 +28,7 @@ import {
   type CustomerDraft,
 } from "@/components/form";
 import { useData } from "@/data/provider";
-import { isMutable } from "@/data/source";
+import { describeError } from "@/data/http";
 import { space } from "@/design/tokens";
 import { CUSTOMER_CATEGORY_LABELS, PAYMENT_TERMS_LABELS } from "@/lib/labels";
 
@@ -47,16 +47,13 @@ export default function NewCustomerScreen() {
   );
 
   async function submit() {
-    if (!isMutable(source)) return;
     setSaving(true);
     setError(null);
     try {
       const row = await source.createCustomer(customerDraftToInput(draft));
       setCreated({ id: row.id, name: row.name });
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "The customer could not be saved.",
-      );
+      setError(describeError(e));
     } finally {
       setSaving(false);
     }
@@ -115,7 +112,7 @@ export default function NewCustomerScreen() {
               <RowDivider />
               <KeyValueRow
                 label="Industry"
-                value={draft.industryName.trim()}
+                value={draft.industry?.name ?? null}
                 emptyText="Not set"
               />
               <RowDivider />

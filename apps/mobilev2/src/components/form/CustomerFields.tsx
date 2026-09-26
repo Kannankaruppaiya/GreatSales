@@ -14,13 +14,15 @@ import { StyleSheet, View } from "react-native";
 import { MapPin, Phone, User } from "lucide-react-native";
 import type {
   CustomerCategoryValue,
-  ContactRow,
   PaymentTermsValue,
 } from "@greatsales/shared";
 
 import { Input } from "../ui/Input";
 import { Text } from "../ui/Text";
 import { color, space } from "@/design/tokens";
+import { useData } from "@/data/provider";
+import type { CustomerInput } from "@/data/source";
+import { useAsync } from "@/lib/useAsync";
 import { CUSTOMER_CATEGORY_LABELS, PAYMENT_TERMS_LABELS } from "@/lib/labels";
 
 import { OptionSheet } from "./OptionSheet";
@@ -29,7 +31,8 @@ import { PickerField } from "./PickerField";
 export interface CustomerDraft {
   name: string;
   area: string;
-  industryName: string;
+  /** From the tenant's industry master — the API keys customers by its id. */
+  industry: { id: string; name: string } | null;
   category: CustomerCategoryValue | null;
   paymentTerms: PaymentTermsValue | null;
   contactName: string;
@@ -41,7 +44,7 @@ export interface CustomerDraft {
 export const EMPTY_CUSTOMER_DRAFT: CustomerDraft = {
   name: "",
   area: "",
-  industryName: "",
+  industry: null,
   category: null,
   paymentTerms: null,
   contactName: "",
@@ -60,29 +63,20 @@ export function isCustomerDraftReady(draft: CustomerDraft): boolean {
  * contact when a name was given; a phone number with no name attached is not
  * a contact and is dropped rather than saved as an unnamed one.
  */
-export function customerDraftToInput(draft: CustomerDraft) {
-  const contacts: ContactRow[] = draft.contactName.trim()
-    ? [
-        {
-          id: "contact-new",
-          name: draft.contactName.trim(),
-          designation: draft.contactDesignation.trim() || null,
-          phone: draft.contactPhone.trim() || null,
-          whatsapp: null,
-          sameAsMobile: false,
-          email: draft.contactEmail.trim() || null,
-          isPrimary: true,
-        },
-      ]
-    : [];
-
+export function customerDraftToInput(draft: CustomerDraft): CustomerInput {
+  const text = (v: string) => v.trim() || null;
   return {
     name: draft.name.trim(),
-    area: draft.area.trim() || null,
-    industryName: draft.industryName.trim() || null,
+    area: text(draft.area),
+    industryId: draft.industry?.id ?? null,
     category: draft.category,
     paymentTerms: draft.paymentTerms,
-    contacts,
+    // The API keeps the primary contact as flat fields on the customer and
+    // creates the contact row from them.
+    contactName: text(draft.contactName),
+    designation: text(draft.contactDesignation),
+    phone: text(draft.contactPhone),
+    email: text(draft.contactEmail),
   };
 }
 
@@ -92,7 +86,11 @@ export interface CustomerFieldsProps {
 }
 
 export function CustomerFields({ value, onChange }: CustomerFieldsProps) {
-  const [sheet, setSheet] = useState<"category" | "terms" | null>(null);
+  const source = useData();
+  const industries = useAsync(() => source.listIndustries(), [source]);
+  const [sheet, setSheet] = useState<"category" | "terms" | "industry" | null>(
+    null,
+  );
   const set = <K extends keyof CustomerDraft>(key: K, next: CustomerDraft[K]) =>
     onChange({ ...value, [key]: next });
 
@@ -107,11 +105,11 @@ export function CustomerFields({ value, onChange }: CustomerFieldsProps) {
         placeholder="Registered or trading name"
         autoCapitalize="words"
       />
-      <Input
+      <PickerField
         label="Industry"
-        value={value.industryName}
-        onChangeText={(t) => set("industryName", t)}
+        value={value.industry?.name ?? null}
         placeholder="What they make or do"
+        onPress={() => setSheet("industry")}
         hint="Optional"
       />
       <Input
@@ -176,6 +174,21 @@ export function CustomerFields({ value, onChange }: CustomerFieldsProps) {
         hint="Optional"
       />
 
+      <OptionSheet
+        visible={sheet === "industry"}
+        onClose={() => setSheet(null)}
+        title="Industry"
+        options={(industries.data ?? []).map((i) => ({
+          value: i.id,
+          label: i.name,
+        }))}
+        value={value.industry?.id ?? null}
+        onChange={(id) =>
+          set("industry", industries.data?.find((i) => i.id === id) ?? null)
+        }
+        clearLabel="Not set"
+        onClear={() => set("industry", null)}
+      />
       <OptionSheet
         visible={sheet === "category"}
         onClose={() => setSheet(null)}

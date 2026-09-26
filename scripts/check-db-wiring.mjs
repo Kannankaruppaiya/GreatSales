@@ -53,7 +53,7 @@ const SCHEMA = join(ROOT, 'packages/db/prisma/schema.prisma');
 const CODE_DIRS = [
   { dir: 'apps/api/src', scope: 'app' },
   { dir: 'apps/web/src', scope: 'app' },
-  { dir: 'apps/mobile/src', scope: 'app' },
+  { dir: 'apps/mobilev2/src', scope: 'app' },
   { dir: 'packages/shared/src', scope: 'app' },
   { dir: 'packages/db/src', scope: 'app' },
   // The seeds are loose files beside schema.prisma, not a seed/ directory.

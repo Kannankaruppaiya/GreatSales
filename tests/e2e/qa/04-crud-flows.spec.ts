@@ -59,6 +59,8 @@ test.describe("Write paths", () => {
     await dialog.locator("#contact-name-0").fill("QA Contact");
     await dialog.locator("#contact-designation-0").fill("Purchase Manager");
     await dialog.locator("#contact-phone-0").fill("+91 90000 00001");
+    // An admin names the owner; the API requires one on every lead.
+    await dialog.locator("#lead-salesperson").selectOption({ index: 1 });
 
     await submitAndTrack(page, /Create Lead/i, "leads");
     await expect(dialog).not.toBeVisible({ timeout: 10000 });
@@ -210,10 +212,9 @@ test.describe("Write paths", () => {
     if (res.status() === 201) trash.push({ resource: "mappings", id: (await res.json()).id });
   });
 
-  test("order: the prefilled form creates a real sales order, and validates its code", async ({
+  test("order: the prefilled form creates a real sales order, numbered by the server", async ({
     page,
   }) => {
-    const code = unique("SO").replace(/\s/g, "-");
     await loginAs(page, "admin");
     await page.goto(featureUrl("orders"));
 
@@ -226,7 +227,7 @@ test.describe("Write paths", () => {
     // raising a real order against whoever it landed on — and it also carried
     // the account and SKU of the order raised before it, because the modal
     // stays mounted while closed.
-    const soNumber = dialog.getByPlaceholder("SO-1001");
+    const soNumber = dialog.locator("#so-code");
     const submit = dialog.getByRole("button", { name: /Create Sales Order/i });
     await expect(dialog.locator("#so-customer")).toHaveValue("");
     await expect(dialog.locator("#so-product")).toHaveValue("");
@@ -236,13 +237,14 @@ test.describe("Write paths", () => {
     await dialog.locator("#so-product").selectOption({ index: 1 });
     await dialog.locator("#so-salesperson").selectOption({ index: 1 });
 
-    await soNumber.fill("");
-    await expect(submit, "an order with no SO number must not be submittable").toBeDisabled();
-
-    await soNumber.fill(code);
+    // The SO number is optional: left blank, the API assigns the next one in
+    // the tenant's sequence, so two people cannot mint the same number.
+    await expect(soNumber).toHaveValue("");
     await expect(submit).toBeEnabled();
 
-    await submitAndTrack(page, /Create Sales Order/i, "orders");
+    const order = await submitAndTrack(page, /Create Sales Order/i, "orders");
+    expect(order.code).toMatch(/^SO-\d{4}-\d{4,}$/);
+    const code: string = order.code;
     await expect(dialog).not.toBeVisible({ timeout: 10000 });
 
     await page.getByPlaceholder("Search SO no., customer, or transporter…").fill(code);

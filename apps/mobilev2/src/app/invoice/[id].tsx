@@ -37,16 +37,19 @@ export default function InvoiceScreen() {
 
   const state = useAsync(async () => {
     const invoice = id ? await source.getInvoice(id) : null;
-    if (!invoice) return { invoice: null, payments: [], followUps: [] };
-    const [payments, followUps] = await Promise.all([
-      source.listPaymentRecords({ invoiceId: invoice.id, limit: 50 }),
-      source.listFollowUps({ customerId: invoice.customerId, limit: 20 }),
-    ]);
-    return { invoice, payments: payments.items, followUps: followUps.items };
+    if (!invoice) return { invoice: null, followUps: [] };
+    // This invoice's own collection tasks — not every task on the account.
+    const followUps = await source.listFollowUps({
+      entity: { entityType: "Payment", entityId: invoice.id },
+      sort: "latest",
+      limit: 20,
+    });
+    return { invoice, followUps: followUps.items };
   }, [source, id]);
 
   const invoice = state.data?.invoice ?? null;
-  const overdue = (invoice?.agingDays ?? 0) > 0;
+  const overdue =
+    (invoice?.pending ?? 0) > 0 && (invoice?.overdueDays ?? 0) > 0;
 
   return (
     <Screen
@@ -89,11 +92,13 @@ export default function InvoiceScreen() {
             {overdue ? (
               <Panel tone="red">
                 <Text variant="section" tone="redDark">
-                  {invoice.agingDays} days overdue
+                  {invoice.overdueDays} days overdue
                 </Text>
-                <Text variant="caption" tone="redDark">
-                  Due on {longDate(invoice.dueAt)}
-                </Text>
+                {invoice.dueAt ? (
+                  <Text variant="caption" tone="redDark">
+                    Due on {longDate(invoice.dueAt)}
+                  </Text>
+                ) : null}
               </Panel>
             ) : null}
 
@@ -107,7 +112,19 @@ export default function InvoiceScreen() {
               <RowDivider />
               <KeyValueRow label="Pending" value={money(invoice.pending)} />
               <RowDivider />
-              <KeyValueRow label="Due" value={longDate(invoice.dueAt)} />
+              {invoice.invoiceDate ? (
+                <>
+                  <KeyValueRow
+                    label="Invoiced"
+                    value={`${longDate(invoice.invoiceDate)} · ${invoice.agingDays} days ago`}
+                  />
+                  <RowDivider />
+                </>
+              ) : null}
+              <KeyValueRow
+                label="Due"
+                value={invoice.dueAt ? longDate(invoice.dueAt) : "Not set"}
+              />
               <RowDivider />
               <KeyValueRow
                 label="Status"
@@ -115,36 +132,48 @@ export default function InvoiceScreen() {
                   invoice.pending === 0
                     ? "Settled"
                     : overdue
-                      ? `Overdue by ${invoice.agingDays} days`
+                      ? `Overdue by ${invoice.overdueDays} days`
                       : "Not due yet"
                 }
               />
             </Panel>
 
+            {/*
+              The ledger holds what has been received in total, not one row
+              per receipt, so there is no receipt history to list. What the
+              accounts team does record is its collection log: every call or
+              visit about this invoice, with the date promised next.
+            */}
             <Text variant="section" style={styles.heading}>
-              Payment history
+              Collection log
             </Text>
-            {state.data?.payments.length === 0 ? (
+            {invoice.collectionNotes.length === 0 ? (
               <Panel>
                 <Text variant="body" tone="muted">
-                  Nothing received against this invoice yet.
+                  {invoice.delayReason
+                    ? `No collection calls logged. Reason on file: ${invoice.delayReason}.`
+                    : "No collection calls logged against this invoice."}
                 </Text>
               </Panel>
             ) : (
               <Card flush>
-                {state.data?.payments.map((payment, index) => (
-                  <View key={payment.id}>
+                {invoice.collectionNotes.map((entry, index) => (
+                  <View key={entry.id}>
                     {index > 0 ? <RowDivider /> : null}
                     <View style={styles.paymentRow}>
                       <View style={styles.headText}>
-                        <Text variant="cardTitle">{money(payment.amount)}</Text>
-                        <Text variant="caption" tone="muted">
-                          {longDate(payment.receivedAt)}
-                        </Text>
+                        <Text variant="cardTitle">{longDate(entry.date)}</Text>
+                        {entry.note ? (
+                          <Text variant="caption" tone="muted">
+                            {entry.note}
+                          </Text>
+                        ) : null}
                       </View>
-                      <Text variant="caption" tone="muted2">
-                        {payment.reference}
-                      </Text>
+                      {entry.nextFollowupDate ? (
+                        <Text variant="caption" tone="muted2">
+                          Next {longDate(entry.nextFollowupDate)}
+                        </Text>
+                      ) : null}
                     </View>
                   </View>
                 ))}
@@ -157,7 +186,7 @@ export default function InvoiceScreen() {
             {state.data?.followUps.length === 0 ? (
               <Panel>
                 <Text variant="body" tone="muted">
-                  No follow-ups recorded with this customer.
+                  No follow-ups scheduled for this invoice.
                 </Text>
               </Panel>
             ) : (
@@ -176,9 +205,7 @@ export default function InvoiceScreen() {
                         {longDate(followUp.dueAt)}
                       </Text>
                     </View>
-                    {followUp.completedAt ? (
-                      <Chip label="Done" tone="mint" />
-                    ) : null}
+                    {followUp.done ? <Chip label="Done" tone="mint" /> : null}
                   </View>
                 </Card>
               ))
@@ -192,7 +219,7 @@ export default function InvoiceScreen() {
                 <CalendarPlus size={16} color={color.primary} strokeWidth={2} />
               }
               onPress={() =>
-                router.push(`/followup/new?customerId=${invoice.customerId}`)
+                router.push(`/followup/new?invoiceId=${invoice.id}`)
               }
               style={styles.heading}
             />

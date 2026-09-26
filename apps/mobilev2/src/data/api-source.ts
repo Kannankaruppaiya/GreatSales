@@ -1,473 +1,887 @@
 /**
- * `DataSource` backed by the real NestJS API.
+ * `DataSource` backed by the GreatSales API.
  *
- * Route paths were read off the controllers in `apps/api/src` on 2026-09-18.
- * Where the backend has no endpoint for something the design asks for, the
- * method says so in the error rather than returning an empty page — an empty
- * list reads as "no data", which is a different and misleading claim.
+ * Every method maps one or more real endpoints onto the row shapes in
+ * `types.ts`. Scoping is the server's: a salesperson's token only ever returns
+ * their own customers, leads, orders, receivables and worksheet, so nothing
+ * here filters by owner.
  *
- * This source is read-first: the list and detail methods are wired, and the
- * write methods post to the endpoints that exist. It is not exercised until
- * `DATA_SOURCE` is set to "api", so treat it as the contract for that switch
- * rather than as code that has been run against a live server.
+ * Where a screen asks something the API answers in a different form — a
+ * follow-up "bucket", a home roll-up — the translation is here, once, rather
+ * than in each screen.
  */
-import type { CustomerRow, DealStageValue, LeadRow } from "@greatsales/shared";
+import {
+  DEAL_STAGE_VALUES,
+  type CustomerRow,
+  type DashboardKpis,
+  type DealStageValue,
+  type FollowUpRow,
+  type LeadRow,
+  type LeadStageSummaryRow,
+  type MappingRow,
+  type NotificationRow,
+  type OrderRow,
+  type OrderStatusValue,
+  type PaymentRow,
+  type PaymentSummary,
+  type PeriodLockRow,
+  type ProductRow,
+  type ProjectionLine,
+  type ProjectionListResponse,
+  type RemarkRow,
+} from "@greatsales/shared";
 
-import { API_BASE_URL } from "./config";
+import { ApiError, query, request } from "./http";
+import { getSessionUser } from "./session";
+import type {
+  CustomerInput,
+  CustomerQuery,
+  EntityRef,
+  FollowUpInput,
+  FollowUpQuery,
+  HomeSummary,
+  InvoiceQuery,
+  LeadInput,
+  LeadQuery,
+  ListQuery,
+  MappingQuery,
+  MutableDataSource,
+  Named,
+  OrderInput,
+  OrderQuery,
+  Page,
+  PaymentsSummary,
+  ProjectionPatch,
+  SalesProgress,
+  ProjectionQuery,
+  StageCount,
+} from "./source";
 import type {
   Activity,
   AppNotification,
   CurrentUser,
   Customer,
-  CustomerQuery,
   FollowUp,
-  FollowUpQuery,
-  HomeSummary,
   Invoice,
   Lead,
-  LeadQuery,
-  ListQuery,
   Mapping,
-  MappingQuery,
-  MutableDataSource,
   Order,
-  OrderQuery,
-  Page,
-  PaymentRecord,
-  PaymentsSummary,
   Product,
   Projection,
-  ProjectionQuery,
-} from "./source";
-import { ALL_STAGES, OPEN_STAGES } from "@/lib/stages";
+} from "./types";
+import { DEAL_STAGE_LABELS, OPEN_STAGES } from "@/lib/stages";
+import { currentPeriod, localDate, shiftPeriod } from "@/lib/format";
 
-/** Supplies the bearer token. Set once at sign-in. */
-export type TokenProvider = () => string | null | Promise<string | null>;
+// ---- Row adapters -------------------------------------------------------------
 
-let tokenProvider: TokenProvider = () => null;
-
-export function setTokenProvider(provider: TokenProvider): void {
-  tokenProvider = provider;
+function toFollowUp(row: FollowUpRow): FollowUp {
+  return {
+    id: row.id,
+    entityType: row.entityType,
+    entityId: row.entityId,
+    leadId: row.entityType === "Lead" ? row.entityId : null,
+    customerId: row.entityType === "Customer" ? row.entityId : null,
+    customerName: row.entityName ?? row.subtitle ?? "",
+    purpose: row.title ?? "Follow-up",
+    subtitle: row.subtitle,
+    notes: row.note,
+    amount: row.amount,
+    dueAt: row.dueDate,
+    done: row.done,
+    completedAt: row.done ? row.updatedAt : null,
+    createdAt: row.createdAt,
+  };
 }
 
-export class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    readonly path: string,
-    message: string,
-  ) {
-    super(message);
-    this.name = "ApiError";
+function toOrder(row: OrderRow): Order {
+  return {
+    id: row.id,
+    soNumber: row.code,
+    customerId: row.customerId,
+    customerName: row.customerName,
+    status: row.status,
+    lines: row.items.map((item) => ({
+      id: item.id,
+      productId: item.productId,
+      productName: item.productName,
+      qty: item.qty,
+      unit: item.unit,
+      price: item.price,
+      value: item.lineTotal,
+    })),
+    subtotal: row.subtotal,
+    taxRate: row.taxRate,
+    tax: row.taxAmount,
+    total: row.total,
+    paymentTerms: row.paymentTerms,
+    isUrgent: row.isUrgent,
+    issuedAt: row.date,
+    expectedDeliveryAt: row.expectedDelivery,
+    deliveryMode: row.deliveryMode,
+    deliveryAddress: row.deliveryAddress,
+    transporterName: row.transporterName,
+    lrNumber: row.lrNumber,
+    notes: row.deliveryInstructions,
+    cancelReason: row.cancelReason,
+    projectionId: row.projectionId,
+    statusHistory: row.statusHistory.map((h) => ({
+      status: h.status,
+      at: h.at,
+      note: h.note,
+      byName: h.changedByName,
+    })),
+  };
+}
+
+function toInvoice(row: PaymentRow): Invoice {
+  return {
+    id: row.id,
+    invoiceNumber: row.invoiceNo ?? row.refNo ?? row.id,
+    customerId: row.customerId,
+    customerName: row.customerName ?? "Unknown customer",
+    invoiceDate: row.invoiceDate,
+    amount: row.amount,
+    received: row.received,
+    pending: row.pending,
+    dueAt: row.dueDate,
+    agingDays: row.agingDays ?? 0,
+    overdueDays: Math.max(0, row.overdueDays ?? 0),
+    payZone: row.payZone,
+    status: row.status,
+    delayReason: row.delayReason,
+    nextFollowUp: row.nextFollowUp,
+    collectionNotes: row.followups,
+  };
+}
+
+function toProduct(row: ProductRow): Product {
+  return {
+    id: row.id,
+    name: row.name,
+    sku: row.sku,
+    principalId: row.principalId,
+    principal: row.principalName,
+    unit: row.unit,
+    listPrice: row.basePrice,
+  };
+}
+
+function toMapping(row: MappingRow): Mapping {
+  return {
+    id: row.id,
+    customerId: row.customerId,
+    customerName: row.customerName,
+    productId: row.productId,
+    productName: row.productName,
+    principalId: row.principalId,
+    principal: row.principalName,
+    listPrice: row.basePrice,
+    agreedPrice: row.customPrice,
+    effectivePrice: row.effectivePrice,
+    ownerId: row.salespersonId,
+    ownerName: row.salespersonName,
+    createdAt: row.createdAt,
+  };
+}
+
+function toProjection(line: ProjectionLine, locked: boolean): Projection {
+  return {
+    id: line.id,
+    period: line.period,
+    customerId: line.customerId,
+    customerName: line.customerName,
+    productId: line.productId,
+    productName: line.productName,
+    principalId: line.principalId,
+    principal: line.principalName,
+    projectedQty: line.committedQty,
+    price: line.price,
+    projectedValue: line.projValue,
+    achievedQty: line.achievedQty,
+    achievedValue: line.achValue,
+    achievementPct: line.achPct,
+    probability: line.probability,
+    status: line.status,
+    nextFollowUpAt: line.nextFollowUp,
+    targetDate: line.targetDate,
+    remarkCount: line.remarkCount,
+    salesOrderId: line.salesOrderId,
+    salesOrderStatus: line.salesOrderStatus,
+    locked,
+  };
+}
+
+function toNotification(row: NotificationRow): AppNotification {
+  return { ...row };
+}
+
+/**
+ * An activity id names where the row came from, so the detail screen can
+ * reload that one row: `<entityType>~<entityId>~<kind>~<sourceId>`.
+ */
+function activityId(
+  entity: EntityRef,
+  kind: "remark" | "followup" | "stage",
+  sourceId: string,
+): string {
+  return [entity.entityType, entity.entityId, kind, sourceId].join("~");
+}
+
+function parseActivityId(
+  id: string,
+): { entity: EntityRef; kind: string; sourceId: string } | null {
+  const [entityType, entityId, kind, sourceId] = id.split("~");
+  if (!entityType || !entityId || !kind || !sourceId) return null;
+  return {
+    entity: { entityType: entityType as EntityRef["entityType"], entityId },
+    kind,
+    sourceId,
+  };
+}
+
+function pageOf<T, R>(
+  page: { items: T[]; total: number; nextCursor: string | null },
+  map: (row: T) => R,
+): Page<R> {
+  return {
+    items: page.items.map(map),
+    total: page.total,
+    nextCursor: page.nextCursor,
+  };
+}
+
+/** `null` for a 404, so a detail screen can say "not found" rather than fail. */
+async function orNull<T>(p: Promise<T>): Promise<T | null> {
+  try {
+    return await p;
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
   }
 }
 
-/** Thrown by any method the backend has no endpoint for. */
-export class NotSupportedByBackend extends Error {
-  constructor(what: string) {
-    super(
-      `${what} is not available from the API. See BACKEND_CAPABILITIES in data/config.ts.`,
-    );
-    this.name = "NotSupportedByBackend";
-  }
+/** The API's cap on one page. */
+const MAX_PAGE = 100;
+
+function clampLimit(limit: number | undefined, fallback = 20): number {
+  return Math.min(Math.max(limit ?? fallback, 1), MAX_PAGE);
 }
 
-function query(params: Record<string, unknown>): string {
-  const search = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value == null || value === "" || value === false) continue;
-    search.set(key, String(value));
-  }
-  const q = search.toString();
-  return q ? `?${q}` : "";
-}
-
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = await tokenProvider();
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init.headers ?? {}),
-    },
-  });
-
-  if (!response.ok) {
-    // The API returns a JSON problem body; fall back to the status text when
-    // it does not, so a proxy's HTML error page cannot crash the parse.
-    let detail = response.statusText;
-    try {
-      const body = (await response.json()) as { message?: string };
-      if (body?.message) detail = body.message;
-    } catch {
-      /* keep statusText */
-    }
-    throw new ApiError(response.status, path, detail);
-  }
-
-  if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
-}
-
-/** The API returns `{ items, nextCursor, total }` — the same shape as `Page`. */
-type ApiPage<T> = Page<T>;
+// ---- Source -------------------------------------------------------------------
 
 export class ApiSource implements MutableDataSource {
-  readonly kind = "api" as const;
+  // ---- Identity --------------------------------------------------------------
 
-  // ---- Identity -----------------------------------------------------------
-
-  async getCurrentUser(): Promise<CurrentUser> {
-    return request<CurrentUser>("/auth/me");
+  getCurrentUser(): Promise<CurrentUser> {
+    const cached = getSessionUser();
+    return cached ? Promise.resolve(cached) : request<CurrentUser>("/auth/me");
   }
 
-  // ---- Home ---------------------------------------------------------------
+  private async requireUserId(): Promise<string> {
+    return (await this.getCurrentUser()).id;
+  }
+
+  // ---- Home ------------------------------------------------------------------
 
   async getHomeSummary(): Promise<HomeSummary> {
-    // GET /dashboard returns the roll-up the web console uses. Its shape is
-    // wider than HomeSummary; only the fields this app shows are read, so a new
-    // dashboard field cannot break the mobile home screen.
-    const dashboard = await request<Record<string, number>>("/dashboard");
+    const today = localDate();
+    const [dueToday, overdue, stages, receivables] = await Promise.all([
+      request<{ items: FollowUpRow[]; total: number }>(
+        `/followups${query({ done: false, dueFrom: today, dueTo: today, limit: MAX_PAGE })}`,
+      ),
+      this.listFollowUps({ bucket: "overdue", limit: 1 }),
+      this.getPipelineStageCounts(),
+      this.getPaymentsSummary(),
+    ]);
+    const open = stages.filter((s) => OPEN_STAGES.includes(s.stage));
     return {
-      followUpsDue: dashboard.followUpsDueToday ?? 0,
-      siteVisits: dashboard.siteVisitsToday ?? 0,
-      proposals: dashboard.proposalsOpen ?? 0,
-      overdueFollowUps: dashboard.followUpsOverdue ?? 0,
-      openOpportunities: dashboard.openLeads ?? 0,
-      openOpportunityValue: dashboard.openLeadValue ?? 0,
-      outstandingTotal: dashboard.outstandingTotal ?? 0,
-      overdueTotal: dashboard.overdueTotal ?? 0,
+      followUpsDue: dueToday.total,
+      siteVisits: dueToday.items.filter((f) =>
+        /visit/i.test(`${f.title ?? ""} ${f.subtitle ?? ""}`),
+      ).length,
+      proposals:
+        stages.find((s) => s.stage === "ProposalsAndPriceQuote")?.count ?? 0,
+      overdueFollowUps: overdue.total,
+      openOpportunities: open.reduce((sum, s) => sum + s.count, 0),
+      openOpportunityValue: open.reduce((sum, s) => sum + s.value, 0),
+      outstandingTotal: receivables.totalPending,
+      overdueTotal: receivables.overdue,
     };
   }
 
-  // ---- Customers ----------------------------------------------------------
+  async getSalesProgress(period: string): Promise<SalesProgress> {
+    // A month's window, first day to last. The server works out which months
+    // the range covers; a projection is keyed by month, so this is one.
+    const [year, month] = period.split("-").map(Number);
+    const last = new Date(year!, month!, 0).getDate();
+    const res = await request<{ kpis: DashboardKpis }>(
+      `/dashboard${query({ from: `${period}-01`, to: `${period}-${String(last).padStart(2, "0")}` })}`,
+    );
+    const k = res.kpis;
+    return {
+      period,
+      recurringCommitted: k.recurringCommitted,
+      recurringAchieved: k.recurringAchieved,
+      newSalesCommitted: k.newSalesCommitted,
+      newSalesAchieved: k.newSalesAchieved,
+      totalCommitted: k.totalCommitted,
+      totalAchieved: k.totalAchieved,
+      target: k.target,
+    };
+  }
 
-  listCustomers(q: CustomerQuery = {}): Promise<Page<Customer>> {
-    return request<ApiPage<CustomerRow>>(
+  // ---- Customers -------------------------------------------------------------
+
+  async listCustomers(q: CustomerQuery = {}): Promise<Page<Customer>> {
+    const page = await request<Page<CustomerRow>>(
       `/customers${query({
         search: q.search,
         cursor: q.cursor,
-        limit: q.limit,
+        limit: clampLimit(q.limit),
         category: q.category,
         area: q.area,
-        industryId: q.industry,
+        industryId: q.industryId,
       })}`,
     );
+    if (!q.withOutstanding) return page;
+    // There is no outstanding filter on /customers; the balance is on the row.
+    // Narrowed within the page, and said so: `total` is the page's count.
+    const items = page.items.filter((c) => c.outstanding > 0);
+    return { ...page, items, total: items.length };
+  }
+
+  async listAllCustomers(search?: string): Promise<Customer[]> {
+    const rows: Customer[] = [];
+    let cursor: string | null = null;
+    // One salesperson's book, 100 at a time; capped at 2,000 accounts so a
+    // runaway loop is impossible.
+    for (let i = 0; i < 20; i += 1) {
+      const page: Page<CustomerRow> = await request<Page<CustomerRow>>(
+        `/customers${query({ search, cursor, limit: MAX_PAGE })}`,
+      );
+      rows.push(...page.items);
+      cursor = page.nextCursor;
+      if (!cursor) break;
+    }
+    return rows;
   }
 
   getCustomer(id: string): Promise<Customer | null> {
-    return request<Customer>(`/customers/${id}`);
+    return orNull(request<Customer>(`/customers/${encodeURIComponent(id)}`));
   }
 
-  // ---- Leads --------------------------------------------------------------
+  listIndustries(): Promise<Named[]> {
+    return request<Named[]>("/industries");
+  }
 
-  /**
-   * `/leads` accepts one stage and no closure-date bound, so a multi-stage or
-   * date-bounded filter is narrowed here after the fetch. That is honest but
-   * not cheap: it pages the server's view, not the filtered view. An API that
-   * took `stages[]` and `closeBefore` would remove this.
-   */
+  // ---- Leads -----------------------------------------------------------------
+
   async listLeads(q: LeadQuery = {}): Promise<Page<Lead>> {
-    const narrowing = Boolean(q.stages?.length || q.closeBefore);
-    const page = await request<ApiPage<LeadRow>>(
+    const stages = q.stages?.length
+      ? q.stages
+      : q.openOnly && !q.stage
+        ? OPEN_STAGES
+        : undefined;
+    return request<Page<LeadRow>>(
       `/leads${query({
         search: q.search,
-        cursor: narrowing ? undefined : q.cursor,
-        limit: narrowing ? 200 : q.limit,
+        cursor: q.sort === "value" ? undefined : q.cursor,
+        limit: clampLimit(q.limit),
         stage: q.stage,
+        stages: stages?.join(","),
+        closeBefore: q.closeBefore,
+        sort: q.sort,
       })}`,
     );
-    if (!narrowing) return page;
-
-    const wanted = q.stages?.length ? new Set(q.stages) : null;
-    const items = page.items.filter(
-      (l) =>
-        (!wanted || wanted.has(l.stage)) &&
-        (!q.closeBefore || (l.expClose != null && l.expClose <= q.closeBefore)),
-    );
-    return {
-      items: items.slice(0, q.limit ?? items.length),
-      nextCursor: null,
-      total: items.length,
-    };
   }
+
+  getLead(id: string): Promise<Lead | null> {
+    return orNull(request<Lead>(`/leads/${encodeURIComponent(id)}`));
+  }
+
+  async getPipelineStageCounts(): Promise<StageCount[]> {
+    const rows = await request<LeadStageSummaryRow[]>("/leads/stage-summary");
+    const byStage = new Map(rows.map((r) => [r.stage, r]));
+    // Every stage, in funnel order, including the empty ones — a rail that
+    // drops a stage with no deals hides where the funnel is thin.
+    return DEAL_STAGE_VALUES.map((stage: DealStageValue) => ({
+      stage,
+      count: byStage.get(stage)?.count ?? 0,
+      value: byStage.get(stage)?.value ?? 0,
+    }));
+  }
+
+  // ---- Follow-ups ------------------------------------------------------------
 
   /**
-   * There is no `GET /leads/:id`, so this filters a one-row list instead.
-   * Correct, and one round trip — but if detail screens get heavy this is the
-   * endpoint to add on the API side.
-   */
-  async getLead(id: string): Promise<Lead | null> {
-    const page = await request<ApiPage<LeadRow>>(
-      `/leads${query({ limit: 100 })}`,
-    );
-    return page.items.find((l) => l.id === id) ?? null;
-  }
-
-  async getPipelineStageCounts(
-    options: { openOnly?: boolean } = {},
-  ): Promise<{ stage: DealStageValue; count: number; value: number }[]> {
-    // No per-stage aggregate endpoint exists; count one page per stage so each
-    // call carries its own `total` rather than paging the whole pipeline.
-    const stages = options.openOnly === false ? ALL_STAGES : OPEN_STAGES;
-    const results = await Promise.all(
-      stages.map(async (stage) => {
-        const page = await request<ApiPage<LeadRow>>(
-          `/leads${query({ stage, limit: 100 })}`,
-        );
-        return {
-          stage,
-          count: page.total,
-          value: page.items.reduce((sum, l) => sum + l.totalValue, 0),
-        };
-      }),
-    );
-    return results;
-  }
-
-  // ---- Follow-ups ---------------------------------------------------------
-
-  /**
-   * `/followups` returns due-date order and takes no `sort`, so "latest first"
-   * is reversed here. It reverses the page, not the whole list — an API that
-   * took the order would do this properly.
+   * Buckets are the salesperson's own calendar: "today" is the device's date,
+   * sent to the API as a range, so a task due today does not read as overdue
+   * for the hours the server's clock is already on tomorrow.
    */
   async listFollowUps(q: FollowUpQuery = {}): Promise<Page<FollowUp>> {
-    const page = await request<ApiPage<FollowUp>>(
+    const today = localDate();
+    const yesterday = localDate(-1);
+    const tomorrow = localDate(1);
+
+    const range =
+      q.bucket === "overdue"
+        ? { done: false, dueTo: yesterday }
+        : q.bucket === "today"
+          ? { done: false, dueFrom: today, dueTo: today }
+          : q.bucket === "upcoming"
+            ? { done: false, dueFrom: tomorrow }
+            : q.bucket === "week"
+              ? { done: false, dueFrom: today, dueTo: localDate(6) }
+              : q.bucket === "completed"
+                ? { done: true }
+                : q.bucket === "open"
+                  ? { done: false }
+                  : {};
+
+    const entity = q.entity
+      ? { entityType: q.entity.entityType, entityId: q.entity.entityId }
+      : q.leadId
+        ? { entityType: "Lead", entityId: q.leadId }
+        : q.customerId
+          ? { entityType: "Customer", entityId: q.customerId }
+          : {};
+
+    const sort =
+      q.bucket === "completed" || q.sort === "latest" ? "-due" : "due";
+
+    const page = await request<Page<FollowUpRow>>(
       `/followups${query({
         search: q.search,
         cursor: q.cursor,
-        limit: q.limit,
-        customerId: q.customerId,
-        leadId: q.leadId,
-        bucket: q.bucket,
+        limit: clampLimit(q.limit),
+        sort,
+        ...range,
+        ...entity,
       })}`,
     );
-    if (q.sort !== "latest") return page;
-    return { ...page, items: [...page.items].reverse() };
+    return pageOf(page, toFollowUp);
   }
 
   async getFollowUp(id: string): Promise<FollowUp | null> {
-    const page = await request<ApiPage<FollowUp>>(
-      `/followups${query({ limit: 100 })}`,
+    const row = await orNull(
+      request<FollowUpRow>(`/followups/${encodeURIComponent(id)}`),
     );
-    return page.items.find((f) => f.id === id) ?? null;
+    return row ? toFollowUp(row) : null;
   }
 
-  // ---- Orders -------------------------------------------------------------
+  // ---- Orders ----------------------------------------------------------------
 
-  listOrders(q: OrderQuery = {}): Promise<Page<Order>> {
-    return request<ApiPage<Order>>(
+  async listOrders(q: OrderQuery = {}): Promise<Page<Order>> {
+    const page = await request<Page<OrderRow>>(
       `/orders${query({
         search: q.search,
         cursor: q.cursor,
-        limit: q.limit,
+        limit: clampLimit(q.limit),
         status: q.status,
         customerId: q.customerId,
       })}`,
     );
+    return pageOf(page, toOrder);
   }
 
   async getOrder(id: string): Promise<Order | null> {
-    const page = await request<ApiPage<Order>>(
-      `/orders${query({ limit: 100 })}`,
+    const row = await orNull(
+      request<OrderRow>(`/orders/${encodeURIComponent(id)}`),
     );
-    return page.items.find((o) => o.id === id) ?? null;
+    return row ? toOrder(row) : null;
   }
 
-  // ---- Catalogue ----------------------------------------------------------
+  // ---- Catalogue -------------------------------------------------------------
 
-  listProducts(q: ListQuery = {}): Promise<Page<Product>> {
-    return request<ApiPage<Product>>(
-      `/products${query({ search: q.search, cursor: q.cursor, limit: q.limit })}`,
+  async listProducts(
+    q: ListQuery & { principalId?: string } = {},
+  ): Promise<Page<Product>> {
+    const page = await request<Page<ProductRow>>(
+      `/products${query({
+        search: q.search,
+        cursor: q.cursor,
+        limit: clampLimit(q.limit),
+        principalId: q.principalId,
+        active: true,
+      })}`,
     );
+    return pageOf(page, toProduct);
   }
 
-  // ---- Mappings -----------------------------------------------------------
+  async listPrincipals(): Promise<Named[]> {
+    const page = await request<{ items: Named[] }>(
+      `/principals${query({ limit: MAX_PAGE })}`,
+    );
+    return page.items.map((p) => ({ id: p.id, name: p.name }));
+  }
 
-  listMappings(q: MappingQuery = {}): Promise<Page<Mapping>> {
-    return request<ApiPage<Mapping>>(
+  // ---- Mappings --------------------------------------------------------------
+
+  async listMappings(q: MappingQuery = {}): Promise<Page<Mapping>> {
+    const page = await request<Page<MappingRow>>(
       `/mappings${query({
         search: q.search,
         cursor: q.cursor,
-        limit: q.limit,
+        limit: clampLimit(q.limit),
         customerId: q.customerId,
         productId: q.productId,
+        principalId: q.principalId,
+        unpriced: q.unpricedOnly ? "true" : undefined,
       })}`,
     );
+    return pageOf(page, toMapping);
   }
 
   async getMapping(id: string): Promise<Mapping | null> {
-    const page = await request<ApiPage<Mapping>>(
-      `/mappings${query({ limit: 100 })}`,
+    const row = await orNull(
+      request<MappingRow>(`/mappings/${encodeURIComponent(id)}`),
     );
-    return page.items.find((m) => m.id === id) ?? null;
+    return row ? toMapping(row) : null;
   }
 
-  // ---- Projections --------------------------------------------------------
+  // ---- Projections -----------------------------------------------------------
 
-  listProjections(q: ProjectionQuery = {}): Promise<Page<Projection>> {
-    return request<ApiPage<Projection>>(
-      `/projections${query({
-        search: q.search,
-        cursor: q.cursor,
-        limit: q.limit,
-        period: q.period,
-        customerId: q.customerId,
-        status: q.status,
-      })}`,
-    );
+  private async lockedPeriods(): Promise<Set<string>> {
+    const rows = await request<PeriodLockRow[]>("/period-locks");
+    return new Set(rows.map((r) => r.period));
+  }
+
+  async listProjections(q: ProjectionQuery = {}): Promise<Projection[]> {
+    const period = q.period ?? currentPeriod();
+    const [res, locks] = await Promise.all([
+      request<ProjectionListResponse>(
+        `/projections${query({
+          period,
+          search: q.search,
+          customerId: q.customerId,
+          lineFilter: q.needsFollowUp ? "due" : undefined,
+        })}`,
+      ),
+      this.lockedPeriods(),
+    ]);
+    const lines = q.status
+      ? res.lines.filter((l) => l.status === q.status)
+      : res.lines;
+    return lines.map((l) => toProjection(l, locks.has(l.period)));
   }
 
   async getProjection(id: string): Promise<Projection | null> {
-    const page = await request<ApiPage<Projection>>(
-      `/projections${query({ limit: 100 })}`,
-    );
-    return page.items.find((p) => p.id === id) ?? null;
+    const [line, locks] = await Promise.all([
+      orNull(request<ProjectionLine>(`/projections/${encodeURIComponent(id)}`)),
+      this.lockedPeriods(),
+    ]);
+    return line ? toProjection(line, locks.has(line.period)) : null;
   }
 
   async listProjectionPeriods(): Promise<
     { period: string; locked: boolean }[]
   > {
-    // Period locks live in their own module.
-    return request<{ period: string; locked: boolean }[]>("/period-locks");
+    const locks = await this.lockedPeriods();
+    const now = currentPeriod();
+    const periods: string[] = [];
+    for (let offset = 1; offset >= -11; offset -= 1) {
+      periods.push(shiftPeriod(now, offset));
+    }
+    return periods.map((period) => ({ period, locked: locks.has(period) }));
   }
 
-  // ---- Payments (read-only) ----------------------------------------------
+  // ---- Payments (read-only) --------------------------------------------------
 
   async getPaymentsSummary(): Promise<PaymentsSummary> {
-    const page = await request<ApiPage<Invoice>>(
-      `/payments${query({ limit: 100 })}`,
-    );
-    const invoices = page.items;
-    const overdue = invoices.filter((i) => i.agingDays > 0);
-
-    const buckets: { bucket: string; min: number; max: number }[] = [
-      { bucket: "Current", min: -Infinity, max: 0 },
-      { bucket: "1–30 days", min: 1, max: 30 },
-      { bucket: "31–60 days", min: 31, max: 60 },
-      { bucket: "61–90 days", min: 61, max: 90 },
-      { bucket: "90+ days", min: 91, max: Infinity },
-    ];
-
+    const s = await request<PaymentSummary>("/payments/summary");
     return {
-      totalPending: invoices.reduce((sum, i) => sum + i.pending, 0),
-      totalOutstanding: invoices.reduce((sum, i) => sum + i.pending, 0),
-      overdue: overdue.reduce((sum, i) => sum + i.pending, 0),
-      over90Days: invoices
-        .filter((i) => i.agingDays > 90)
-        .reduce((sum, i) => sum + i.pending, 0),
-      followUpCount: overdue.length,
-      aging: buckets.map(({ bucket, min, max }) => {
-        const rows = invoices.filter(
-          (i) => i.agingDays >= min && i.agingDays <= max,
-        );
-        return {
-          bucket,
-          amount: rows.reduce((sum, i) => sum + i.pending, 0),
-          count: rows.length,
-        };
-      }),
+      totalPending: s.totalPending,
+      overdue: s.overdue,
+      overdueCount: s.overdueCount,
+      over90Days: s.over90Days,
+      openCount: s.openCount,
+      aging: s.aging.map((a) => ({
+        bucket: a.bucket === "90+" ? "90+ days" : `${a.bucket} days`,
+        amount: a.amount,
+        count: a.count,
+      })),
     };
   }
 
-  listInvoices(
-    q: ListQuery & { customerId?: string; overdueOnly?: boolean } = {},
-  ): Promise<Page<Invoice>> {
-    return request<ApiPage<Invoice>>(
+  async listInvoices(q: InvoiceQuery = {}): Promise<Page<Invoice>> {
+    if (q.overdueOnly) return this.overdueInvoices(q);
+    const page = await request<Page<PaymentRow>>(
       `/payments${query({
         search: q.search,
         cursor: q.cursor,
-        limit: q.limit,
+        limit: clampLimit(q.limit),
         customerId: q.customerId,
-        overdue: q.overdueOnly,
       })}`,
     );
+    return pageOf(page, toInvoice);
+  }
+
+  /**
+   * Invoices past due, most overdue first.
+   *
+   * NOT `?status=Overdue`: the stored status is only recomputed when an
+   * invoice is written, so an invoice that fell due since its last edit still
+   * reads "Pending" there. `overdueDays` is derived on every read, so this
+   * walks the caller's ledger — one salesperson's receivables, in pages of
+   * 100 — and keeps what is actually overdue. Capped so a runaway ledger
+   * cannot turn one screen into an unbounded loop.
+   */
+  private async overdueInvoices(q: InvoiceQuery): Promise<Page<Invoice>> {
+    const rows = (await this.walkLedger(q.search, q.customerId)).filter(
+      (inv) => inv.overdueDays > 0,
+    );
+    rows.sort((a, b) => b.overdueDays - a.overdueDays);
+    const limit = clampLimit(q.limit, MAX_PAGE);
+    return {
+      items: rows.slice(0, limit),
+      total: rows.length,
+      nextCursor: null,
+    };
+  }
+
+  listOpenInvoices(search?: string): Promise<Invoice[]> {
+    return this.walkLedger(search);
+  }
+
+  /**
+   * The caller's open invoices, every page of them. One salesperson's
+   * receivables, read in pages of 100 and capped so a runaway ledger cannot
+   * turn one screen into an unbounded loop (20 pages is 2,000 invoices).
+   */
+  private async walkLedger(
+    search?: string,
+    customerId?: string,
+  ): Promise<Invoice[]> {
+    const rows: Invoice[] = [];
+    let cursor: string | null = null;
+    for (let i = 0; i < 20; i += 1) {
+      const page: Page<PaymentRow> = await request<Page<PaymentRow>>(
+        `/payments${query({ search, customerId, limit: MAX_PAGE, cursor })}`,
+      );
+      rows.push(...page.items.map(toInvoice).filter((inv) => inv.pending > 0));
+      cursor = page.nextCursor;
+      if (!cursor) break;
+    }
+    return rows;
   }
 
   async getInvoice(id: string): Promise<Invoice | null> {
-    const page = await request<ApiPage<Invoice>>(
-      `/payments${query({ limit: 100 })}`,
+    const row = await orNull(
+      request<PaymentRow>(`/payments/${encodeURIComponent(id)}`),
     );
-    return page.items.find((i) => i.id === id) ?? null;
+    return row ? toInvoice(row) : null;
   }
 
-  listPaymentRecords(
-    q: ListQuery & { customerId?: string; invoiceId?: string } = {},
-  ): Promise<Page<PaymentRecord>> {
-    return request<ApiPage<PaymentRecord>>(
-      `/payments${query({
-        cursor: q.cursor,
-        limit: q.limit,
-        customerId: q.customerId,
-        invoiceId: q.invoiceId,
-      })}`,
-    );
+  // ---- Activity --------------------------------------------------------------
+
+  async listActivities(entity: EntityRef): Promise<Activity[]> {
+    const base = {
+      entityType: entity.entityType,
+      entityId: entity.entityId,
+      leadId: entity.entityType === "Lead" ? entity.entityId : null,
+      customerId: entity.entityType === "Customer" ? entity.entityId : null,
+    };
+
+    const [remarks, followUps, lead] = await Promise.all([
+      request<Page<RemarkRow>>(
+        `/remarks${query({ entityType: entity.entityType, entityId: entity.entityId, limit: MAX_PAGE })}`,
+      ),
+      request<Page<FollowUpRow>>(
+        `/followups${query({ entityType: entity.entityType, entityId: entity.entityId, limit: MAX_PAGE, sort: "-due" })}`,
+      ),
+      entity.entityType === "Lead" ? this.getLead(entity.entityId) : null,
+    ]);
+
+    const rows: Activity[] = [
+      ...remarks.items.map((r) => ({
+        ...base,
+        id: activityId(entity, "remark", r.id),
+        kind: "Note" as const,
+        summary: r.text,
+        detail: null,
+        at: r.at,
+        actorName: r.userName,
+      })),
+      ...followUps.items.map((f) => ({
+        ...base,
+        id: activityId(entity, "followup", f.id),
+        kind: "Follow-up" as const,
+        summary: `${f.done ? "Completed" : "Scheduled"}: ${f.title ?? "Follow-up"}`,
+        detail: f.note,
+        // A done task happened when it was ticked off; an open one is dated by
+        // its due day, which has no time of day to show.
+        at: f.done ? f.updatedAt : f.dueDate,
+        actorName: f.salespersonName,
+      })),
+    ];
+    if (lead?.stageUpdatedAt) {
+      rows.push({
+        ...base,
+        id: activityId(entity, "stage", lead.id),
+        kind: "Stage change",
+        summary: `Moved to ${DEAL_STAGE_LABELS[lead.stage]}`,
+        detail: null,
+        at: lead.stageUpdatedAt,
+        actorName: lead.salespersonName,
+      });
+    }
+    return rows.sort((a, b) => b.at.localeCompare(a.at));
   }
 
-  // ---- Activity & notifications ------------------------------------------
-
-  listActivities(
-    q: ListQuery & { leadId?: string; customerId?: string; kind?: string } = {},
-  ): Promise<Page<Activity>> {
-    // Activity is assembled from remarks in the current API.
-    return request<ApiPage<Activity>>(
-      `/remarks${query({
-        cursor: q.cursor,
-        limit: q.limit,
-        leadId: q.leadId,
-        customerId: q.customerId,
-      })}`,
-    );
-  }
-
-  /** No `GET /remarks/:id` either, so this filters a page, as leads do. */
   async getActivity(id: string): Promise<Activity | null> {
-    const page = await request<ApiPage<Activity>>(
-      `/remarks${query({ limit: 200 })}`,
-    );
-    return page.items.find((a) => a.id === id) ?? null;
+    const parsed = parseActivityId(id);
+    if (!parsed) return null;
+    const rows = await this.listActivities(parsed.entity);
+    return rows.find((r) => r.id === id) ?? null;
   }
 
-  listNotifications(q: ListQuery = {}): Promise<Page<AppNotification>> {
-    return request<ApiPage<AppNotification>>(
-      `/notifications${query({ cursor: q.cursor, limit: q.limit })}`,
+  async addRemark(entity: EntityRef, text: string): Promise<Activity> {
+    const row = await request<RemarkRow>("/remarks", {
+      method: "POST",
+      body: JSON.stringify({ ...entity, text }),
+    });
+    return {
+      id: activityId(entity, "remark", row.id),
+      entityType: entity.entityType,
+      entityId: entity.entityId,
+      leadId: entity.entityType === "Lead" ? entity.entityId : null,
+      customerId: entity.entityType === "Customer" ? entity.entityId : null,
+      kind: "Note",
+      summary: row.text,
+      detail: null,
+      at: row.at,
+      actorName: row.userName,
+    };
+  }
+
+  // ---- Notifications ---------------------------------------------------------
+
+  async listNotifications(): Promise<{
+    items: AppNotification[];
+    unread: number;
+  }> {
+    const res = await request<{ items: NotificationRow[]; unread: number }>(
+      `/notifications${query({ limit: 50 })}`,
     );
+    return { items: res.items.map(toNotification), unread: res.unread };
   }
 
   async markNotificationRead(id: string): Promise<void> {
-    await request<void>(`/notifications/${id}/read`, { method: "POST" });
+    await request(`/notifications/${encodeURIComponent(id)}/read`, {
+      method: "POST",
+    });
   }
 
-  // ---- Writes -------------------------------------------------------------
+  async markAllNotificationsRead(): Promise<void> {
+    await request("/notifications/read-all", { method: "POST" });
+  }
 
-  createCustomer(
-    input: Partial<Customer> & { name: string },
-  ): Promise<Customer> {
+  // ---- Writes ----------------------------------------------------------------
+
+  async createCustomer(input: CustomerInput): Promise<Customer> {
     return request<Customer>("/customers", {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        ...input,
+        salespersonId: await this.requireUserId(),
+      }),
     });
   }
 
-  updateCustomer(id: string, input: Partial<Customer>): Promise<Customer> {
-    return request<Customer>(`/customers/${id}`, {
+  async deleteCustomer(id: string): Promise<void> {
+    await request(`/customers/${encodeURIComponent(id)}`, { method: "DELETE" });
+  }
+
+  async deleteLead(id: string): Promise<void> {
+    await request(`/leads/${encodeURIComponent(id)}`, { method: "DELETE" });
+  }
+
+  async deleteFollowUp(id: string): Promise<void> {
+    await request(`/followups/${encodeURIComponent(id)}`, { method: "DELETE" });
+  }
+
+  async setOrderStatus(
+    id: string,
+    status: OrderStatusValue,
+    note?: string | null,
+  ): Promise<Order> {
+    const row = await request<OrderRow>(`/orders/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status, ...(note ? { statusNote: note } : {}) }),
+    });
+    return toOrder(row);
+  }
+
+  async cancelOrder(id: string, reason: string): Promise<Order> {
+    const row = await request<OrderRow>(`/orders/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        status: "Cancelled",
+        cancelReason: reason,
+        statusNote: reason,
+      }),
+    });
+    return toOrder(row);
+  }
+
+  async deleteOrder(id: string): Promise<void> {
+    await request(`/orders/${encodeURIComponent(id)}`, { method: "DELETE" });
+  }
+
+  updateCustomer(id: string, input: Partial<CustomerInput>): Promise<Customer> {
+    return request<Customer>(`/customers/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: JSON.stringify(input),
     });
   }
 
-  createLead(input: Partial<Lead> & { customerName: string }): Promise<Lead> {
+  private leadBody(input: Partial<LeadInput>) {
+    return {
+      ...(input.customerName !== undefined
+        ? { customerName: input.customerName }
+        : {}),
+      ...(input.stage !== undefined ? { stage: input.stage } : {}),
+      ...(input.tier !== undefined ? { tier: input.tier } : {}),
+      ...(input.industryId !== undefined
+        ? { industryId: input.industryId }
+        : {}),
+      ...(input.contacts?.length ? { contacts: input.contacts } : {}),
+      ...(input.area !== undefined ? { area: input.area } : {}),
+      ...(input.address !== undefined ? { address: input.address } : {}),
+      ...(input.expClose !== undefined ? { expClose: input.expClose } : {}),
+      ...(input.nextFollowUp !== undefined
+        ? { nextFollowUp: input.nextFollowUp }
+        : {}),
+      ...(input.products !== undefined
+        ? {
+            products: input.products.map((p) => ({
+              productId: p.productId,
+              productName: p.productName,
+              principalId: p.principalId,
+              qty: p.qty,
+              unit: p.unit,
+              price: p.price,
+              value: p.qty != null && p.price != null ? p.qty * p.price : null,
+            })),
+          }
+        : {}),
+    };
+  }
+
+  async createLead(input: LeadInput): Promise<Lead> {
     return request<Lead>("/leads", {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        ...this.leadBody(input),
+        salespersonId: await this.requireUserId(),
+      }),
     });
   }
 
-  updateLead(id: string, input: Partial<Lead>): Promise<Lead> {
-    return request<Lead>(`/leads/${id}`, {
+  updateLead(id: string, input: Partial<LeadInput>): Promise<Lead> {
+    return request<Lead>(`/leads/${encodeURIComponent(id)}`, {
       method: "PATCH",
-      body: JSON.stringify(input),
+      body: JSON.stringify(this.leadBody(input)),
     });
   }
 
@@ -475,50 +889,58 @@ export class ApiSource implements MutableDataSource {
     return this.updateLead(id, { stage });
   }
 
-  createFollowUp(
-    input: Omit<FollowUp, "id" | "createdAt" | "completedAt">,
-  ): Promise<FollowUp> {
-    return request<FollowUp>("/followups", {
-      method: "POST",
-      body: JSON.stringify(input),
-    });
-  }
-
-  completeFollowUp(id: string, notes?: string): Promise<FollowUp> {
-    return request<FollowUp>(`/followups/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ completedAt: new Date().toISOString(), notes }),
-    });
-  }
-
-  /**
-   * POST /orders takes `OrderCreateSchema` from @greatsales/shared, which is
-   * not this app's line shape: it wants `items`, an order `code` and the owning
-   * `salespersonId`, and it names the delivery note `deliveryInstructions`. The
-   * body is built here rather than posted through, so the screen keeps talking
-   * in the terms the design uses.
-   */
-  async createOrder(input: {
-    customerId: string;
-    lines: { productId: string; qty: number; price: number }[];
-    expectedDeliveryAt?: string | null;
-    deliveryAddress?: string | null;
-    paymentTerms?: Order["paymentTerms"];
-    notes?: string | null;
-    projectionId?: string | null;
-  }): Promise<Order> {
-    const user = await this.getCurrentUser();
-    return request<Order>("/orders", {
+  async createFollowUp(input: FollowUpInput): Promise<FollowUp> {
+    const row = await request<FollowUpRow>("/followups", {
       method: "POST",
       body: JSON.stringify({
-        code: `SO-${Date.now()}`,
+        entityType: input.entityType,
+        entityId: input.entityId,
+        dueDate: input.dueDate,
+        title: input.purpose,
+        note: input.notes ?? null,
+      }),
+    });
+    return toFollowUp(row);
+  }
+
+  async completeFollowUp(id: string, notes?: string): Promise<FollowUp> {
+    const row = await request<FollowUpRow>(
+      `/followups/${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ done: true, ...(notes ? { note: notes } : {}) }),
+      },
+    );
+    return toFollowUp(row);
+  }
+
+  async annotateFollowUp(id: string, notes: string): Promise<FollowUp> {
+    const row = await request<FollowUpRow>(
+      `/followups/${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ note: notes }),
+      },
+    );
+    return toFollowUp(row);
+  }
+
+  /** No code is sent: the API numbers the order in the tenant's sequence. */
+  async createOrder(input: OrderInput): Promise<Order> {
+    const row = await request<OrderRow>("/orders", {
+      method: "POST",
+      body: JSON.stringify({
         customerId: input.customerId,
-        salespersonId: user.id,
+        salespersonId: await this.requireUserId(),
         items: input.lines.map((line) => ({
           productId: line.productId,
           qty: line.qty,
           price: line.price,
+          unit: line.unit ?? null,
         })),
+        taxMode: "Percentage",
+        taxRate: input.taxRate ?? 18,
+        isUrgent: input.isUrgent ?? false,
         paymentTerms: input.paymentTerms ?? null,
         deliveryAddress: input.deliveryAddress ?? null,
         expectedDelivery: input.expectedDeliveryAt ?? null,
@@ -526,49 +948,92 @@ export class ApiSource implements MutableDataSource {
         ...(input.projectionId ? { projectionId: input.projectionId } : {}),
       }),
     });
+    return toOrder(row);
   }
 
-  createMapping(input: {
+  async createMapping(input: {
     customerId: string;
     productId: string;
     agreedPrice: number | null;
   }): Promise<Mapping> {
-    return request<Mapping>("/mappings", {
+    const row = await request<MappingRow>("/mappings", {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        customerId: input.customerId,
+        productId: input.productId,
+        customPrice: input.agreedPrice,
+      }),
     });
+    return toMapping(row);
   }
 
-  updateMapping(
+  async updateMapping(
     id: string,
     input: { agreedPrice: number | null },
   ): Promise<Mapping> {
-    return request<Mapping>(`/mappings/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(input),
-    });
+    const row = await request<MappingRow>(
+      `/mappings/${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ customPrice: input.agreedPrice }),
+      },
+    );
+    return toMapping(row);
   }
 
   async deleteMapping(id: string): Promise<void> {
-    await request<void>(`/mappings/${id}`, { method: "DELETE" });
+    await request(`/mappings/${encodeURIComponent(id)}`, { method: "DELETE" });
   }
 
-  updateProjection(
+  async updateProjection(
     id: string,
-    input: Partial<Projection>,
+    input: ProjectionPatch,
   ): Promise<Projection> {
-    return request<Projection>(`/projections/${id}`, {
+    await request(`/projections/${encodeURIComponent(id)}`, {
       method: "PATCH",
-      body: JSON.stringify(input),
+      body: JSON.stringify({
+        ...(input.price !== undefined ? { price: input.price } : {}),
+        ...(input.projectedQty !== undefined
+          ? { committedQty: input.projectedQty }
+          : {}),
+        ...(input.achievedQty !== undefined
+          ? { achievedQty: input.achievedQty }
+          : {}),
+        ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(input.probability !== undefined
+          ? { probability: input.probability }
+          : {}),
+        ...(input.nextFollowUpAt !== undefined
+          ? { nextFollowUp: input.nextFollowUpAt }
+          : {}),
+        ...(input.targetDate !== undefined
+          ? { targetDate: input.targetDate }
+          : {}),
+      }),
     });
+    // Re-read: the worksheet's derived figures (value, achievement) are the
+    // engine's, not a local recomputation.
+    const fresh = await this.getProjection(id);
+    if (!fresh) throw new ApiError(404, "Projection not found");
+    return fresh;
   }
 
   async deleteProjection(id: string): Promise<void> {
-    await request<void>(`/projections/${id}`, { method: "DELETE" });
+    await request(`/projections/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
   }
 
-  // Payments are intentionally absent from the write surface: the sales role
-  // holds payment.read and not payment.write, so there is nothing to call.
+  async rollForwardProjections(period: string): Promise<{ created: number }> {
+    const res = await request<{ created: number }>(
+      "/projections/roll-forward",
+      {
+        method: "POST",
+        body: JSON.stringify({ to: period }),
+      },
+    );
+    return { created: res.created };
+  }
 }
 
 export function createApiSource(): MutableDataSource {

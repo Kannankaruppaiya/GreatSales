@@ -14,6 +14,7 @@ import { Building2, CircleCheckBig, IndianRupee } from "lucide-react-native";
 import type { DealStageValue, LeadRow } from "@greatsales/shared";
 
 import { BottomSheet, Button, Panel, Text } from "@/components/ui";
+import { describeError } from "@/data/http";
 import { color, font, radius, space } from "@/design/tokens";
 import { money } from "@/lib/format";
 import { stageVisual } from "@/lib/stage-visuals";
@@ -34,6 +35,7 @@ export function ChangeStageSheet({
 }: ChangeStageSheetProps) {
   const [selected, setSelected] = useState<DealStageValue | null>(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const current = lead?.stage ?? null;
   const target = selected ?? current;
@@ -50,12 +52,16 @@ export function ChangeStageSheet({
       return;
     }
     setSaving(true);
+    setError(null);
     try {
       await onConfirm(target);
+      setSelected(null);
       onClose();
+    } catch (e) {
+      // Kept open with the choice intact, so a failed save can be retried.
+      setError(describeError(e));
     } finally {
       setSaving(false);
-      setSelected(null);
     }
   }
 
@@ -65,13 +71,20 @@ export function ChangeStageSheet({
       onClose={onClose}
       title="Move to Stage"
       footer={
-        <Button
-          label="Update Stage"
-          block
-          loading={saving}
-          disabled={!target || target === current}
-          onPress={save}
-        />
+        <View style={{ gap: space.sm }}>
+          {error ? (
+            <Text variant="caption" tone="red">
+              {error}
+            </Text>
+          ) : null}
+          <Button
+            label="Update Stage"
+            block
+            loading={saving}
+            disabled={!target || target === current}
+            onPress={save}
+          />
+        </View>
       }
     >
       {lead ? (

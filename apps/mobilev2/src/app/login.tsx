@@ -8,8 +8,17 @@
  * "Continue with Google" is in the design but the API exposes only
  * password sign-in (`/auth/login`), so it is not rendered — an OAuth button
  * that cannot complete is worse than none. Recorded in CHECKLIST.md.
+ *
+ * The API signs in by workspace + email + password, so those are the fields.
+ * The design's "Mobile Number or Email" became "Email": there is no phone
+ * sign-in to offer. The workspace is remembered after the first sign-in, so
+ * a salesperson types it once per phone.
+ *
+ * Only a salesperson may sign in here. The API refuses every other role from
+ * the mobile client after checking the password, and its message is shown as
+ * it is — it already says where to go instead.
  */
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -20,44 +29,67 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  Check,
-  ChevronDown,
-  Eye,
-  EyeOff,
-  Lock,
-  Phone,
-} from "lucide-react-native";
+import { Building2, Check, Eye, EyeOff, Lock, Mail } from "lucide-react-native";
 
 import { Button, Input, Text } from "@/components/ui";
 import { OnboardingBackdrop } from "@/components/brand/Decor";
-import { color, font, radius, space } from "@/design/tokens";
+import { color, font, space } from "@/design/tokens";
+import { ApiError, describeError } from "@/data/http";
+import { lastWorkspace, signIn } from "@/data/session";
 
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  const [workspace, setWorkspace] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showReset, setShowReset] = useState(false);
 
-  const canSubmit = identifier.trim().length > 0 && password.length > 0;
+  useEffect(() => {
+    let live = true;
+    void lastWorkspace().then((code) => {
+      if (live && code) setWorkspace((current) => current || code);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
 
-  async function signIn() {
-    if (!canSubmit) return;
+  const canSubmit =
+    workspace.trim().length > 0 &&
+    identifier.trim().length > 0 &&
+    password.length > 0;
+
+  async function submit() {
+    if (!canSubmit || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
-      // Sign-in against the API is wired when the app is pointed at it; with
-      // the synthetic source there is no credential to check, so the flow
-      // continues to the permission step exactly as it would after a success.
-      router.replace("/location-permission");
+      const user = await signIn({
+        workspace,
+        email: identifier,
+        password,
+        remember,
+      });
+      setPassword("");
+      router.replace(
+        user.mustChangePassword ? "/change-password" : "/location-permission",
+      );
     } catch (caught) {
+      // One message for every wrong credential, whichever part was wrong —
+      // the API does the same, so this screen cannot be used to find out
+      // which workspaces or addresses exist.
       setError(
-        caught instanceof Error ? caught.message : "Could not sign you in.",
+        caught instanceof ApiError && caught.status === 401
+          ? "The workspace, email or password is not right."
+          : caught instanceof ApiError && caught.status === 429
+            ? "Too many attempts. Wait a minute, then try again."
+            : describeError(caught),
       );
     } finally {
       setSubmitting(false);
@@ -82,20 +114,6 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.topRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Language"
-            style={styles.langPill}
-            onPress={() => router.push("/settings")}
-          >
-            <Text variant="secondary" style={styles.langLabel}>
-              EN
-            </Text>
-            <ChevronDown size={14} color={color.ink} strokeWidth={2} />
-          </Pressable>
-        </View>
-
         <View style={styles.brandBlock}>
           <Text style={styles.logoG}>G</Text>
           <Text style={styles.brand}>GreatSales</Text>
@@ -116,14 +134,25 @@ export default function LoginScreen() {
 
         <View style={styles.form}>
           <Input
-            label="Mobile Number or Email"
-            placeholder="+91 98765 43210"
+            label="Workspace"
+            placeholder="Your company's workspace code"
+            value={workspace}
+            onChangeText={setWorkspace}
+            autoCapitalize="none"
+            autoCorrect={false}
+            icon={<Building2 size={18} color={color.muted2} strokeWidth={2} />}
+          />
+
+          <Input
+            label="Email"
+            placeholder="you@company.com"
             value={identifier}
             onChangeText={setIdentifier}
             autoCapitalize="none"
-            autoComplete="username"
+            autoCorrect={false}
+            autoComplete="email"
             keyboardType="email-address"
-            icon={<Phone size={18} color={color.muted2} strokeWidth={2} />}
+            icon={<Mail size={18} color={color.muted2} strokeWidth={2} />}
           />
 
           <Input
@@ -133,6 +162,8 @@ export default function LoginScreen() {
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
             autoComplete="current-password"
+            onSubmitEditing={submit}
+            returnKeyType="go"
             error={error ?? undefined}
             icon={<Lock size={18} color={color.muted2} strokeWidth={2} />}
             trailing={
@@ -156,7 +187,8 @@ export default function LoginScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Forgot password"
-            onPress={() => router.push("/help")}
+            accessibilityState={{ expanded: showReset }}
+            onPress={() => setShowReset((v) => !v)}
             style={styles.forgotRow}
             hitSlop={8}
           >
@@ -164,6 +196,13 @@ export default function LoginScreen() {
               Forgot Password?
             </Text>
           </Pressable>
+          {showReset ? (
+            <Text variant="caption" tone="muted" style={styles.resetNote}>
+              Passwords are reset by your company's GreatSales administrator.
+              Ask them for a temporary password — you will choose your own the
+              first time you sign in with it.
+            </Text>
+          ) : null}
 
           <Pressable
             accessibilityRole="checkbox"
@@ -185,7 +224,7 @@ export default function LoginScreen() {
           <Button
             label="Sign In"
             block
-            onPress={signIn}
+            onPress={submit}
             disabled={!canSubmit}
             loading={submitting}
             style={styles.submit}
@@ -198,7 +237,8 @@ export default function LoginScreen() {
           align="center"
           style={styles.footer}
         >
-          New to GreatSales? Contact your administrator.
+          New to GreatSales, or forgot your password? Your company's
+          administrator sets up and resets accounts.
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -208,20 +248,8 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: color.surfaceWhite },
   content: { paddingHorizontal: space.gutter, flexGrow: 1 },
-  topRow: { flexDirection: "row", justifyContent: "flex-end" },
-  langPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.xs,
-    height: 35,
-    paddingHorizontal: space.md,
-    borderRadius: radius.input,
-    backgroundColor: "#F5F9FB",
-    borderWidth: 1,
-    borderColor: "#DFE8ED",
-  },
-  langLabel: { fontFamily: font.semibold },
   brandBlock: { alignItems: "center", marginTop: space.section },
+  resetNote: { marginTop: -space.sm },
   logoG: { fontFamily: font.extrabold, fontSize: 39, color: color.primary },
   brand: {
     fontFamily: font.extrabold,

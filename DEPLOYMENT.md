@@ -105,7 +105,7 @@ volume story for Postgres in exchange for scheduling this project does not need.
 | `apps/web` | `pnpm --filter web build` | static bundle, served by nginx in the `web` image |
 | `packages/shared` | `pnpm --filter @greatsales/shared build` | `dist` (CJS + d.ts) — build **before** API |
 | `packages/db` | `db:generate` | Prisma client |
-| `apps/mobile` | EAS build | native binaries / OTA |
+| `apps/mobilev2` | `pnpm apk` (EAS, profile `preview`) | Android APK; `eas.json` points release builds at production |
 
 ## Database migrations
 

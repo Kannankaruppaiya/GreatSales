@@ -69,16 +69,18 @@ export default function OutstandingScreen() {
   const [redZoneOnly, setRedZoneOnly] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
 
+  // The whole open ledger: grouping by customer is only true over all of it.
   const state = useAsync(
-    () => source.listInvoices({ search: search || undefined, limit: 200 }),
+    () => source.listOpenInvoices(search || undefined),
     [source, search],
   );
 
   const groups = useMemo(() => {
-    const rows = (state.data?.items ?? []).filter(
+    const rows = (state.data ?? []).filter(
       (invoice) =>
         invoice.pending > 0 &&
-        inBand(invoice.agingDays, band) &&
+        // Bands are days past due, so "Not due yet" means exactly that.
+        inBand(invoice.overdueDays, band) &&
         (!redZoneOnly ||
           invoice.payZone === "RedZone" ||
           invoice.payZone === "Blacklist"),
@@ -89,7 +91,9 @@ export default function OutstandingScreen() {
       { name: string; payZone: Invoice["payZone"]; rows: Invoice[] }
     >();
     for (const invoice of rows) {
-      const entry = map.get(invoice.customerId) ?? {
+      // An invoice imported with no customer link groups under its name.
+      const key = invoice.customerId ?? `name:${invoice.customerName}`;
+      const entry = map.get(key) ?? {
         name: invoice.customerName,
         payZone: invoice.payZone,
         rows: [],
@@ -99,7 +103,7 @@ export default function OutstandingScreen() {
       if (invoice.payZone === "Blacklist" || invoice.payZone === "RedZone") {
         entry.payZone = invoice.payZone;
       }
-      map.set(invoice.customerId, entry);
+      map.set(key, entry);
     }
 
     return [...map.entries()]
@@ -241,7 +245,9 @@ export default function OutstandingScreen() {
                               {invoice.invoiceNumber}
                             </Text>
                             <Text variant="nano" tone="muted">
-                              Due {longDate(invoice.dueAt)}
+                              {invoice.dueAt
+                                ? `Due ${longDate(invoice.dueAt)}`
+                                : `${invoice.agingDays} days old`}
                             </Text>
                           </View>
                           <View style={styles.groupRight}>
@@ -250,10 +256,10 @@ export default function OutstandingScreen() {
                             </Text>
                             <Text
                               variant="nano"
-                              tone={invoice.agingDays > 0 ? "red" : "muted2"}
+                              tone={invoice.overdueDays > 0 ? "red" : "muted2"}
                             >
-                              {invoice.agingDays > 0
-                                ? `${invoice.agingDays} days overdue`
+                              {invoice.overdueDays > 0
+                                ? `${invoice.overdueDays} days overdue`
                                 : "Not due yet"}
                             </Text>
                           </View>

@@ -22,7 +22,6 @@ import {
   Panel,
   Screen,
   SkeletonList,
-  SyntheticBanner,
   Text,
 } from "@/components/ui";
 import { useData } from "@/data/provider";
@@ -93,8 +92,6 @@ export default function HotOpportunitiesScreen() {
       />
 
       <View style={styles.body}>
-        <SyntheticBanner />
-
         <View style={styles.stats}>
           <Panel style={styles.stat}>
             <View style={styles.statRow}>

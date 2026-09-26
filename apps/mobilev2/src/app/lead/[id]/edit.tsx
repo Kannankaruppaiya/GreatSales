@@ -13,7 +13,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { CalendarDays, Plus, Trash2 } from "lucide-react-native";
-import type { DealStageValue, LeadProductRow } from "@greatsales/shared";
+import type { DealStageValue } from "@greatsales/shared";
 
 import {
   AppBar,
@@ -35,16 +35,18 @@ import {
   type EntityOption,
 } from "@/components/form";
 import { useData } from "@/data/provider";
-import { isMutable } from "@/data/source";
+import { describeError } from "@/data/http";
 import { color, space } from "@/design/tokens";
 import { longDate, money } from "@/lib/format";
 import { DEAL_STAGE_LABELS, SELECTABLE_STAGES } from "@/lib/labels";
 import { useAsync } from "@/lib/useAsync";
+import { leave } from "@/lib/nav";
 
 interface EditableProduct {
   id: string;
   productId: string | null;
   productName: string;
+  principalId: string | null;
   brand: string | null;
   unit: string | null;
   qty: number;
@@ -81,6 +83,7 @@ export default function EditOpportunityScreen() {
         id: p.id,
         productId: p.productId,
         productName: p.productName,
+        principalId: p.principalId,
         brand: p.brand,
         unit: p.unit,
         qty: p.qty ?? 0,
@@ -116,10 +119,13 @@ export default function EditOpportunityScreen() {
         id: `new-${product.id}`,
         productId: product.id,
         productName: product.name,
+        principalId: product.principalId,
         brand: product.principal,
         unit: product.unit,
         qty: 1,
-        price: product.listPrice,
+        // No catalogue price: start at zero for the salesperson to type in,
+        // rather than inventing one.
+        price: product.listPrice ?? 0,
       },
     ]);
   }
@@ -127,33 +133,25 @@ export default function EditOpportunityScreen() {
   const totalValue = products.reduce((sum, p) => sum + p.qty * p.price, 0);
 
   async function save() {
-    if (!lead || !isMutable(source)) return;
+    if (!lead) return;
     setSaving(true);
     setError(null);
     try {
-      const lines: LeadProductRow[] = products.map((p) => ({
-        id: p.id,
-        principalId: null,
-        productId: p.productId,
-        productName: p.productName,
-        brand: p.brand,
-        qty: p.qty,
-        unit: p.unit,
-        price: p.price,
-        value: p.qty * p.price,
-      }));
-
       await source.updateLead(lead.id, {
         stage,
-        expClose: expClose ? `${expClose}T00:00:00.000Z` : null,
-        products: lines,
-        totalValue,
+        expClose,
+        products: products.map((p) => ({
+          productId: p.productId,
+          productName: p.productName,
+          principalId: p.principalId,
+          qty: p.qty,
+          unit: p.unit,
+          price: p.price,
+        })),
       });
-      router.back();
+      leave(router, "/(tabs)/pipeline");
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "The opportunity could not be saved.",
-      );
+      setError(describeError(e));
     } finally {
       setSaving(false);
     }

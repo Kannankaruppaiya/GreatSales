@@ -10,7 +10,7 @@
  * only record that this customer negotiated one.
  */
 import React, { useEffect, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { IndianRupee, Trash2 } from "lucide-react-native";
 
@@ -28,10 +28,12 @@ import {
   Text,
 } from "@/components/ui";
 import { useData } from "@/data/provider";
-import { isMutable } from "@/data/source";
+import { describeError } from "@/data/http";
+import { confirmAction } from "@/lib/confirm";
 import { color, space } from "@/design/tokens";
 import { longDate, money } from "@/lib/format";
 import { useAsync } from "@/lib/useAsync";
+import { leave } from "@/lib/nav";
 
 export default function MappingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -63,7 +65,7 @@ export default function MappingDetailScreen() {
     mapping != null && agreedValue !== (mapping.agreedPrice ?? null);
 
   async function save() {
-    if (!mapping || !isMutable(source)) return;
+    if (!mapping) return;
     setSaving(true);
     setError(null);
     setSaved(false);
@@ -72,37 +74,33 @@ export default function MappingDetailScreen() {
       setSaved(true);
       state.reload();
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "The price could not be saved.",
-      );
+      setError(describeError(e));
     } finally {
       setSaving(false);
     }
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!mapping) return;
-    Alert.alert(
-      "Delete this mapping?",
-      `${mapping.customerName} will no longer have an agreed price for ${mapping.productName}, and quotes will fall back to the list price. This cannot be undone.`,
-      [
-        { text: "Keep it", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: remove },
-      ],
-    );
+    const ok = await confirmAction({
+      title: "Delete this mapping?",
+      message: `${mapping.customerName} will no longer be mapped to ${mapping.productName}, so it drops out of their recurring projections. This cannot be undone.`,
+      confirmLabel: "Delete",
+      cancelLabel: "Keep it",
+      destructive: true,
+    });
+    if (ok) await remove();
   }
 
   async function remove() {
-    if (!mapping || !isMutable(source)) return;
+    if (!mapping) return;
     setDeleting(true);
     setError(null);
     try {
       await source.deleteMapping(mapping.id);
-      router.back();
+      leave(router, "/mappings");
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "The mapping could not be deleted.",
-      );
+      setError(describeError(e));
       setDeleting(false);
     }
   }
@@ -153,14 +151,24 @@ export default function MappingDetailScreen() {
               value={agreed}
               onChangeText={setAgreed}
               keyboardType="numeric"
-              placeholder={String(mapping.listPrice)}
+              placeholder={
+                mapping.listPrice != null
+                  ? String(mapping.listPrice)
+                  : "No list price"
+              }
               icon={
                 <IndianRupee size={15} color={color.muted} strokeWidth={2} />
               }
-              hint="Leave it empty to charge the list price"
+              hint={
+                mapping.listPrice != null
+                  ? "Leave it empty to charge the list price"
+                  : "The catalogue has no price for this product — set one here"
+              }
             />
 
-            {agreedValue != null && agreedValue !== mapping.listPrice ? (
+            {agreedValue != null &&
+            mapping.listPrice != null &&
+            agreedValue !== mapping.listPrice ? (
               <Text
                 variant="caption"
                 tone={agreedValue < mapping.listPrice ? "amber" : "primaryDark"}

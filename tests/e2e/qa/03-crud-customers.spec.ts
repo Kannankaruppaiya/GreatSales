@@ -34,6 +34,14 @@ test.describe("Customer lifecycle", () => {
     await dialog.getByPlaceholder(/Anand Automotive/i).fill(name);
     await dialog.getByPlaceholder(/Tier-1 Engine/i).fill("QA Automation Sub-industry");
 
+    // An admin must name the owner: every customer belongs to a salesperson
+    // (the API requires `salespersonId`), and Create stays disabled until one
+    // is chosen.
+    const create = dialog.getByRole("button", { name: /Create Customer/i });
+    await expect(create, "no owner chosen yet").toBeDisabled();
+    await dialog.locator("#cust-salesperson").selectOption({ index: 1 });
+    await expect(create).toBeEnabled();
+
     const createRes = page.waitForResponse(
       (r) => r.url().includes("/api/v1/customers") && r.request().method() === "POST",
     );

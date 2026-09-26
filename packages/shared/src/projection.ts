@@ -53,7 +53,9 @@ const LABEL_TO_STATUS: Record<string, ProjStatusValue> = Object.fromEntries(
 ) as Record<string, ProjStatusValue>;
 
 /** Human label → DB enum value; returns undefined for an unknown label. */
-export function projStatusFromLabel(label: string): ProjStatusValue | undefined {
+export function projStatusFromLabel(
+  label: string,
+): ProjStatusValue | undefined {
   return LABEL_TO_STATUS[label];
 }
 
@@ -72,6 +74,8 @@ export const ProjectionListQuerySchema = z.object({
   principalId: z.string().optional(),
   ownerId: z.string().optional(),
   search: z.string().optional(),
+  /** One account's lines, e.g. the Customer 360 screen. */
+  customerId: z.string().optional(),
   lineFilter: ProjectionLineFilterSchema.default("all"),
 });
 export type ProjectionListQuery = z.infer<typeof ProjectionListQuerySchema>;

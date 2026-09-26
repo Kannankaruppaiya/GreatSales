@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CursorSchema, QueryBool, type CursorPage } from "./pagination";
 import { EntityTypeSchema, type EntityTypeValue } from "./enums";
+import { IsoDateSchema } from "./period-range";
 
 /**
  * FollowUp (cross-entity task) contracts, shared by the API and web. A follow-up
@@ -25,6 +26,15 @@ export const FollowUpListQuerySchema = z.object({
   entityId: z.string().optional(),
   done: QueryBool.optional(),
   ownerId: z.string().optional(),
+  /**
+   * Due on or after / on or before these days, inclusive. The caller sends its
+   * own calendar day, so "today" means the salesperson's today rather than the
+   * server's — the two differ for five and a half hours of every IST day.
+   */
+  dueFrom: IsoDateSchema.optional(),
+  dueTo: IsoDateSchema.optional(),
+  /** `due` soonest first, `-due` latest first. Omitted keeps id order. */
+  sort: z.enum(["due", "-due"]).optional(),
 });
 export type FollowUpListQuery = z.infer<typeof FollowUpListQuerySchema>;
 
@@ -36,6 +46,12 @@ export interface FollowUpRow {
   salespersonName: string;
   title: string | null;
   subtitle: string | null;
+  /**
+   * What the follow-up is about, resolved from `entityType`/`entityId`: the
+   * customer's name, the lead's customer, the order's code, the invoice's
+   * customer, the projection's customer. Null when the record is gone.
+   */
+  entityName: string | null;
   amount: number | null;
   dueDate: string;
   done: boolean;

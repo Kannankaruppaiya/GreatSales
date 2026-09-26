@@ -89,7 +89,11 @@ async function bootstrap() {
             if (!origin) return callback(null, true);
             if (exactOrigins.includes(origin)) return callback(null, true);
             if (matchesSuffix(origin)) return callback(null, true);
-            return callback(new Error(`Origin not allowed: ${origin}`));
+            // Refuse by withholding the Allow-Origin header, which is what a
+            // browser enforces. Passing an Error instead turned every
+            // cross-origin probe — preflight included — into a 500, which is
+            // a server fault in the logs for what is a correct refusal.
+            return callback(null, false);
           },
     credentials: true,
   });

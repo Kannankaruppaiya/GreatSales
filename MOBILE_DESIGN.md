@@ -1,6 +1,9 @@
 # GreatSales Mobile — Design System, UI Principles & Web-Parity Guidelines
 
-> **Scope:** This document serves as the official mobile design contract for GreatSales Mobile (`apps/mobile`).
+> **Superseded.** Written for the first mobile app (`apps/mobile`), deleted on 2026-09-25. The sales app
+> is `apps/mobilev2`, built from the Penpot design system; its record is `apps/mobilev2/CHECKLIST.md`.
+>
+> **Original scope:** the mobile design contract for GreatSales Mobile (`apps/mobile`).
 > It defines the visual tokens, typography scale, 5-zone layout architecture, component standards,
 > touch ergonomics (Apple HIG), and the screen-by-screen specification required to achieve 100% feature
 > parity with the GreatSales Web console.

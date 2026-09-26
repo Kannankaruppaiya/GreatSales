@@ -42,7 +42,15 @@ export function AppBar({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Back"
-            onPress={onBack ?? (() => router.back())}
+            // A screen opened from a notification or a reloaded web tab has
+            // nothing behind it; going "back" then means going home.
+            onPress={
+              onBack ??
+              (() =>
+                router.canGoBack()
+                  ? router.back()
+                  : router.replace("/(tabs)/home"))
+            }
             hitSlop={12}
           >
             <ArrowLeft

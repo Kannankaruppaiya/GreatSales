@@ -1,12 +1,11 @@
 /**
  * How an activity row is grouped, labelled and iconed.
  *
- * The Penpot board "03E.3 Activity Filters" offers five type filters. The
- * source's `kind` is a free string — "Call", "Visit", "Note", "Stage change",
- * "Quotation" from the synthetic generator, and whatever `/remarks` carries
- * from the API — so rows are bucketed by pattern rather than by an enum this
- * app does not own. An unrecognised kind lands in "Other", which is why that
- * bucket exists at all.
+ * The Penpot board "03E.3 Activity Filters" offers five type filters. A
+ * timeline row's `kind` is one of the three record types it is assembled
+ * from — "Note" (a remark), "Follow-up", "Stage change" (see `Activity` in
+ * data/types.ts). Matching is by pattern so a kind added later still lands
+ * somewhere sensible; anything unrecognised goes to "Other".
  *
  * "Sales Order Conversion" is on the board and is not here: an order is not a
  * remark, and the API has no endpoint that returns orders as timeline events.
@@ -14,7 +13,7 @@
  */
 import { Ellipsis, FileText, Phone, Send } from "lucide-react-native";
 
-import { longDate } from "./format";
+import { longDate, toDate } from "./format";
 
 export type ActivityGroup = "stage" | "followup" | "note" | "other";
 
@@ -43,7 +42,7 @@ export const ACTIVITY_CHIP_LABELS: Record<ActivityGroup, string> = {
 export function activityGroup(kind: string): ActivityGroup {
   const k = kind.toLowerCase();
   if (k.includes("stage")) return "stage";
-  if (k.includes("call") || k.includes("visit") || k.includes("meeting"))
+  if (k.includes("follow") || k.includes("call") || k.includes("visit"))
     return "followup";
   if (k.includes("note") || k.includes("quot") || k.includes("remark"))
     return "note";
@@ -91,7 +90,7 @@ export function groupByDay<T extends { at: string }>(
   const out: { key: string; heading: string; rows: T[] }[] = [];
 
   for (const row of rows) {
-    const date = new Date(row.at);
+    const date = toDate(row.at);
     const key = date.toDateString();
     // The app's own date formatter, so a heading here reads exactly like a
     // date anywhere else — and follows the format preference with them.

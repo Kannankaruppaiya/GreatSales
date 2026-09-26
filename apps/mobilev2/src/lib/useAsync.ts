@@ -2,9 +2,9 @@
  * Minimal async-state hook.
  *
  * The screens need the same four things everywhere — data, loading, error,
- * reload — and nothing more yet. A query library would add caching the app has
- * no use for while it reads from an in-memory source; this can be swapped for
- * one when the app moves onto the API and starts wanting invalidation.
+ * reload — and nothing more yet. A query library would add a cache the app
+ * would then have to invalidate after every write; re-fetching on focus (below)
+ * gives the same freshness with nothing to keep in step.
  *
  * It also re-fetches whenever the screen comes back into focus. Without that, a
  * screen the user navigated away from keeps whatever it loaded when it mounted:
@@ -106,4 +106,79 @@ export function useAsync<T>(
   }, [execute]);
 
   return { data, loading, error, reload, refreshing };
+}
+
+export interface PagedState<T> {
+  items: T[];
+  /** Rows matching the query on the server, not just the ones loaded. */
+  total: number;
+  loading: boolean;
+  refreshing: boolean;
+  error: Error | null;
+  reload: () => void;
+  hasMore: boolean;
+  loadingMore: boolean;
+  /** Append the next page. A no-op while one is loading or when none is left. */
+  loadMore: () => void;
+}
+
+/**
+ * A cursor-paged list: the first page through `useAsync` (so it re-fetches on
+ * focus and on `deps`), later pages appended on demand.
+ *
+ * Any reload of the first page discards the appended pages — a list that was
+ * refetched must not splice fresh rows onto a stale tail.
+ */
+export function usePagedList<T>(
+  fetchPage: (cursor: string | null) => Promise<{
+    items: T[];
+    total: number;
+    nextCursor: string | null;
+  }>,
+  deps: readonly unknown[] = [],
+): PagedState<T> {
+  const first = useAsync(() => fetchPage(null), deps);
+  const [more, setMore] = useState<T[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState<Error | null>(null);
+  const firstPage = first.data;
+
+  useEffect(() => {
+    setMore([]);
+    setCursor(firstPage?.nextCursor ?? null);
+    setMoreError(null);
+  }, [firstPage]);
+
+  const fetchRef = useRef(fetchPage);
+  fetchRef.current = fetchPage;
+
+  const loadMore = useCallback(() => {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    setMoreError(null);
+    const from = cursor;
+    fetchRef
+      .current(from)
+      .then((page) => {
+        setMore((rows) => [...rows, ...page.items]);
+        setCursor(page.nextCursor);
+      })
+      .catch((e: unknown) =>
+        setMoreError(e instanceof Error ? e : new Error(String(e))),
+      )
+      .finally(() => setLoadingMore(false));
+  }, [cursor, loadingMore]);
+
+  return {
+    items: firstPage ? [...firstPage.items, ...more] : [],
+    total: firstPage?.total ?? 0,
+    loading: first.loading,
+    refreshing: first.refreshing,
+    error: first.error ?? moreError,
+    reload: first.reload,
+    hasMore: cursor != null,
+    loadingMore,
+    loadMore,
+  };
 }

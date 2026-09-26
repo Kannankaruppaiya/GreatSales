@@ -31,7 +31,7 @@ import {
   type EntityOption,
 } from "@/components/form";
 import { useData } from "@/data/provider";
-import { isMutable } from "@/data/source";
+import { describeError } from "@/data/http";
 import { color, space } from "@/design/tokens";
 import { money } from "@/lib/format";
 
@@ -141,7 +141,7 @@ export default function NewMappingScreen() {
     step === 0 ? customer != null : step === 1 ? product != null : true;
 
   async function submit() {
-    if (!customer || !product || !isMutable(source)) return;
+    if (!customer || !product) return;
     setSaving(true);
     setError(null);
     try {
@@ -152,9 +152,7 @@ export default function NewMappingScreen() {
       });
       setCreated(mapping.id);
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "The mapping could not be saved.",
-      );
+      setError(describeError(e));
     } finally {
       setSaving(false);
     }

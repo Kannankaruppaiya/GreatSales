@@ -19,12 +19,12 @@ import {
   Card,
   Chip,
   EmptyState,
+  ListFooter,
   Screen,
   SearchBar,
   SkeletonList,
   Text,
 } from "@/components/ui";
-import { SyntheticBanner } from "@/components/ui/SyntheticBanner";
 import { useData } from "@/data/provider";
 import { color, space } from "@/design/tokens";
 import { moneyShort } from "@/lib/format";
@@ -39,7 +39,7 @@ import {
   customerFilterCount,
   type CustomerFilters,
 } from "@/components/modals";
-import { useAsync } from "@/lib/useAsync";
+import { useAsync, usePagedList } from "@/lib/useAsync";
 
 export default function CustomersScreen() {
   const router = useRouter();
@@ -52,45 +52,44 @@ export default function CustomersScreen() {
 
   const active = customerFilterCount(filters);
 
-  const state = useAsync(
-    () =>
+  const list = usePagedList(
+    (cursor) =>
       source.listCustomers({
         search: search || undefined,
         category: filters.category ?? undefined,
         area: filters.area ?? undefined,
-        industry: filters.industry ?? undefined,
+        industryId: filters.industry?.id,
         withOutstanding: filters.withOutstanding || undefined,
+        cursor,
         limit: 30,
       }),
     [source, search, filters],
   );
+  // Industries come from the master list, not from the rows on screen: a
+  // filter drawn from loaded rows could only ever offer what was already seen.
+  const industries = useAsync(() => source.listIndustries(), [source]);
 
   // The chips offer what is actually present, so none of them filters to an
   // empty list. They widen as more of the book is loaded, which is honest:
   // this is what the app has seen, not a lookup table it does not have.
   const facets = useMemo(() => {
     const areas = new Set<string>();
-    const industries = new Set<string>();
-    for (const row of state.data?.items ?? []) {
-      if (row.area) areas.add(row.area);
-      if (row.industryName) industries.add(row.industryName);
-    }
-    return {
-      areas: [...areas].sort().slice(0, 12),
-      industries: [...industries].sort().slice(0, 12),
-    };
-  }, [state.data]);
+    for (const row of list.items) if (row.area) areas.add(row.area);
+    return { areas: [...areas].sort().slice(0, 12) };
+  }, [list.items]);
 
   return (
-    <Screen onRefresh={state.reload} refreshing={state.refreshing}>
+    <Screen
+      onRefresh={list.reload}
+      refreshing={list.refreshing}
+      error={list.error}
+    >
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
         <Text variant="pageTitle">Customers</Text>
         <Text variant="caption" tone="muted">
-          {state.data ? `${state.data.total} accounts` : " "}
+          {list.loading ? " " : `${list.total} accounts`}
         </Text>
       </View>
-
-      <SyntheticBanner />
 
       <View style={styles.searchRow}>
         <SearchBar
@@ -123,11 +122,11 @@ export default function CustomersScreen() {
         />
       </View>
 
-      {state.loading ? (
+      {list.loading ? (
         <SkeletonList rows={5} />
-      ) : state.data && state.data.items.length > 0 ? (
+      ) : list.items.length > 0 ? (
         <View style={styles.list}>
-          {state.data.items.map((customer) => (
+          {list.items.map((customer) => (
             <Card
               key={customer.id}
               onPress={() => router.push(`/customer/${customer.id}`)}
@@ -166,13 +165,16 @@ export default function CustomersScreen() {
             </Card>
           ))}
 
-          {state.data.total > state.data.items.length ? (
-            <Text variant="caption" tone="muted2" align="center">
-              Showing {state.data.items.length} of {state.data.total}
-            </Text>
-          ) : null}
+          <ListFooter
+            shown={list.items.length}
+            total={list.total}
+            hasMore={list.hasMore}
+            loadingMore={list.loadingMore}
+            onLoadMore={list.loadMore}
+            noun="accounts"
+          />
         </View>
-      ) : (
+      ) : list.error ? null : (
         <EmptyState
           title="No customers match"
           body={
@@ -194,7 +196,7 @@ export default function CustomersScreen() {
         value={filters}
         onApply={setFilters}
         areas={facets.areas}
-        industries={facets.industries}
+        industries={industries.data ?? []}
       />
     </Screen>
   );

@@ -66,7 +66,7 @@ Seed users all share the dev password **`Passw0rd!`**. Login payload is
 ```bash
 pnpm --filter api build && node apps/api/dist/main.js   # API  :3000  (/api/v1, docs /api/docs)
 pnpm --filter web dev                                     # Web  :5174
-pnpm --filter mobile start                                # Expo
+pnpm --filter @greatsales/mobilev2 start                  # sales app (Expo)
 ```
 
 Root scripts fan out via Turborepo: `pnpm dev`, `pnpm build`, `pnpm lint`,

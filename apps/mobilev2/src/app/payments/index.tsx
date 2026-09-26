@@ -19,7 +19,6 @@ import {
   Panel,
   Screen,
   SkeletonList,
-  SyntheticBanner,
   Text,
 } from "@/components/ui";
 import { useData } from "@/data/provider";
@@ -38,15 +37,17 @@ export default function PaymentsScreen() {
   const widest = Math.max(1, ...(summary?.aging ?? []).map((b) => b.amount));
 
   return (
-    <Screen onRefresh={state.reload} refreshing={state.refreshing}>
+    <Screen
+      onRefresh={state.reload}
+      refreshing={state.refreshing}
+      error={state.error}
+    >
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
         <Text variant="pageTitle">Payments</Text>
         <Text variant="caption" tone="muted">
           What your customers owe
         </Text>
       </View>
-
-      <SyntheticBanner />
 
       {state.loading || !summary ? (
         <SkeletonList rows={4} />
@@ -55,10 +56,10 @@ export default function PaymentsScreen() {
           <View style={styles.metrics}>
             <Metric
               label="Total outstanding"
-              value={moneyShort(summary.totalOutstanding)}
+              value={moneyShort(summary.totalPending)}
               big
             />
-            <Metric label="Pending" value={moneyShort(summary.totalPending)} />
+            <Metric label="Open invoices" value={String(summary.openCount)} />
             <Metric
               label="Overdue"
               value={moneyShort(summary.overdue)}
@@ -91,7 +92,7 @@ export default function PaymentsScreen() {
             Aging
           </Text>
 
-          {summary.aging.length === 0 ? (
+          {summary.openCount === 0 ? (
             <EmptyState
               title="Nothing outstanding"
               body="Every invoice on your accounts has been settled."
@@ -143,14 +144,12 @@ export default function PaymentsScreen() {
 }
 
 /** Later buckets read hotter, matching the chips board's aging semantics. */
+/** Older money is redder. Buckets are invoice age, from GET /payments/summary. */
 function barColor(bucket: string): string {
-  const lower = bucket.toLowerCase();
-  if (lower.includes("current") || lower.includes("not due"))
-    return color.primary;
-  if (lower.includes("90")) return color.red;
-  if (lower.includes("60")) return color.redDark;
-  if (lower.includes("30")) return color.amber;
-  return color.steel;
+  if (bucket.startsWith("90+")) return color.red;
+  if (bucket.startsWith("61-")) return color.redDark;
+  if (bucket.startsWith("31-")) return color.amber;
+  return color.primary;
 }
 
 function Metric({

@@ -32,7 +32,7 @@ import {
 import { useData } from "@/data/provider";
 import type { Activity } from "@/data/source";
 import { color, radius, space } from "@/design/tokens";
-import { timeOfDay } from "@/lib/format";
+import { isDayOnly, timeOfDay } from "@/lib/format";
 import {
   ACTIVITY_CHIP_LABELS,
   ACTIVITY_GROUP_ORDER,
@@ -55,8 +55,11 @@ export default function ActivityTimelineScreen() {
 
   const state = useAsync(async () => {
     if (!leadId) return { rows: [] as Activity[] };
-    const page = await source.listActivities({ leadId, limit: 200 });
-    return { rows: page.items };
+    const rows = await source.listActivities({
+      entityType: "Lead",
+      entityId: leadId,
+    });
+    return { rows };
   }, [source, leadId]);
 
   const rows = state.data?.rows ?? [];
@@ -230,7 +233,7 @@ function TimelineRow({
             {row.kind}
           </Text>
           <Text variant="nano" tone="muted2">
-            {timeOfDay(row.at)}
+            {isDayOnly(row.at) ? "Due" : timeOfDay(row.at)}
           </Text>
         </View>
         <Text variant="caption" tone="muted">
@@ -238,7 +241,7 @@ function TimelineRow({
         </Text>
       </View>
 
-      <Avatar name={row.actorName} size={18} />
+      {row.actorName ? <Avatar name={row.actorName} size={18} /> : null}
     </Pressable>
   );
 }

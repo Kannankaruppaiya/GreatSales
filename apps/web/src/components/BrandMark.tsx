@@ -13,10 +13,9 @@ import { cn } from "@/lib/utils";
  * The tile takes its two stops from the brand tokens, so the mark follows the
  * design system rather than pinning its own emerald.
  *
- * The same geometry is duplicated, deliberately and only twice, in
- * `apps/mobile/src/gs/BrandMark.tsx` and in `scripts/make-icons.mjs`, which
- * rasterises every PNG the two apps ship — favicons, the iOS touch icon, the
- * Expo launcher and splash set. Change the numbers here and change them there,
+ * The same geometry is duplicated, deliberately and only once, in
+ * `scripts/make-icons.mjs`, which rasterises the PNGs the console ships —
+ * favicons and the iOS touch icon. Change the numbers here and change them there,
  * then re-run `pnpm icons`.
  */
 

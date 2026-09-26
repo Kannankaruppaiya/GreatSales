@@ -33,7 +33,7 @@ import {
   useUnlockPeriod,
 } from "@/features/data/periodQueries";
 import { downloadTenantExport } from "@/features/data/exportQueries";
-import { today } from "@/lib/format";
+import { longDate, today } from "@/lib/format";
 
 export default function DataPage() {
   const role = useAuthRole();
@@ -364,7 +364,7 @@ export default function DataPage() {
                   </div>
                   <div className="text-[11px] text-muted font-medium">
                     {isLocked && lock
-                      ? `Locked by ${lock.lockedByName} on ${lock.lockedAt.slice(0, 10)}`
+                      ? `Locked by ${lock.lockedByName} on ${longDate(lock.lockedAt)}`
                       : "Sales team can edit quantities & prices"}
                   </div>
                 </div>

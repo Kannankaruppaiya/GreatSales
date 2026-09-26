@@ -25,7 +25,11 @@ import {
 import { useData } from "@/data/provider";
 import { color, space } from "@/design/tokens";
 import { longDate, money, quantity } from "@/lib/format";
-import { ORDER_STATUS_LABELS, PAYMENT_TERMS_LABELS } from "@/lib/labels";
+import {
+  ORDER_STATUS_LABELS,
+  PAYMENT_TERMS_LABELS,
+  labelFor,
+} from "@/lib/labels";
 import { useAsync } from "@/lib/useAsync";
 
 export default function OrderSummaryScreen() {
@@ -152,7 +156,8 @@ export default function OrderSummaryScreen() {
                     {line.productName}
                   </Text>
                   <Text variant="nano" tone="muted">
-                    {line.principal} · {money(line.price)} per {line.unit}
+                    {money(line.price)}
+                    {line.unit ? ` per ${line.unit}` : " each"}
                   </Text>
                 </View>
                 <Text variant="secondary" style={styles.colQty}>
@@ -173,7 +178,9 @@ export default function OrderSummaryScreen() {
             <View style={styles.totals}>
               <TotalRow label="Subtotal" value={money(order.subtotal)} />
               <TotalRow
-                label={`Tax (${order.taxRate}%)`}
+                label={
+                  order.taxRate != null ? `Tax (${order.taxRate}%)` : "Tax"
+                }
                 value={money(order.tax)}
               />
               <View style={styles.rule} />
@@ -186,7 +193,10 @@ export default function OrderSummaryScreen() {
               </Text>
               <Text variant="secondary">
                 {order.paymentTerms
-                  ? PAYMENT_TERMS_LABELS[order.paymentTerms]
+                  ? labelFor(
+                      PAYMENT_TERMS_LABELS as Record<string, string>,
+                      order.paymentTerms,
+                    )
                   : "Not specified"}
               </Text>
             </View>

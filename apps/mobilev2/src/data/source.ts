@@ -1,53 +1,39 @@
 /**
- * The one seam between the screens and where data comes from.
+ * The one seam between the screens and the API.
  *
- * Screens never call `fetch` and never import the synthetic generators. They
- * take a `DataSource` from context and call these methods, so pointing the app
- * at the real API is a one-line change in `config.ts` — no screen is touched.
+ * Screens never call `fetch`. They take the `DataSource` from context and call
+ * these methods; `ApiSource` is the implementation.
  *
- * Read and write are separated deliberately. `DataSource` is the read surface
- * every screen gets; the write surface is narrower, and the payments module has
- * no write surface at all, because a salesperson holds `payment.read` and not
- * `payment.write` (see ROLE_PERMISSIONS in @greatsales/shared). Making that a
+ * Read and write are separate interfaces on purpose. The payments module has
+ * no write methods at all, because a salesperson holds `payment.read` and not
+ * `payment.write` (ROLE_PERMISSIONS in @greatsales/shared). Making that a
  * property of the interface means a payment-writing screen cannot be built by
- * accident — there is nothing to call.
+ * accident — there is nothing to call. The API refuses it regardless.
  */
-import type { CustomerRow, DealStageValue, LeadRow } from "@greatsales/shared";
+import type {
+  CustomerCategoryValue,
+  DealStageValue,
+  EntityTypeValue,
+  OrderStatusValue,
+  PaymentTermsValue,
+  ProjStatusValue,
+} from "@greatsales/shared";
 
 import type {
-  SyntheticActivity,
-  SyntheticFollowUp,
-  SyntheticInvoice,
-  SyntheticMapping,
-  SyntheticNotification,
-  SyntheticOrder,
-  SyntheticPaymentRecord,
-  SyntheticProduct,
-  SyntheticProjection,
-  SyntheticUser,
-} from "./synthetic/dataset";
+  Activity,
+  AppNotification,
+  CurrentUser,
+  Customer,
+  FollowUp,
+  Invoice,
+  Lead,
+  Mapping,
+  Order,
+  Product,
+  Projection,
+} from "./types";
 
-/**
- * Row shapes the API does not yet return in this form.
- *
- * Customers, leads and contacts already have contracts in `@greatsales/shared`
- * and are used directly. The aliases below name the shapes this app needs for
- * screens whose server contract is either different or not yet settled; they
- * are declared here rather than in the synthetic folder so that an API-backed
- * source can satisfy the same interface without importing anything synthetic.
- */
-export type Customer = CustomerRow;
-export type Lead = LeadRow;
-export type FollowUp = SyntheticFollowUp;
-export type Order = SyntheticOrder;
-export type Invoice = SyntheticInvoice;
-export type PaymentRecord = SyntheticPaymentRecord;
-export type Product = SyntheticProduct;
-export type Mapping = SyntheticMapping;
-export type Projection = SyntheticProjection;
-export type Activity = SyntheticActivity;
-export type AppNotification = SyntheticNotification;
-export type CurrentUser = SyntheticUser;
+export type * from "./types";
 
 export interface Page<T> {
   items: T[];
@@ -62,29 +48,33 @@ export interface ListQuery {
 }
 
 export interface CustomerQuery extends ListQuery {
-  category?: string;
+  category?: CustomerCategoryValue;
   area?: string;
-  industry?: string;
+  industryId?: string;
   /** Accounts carrying a non-zero balance. */
   withOutstanding?: boolean;
 }
 
 export interface LeadQuery extends ListQuery {
   stage?: DealStageValue;
-  /**
-   * Several stages at once, from the filter sheet. `stage` stays for the
-   * single-stage rail, which the API can serve directly; `stages` is narrowed
-   * on the client, because `/leads` takes one stage only.
-   */
   stages?: DealStageValue[];
-  /** Expected closure on or before this ISO date. */
+  /** Expected closure on or before this `YYYY-MM-DD`. */
   closeBefore?: string;
   /** Open stages only — the pipeline's default view. */
   openOnly?: boolean;
-  sort?: "value" | "closeDate" | "probability" | "recent";
+  /** `value` is a top-N list: it returns no next cursor. */
+  sort?: "value" | "closeDate" | "recent";
 }
 
-export type FollowUpBucket = "overdue" | "today" | "upcoming" | "completed";
+/** `open` is every task not yet done, whatever its date. */
+export type FollowUpBucket =
+  | "open"
+  /** Open and due from today through the next six days. */
+  | "week"
+  | "overdue"
+  | "today"
+  | "upcoming"
+  | "completed";
 
 export interface FollowUpQuery extends ListQuery {
   bucket?: FollowUpBucket;
@@ -92,6 +82,8 @@ export interface FollowUpQuery extends ListQuery {
   sort?: "soonest" | "latest";
   customerId?: string;
   leadId?: string;
+  /** Any one record's follow-ups — an invoice's, an order's, a projection line's. */
+  entity?: EntityRef;
 }
 
 export interface OrderQuery extends ListQuery {
@@ -99,25 +91,32 @@ export interface OrderQuery extends ListQuery {
   customerId?: string;
 }
 
-export interface ProjectionQuery extends ListQuery {
+export interface ProjectionQuery {
   /** `YYYY-MM`. Defaults to the current month. */
   period?: string;
   customerId?: string;
-  status?: string;
+  search?: string;
+  status?: ProjStatusValue;
   needsFollowUp?: boolean;
 }
 
 export interface MappingQuery extends ListQuery {
   customerId?: string;
   productId?: string;
-  principal?: string;
-  /** Mappings with no agreed price set. */
+  principalId?: string;
+  /** Mappings with no price at all — neither agreed nor in the catalogue. */
   unpricedOnly?: boolean;
 }
 
-/** Home screen roll-up. Every figure is derived, never stored. */
+export interface InvoiceQuery extends ListQuery {
+  customerId?: string;
+  overdueOnly?: boolean;
+}
+
+/** Home screen roll-up. Every figure is computed by the API or from its rows. */
 export interface HomeSummary {
   followUpsDue: number;
+  /** Today's open follow-ups whose title names a visit. */
   siteVisits: number;
   proposals: number;
   overdueFollowUps: number;
@@ -127,42 +126,70 @@ export interface HomeSummary {
   overdueTotal: number;
 }
 
-/** Collections roll-up. Read-only for a salesperson, by design. */
+/**
+ * One month's commitment against achievement, from `GET /dashboard` — the same
+ * figures the web dashboard shows for this salesperson, computed once on the
+ * server. Recurring is the projections worksheet; new sales is the pipeline
+ * (committed = raised in the month, achieved = won in it).
+ */
+export interface SalesProgress {
+  period: string;
+  recurringCommitted: number;
+  recurringAchieved: number;
+  newSalesCommitted: number;
+  newSalesAchieved: number;
+  totalCommitted: number;
+  totalAchieved: number;
+  /** Null when no target is set for the month — not the same as zero. */
+  target: number | null;
+}
+
+/** Collections roll-up, from `GET /payments/summary`. Read-only by design. */
 export interface PaymentsSummary {
   totalPending: number;
-  totalOutstanding: number;
   overdue: number;
+  overdueCount: number;
   over90Days: number;
-  followUpCount: number;
+  openCount: number;
   aging: { bucket: string; amount: number; count: number }[];
 }
 
-/**
- * The read surface. Everything a screen needs to render.
- */
-export interface DataSource {
-  /** Which source this is, for the dev banner and for tests. */
-  readonly kind: "synthetic" | "api";
+export interface StageCount {
+  stage: DealStageValue;
+  count: number;
+  value: number;
+}
 
+export interface Named {
+  id: string;
+  name: string;
+}
+
+/** A record an activity belongs to. */
+export interface EntityRef {
+  entityType: EntityTypeValue;
+  entityId: string;
+}
+
+/** The read surface. Everything a screen needs to render. */
+export interface DataSource {
   getCurrentUser(): Promise<CurrentUser>;
 
   getHomeSummary(): Promise<HomeSummary>;
+  /** `period` is `YYYY-MM`. */
+  getSalesProgress(period: string): Promise<SalesProgress>;
 
   listCustomers(query?: CustomerQuery): Promise<Page<Customer>>;
   getCustomer(id: string): Promise<Customer | null>;
+  /** Every account the salesperson owns — for the locations screen, which
+   * has to split the whole book into pinned and not. */
+  listAllCustomers(search?: string): Promise<Customer[]>;
+  listIndustries(): Promise<Named[]>;
 
   listLeads(query?: LeadQuery): Promise<Page<Lead>>;
   getLead(id: string): Promise<Lead | null>;
-  /**
-   * Count and value per pipeline stage.
-   *
-   * Open stages only by default, which is what the stage rail and the pipeline
-   * header need. `openOnly: false` returns the closed stages too, for the
-   * All Stages screen, which shows the funnel whole.
-   */
-  getPipelineStageCounts(options?: {
-    openOnly?: boolean;
-  }): Promise<{ stage: DealStageValue; count: number; value: number }[]>;
+  /** Count and value per stage — every stage, open and closed. */
+  getPipelineStageCounts(): Promise<StageCount[]>;
 
   listFollowUps(query?: FollowUpQuery): Promise<Page<FollowUp>>;
   getFollowUp(id: string): Promise<FollowUp | null>;
@@ -170,76 +197,164 @@ export interface DataSource {
   listOrders(query?: OrderQuery): Promise<Page<Order>>;
   getOrder(id: string): Promise<Order | null>;
 
-  listProducts(query?: ListQuery): Promise<Page<Product>>;
+  listProducts(
+    query?: ListQuery & { principalId?: string },
+  ): Promise<Page<Product>>;
+  listPrincipals(): Promise<Named[]>;
 
   listMappings(query?: MappingQuery): Promise<Page<Mapping>>;
   getMapping(id: string): Promise<Mapping | null>;
 
-  listProjections(query?: ProjectionQuery): Promise<Page<Projection>>;
+  /** One month's worksheet, filtered. Not paged: a month is one salesperson's lines. */
+  listProjections(query?: ProjectionQuery): Promise<Projection[]>;
   getProjection(id: string): Promise<Projection | null>;
-  /** Periods the app may show, newest first, each flagged locked or open. */
+  /**
+   * The months the worksheet can show, newest first, each flagged locked or
+   * open: the last twelve months and the next one.
+   */
   listProjectionPeriods(): Promise<{ period: string; locked: boolean }[]>;
 
   /** Collections. Read-only — there is no corresponding write method. */
   getPaymentsSummary(): Promise<PaymentsSummary>;
-  listInvoices(
-    query?: ListQuery & { customerId?: string; overdueOnly?: boolean },
-  ): Promise<Page<Invoice>>;
+  listInvoices(query?: InvoiceQuery): Promise<Page<Invoice>>;
+  /**
+   * Every invoice with money still owed, for the screens that group the
+   * whole ledger by customer or by age. One salesperson's ledger.
+   */
+  listOpenInvoices(search?: string): Promise<Invoice[]>;
   getInvoice(id: string): Promise<Invoice | null>;
-  listPaymentRecords(
-    query?: ListQuery & { customerId?: string; invoiceId?: string },
-  ): Promise<Page<PaymentRecord>>;
 
-  listActivities(
-    query?: ListQuery & { leadId?: string; customerId?: string; kind?: string },
-  ): Promise<Page<Activity>>;
+  /** A record's timeline, newest first. */
+  listActivities(entity: EntityRef): Promise<Activity[]>;
   getActivity(id: string): Promise<Activity | null>;
 
-  listNotifications(query?: ListQuery): Promise<Page<AppNotification>>;
+  listNotifications(): Promise<{ items: AppNotification[]; unread: number }>;
   markNotificationRead(id: string): Promise<void>;
+  markAllNotificationsRead(): Promise<void>;
 }
 
-/**
- * The write surface, for the flows that create records.
- *
- * Kept separate from `DataSource` so that a read-only screen can be handed a
- * source it cannot write through. Note what is absent: no payment create,
- * update, delete, import or reminder-send. That is not an oversight — the sales
- * role has `payment.read` only, so those operations would be rejected by the
- * API and must not be offered in the UI.
- */
+export interface CustomerInput {
+  name: string;
+  area?: string | null;
+  industryId?: string | null;
+  category?: CustomerCategoryValue | null;
+  paymentTerms?: PaymentTermsValue | null;
+  contactName?: string | null;
+  designation?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  locationAccuracyM?: number | null;
+}
+
+export interface LeadProductInput {
+  productId: string | null;
+  productName: string;
+  principalId: string | null;
+  qty: number | null;
+  unit: string | null;
+  price: number | null;
+}
+
+export interface LeadInput {
+  customerName: string;
+  stage?: DealStageValue;
+  /** Copied from the customer the lead is raised against. */
+  tier?: CustomerCategoryValue | null;
+  industryId?: string | null;
+  contacts?: {
+    name: string;
+    designation: string | null;
+    phone: string | null;
+    whatsapp: string | null;
+    sameAsMobile: boolean;
+    email: string | null;
+    isPrimary: boolean;
+  }[];
+  area?: string | null;
+  address?: string | null;
+  /** `YYYY-MM-DD`. */
+  expClose?: string | null;
+  /**
+   * `YYYY-MM-DD`. The API keeps this as the lead's own follow-up task, so it
+   * appears on the Follow-ups list without a second record being created.
+   */
+  nextFollowUp?: string | null;
+  products?: LeadProductInput[];
+}
+
+export interface FollowUpInput {
+  entityType: EntityTypeValue;
+  entityId: string;
+  /** What is to be done — "Site visit", "Send quotation". */
+  purpose: string;
+  notes?: string | null;
+  /** `YYYY-MM-DD`. */
+  dueDate: string;
+}
+
+export interface OrderInput {
+  customerId: string;
+  lines: {
+    productId: string;
+    qty: number;
+    price: number;
+    unit?: string | null;
+  }[];
+  expectedDeliveryAt?: string | null;
+  deliveryAddress?: string | null;
+  paymentTerms?: string | null;
+  notes?: string | null;
+  isUrgent?: boolean;
+  /** Whole percent. */
+  taxRate?: number;
+  /** The projection line this order is raised from; linked in one transaction. */
+  projectionId?: string | null;
+}
+
+export interface ProjectionPatch {
+  price?: number | null;
+  projectedQty?: number;
+  achievedQty?: number;
+  status?: ProjStatusValue;
+  probability?: number | null;
+  nextFollowUpAt?: string | null;
+  targetDate?: string | null;
+}
+
+/** The write surface. Note what is absent: every payment write. */
 export interface MutableDataSource extends DataSource {
-  createCustomer(
-    input: Partial<Customer> & { name: string },
-  ): Promise<Customer>;
-  updateCustomer(id: string, input: Partial<Customer>): Promise<Customer>;
+  createCustomer(input: CustomerInput): Promise<Customer>;
+  updateCustomer(id: string, input: Partial<CustomerInput>): Promise<Customer>;
+  deleteCustomer(id: string): Promise<void>;
 
-  createLead(input: Partial<Lead> & { customerName: string }): Promise<Lead>;
-  updateLead(id: string, input: Partial<Lead>): Promise<Lead>;
+  createLead(input: LeadInput): Promise<Lead>;
+  updateLead(id: string, input: Partial<LeadInput>): Promise<Lead>;
   changeLeadStage(id: string, stage: DealStageValue): Promise<Lead>;
+  deleteLead(id: string): Promise<void>;
 
-  createFollowUp(
-    input: Omit<FollowUp, "id" | "createdAt" | "completedAt">,
-  ): Promise<FollowUp>;
+  createFollowUp(input: FollowUpInput): Promise<FollowUp>;
   completeFollowUp(id: string, notes?: string): Promise<FollowUp>;
+  deleteFollowUp(id: string): Promise<void>;
+  /**
+   * Attach what the salesperson typed to a follow-up the API created for them
+   * (a lead's own next-follow-up task).
+   */
+  annotateFollowUp(id: string, notes: string): Promise<FollowUp>;
 
-  createOrder(input: {
-    customerId: string;
-    lines: { productId: string; qty: number; price: number }[];
-    expectedDeliveryAt?: string | null;
-    deliveryAddress?: string | null;
-    paymentTerms?: Order["paymentTerms"];
-    /** Delivery instructions typed on the order. */
-    notes?: string | null;
-    /**
-     * The recurring-projection line this order is being raised from.
-     *
-     * `OrderCreateSchema` in @greatsales/shared takes it and links the two in
-     * one transaction, which is what lets the projection worksheet show the
-     * order's real status instead of a label somebody typed.
-     */
-    projectionId?: string | null;
-  }): Promise<Order>;
+  createOrder(input: OrderInput): Promise<Order>;
+  /**
+   * Move an order one rung along the fulfilment ladder. The API refuses any
+   * other move — skipping a rung, or reviving a cancelled order.
+   */
+  setOrderStatus(
+    id: string,
+    status: OrderStatusValue,
+    note?: string | null,
+  ): Promise<Order>;
+  cancelOrder(id: string, reason: string): Promise<Order>;
+  deleteOrder(id: string): Promise<void>;
 
   createMapping(input: {
     customerId: string;
@@ -252,11 +367,15 @@ export interface MutableDataSource extends DataSource {
   ): Promise<Mapping>;
   deleteMapping(id: string): Promise<void>;
 
-  updateProjection(id: string, input: Partial<Projection>): Promise<Projection>;
+  updateProjection(id: string, input: ProjectionPatch): Promise<Projection>;
   deleteProjection(id: string): Promise<void>;
+  /** Open `period` by carrying the previous month's live lines into it. */
+  rollForwardProjections(period: string): Promise<{ created: number }>;
+
+  addRemark(entity: EntityRef, text: string): Promise<Activity>;
 }
 
-/** Narrowing helper for screens that need to write. */
+/** Narrowing helper kept for screens written against the read surface. */
 export function isMutable(source: DataSource): source is MutableDataSource {
   return typeof (source as MutableDataSource).createLead === "function";
 }

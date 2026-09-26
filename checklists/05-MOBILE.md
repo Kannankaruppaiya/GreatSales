@@ -1,5 +1,8 @@
 # E. Mobile — Expo App — Production Checklist
 
+> **Superseded 2026-09-25.** This audited `apps/mobile`, which has been deleted. The sales app is
+> `apps/mobilev2`; `pnpm parity` and `apps/mobilev2/CHECKLIST.md` are its record.
+
 > **apps/mobile · React Native + Expo Router**
 >
 > Part of the [GreatSales Master Production Tracker](../PRODUCTION-CHECKLIST.md) · governed by [`AGENTS.md`](../AGENTS.md).

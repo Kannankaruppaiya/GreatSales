@@ -88,6 +88,8 @@ export interface OrderRow {
   salespersonId: string;
   salespersonName: string;
   createdById: string | null;
+  /** The recurring-projection line this order was raised from, if any. */
+  projectionId: string | null;
   date: string;
   status: OrderStatusValue;
   /** Sum of the line items, before GST. */
@@ -123,7 +125,12 @@ export type OrderListResponse = CursorPage<OrderRow>;
  * from `items` and the tax fields; none of them is accepted from here.
  */
 export const OrderCreateSchema = z.object({
-  code: z.string().min(1).max(60),
+  /**
+   * Omit to have the server number the order `SO-<year>-<nnnn>`, the next in
+   * the tenant's sequence for that year. Supplied codes are still accepted
+   * (imports carry their own) and must be unique in the tenant.
+   */
+  code: z.string().trim().min(1).max(60).optional(),
   customerId: z.string().min(1),
   salespersonId: z.string().min(1),
   items: z.array(OrderItemInputSchema).min(1),

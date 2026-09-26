@@ -26,119 +26,107 @@ import {
   Panel,
   Screen,
   SkeletonList,
-  SyntheticBanner,
   Text,
 } from "@/components/ui";
 import { useData } from "@/data/provider";
 import { color, font, space } from "@/design/tokens";
-import { moneyShort, percent } from "@/lib/format";
-import { defaultPeriod } from "@/lib/projection-labels";
+import { OptionSheet } from "@/components/form";
+import { moneyShort, percent, shiftPeriod } from "@/lib/format";
+import { defaultPeriod, periodLabel } from "@/lib/projection-labels";
 import { useAsync } from "@/lib/useAsync";
 
 /** "2026-09" → "September 2026", for the period pill. */
-function periodLabel(period: string): string {
-  const [year, month] = period.split("-");
-  const date = new Date(Number(year), Number(month) - 1, 1);
-  return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
-}
-
 export default function SalesProgressScreen() {
   const router = useRouter();
   const source = useData();
   const [period, setPeriod] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const state = useAsync(async () => {
     const periods = await source.listProjectionPeriods();
     const active = period ?? defaultPeriod(periods);
+    if (!active) return null;
 
-    const [projections, leads, followUps, summary] = await Promise.all([
-      active ? source.listProjections({ period: active, limit: 100 }) : null,
-      source.listLeads({ openOnly: true, limit: 100 }),
-      source.listFollowUps({ bucket: "upcoming", limit: 100 }),
+    // The previous month, for the delta. Taken from the same endpoint so the
+    // comparison is like for like.
+    const previousPeriod = shiftPeriod(active, -1);
+    const [progress, previous, summary, dueThisWeek] = await Promise.all([
+      source.getSalesProgress(active),
+      source.getSalesProgress(previousPeriod),
       source.getHomeSummary(),
+      source.listFollowUps({ bucket: "week", limit: 1 }),
     ]);
 
-    const rows = projections?.items ?? [];
-    const committed = rows.reduce((sum, p) => sum + p.projectedValue, 0);
-    const achieved = rows.reduce((sum, p) => sum + p.achievedValue, 0);
-
-    // The previous period, for the delta. Absent for the oldest month on file,
-    // in which case no delta is shown rather than a made-up 0%.
-    const index = periods.findIndex((p) => p.period === active);
-    const previous = index >= 0 ? periods[index + 1] : undefined;
-    const previousRows = previous
-      ? (await source.listProjections({ period: previous.period, limit: 100 }))
-          .items
-      : [];
-    const previousAchieved = previousRows.reduce(
-      (sum, p) => sum + p.achievedValue,
-      0,
-    );
-
+    const achieved = progress.totalAchieved;
+    // Against the month's target when one is set; against what was committed
+    // when it is not. The screen says which.
+    const base = progress.target ?? progress.totalCommitted;
     const delta =
-      previousAchieved > 0
-        ? ((achieved - previousAchieved) / previousAchieved) * 100
+      previous.totalAchieved > 0
+        ? ((achieved - previous.totalAchieved) / previous.totalAchieved) * 100
         : null;
 
     return {
       periods,
       active,
-      committed,
+      progress,
       achieved,
-      achievement: committed > 0 ? (achieved / committed) * 100 : 0,
+      base,
+      achievement: base > 0 ? (achieved / base) * 100 : 0,
+      gap: Math.max(0, base - achieved),
       delta,
       pipelineValue: summary.openOpportunityValue,
-      newSales: rows.filter((p) => p.achievedQty > 0).length,
-      openOpportunities: leads.total,
-      followUpsUpcoming: followUps.total,
+      openOpportunities: summary.openOpportunities,
+      followUpsThisWeek: dueThisWeek.total,
     };
   }, [source, period]);
 
   const data = state.data;
 
   return (
-    <Screen tabBarSpacing={false} bleed>
+    <Screen
+      bleed
+      onRefresh={state.reload}
+      refreshing={state.refreshing}
+      error={state.error}
+    >
       <AppBar title="Sales Progress" />
 
       <View style={styles.body}>
-        <SyntheticBanner />
-
         {state.loading || !data ? (
           <SkeletonList rows={3} />
         ) : (
           <>
             <Card
               style={styles.periodCard}
-              onPress={() => {
-                // Step through the periods on file rather than opening a
-                // picker: there are three, and 07A owns real period selection.
-                const i = data.periods.findIndex(
-                  (p) => p.period === data.active,
-                );
-                const next =
-                  data.periods[(i + 1) % Math.max(data.periods.length, 1)];
-                if (next) setPeriod(next.period);
-              }}
-              accessibilityLabel={`Period, ${data.active ? periodLabel(data.active) : "none"}. Tap to change.`}
+              onPress={() => setPickerOpen(true)}
+              accessibilityLabel={`Period, ${periodLabel(data.active)}. Tap to change.`}
             >
               <View style={styles.periodRow}>
                 <CalendarDays size={18} color={color.muted} strokeWidth={2} />
                 <Text variant="cardTitle" style={styles.periodLabel}>
-                  {data.active ? periodLabel(data.active) : "No period"}
+                  {periodLabel(data.active)}
                 </Text>
               </View>
             </Card>
 
             <View style={styles.achievement}>
               <Text variant="caption" tone="muted" align="center">
-                Achievement
+                {data.progress.target != null
+                  ? "Achievement against target"
+                  : "Achievement against commitment · no target set"}
               </Text>
               <Text style={styles.achievementValue} align="center">
                 {percent(data.achievement)}
               </Text>
               <Text variant="cardTitle" tone="primaryDark" align="center">
-                {moneyShort(data.achieved)} / {moneyShort(data.committed)}
+                {moneyShort(data.achieved)} / {moneyShort(data.base)}
               </Text>
+              {data.gap > 0 ? (
+                <Text variant="caption" tone="muted" align="center">
+                  {moneyShort(data.gap)} to go
+                </Text>
+              ) : null}
             </View>
 
             {data.delta != null ? (
@@ -173,22 +161,32 @@ export default function SalesProgressScreen() {
 
             <View style={styles.tiles}>
               <Tile
-                value={moneyShort(data.committed)}
-                label="Committed Value"
+                value={
+                  data.progress.target != null
+                    ? moneyShort(data.progress.target)
+                    : "Not set"
+                }
+                label="Target"
               />
-              <Tile value={moneyShort(data.achieved)} label="Achieved Value" />
+              <Tile
+                value={moneyShort(data.progress.totalCommitted)}
+                label="Committed"
+              />
+              <Tile
+                value={moneyShort(data.progress.recurringAchieved)}
+                label="Recurring Achieved"
+              />
+              <Tile
+                value={moneyShort(data.progress.newSalesAchieved)}
+                label="New Sales Won"
+              />
               <Tile
                 value={moneyShort(data.pipelineValue)}
-                label="Pipeline Value"
-              />
-              <Tile value={String(data.newSales)} label="New Sales" />
-              <Tile
-                value={String(data.openOpportunities)}
-                label="Opportunities"
+                label={`Pipeline · ${data.openOpportunities} open`}
               />
               <Tile
-                value={String(data.followUpsUpcoming)}
-                label="Due This Week"
+                value={String(data.followUpsThisWeek)}
+                label="Follow-ups This Week"
               />
             </View>
 
@@ -217,6 +215,17 @@ export default function SalesProgressScreen() {
           </>
         )}
       </View>
+      <OptionSheet
+        visible={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        title="Month"
+        options={(data?.periods ?? []).map((p) => ({
+          value: p.period,
+          label: periodLabel(p.period),
+        }))}
+        value={data?.active ?? null}
+        onChange={setPeriod}
+      />
     </Screen>
   );
 }

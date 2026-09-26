@@ -9,9 +9,10 @@
  *
  * The mark is a G whose bowl opens at the top right and carries an arrow away
  * up and to the right: the letter and the growth in one stroke. The same
- * geometry lives in `apps/web/src/components/BrandMark.tsx` (React) and
- * `apps/mobile/src/gs/BrandMark.tsx` (React Native); those three are the only
- * copies, and `MARK` below is the one this file writes into `favicon.svg`.
+ * geometry lives in `apps/web/src/components/BrandMark.tsx` (React); those two
+ * are the only copies, and `MARK` below is the one this file writes into
+ * `favicon.svg`. The sales app's launcher icons are drawn from its own mark by
+ * `apps/mobilev2/scripts/make-icons.mjs`, which `pnpm icons` runs after this.
  */
 import { deflateSync } from 'node:zlib';
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -26,7 +27,6 @@ const TILE_TO = [0x04, 0x78, 0x57]; // #047857
 const WHITE = [255, 255, 255];
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const MOBILE = join(ROOT, 'apps', 'mobile', 'assets', 'images');
 const WEB = join(ROOT, 'apps', 'web', 'public');
 const SS = 4; // supersampling factor: draw big, average down, get antialiasing for free
 
@@ -234,16 +234,6 @@ function markSvg({ tile }) {
 
 // --- outputs --------------------------------------------------------------
 const files = [
-  // iOS and the store listing want an opaque square; the OS masks the corners.
-  [MOBILE, 'icon.png', { size: 1024, bg: TILE_FROM, bgTo: TILE_TO, fg: WHITE, scale: 1 }],
-  // Android adaptive icons are two layers the launcher masks together. The
-  // foreground must stay inside the safe zone or the mask crops the mark.
-  [MOBILE, 'android-icon-background.png', { size: 1024, bg: TILE_FROM, bgTo: TILE_TO, fg: WHITE, scale: 0 }],
-  [MOBILE, 'android-icon-foreground.png', { size: 1024, bg: null, fg: WHITE, scale: 0.8 }],
-  [MOBILE, 'android-icon-monochrome.png', { size: 1024, bg: null, fg: WHITE, scale: 0.8 }],
-  // The splash background colour comes from app.json, so the image is the mark alone.
-  [MOBILE, 'splash-icon.png', { size: 512, bg: null, fg: WHITE, scale: 1.3 }],
-  [MOBILE, 'favicon.png', { size: 64, bg: BRAND, fg: WHITE, scale: 1, corner: 0.22 }],
   // The console: an SVG tab icon for every current browser, a PNG for the rest,
   // and the full-bleed square iOS uses when the console is saved to a home screen.
   [WEB, 'favicon.png', { size: 64, bg: BRAND, fg: WHITE, scale: 1, corner: 0.22 }],

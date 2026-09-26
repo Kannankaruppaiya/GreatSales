@@ -3,6 +3,7 @@ import { Send, User } from "lucide-react";
 import { Button, Textarea } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { useCreateRemark, useRemarks } from "@/features/remarks/queries";
+import { longDate } from "@/lib/format";
 import type { RemarkEntityType } from "@/features/remarks/types";
 
 /**
@@ -112,7 +113,7 @@ export function RemarksPanel({
                     {r.userName || "System"}
                   </span>
                   <span className="tabular-nums font-semibold text-muted">
-                    {r.at?.slice(0, 10) ?? "—"}
+                    {longDate(r.at)}
                   </span>
                 </div>
                 <p className="text-ink-2 leading-relaxed text-[12.5px] font-medium">

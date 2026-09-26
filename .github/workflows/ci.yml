@@ -57,12 +57,9 @@ jobs:
       - name: Web types
         run: pnpm --filter web check-types
 
-      # NOTE: this has never run successfully on a developer machine — the
-      # local apps/mobile/node_modules has no typescript binary. A clean CI
-      # install should have it. If this fails, it is new information, not a
-      # flake: see checklists/10-TESTING.md J.1.7.
+      # The salesperson's app (apps/mobilev2) — the only mobile client.
       - name: Mobile types
-        run: pnpm --filter mobile check-types
+        run: pnpm --filter @greatsales/mobilev2 check-types
 
       # Validates the committed env templates against the real contract without
       # booting anything. Catches a template that has drifted from the schema,

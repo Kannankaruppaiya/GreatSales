@@ -10,6 +10,7 @@ import type {
   LeadListQuery,
   LeadListResponse,
   LeadRow,
+  LeadStageSummaryRow,
   LeadUpdate,
   RequestUser,
 } from '@greatsales/shared';
@@ -119,7 +120,15 @@ export class LeadsService {
     const where: Prisma.LeadWhereInput = {
       deletedAt: null,
       ...(ownerId ? { salespersonId: ownerId } : {}),
-      ...(query.stage ? { stage: query.stage } : {}),
+      // `stage` and `stages` are ANDed, so sending both narrows rather than
+      // letting one silently override the other.
+      AND: [
+        ...(query.stage ? [{ stage: query.stage }] : []),
+        ...(query.stages ? [{ stage: { in: query.stages } }] : []),
+      ],
+      ...(query.closeBefore
+        ? { expClose: { lte: new Date(`${query.closeBefore}T23:59:59.999Z`) } }
+        : {}),
       ...(query.tier ? { tier: query.tier } : {}),
       // Leads carry principal on their line items, not on the lead itself.
       ...(query.principalId
@@ -130,11 +139,23 @@ export class LeadsService {
         : {}),
     };
 
+    if (query.sort === 'value') {
+      return this.topByValue(db, where, query.limit);
+    }
+
+    // Every order ends in `id` so the cursor has a total order to resume from.
+    const orderBy: Prisma.LeadOrderByWithRelationInput[] =
+      query.sort === 'recent'
+        ? [{ updatedAt: 'desc' }, { id: 'asc' }]
+        : query.sort === 'closeDate'
+          ? [{ expClose: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }]
+          : [{ id: 'asc' }];
+
     const [rows, total] = await db.$transaction([
       db.lead.findMany({
         where,
         include: LEAD_INCLUDE,
-        orderBy: { id: 'asc' },
+        orderBy,
         take: query.limit + 1,
         ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
       }),
@@ -143,6 +164,95 @@ export class LeadsService {
 
     const hasMore = rows.length > query.limit;
     const page = hasMore ? rows.slice(0, query.limit) : rows;
+    return {
+      items: await this.enrich(db, page),
+      nextCursor: hasMore ? page[page.length - 1].id : null,
+      total,
+    };
+  }
+
+  /**
+   * The `limit` most valuable leads matching `where`.
+   *
+   * A lead's worth is the sum of its line values, which no column holds, so the
+   * database cannot order by it directly. The ranking reads only ids and line
+   * values — two narrow columns — then loads full rows for the winners alone.
+   * It is a top-N list by contract (see `LeadListQuerySchema.sort`), so it
+   * returns no cursor.
+   */
+  private async topByValue(
+    db: TenantPrisma,
+    where: Prisma.LeadWhereInput,
+    limit: number,
+  ): Promise<LeadListResponse> {
+    const ranked = await db.lead.findMany({
+      where,
+      select: { id: true, products: { select: { value: true } } },
+    });
+    const worth = (r: (typeof ranked)[number]) =>
+      r.products.reduce((sum, p) => sum + (p.value?.toNumber() ?? 0), 0);
+    const ids = ranked
+      .map((r) => ({ id: r.id, value: worth(r) }))
+      .sort((a, b) => b.value - a.value || a.id.localeCompare(b.id))
+      .slice(0, limit)
+      .map((r) => r.id);
+    const rows = await db.lead.findMany({
+      where: { id: { in: ids } },
+      include: LEAD_INCLUDE,
+    });
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    const page = ids.map((id) => byId.get(id)).filter((r) => r != null);
+    return {
+      items: await this.enrich(db, page),
+      nextCursor: null,
+      total: ranked.length,
+    };
+  }
+
+  /** One lead, or 404. A salesperson asking for someone else's gets 404 too. */
+  async get(user: RequestUser, id: string): Promise<LeadRow> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const ownerId = await this.resolveOwnerScope(db, user);
+    const lead = await db.lead.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+        ...(ownerId ? { salespersonId: ownerId } : {}),
+      },
+      include: LEAD_INCLUDE,
+    });
+    if (!lead) throw new NotFoundException('Lead not found');
+    const [row] = await this.enrich(db, [lead]);
+    return row;
+  }
+
+  /**
+   * Count and worth per stage, over every lead in the caller's scope.
+   *
+   * Built on `allInScope` so a stage's worth is the same `totalValue` sum the
+   * list and the dashboard show — one definition of what a lead is worth.
+   */
+  async stageSummary(user: RequestUser): Promise<LeadStageSummaryRow[]> {
+    const rows = await this.allInScope(user);
+    const byStage = new Map<LeadRow['stage'], LeadStageSummaryRow>();
+    for (const lead of rows) {
+      const entry = byStage.get(lead.stage) ?? {
+        stage: lead.stage,
+        count: 0,
+        value: 0,
+      };
+      entry.count += 1;
+      entry.value += lead.totalValue;
+      byStage.set(lead.stage, entry);
+    }
+    return [...byStage.values()];
+  }
+
+  /** Industry names and contacts for a page of leads, in two queries. */
+  private async enrich(
+    db: TenantPrisma,
+    page: LeadWithGraph[],
+  ): Promise<LeadRow[]> {
     const names = await this.industryNames(
       db,
       page.map((l) => l.industryId),
@@ -153,17 +263,13 @@ export class LeadsService {
       'Lead',
       page.map((l) => l.id),
     );
-    return {
-      items: page.map((l) =>
-        toRow(
-          l,
-          l.industryId ? (names.get(l.industryId) ?? null) : null,
-          contacts.get(l.id) ?? [],
-        ),
+    return page.map((l) =>
+      toRow(
+        l,
+        l.industryId ? (names.get(l.industryId) ?? null) : null,
+        contacts.get(l.id) ?? [],
       ),
-      nextCursor: hasMore ? page[page.length - 1].id : null,
-      total,
-    };
+    );
   }
 
   /**

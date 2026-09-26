@@ -60,7 +60,6 @@ function ymd(d: Date | null): string | null {
   return d == null ? null : d.toISOString().slice(0, 10);
 }
 
-
 @Injectable()
 export class ProjectionsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -103,12 +102,54 @@ export class ProjectionsService {
           where: {
             period: { in: periods },
             deletedAt: null,
-            ...(ownerId ? { mapping: { salespersonId: ownerId } } : {}),
+            mapping: {
+              ...(ownerId ? { salespersonId: ownerId } : {}),
+              ...(filters.customerId ? { customerId: filters.customerId } : {}),
+            },
           },
           include: PROJECTION_INCLUDE,
         })
       : [];
 
+    return this.enrich(db, rows, filters, today);
+  }
+
+  /**
+   * One line, enriched exactly as the worksheet enriches it, or 404 —
+   * including a line on another salesperson's mapping.
+   */
+  async get(
+    user: RequestUser,
+    id: string,
+    today: string = businessToday(),
+  ): Promise<ProjectionLine> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const ownerId = await this.resolveOwnerScope(db, user, undefined);
+    const row = await db.projection.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+        ...(ownerId ? { mapping: { salespersonId: ownerId } } : {}),
+      },
+      include: PROJECTION_INCLUDE,
+    });
+    if (!row) throw new NotFoundException('Projection not found');
+    const { lines } = await this.enrich(
+      db,
+      [row],
+      { lineFilter: 'all' },
+      today,
+    );
+    return lines[0];
+  }
+
+  /** Contact names, activity counts and the engine's derived figures. */
+  private async enrich(
+    db: TenantPrisma,
+    rows: ProjectionRow[],
+    filters: Omit<ProjectionListQuery, 'period'>,
+    today: string,
+  ): Promise<ProjectionListResponse> {
     const ids = rows.map((r) => r.id);
     const [contactNames, remarkCounts, followUpCounts] = await Promise.all([
       this.primaryContactNames(
@@ -235,9 +276,10 @@ export class ProjectionsService {
         });
         // The badge counts FollowUp rows, so it is one higher (or lower) than
         // the count read a few lines above.
-        line.followUpCount = (
-          await this.activityCounts(db, 'followUp', [updated.id])
-        ).get(updated.id) ?? 0;
+        line.followUpCount =
+          (await this.activityCounts(db, 'followUp', [updated.id])).get(
+            updated.id,
+          ) ?? 0;
       }
 
       return line;

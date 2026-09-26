@@ -22,19 +22,19 @@ import {
   Card,
   Chip,
   EmptyState,
+  ListFooter,
   Screen,
   SearchBar,
   SkeletonList,
   StatusDot,
-  SyntheticBanner,
   Text,
 } from "@/components/ui";
 import { QuoteBand } from "@/components/brand/QuoteBand";
 import { useData } from "@/data/provider";
 import type { FollowUpBucket } from "@/data/source";
 import { color, space } from "@/design/tokens";
-import { daysOverdue, dueLabel, timeOfDay } from "@/lib/format";
-import { useAsync } from "@/lib/useAsync";
+import { daysOverdue, dueLabel } from "@/lib/format";
+import { useAsync, usePagedList } from "@/lib/useAsync";
 
 /** The three that are work waiting. "completed" is on the rail but not summarised. */
 type VisibleBucket = Extract<FollowUpBucket, "overdue" | "today" | "upcoming">;
@@ -52,8 +52,10 @@ const BUCKETS: {
 const BUCKET_BLURB: Record<FollowUpBucket, string> = {
   overdue: "Past due. Take action now.",
   today: "Scheduled for today.",
-  upcoming: "Next 7 days.",
+  upcoming: "Coming up after today.",
   completed: "Already done.",
+  open: "Everything still to do.",
+  week: "Due in the next seven days.",
 };
 
 export default function FollowUpsScreen() {
@@ -65,16 +67,10 @@ export default function FollowUpsScreen() {
   const [sort, setSort] = useState<"soonest" | "latest">("soonest");
 
   const state = useAsync(async () => {
-    const [overdue, today, upcoming, list] = await Promise.all([
+    const [overdue, today, upcoming] = await Promise.all([
       source.listFollowUps({ bucket: "overdue", limit: 1 }),
       source.listFollowUps({ bucket: "today", limit: 1 }),
       source.listFollowUps({ bucket: "upcoming", limit: 1 }),
-      source.listFollowUps({
-        bucket: bucket ?? undefined,
-        search: search || undefined,
-        sort,
-        limit: 40,
-      }),
     ]);
     return {
       counts: {
@@ -83,20 +79,39 @@ export default function FollowUpsScreen() {
         upcoming: upcoming.total,
         all: overdue.total + today.total + upcoming.total,
       },
-      list,
     };
-  }, [source, bucket, search, sort]);
+  }, [source]);
+  // "All" is all open work — the same set the All count adds up; completed
+  // tasks have their own chip.
+  const list = usePagedList(
+    (cursor) =>
+      source.listFollowUps({
+        bucket: bucket ?? "open",
+        search: search || undefined,
+        sort,
+        cursor,
+        limit: 30,
+      }),
+    [source, bucket, search, sort],
+  );
 
   const data = state.data;
+  const reloadAll = () => {
+    state.reload();
+    list.reload();
+  };
   const showSummary = bucket == null && search.length === 0;
 
   return (
-    <Screen onRefresh={state.reload} refreshing={state.refreshing} bleed>
+    <Screen
+      onRefresh={reloadAll}
+      refreshing={state.refreshing || list.refreshing}
+      error={state.error ?? list.error}
+      bleed
+    >
       <AppBar title="Follow-ups Due" showBack={false} />
 
       <View style={styles.body}>
-        <SyntheticBanner />
-
         <View style={styles.searchRow}>
           <SearchBar
             value={search}
@@ -153,7 +168,7 @@ export default function FollowUpsScreen() {
           />
         </ScrollView>
 
-        {state.loading || !data ? (
+        {state.loading || !data || (!showSummary && list.loading) ? (
           <SkeletonList rows={3} />
         ) : showSummary ? (
           <View style={styles.summary}>
@@ -195,10 +210,11 @@ export default function FollowUpsScreen() {
               </Card>
             ))}
           </View>
-        ) : data.list.items.length > 0 ? (
+        ) : list.items.length > 0 ? (
           <View style={styles.list}>
-            {data.list.items.map((followUp) => {
-              const late = daysOverdue(followUp.dueAt);
+            {list.items.map((followUp) => {
+              // A finished task is not late, whatever its date was.
+              const late = followUp.done ? 0 : daysOverdue(followUp.dueAt);
               return (
                 <Card
                   key={followUp.id}
@@ -219,11 +235,11 @@ export default function FollowUpsScreen() {
                         <Text variant="nano" tone="redDark">
                           {late}d late
                         </Text>
-                      ) : (
-                        <Text variant="nano" tone="muted2">
-                          {timeOfDay(followUp.dueAt)}
+                      ) : followUp.done ? (
+                        <Text variant="nano" tone="primaryDark">
+                          Done
                         </Text>
-                      )}
+                      ) : null}
                     </View>
                     <Avatar name={followUp.customerName} size={36} />
                     <View style={styles.rowText}>
@@ -238,13 +254,16 @@ export default function FollowUpsScreen() {
                 </Card>
               );
             })}
-            {data.list.total > data.list.items.length ? (
-              <Text variant="caption" tone="muted2" align="center">
-                Showing {data.list.items.length} of {data.list.total}
-              </Text>
-            ) : null}
+            <ListFooter
+              shown={list.items.length}
+              total={list.total}
+              hasMore={list.hasMore}
+              loadingMore={list.loadingMore}
+              onLoadMore={list.loadMore}
+              noun="follow-ups"
+            />
           </View>
-        ) : (
+        ) : list.error ? null : (
           <EmptyState
             title="Nothing here"
             body={

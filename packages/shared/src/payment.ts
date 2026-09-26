@@ -42,7 +42,9 @@ export const CREDIT_DAYS: Record<PaymentTermsValue, number> = {
  */
 export const DEFAULT_CREDIT_DAYS = 30;
 
-export function creditDays(terms: PaymentTermsValue | null | undefined): number {
+export function creditDays(
+  terms: PaymentTermsValue | null | undefined,
+): number {
   return terms == null ? DEFAULT_CREDIT_DAYS : CREDIT_DAYS[terms];
 }
 
@@ -162,3 +164,27 @@ export const PaymentUpdateSchema = PaymentCreateSchema.partial().refine(
   { message: "At least one field must be provided" },
 );
 export type PaymentUpdate = z.infer<typeof PaymentUpdateSchema>;
+
+/**
+ * GET /payments/summary — the caller's receivables, rolled up.
+ *
+ * Every figure is derived from the same `PaymentRow` values the list shows
+ * (`pending`, `overdueDays`, `agingDays`), so the summary and the rows it sits
+ * above cannot disagree.
+ */
+export interface PaymentSummary {
+  /** Sum of `pending` over every open invoice. */
+  totalPending: number;
+  /** Pending on invoices past their due date. */
+  overdue: number;
+  overdueCount: number;
+  /** Pending on invoices more than 90 days old. */
+  over90Days: number;
+  openCount: number;
+  /** Pending by invoice age. Buckets are fixed and always all present. */
+  aging: {
+    bucket: "0-30" | "31-60" | "61-90" | "90+";
+    amount: number;
+    count: number;
+  }[];
+}

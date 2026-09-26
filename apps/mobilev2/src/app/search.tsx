@@ -101,7 +101,7 @@ export default function SearchScreen() {
           source.listLeads({ search, limit: 6 }),
           source.listOrders({ search, limit: 6 }),
           source.listFollowUps({ search, limit: 6 }),
-          source.listProjections({ search, limit: 6 }),
+          source.listProjections({ search }),
           source.listInvoices({ search, limit: 6 }),
         ]);
 
@@ -138,7 +138,7 @@ export default function SearchScreen() {
           subtitle: `${row.customerName} · ${longDate(row.dueAt)}`,
           href: `/followup/${row.id}`,
         })),
-        projections: projections.items.map((row) => ({
+        projections: projections.slice(0, 6).map((row) => ({
           id: row.id,
           title: row.productName,
           subtitle: `${row.customerName} · ${row.period}`,
@@ -148,7 +148,9 @@ export default function SearchScreen() {
         payments: invoices.items.map((row) => ({
           id: row.id,
           title: row.invoiceNumber,
-          subtitle: `${row.customerName} · due ${longDate(row.dueAt)}`,
+          subtitle: row.dueAt
+            ? `${row.customerName} · due ${longDate(row.dueAt)}`
+            : row.customerName,
           meta: money(row.pending),
           href: `/invoice/${row.id}`,
         })),

@@ -22,16 +22,6 @@
       "port": 5174
     },
     {
-      "name": "mobile-web",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "--filter",
-        "mobile",
-        "web"
-      ],
-      "port": 8081
-    },
-    {
       "name": "mobilev2-web",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [

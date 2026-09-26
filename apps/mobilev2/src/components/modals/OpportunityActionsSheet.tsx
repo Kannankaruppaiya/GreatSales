@@ -22,6 +22,7 @@ import {
   Send,
   ShoppingCart,
   SquarePen,
+  Trash2,
 } from "lucide-react-native";
 
 import { BottomSheet, Button, Text } from "@/components/ui";
@@ -32,7 +33,8 @@ export type OpportunityAction =
   | "add-follow-up"
   | "create-order"
   | "edit"
-  | "view-customer";
+  | "view-customer"
+  | "delete";
 
 interface ActionSpec {
   key: OpportunityAction;
@@ -71,6 +73,12 @@ const ACTIONS: ActionSpec[] = [
     label: "View Customer",
     hint: "Open the full customer record",
     Icon: Building2,
+  },
+  {
+    key: "delete",
+    label: "Delete Opportunity",
+    hint: "Remove it from your pipeline",
+    Icon: Trash2,
   },
 ];
 

@@ -155,10 +155,22 @@ export class CustomersService {
   /**
    * Fetch a single customer by id with tenant RLS isolation.
    */
+  /**
+   * One customer, scoped exactly as the list is: a salesperson reads only
+   * their own accounts. Before this the by-id read had no owner filter, so a
+   * rep who knew or guessed another rep's customer id could read the account,
+   * its contacts and its balance. Out of scope is 404, not 403 — "exists but
+   * forbidden" would confirm the record.
+   */
   async getById(user: RequestUser, id: string): Promise<CustomerRow> {
     const db = this.prisma.forTenant(user.tenantId);
+    const ownerId = await this.resolveOwnerScope(db, user, undefined);
     const existing = await db.customer.findFirst({
-      where: { id, deletedAt: null },
+      where: {
+        id,
+        deletedAt: null,
+        ...(ownerId ? { salespersonId: ownerId } : {}),
+      },
       include: CUSTOMER_INCLUDE,
     });
     if (!existing) throw new NotFoundException('Customer not found');

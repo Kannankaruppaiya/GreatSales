@@ -24,13 +24,13 @@ import {
   Screen,
   SearchBar,
   SkeletonList,
-  SyntheticBanner,
   Text,
 } from "@/components/ui";
 import { OptionSheet, PickerField } from "@/components/form";
 import { useData } from "@/data/provider";
 import { color, space } from "@/design/tokens";
-import { money, moneyShort, percent } from "@/lib/format";
+import { describeError } from "@/data/http";
+import { money, moneyShort, percent, shiftPeriod } from "@/lib/format";
 import {
   PROJECTION_STATUSES,
   PROJECTION_STATUS_LABELS,
@@ -51,6 +51,8 @@ export default function ProjectionsScreen() {
   const [status, setStatus] = useState<ProjectionStatus | null>(null);
   const [needsFollowUp, setNeedsFollowUp] = useState(false);
   const [sheet, setSheet] = useState<"period" | "status" | null>(null);
+  const [rolling, setRolling] = useState(false);
+  const [rollError, setRollError] = useState<string | null>(null);
 
   const state = useAsync(async () => {
     const periods = await source.listProjectionPeriods();
@@ -61,14 +63,13 @@ export default function ProjectionsScreen() {
           search: search || undefined,
           status: status ?? undefined,
           needsFollowUp: needsFollowUp || undefined,
-          limit: 100,
         })
       : null;
     return {
       periods,
       active,
       locked: periods.find((p) => p.period === active)?.locked ?? false,
-      rows: rows?.items ?? [],
+      rows: rows ?? [],
     };
   }, [source, period, search, status, needsFollowUp]);
 
@@ -85,6 +86,31 @@ export default function ProjectionsScreen() {
 
   const filtered = Boolean(search || status || needsFollowUp);
 
+  /**
+   * 07L — open an empty month by carrying last month's live lines into it.
+   * The API skips lines that were lost or cancelled and refuses a locked
+   * month, so this never has to decide either.
+   */
+  async function rollForward() {
+    const active = state.data?.active;
+    if (!active) return;
+    setRolling(true);
+    setRollError(null);
+    try {
+      await source.rollForwardProjections(active);
+      state.reload();
+    } catch (e) {
+      setRollError(describeError(e));
+    } finally {
+      setRolling(false);
+    }
+  }
+  const canRollForward =
+    !filtered && !state.data?.locked && state.data?.active != null;
+  const previousMonth = state.data?.active
+    ? periodLabel(shiftPeriod(state.data.active, -1))
+    : "";
+
   return (
     <Screen onRefresh={state.reload} refreshing={state.refreshing}>
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
@@ -93,8 +119,6 @@ export default function ProjectionsScreen() {
           {state.data?.rows.length ?? 0} lines
         </Text>
       </View>
-
-      <SyntheticBanner />
 
       <View style={styles.controls}>
         <PickerField
@@ -139,24 +163,43 @@ export default function ProjectionsScreen() {
       {state.loading ? (
         <SkeletonList rows={5} />
       ) : (state.data?.rows.length ?? 0) === 0 ? (
-        <EmptyState
-          title={filtered ? "Nothing matches" : "No projections this month"}
-          body={
-            filtered
-              ? "Clear the search or the filters to see the rest of the month."
-              : "Projections are created in the web console and roll forward each month."
-          }
-          actionLabel={filtered ? "Clear filters" : undefined}
-          onAction={
-            filtered
-              ? () => {
-                  setSearch("");
-                  setStatus(null);
-                  setNeedsFollowUp(false);
-                }
-              : undefined
-          }
-        />
+        <>
+          <EmptyState
+            title={filtered ? "Nothing matches" : "No projections this month"}
+            body={
+              filtered
+                ? "Clear the search or the filters to see the rest of the month."
+                : canRollForward
+                  ? `Carry ${previousMonth}'s open commitments into this month to start working it.`
+                  : "This month is closed and has no projections."
+            }
+            actionLabel={
+              filtered
+                ? "Clear filters"
+                : canRollForward
+                  ? rolling
+                    ? "Rolling forward…"
+                    : `Roll forward from ${previousMonth}`
+                  : undefined
+            }
+            onAction={
+              filtered
+                ? () => {
+                    setSearch("");
+                    setStatus(null);
+                    setNeedsFollowUp(false);
+                  }
+                : canRollForward && !rolling
+                  ? () => void rollForward()
+                  : undefined
+            }
+          />
+          {rollError ? (
+            <Text variant="caption" tone="redDark" align="center">
+              {rollError}
+            </Text>
+          ) : null}
+        </>
       ) : (
         <>
           <Panel tone="mint" style={styles.totals}>

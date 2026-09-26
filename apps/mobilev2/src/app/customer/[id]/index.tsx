@@ -42,6 +42,7 @@ import {
   Card,
   Chip,
   EmptyState,
+  Input,
   KeyValueRow,
   Panel,
   RowDivider,
@@ -49,6 +50,7 @@ import {
   SkeletonList,
   Text,
 } from "@/components/ui";
+import { LocationPinButton } from "@/components/form";
 import { useData } from "@/data/provider";
 import { color, radius, space } from "@/design/tokens";
 import { longDate, money, moneyShort } from "@/lib/format";
@@ -63,6 +65,9 @@ import {
   PAY_ZONE_TONES,
 } from "@/lib/labels";
 import { useAsync } from "@/lib/useAsync";
+import { confirmAction } from "@/lib/confirm";
+import { leave } from "@/lib/nav";
+import { describeError } from "@/data/http";
 
 type Tab =
   | "overview"
@@ -79,7 +84,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "products", label: "Products" },
   { key: "orders", label: "Orders" },
   { key: "payments", label: "Outstanding" },
-  { key: "activity", label: "Follow-ups" },
+  { key: "activity", label: "Activity" },
   { key: "location", label: "Location" },
 ];
 
@@ -88,18 +93,66 @@ export default function Customer360Screen() {
   const router = useRouter();
   const source = useData();
   const [tab, setTab] = useState<Tab>("overview");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  const [noteError, setNoteError] = useState<string | null>(null);
+
+  async function saveNote() {
+    const text = note.trim();
+    const row = state.data?.customer;
+    if (!row || !text) return;
+    setSavingNote(true);
+    setNoteError(null);
+    try {
+      await source.addRemark(
+        { entityType: "Customer", entityId: row.id },
+        text,
+      );
+      setNote("");
+      state.reload();
+    } catch (e) {
+      setNoteError(describeError(e));
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
+  async function removeCustomer() {
+    const row = state.data?.customer;
+    if (!row) return;
+    const ok = await confirmAction({
+      title: "Delete this customer?",
+      message: `${row.name} will leave your customer list. Their orders, invoices and history stay on record.`,
+      confirmLabel: "Delete",
+      cancelLabel: "Keep it",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await source.deleteCustomer(row.id);
+      leave(router, "/(tabs)/customers");
+    } catch (e) {
+      setDeleteError(describeError(e));
+    }
+  }
 
   const state = useAsync(async () => {
     const customer = id ? await source.getCustomer(id) : null;
     if (!customer) return null;
 
-    const [mappings, orders, invoices, followUps, leads] = await Promise.all([
-      source.listMappings({ customerId: customer.id, limit: 50 }),
-      source.listOrders({ customerId: customer.id, limit: 30 }),
-      source.listInvoices({ customerId: customer.id, limit: 50 }),
-      source.listFollowUps({ customerId: customer.id, limit: 30 }),
-      source.listLeads({ search: customer.name, limit: 30 }),
-    ]);
+    const [mappings, orders, invoices, followUps, leads, timeline] =
+      await Promise.all([
+        source.listMappings({ customerId: customer.id, limit: 50 }),
+        source.listOrders({ customerId: customer.id, limit: 30 }),
+        source.listInvoices({ customerId: customer.id, limit: 50 }),
+        source.listFollowUps({ customerId: customer.id, limit: 30 }),
+        source.listLeads({ search: customer.name, limit: 30 }),
+        source.listActivities({
+          entityType: "Customer",
+          entityId: customer.id,
+        }),
+      ]);
 
     return {
       customer,
@@ -107,6 +160,9 @@ export default function Customer360Screen() {
       orders: orders.items,
       invoices: invoices.items,
       followUps: followUps.items,
+      // Remarks are the account's notes — the same record the web console's
+      // "Remarks history" shows, so a note typed on either appears on both.
+      notes: timeline.filter((a) => a.kind === "Note"),
       leads: leads.items.filter((l) => l.customerName === customer.name),
     };
   }, [source, id]);
@@ -117,7 +173,7 @@ export default function Customer360Screen() {
   const outstanding = useMemo(() => {
     const pending = invoices.reduce((sum, i) => sum + i.pending, 0);
     const overdue = invoices
-      .filter((i) => i.agingDays > 0)
+      .filter((i) => i.overdueDays > 0)
       .reduce((sum, i) => sum + i.pending, 0);
     const oldest = invoices.reduce((max, i) => Math.max(max, i.agingDays), 0);
     return { pending, overdue, oldest };
@@ -569,16 +625,18 @@ export default function Customer360Screen() {
                             {invoice.invoiceNumber}
                           </Text>
                           <Text variant="caption" tone="muted">
-                            Due {longDate(invoice.dueAt)}
+                            {invoice.dueAt
+                              ? `Due ${longDate(invoice.dueAt)}`
+                              : `${invoice.agingDays} days old`}
                           </Text>
                         </View>
                         <View style={styles.priceCol}>
                           <Text variant="cardTitle">
                             {money(invoice.pending)}
                           </Text>
-                          {invoice.agingDays > 0 ? (
+                          {invoice.overdueDays > 0 ? (
                             <Text variant="nano" tone="red">
-                              {invoice.agingDays} days overdue
+                              {invoice.overdueDays} days overdue
                             </Text>
                           ) : (
                             <Text variant="nano" tone="muted2">
@@ -599,46 +657,93 @@ export default function Customer360Screen() {
             ) : null}
 
             {tab === "activity" ? (
-              (state.data?.followUps.length ?? 0) === 0 ? (
-                <EmptyState
-                  title="No follow-ups"
-                  body="Schedule the next contact so it shows up on your home screen."
-                  actionLabel="Add a follow-up"
-                  onAction={() =>
-                    router.push(`/followup/new?customerId=${customer.id}`)
-                  }
-                />
-              ) : (
-                <View style={styles.section}>
-                  {state.data?.followUps.map((followUp) => (
-                    <Card
-                      key={followUp.id}
-                      onPress={() => router.push(`/followup/${followUp.id}`)}
-                      style={styles.row}
-                    >
-                      <View style={styles.rowInner}>
-                        <View style={styles.rowText}>
-                          <Text variant="cardTitle" numberOfLines={1}>
-                            {followUp.purpose}
-                          </Text>
-                          <Text variant="caption" tone="muted">
-                            {longDate(followUp.dueAt)}
-                          </Text>
+              <>
+                <Text variant="section" style={styles.section}>
+                  Follow-ups
+                </Text>
+                {(state.data?.followUps.length ?? 0) === 0 ? (
+                  <EmptyState
+                    title="No follow-ups"
+                    body="Schedule the next contact so it shows up on your home screen."
+                    actionLabel="Add a follow-up"
+                    onAction={() =>
+                      router.push(`/followup/new?customerId=${customer.id}`)
+                    }
+                  />
+                ) : (
+                  <View style={styles.section}>
+                    {state.data?.followUps.map((followUp) => (
+                      <Card
+                        key={followUp.id}
+                        onPress={() => router.push(`/followup/${followUp.id}`)}
+                        style={styles.row}
+                      >
+                        <View style={styles.rowInner}>
+                          <View style={styles.rowText}>
+                            <Text variant="cardTitle" numberOfLines={1}>
+                              {followUp.purpose}
+                            </Text>
+                            <Text variant="caption" tone="muted">
+                              {longDate(followUp.dueAt)}
+                            </Text>
+                          </View>
+                          {followUp.done ? (
+                            <Chip label="Done" tone="mint" />
+                          ) : (
+                            <ChevronRight
+                              size={15}
+                              color={color.muted2}
+                              strokeWidth={2}
+                            />
+                          )}
                         </View>
-                        {followUp.completedAt ? (
-                          <Chip label="Done" tone="mint" />
-                        ) : (
-                          <ChevronRight
-                            size={15}
-                            color={color.muted2}
-                            strokeWidth={2}
-                          />
-                        )}
-                      </View>
-                    </Card>
-                  ))}
+                      </Card>
+                    ))}
+                  </View>
+                )}
+
+                <Text variant="section" style={styles.section}>
+                  Notes
+                </Text>
+                <View style={styles.section}>
+                  <Input
+                    label="Add a note"
+                    value={note}
+                    onChangeText={setNote}
+                    placeholder="What was discussed on this visit or call"
+                    multiline
+                    numberOfLines={3}
+                  />
+                  {noteError ? (
+                    <Text variant="caption" tone="red">
+                      {noteError}
+                    </Text>
+                  ) : null}
+                  <Button
+                    label="Save Note"
+                    variant="secondary"
+                    block
+                    loading={savingNote}
+                    disabled={note.trim().length === 0}
+                    onPress={saveNote}
+                  />
+                  {(state.data?.notes.length ?? 0) === 0 ? (
+                    <Text variant="caption" tone="muted">
+                      No notes on this account yet.
+                    </Text>
+                  ) : (
+                    state.data?.notes.map((n) => (
+                      <Card key={n.id} style={styles.row}>
+                        <Text variant="body">{n.summary}</Text>
+                        <Text variant="caption" tone="muted">
+                          {longDate(n.at)}
+                          {n.actorName ? ` · ${n.actorName}` : ""}
+                        </Text>
+                      </Card>
+                    ))
+                  )}
                 </View>
-              )
+              </>
             ) : null}
 
             {tab === "location" ? (
@@ -690,12 +795,40 @@ export default function Customer360Screen() {
                 ) : (
                   <EmptyState
                     title="No location pinned"
-                    body="Pin this customer from the web console, or on site with the location tools there."
+                    body="Standing at their premises? Pin it now so the next visit — and the delivery — can find them."
                     icon={
                       <MapPin size={22} color={color.muted2} strokeWidth={2} />
                     }
                   />
                 )}
+
+                <LocationPinButton
+                  label={
+                    customer.locationUrl
+                      ? "Re-pin at My Current Location"
+                      : "Pin My Current Location"
+                  }
+                  onPin={async (fix) => {
+                    await source.updateCustomer(customer.id, fix);
+                    state.reload();
+                  }}
+                />
+              </View>
+            ) : null}
+
+            {tab === "overview" ? (
+              <View style={styles.section}>
+                {deleteError ? (
+                  <Text variant="caption" tone="red">
+                    {deleteError}
+                  </Text>
+                ) : null}
+                <Button
+                  label="Delete Customer"
+                  variant="tertiary"
+                  block
+                  onPress={removeCustomer}
+                />
               </View>
             ) : null}
           </View>

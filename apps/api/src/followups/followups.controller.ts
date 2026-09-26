@@ -49,6 +49,13 @@ export class FollowUpsController {
     return this.service.list(user, query);
   }
 
+  /** One follow-up. 404 outside the caller's scope. */
+  @Get(':id')
+  @RequirePermissions('projection.read')
+  get(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.service.get(user, id);
+  }
+
   /** Create a follow-up. */
   @Post()
   @RequirePermissions('projection.write')

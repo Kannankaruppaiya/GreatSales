@@ -45,12 +45,14 @@ import {
 import { ChangeStageSheet, OpportunityActionsSheet } from "@/components/modals";
 import type { OpportunityAction } from "@/components/modals";
 import { useData } from "@/data/provider";
-import { isMutable } from "@/data/source";
+import { describeError } from "@/data/http";
 import { color, font, radius, space } from "@/design/tokens";
 import { longDate, money, moneyShort, percent, quantity } from "@/lib/format";
 import { DEAL_STAGE_LABELS, DEAL_STAGE_TONES } from "@/lib/labels";
 import { ACTIVITY_ICONS, activityGroup } from "@/lib/activity";
 import { useAsync } from "@/lib/useAsync";
+import { confirmAction } from "@/lib/confirm";
+import { leave } from "@/lib/nav";
 
 /** Rows shown on the detail tab before it defers to the full timeline. */
 const ACTIVITY_PREVIEW = 6;
@@ -65,6 +67,7 @@ export default function OpportunityDetailScreen() {
   const [tab, setTab] = useState<Tab>("overview");
   const [stageOpen, setStageOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const state = useAsync(async () => {
     const lead = id ? await source.getLead(id) : null;
@@ -85,9 +88,9 @@ export default function OpportunityDetailScreen() {
       customers.items.find((c) => c.name === lead.customerName) ?? null;
 
     const [activities, projections, followUps] = await Promise.all([
-      source.listActivities({ leadId: lead.id, limit: 40 }),
+      source.listActivities({ entityType: "Lead", entityId: lead.id }),
       customer
-        ? source.listProjections({ customerId: customer.id, limit: 20 })
+        ? source.listProjections({ customerId: customer.id })
         : Promise.resolve(null),
       source.listFollowUps({ leadId: lead.id, limit: 5 }),
     ]);
@@ -95,16 +98,15 @@ export default function OpportunityDetailScreen() {
     // Probability comes from the projection for this customer and product, if
     // there is one. Nothing else in the schema carries it.
     const projection =
-      projections?.items.find(
-        (p) => p.productId === lead.products[0]?.productId,
-      ) ?? null;
+      projections?.find((p) => p.productId === lead.products[0]?.productId) ??
+      null;
 
     return {
       lead,
       customer,
-      activities: activities.items,
+      activities: activities.slice(0, 40),
       projection,
-      followUp: followUps.items.find((f) => f.completedAt == null) ?? null,
+      followUp: followUps.items.find((f) => !f.done) ?? null,
     };
   }, [source, id]);
 
@@ -114,7 +116,7 @@ export default function OpportunityDetailScreen() {
   const followUp = state.data?.followUp ?? null;
 
   async function changeStage(stage: DealStageValue) {
-    if (!lead || !isMutable(source)) return;
+    if (!lead) return;
     await source.changeLeadStage(lead.id, stage);
     state.reload();
   }
@@ -137,11 +139,32 @@ export default function OpportunityDetailScreen() {
       case "view-customer":
         if (customer) router.push(`/customer/${customer.id}`);
         break;
+      case "delete":
+        void removeLead();
+        break;
+    }
+  }
+
+  async function removeLead() {
+    if (!lead) return;
+    const ok = await confirmAction({
+      title: "Delete this opportunity?",
+      message: `${lead.customerName} will leave your pipeline, with its scheduled follow-up. This cannot be undone from the app.`,
+      confirmLabel: "Delete",
+      cancelLabel: "Keep it",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await source.deleteLead(lead.id);
+      leave(router, "/(tabs)/pipeline");
+    } catch (e) {
+      setActionError(describeError(e));
     }
   }
 
   return (
-    <Screen tabBarSpacing={false} bleed>
+    <Screen bleed error={actionError ? new Error(actionError) : state.error}>
       <AppBar
         title="Opportunity Detail"
         action={
@@ -203,7 +226,7 @@ export default function OpportunityDetailScreen() {
                 value={moneyShort(lead.totalValue)}
                 label="Deal Value"
               />
-              {projection ? (
+              {projection?.probability != null ? (
                 <Metric
                   Icon={ChartColumn}
                   value={percent(projection.probability)}
@@ -347,9 +370,7 @@ export default function OpportunityDetailScreen() {
                         accessibilityRole="button"
                         accessibilityLabel="Products and pricing"
                         hitSlop={8}
-                        onPress={() =>
-                          router.push(`/lead/${lead.id}/products`)
-                        }
+                        onPress={() => router.push(`/lead/${lead.id}/products`)}
                         style={styles.blockAction}
                       >
                         <Text variant="caption" tone="primary">

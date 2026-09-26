@@ -1,18 +1,20 @@
 /**
  * 03G — Add Follow-up.
  *
- * Reached from an opportunity (with `leadId`), from a customer (with
- * `customerId`) or from the + launcher with neither, in which case the
- * customer is chosen here.
+ * Reached from an opportunity (`leadId`), a customer (`customerId`), an invoice
+ * (`invoiceId`), or from the + launcher with none of them, in which case the
+ * customer is chosen here. The record it was opened from is what the task is
+ * attached to, so it shows up on that record's timeline as well as on the
+ * Follow-ups list.
  *
- * Date and time are kept as separate fields and combined on save, because that
- * is how a person says it — "Thursday, four o'clock" — and because a single
- * datetime control is the worst thing on a phone form.
+ * A follow-up is planned by the day. That is the data model the web console,
+ * the dashboard and the overdue counts all share, so there is no time field:
+ * an hour typed here would be kept nowhere and shown to nobody.
  */
 import React, { useCallback, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { CalendarDays, Clock, User } from "lucide-react-native";
+import { CalendarDays, User } from "lucide-react-native";
 
 import { AppBar, Button, Input, Panel, Screen, Text } from "@/components/ui";
 import {
@@ -20,24 +22,20 @@ import {
   EntityPickerSheet,
   OptionSheet,
   PickerField,
-  TimePickerSheet,
-  formatSlot,
   toDateKey,
   type EntityOption,
 } from "@/components/form";
+import { describeError } from "@/data/http";
 import { useData } from "@/data/provider";
-import { isMutable } from "@/data/source";
+import type { EntityRef } from "@/data/source";
 import { color, space } from "@/design/tokens";
-import { longDate } from "@/lib/format";
+import { longDate, money } from "@/lib/format";
 import { useAsync } from "@/lib/useAsync";
+import { leave } from "@/lib/nav";
 
-/**
- * The reasons a follow-up gets scheduled. A fixed list rather than free text
- * so the follow-up lists can group by it; "Other" keeps the notes field as the
- * escape hatch instead of forcing a wrong choice.
- */
 const PURPOSES = [
   "Site visit",
+  "Phone call",
   "Pricing discussion",
   "Sample review",
   "Quotation follow-up",
@@ -50,6 +48,7 @@ export default function NewFollowUpScreen() {
   const params = useLocalSearchParams<{
     leadId?: string;
     customerId?: string;
+    invoiceId?: string;
   }>();
   const router = useRouter();
   const source = useData();
@@ -57,26 +56,42 @@ export default function NewFollowUpScreen() {
   const [customer, setCustomer] = useState<EntityOption | null>(null);
   const [purpose, setPurpose] = useState<string | null>(null);
   const [date, setDate] = useState<string | null>(() => toDateKey(new Date()));
-  const [time, setTime] = useState<string | null>("10:00");
   const [notes, setNotes] = useState("");
 
-  const [sheet, setSheet] = useState<
-    "customer" | "purpose" | "date" | "time" | null
-  >(null);
+  const [sheet, setSheet] = useState<"customer" | "purpose" | "date" | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // When the screen is opened from a deal, the customer is already decided.
+  // The record the screen was opened from decides what the task is about.
   const context = useAsync(async () => {
-    const lead = params.leadId ? await source.getLead(params.leadId) : null;
-    const fromCustomer = params.customerId
-      ? await source.getCustomer(params.customerId)
-      : null;
-    return { lead, customer: fromCustomer };
-  }, [source, params.leadId, params.customerId]);
+    const [lead, fromCustomer, invoice] = await Promise.all([
+      params.leadId ? source.getLead(params.leadId) : null,
+      params.customerId ? source.getCustomer(params.customerId) : null,
+      params.invoiceId ? source.getInvoice(params.invoiceId) : null,
+    ]);
+    return { lead, customer: fromCustomer, invoice };
+  }, [source, params.leadId, params.customerId, params.invoiceId]);
 
+  const lead = context.data?.lead ?? null;
+  const invoice = context.data?.invoice ?? null;
   const lockedCustomerName =
-    context.data?.lead?.customerName ?? context.data?.customer?.name ?? null;
+    lead?.customerName ??
+    invoice?.customerName ??
+    context.data?.customer?.name ??
+    null;
+
+  /** What the follow-up is attached to. */
+  const target: EntityRef | null = lead
+    ? { entityType: "Lead", entityId: lead.id }
+    : invoice
+      ? { entityType: "Payment", entityId: invoice.id }
+      : context.data?.customer
+        ? { entityType: "Customer", entityId: context.data.customer.id }
+        : customer
+          ? { entityType: "Customer", entityId: customer.id }
+          : null;
 
   const loadCustomers = useCallback(
     async (search: string): Promise<EntityOption[]> => {
@@ -94,65 +109,52 @@ export default function NewFollowUpScreen() {
   );
 
   const today = useMemo(() => toDateKey(new Date()), []);
-  const ready = Boolean(
-    (lockedCustomerName || customer) && purpose && date && time,
-  );
+  const ready = Boolean(target && purpose && date);
 
   async function save() {
-    if (!ready || !isMutable(source)) return;
+    if (!ready || !target || !purpose || !date) return;
     setSaving(true);
     setError(null);
     try {
-      const lead = context.data?.lead ?? null;
-      const customerId = lead
-        ? await resolveCustomerId(lead.customerName)
-        : (context.data?.customer?.id ?? customer?.id ?? null);
-      const customerName = lockedCustomerName ?? customer?.title ?? "";
-      if (!customerId) throw new Error("This customer could not be matched.");
-
       await source.createFollowUp({
-        leadId: lead?.id ?? null,
-        customerId,
-        customerName,
-        purpose: purpose!,
+        ...target,
+        purpose,
         notes: notes.trim() || null,
-        // Local time, deliberately: a follow-up at 4pm means 4pm here.
-        dueAt: new Date(`${date}T${time}:00`).toISOString(),
+        dueDate: date,
       });
-      router.back();
+      leave(router, "/followups");
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "The follow-up could not be saved.",
-      );
+      setError(describeError(e));
     } finally {
       setSaving(false);
     }
   }
 
-  /** Leads carry a customer name, not an id, so the id is looked up by name. */
-  async function resolveCustomerId(name: string): Promise<string | null> {
-    const page = await source.listCustomers({ search: name, limit: 10 });
-    return (
-      page.items.find((c) => c.name === name)?.id ?? page.items[0]?.id ?? null
-    );
-  }
-
   return (
-    <Screen tabBarSpacing bleed>
+    <Screen bleed>
       <AppBar title="Add Follow-up" />
 
       <View style={styles.body}>
-        {context.data?.lead ? (
+        {lead ? (
           <Panel tone="mint">
             <Text variant="caption" tone="muted">
               Opportunity
             </Text>
             <Text variant="cardTitle">
-              {context.data.lead.products[0]?.productName ??
-                context.data.lead.customerName}
+              {lead.products[0]?.productName ?? lead.customerName}
             </Text>
             <Text variant="caption" tone="muted">
-              {context.data.lead.customerName}
+              {lead.customerName}
+            </Text>
+          </Panel>
+        ) : invoice ? (
+          <Panel tone="mint">
+            <Text variant="caption" tone="muted">
+              Invoice
+            </Text>
+            <Text variant="cardTitle">{invoice.invoiceNumber}</Text>
+            <Text variant="caption" tone="muted">
+              {invoice.customerName} · {money(invoice.pending)} pending
             </Text>
           </Panel>
         ) : null}
@@ -162,7 +164,13 @@ export default function NewFollowUpScreen() {
           value={lockedCustomerName ?? customer?.title ?? null}
           placeholder="Choose a customer"
           disabled={lockedCustomerName != null}
-          hint={lockedCustomerName ? "Taken from the opportunity" : undefined}
+          hint={
+            lead
+              ? "Taken from the opportunity"
+              : invoice
+                ? "Taken from the invoice"
+                : undefined
+          }
           icon={<User size={16} color={color.muted} strokeWidth={2} />}
           onPress={() => setSheet("customer")}
         />
@@ -174,28 +182,13 @@ export default function NewFollowUpScreen() {
           onPress={() => setSheet("purpose")}
         />
 
-        <View style={styles.pair}>
-          <View style={styles.pairItem}>
-            <PickerField
-              label="Date"
-              value={date ? longDate(date) : null}
-              placeholder="Pick a date"
-              icon={
-                <CalendarDays size={16} color={color.muted} strokeWidth={2} />
-              }
-              onPress={() => setSheet("date")}
-            />
-          </View>
-          <View style={styles.pairItem}>
-            <PickerField
-              label="Time"
-              value={time ? formatSlot(time) : null}
-              placeholder="Pick a time"
-              icon={<Clock size={16} color={color.muted} strokeWidth={2} />}
-              onPress={() => setSheet("time")}
-            />
-          </View>
-        </View>
+        <PickerField
+          label="Date"
+          value={date ? longDate(date) : null}
+          placeholder="Pick a date"
+          icon={<CalendarDays size={16} color={color.muted} strokeWidth={2} />}
+          onPress={() => setSheet("date")}
+        />
 
         <Input
           label="Notes"
@@ -248,20 +241,11 @@ export default function NewFollowUpScreen() {
         min={today}
         title="Follow-up date"
       />
-      <TimePickerSheet
-        visible={sheet === "time"}
-        onClose={() => setSheet(null)}
-        value={time}
-        onChange={setTime}
-        title="Follow-up time"
-      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   body: { paddingHorizontal: space.gutter, gap: space.lg },
-  pair: { flexDirection: "row", gap: space.md },
-  pairItem: { flex: 1 },
   save: { marginTop: space.md },
 });

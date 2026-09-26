@@ -79,7 +79,7 @@ pnpm --filter @greatsales/shared build
 # 6. run
 pnpm --filter api build && node apps/api/dist/main.js   # API  :3000
 pnpm --filter web dev                                     # Web  :5174
-pnpm --filter mobile start                                # Expo
+pnpm --filter @greatsales/mobilev2 web                    # sales app (Expo web) :8081
 ```
 
 > ⚠️ **Windows port gotcha:** host `5432` is usually taken by a native

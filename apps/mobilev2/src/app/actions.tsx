@@ -27,7 +27,6 @@ import {
   IconPlate,
   Screen,
   SkeletonList,
-  SyntheticBanner,
   Text,
 } from "@/components/ui";
 import { useData } from "@/data/provider";
@@ -105,8 +104,6 @@ export default function ActionsScreen() {
       <AppBar title="Actions Need Attention" />
 
       <View style={styles.body}>
-        <SyntheticBanner />
-
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}

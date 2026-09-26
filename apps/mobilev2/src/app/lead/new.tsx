@@ -14,8 +14,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { CalendarDays, Clock, Plus, Trash2, User } from "lucide-react-native";
-import type { DealStageValue, LeadProductRow } from "@greatsales/shared";
+import { CalendarDays, Plus, Trash2, User } from "lucide-react-native";
+import type { DealStageValue } from "@greatsales/shared";
 
 import {
   AppBar,
@@ -37,17 +37,15 @@ import {
   PickerField,
   StepFooter,
   SuccessScreen,
-  TimePickerSheet,
   WizardHeader,
   customerDraftToInput,
-  formatSlot,
   isCustomerDraftReady,
   toDateKey,
   type CustomerDraft,
   type EntityOption,
 } from "@/components/form";
+import { describeError } from "@/data/http";
 import { useData } from "@/data/provider";
-import { isMutable } from "@/data/source";
 import { color, space } from "@/design/tokens";
 import { longDate, money } from "@/lib/format";
 import { DEAL_STAGE_LABELS, SELECTABLE_STAGES } from "@/lib/labels";
@@ -65,8 +63,9 @@ const FOLLOW_UP_PURPOSES = [
 interface DraftProduct {
   productId: string;
   productName: string;
+  principalId: string;
   principal: string;
-  unit: string;
+  unit: string | null;
   qty: number;
   price: number;
 }
@@ -91,19 +90,11 @@ export default function NewLeadScreen() {
   const [products, setProducts] = useState<DraftProduct[]>([]);
 
   const [followUpDate, setFollowUpDate] = useState<string | null>(null);
-  const [followUpTime, setFollowUpTime] = useState<string | null>("10:00");
   const [followUpPurpose, setFollowUpPurpose] = useState<string | null>(null);
   const [followUpNotes, setFollowUpNotes] = useState("");
 
   const [sheet, setSheet] = useState<
-    | "customer"
-    | "product"
-    | "stage"
-    | "close"
-    | "fuDate"
-    | "fuTime"
-    | "fuPurpose"
-    | null
+    "customer" | "product" | "stage" | "close" | "fuDate" | "fuPurpose" | null
   >(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -169,19 +160,20 @@ export default function NewLeadScreen() {
           limit: 5,
         })
       : null;
-    const agreed =
-      mappings?.items.find((m) => m.productId === product.id)?.agreedPrice ??
-      null;
+    // The price this customer actually pays: the mapping's agreed price, else
+    // the catalogue's. Neither set means zero, for the salesperson to type in.
+    const mapped = mappings?.items.find((m) => m.productId === product.id);
 
     setProducts((current) => [
       ...current,
       {
         productId: product.id,
         productName: product.name,
+        principalId: product.principalId,
         principal: product.principal,
         unit: product.unit,
         qty: 1,
-        price: agreed ?? product.listPrice,
+        price: mapped?.effectivePrice ?? product.listPrice ?? 0,
       },
     ]);
   }
@@ -203,7 +195,6 @@ export default function NewLeadScreen() {
         : true;
 
   async function saveCustomerBranch(): Promise<EntityOption | null> {
-    if (!isMutable(source)) return null;
     const row = await source.createCustomer(
       customerDraftToInput(customerDraft),
     );
@@ -226,9 +217,7 @@ export default function NewLeadScreen() {
       try {
         await saveCustomerBranch();
       } catch (e) {
-        setError(
-          e instanceof Error ? e.message : "The customer could not be saved.",
-        );
+        setError(describeError(e));
         return;
       } finally {
         setSaving(false);
@@ -238,55 +227,74 @@ export default function NewLeadScreen() {
   }
 
   async function submit() {
-    if (!customer || !isMutable(source)) return;
+    if (!customer) return;
     setSaving(true);
     setError(null);
     try {
-      const lines: LeadProductRow[] = products.map((p, index) => ({
-        id: `draft-${index}`,
-        principalId: null,
-        productId: p.productId,
-        productName: p.productName,
-        brand: p.principal,
-        qty: p.qty,
-        unit: p.unit,
-        price: p.price,
-        value: p.qty * p.price,
-      }));
-
-      const followUpAt =
-        followUpDate && followUpTime
-          ? new Date(`${followUpDate}T${followUpTime}:00`).toISOString()
-          : null;
+      // A lead carries its own copy of the account's profile and contacts —
+      // it has no link to the customer record — so they are copied from it.
+      const account = await source.getCustomer(customer.id);
 
       const lead = await source.createLead({
         customerName: customer.title,
         stage,
+        tier: account?.category ?? null,
+        industryId: account?.industryId ?? null,
+        area: account?.area ?? null,
+        contacts: account?.contacts.map((c) => ({
+          name: c.name,
+          designation: c.designation,
+          phone: c.phone,
+          whatsapp: c.whatsapp,
+          sameAsMobile: c.sameAsMobile,
+          email: c.email,
+          isPrimary: c.isPrimary,
+        })),
         expClose,
-        nextFollowUp: followUpAt,
-        products: lines,
-        totalValue,
-        address: description.trim() || null,
+        // The API keeps the lead's next follow-up as a task of its own, so it
+        // is on the Follow-ups list without a second record being made here.
+        nextFollowUp: followUpDate,
+        products: products.map((p) => ({
+          productId: p.productId,
+          productName: p.productName,
+          principalId: p.principalId,
+          qty: p.qty,
+          unit: p.unit,
+          price: p.price,
+        })),
       });
 
-      // The follow-up is a record of its own, not a field on the lead, so it
-      // is created alongside rather than implied by `nextFollowUp`.
-      if (followUpAt && followUpPurpose) {
-        await source.createFollowUp({
+      // What the salesperson typed that the lead has no column for: the
+      // opportunity's name and description go on its timeline as a note…
+      const summary = [title.trim(), description.trim()]
+        .filter(Boolean)
+        .join("\n\n");
+      if (summary) {
+        await source.addRemark(
+          { entityType: "Lead", entityId: lead.id },
+          summary,
+        );
+      }
+
+      // …and the purpose and notes onto the follow-up task the API created.
+      if (followUpDate && (followUpPurpose || followUpNotes.trim())) {
+        const tasks = await source.listFollowUps({
           leadId: lead.id,
-          customerId: customer.id,
-          customerName: customer.title,
-          purpose: followUpPurpose,
-          notes: followUpNotes.trim() || null,
-          dueAt: followUpAt,
+          bucket: "open",
+          limit: 5,
         });
+        const task = tasks.items[0];
+        if (task) {
+          await source.annotateFollowUp(
+            task.id,
+            [followUpPurpose, followUpNotes.trim()].filter(Boolean).join(" — "),
+          );
+        }
       }
 
       setCreated({ id: lead.id, value: lead.totalValue });
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "The lead could not be created.",
-      );
+      setError(describeError(e));
     } finally {
       setSaving(false);
     }
@@ -307,9 +315,7 @@ export default function NewLeadScreen() {
           },
           {
             label: "Next follow-up",
-            value: followUpDate
-              ? `${longDate(followUpDate)}, ${formatSlot(followUpTime ?? "10:00")}`
-              : "None",
+            value: followUpDate ? `${longDate(followUpDate)}` : "None",
           },
         ]}
         actions={[
@@ -467,7 +473,11 @@ export default function NewLeadScreen() {
                     <View style={styles.pair}>
                       <Input
                         containerStyle={styles.pairItem}
-                        label={`Quantity (${product.unit})`}
+                        label={
+                          product.unit
+                            ? `Quantity (${product.unit})`
+                            : "Quantity"
+                        }
                         keyboardType="numeric"
                         value={String(product.qty)}
                         onChangeText={(t) => {
@@ -534,32 +544,15 @@ export default function NewLeadScreen() {
               onPress={() => setSheet("fuPurpose")}
               hint="Optional — leave it off if nothing is scheduled yet"
             />
-            <View style={styles.pair}>
-              <View style={styles.pairItem}>
-                <PickerField
-                  label="Date"
-                  value={followUpDate ? longDate(followUpDate) : null}
-                  placeholder="Pick a date"
-                  icon={
-                    <CalendarDays
-                      size={16}
-                      color={color.muted}
-                      strokeWidth={2}
-                    />
-                  }
-                  onPress={() => setSheet("fuDate")}
-                />
-              </View>
-              <View style={styles.pairItem}>
-                <PickerField
-                  label="Time"
-                  value={followUpTime ? formatSlot(followUpTime) : null}
-                  placeholder="Pick a time"
-                  icon={<Clock size={16} color={color.muted} strokeWidth={2} />}
-                  onPress={() => setSheet("fuTime")}
-                />
-              </View>
-            </View>
+            <PickerField
+              label="Date"
+              value={followUpDate ? longDate(followUpDate) : null}
+              placeholder="Pick a date"
+              icon={
+                <CalendarDays size={16} color={color.muted} strokeWidth={2} />
+              }
+              onPress={() => setSheet("fuDate")}
+            />
             <Input
               label="Notes"
               value={followUpNotes}
@@ -591,11 +584,7 @@ export default function NewLeadScreen() {
               <RowDivider />
               <KeyValueRow
                 label="Next follow-up"
-                value={
-                  followUpDate
-                    ? `${longDate(followUpDate)}, ${formatSlot(followUpTime ?? "10:00")}`
-                    : null
-                }
+                value={followUpDate ? `${longDate(followUpDate)}` : null}
                 emptyText="None scheduled"
               />
             </Panel>
@@ -691,13 +680,6 @@ export default function NewLeadScreen() {
         onChange={setFollowUpDate}
         min={today}
         title="Follow-up date"
-      />
-      <TimePickerSheet
-        visible={sheet === "fuTime"}
-        onClose={() => setSheet(null)}
-        value={followUpTime}
-        onChange={setFollowUpTime}
-        title="Follow-up time"
       />
       <OptionSheet
         visible={sheet === "fuPurpose"}

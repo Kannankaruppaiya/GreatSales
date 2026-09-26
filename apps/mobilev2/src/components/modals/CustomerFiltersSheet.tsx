@@ -26,7 +26,8 @@ import { CUSTOMER_CATEGORY_LABELS } from "@/lib/labels";
 export interface CustomerFilters {
   category: CustomerCategoryValue | null;
   area: string | null;
-  industry: string | null;
+  /** Industry master row — the id filters, the name labels the chip. */
+  industry: { id: string; name: string } | null;
   withOutstanding: boolean;
 }
 
@@ -53,7 +54,8 @@ export interface CustomerFiltersSheetProps {
   onApply: (next: CustomerFilters) => void;
   /** Values seen in the loaded rows, so a chip never filters to nothing. */
   areas: string[];
-  industries: string[];
+  /** The tenant's industry master list. */
+  industries: { id: string; name: string }[];
 }
 
 export function CustomerFiltersSheet({
@@ -138,13 +140,13 @@ export function CustomerFiltersSheet({
           <View style={styles.chips}>
             {industries.map((industry) => (
               <Chip
-                key={industry}
-                label={industry}
-                active={draft.industry === industry}
+                key={industry.id}
+                label={industry.name}
+                active={draft.industry?.id === industry.id}
                 onPress={() =>
                   setDraft((d) => ({
                     ...d,
-                    industry: d.industry === industry ? null : industry,
+                    industry: d.industry?.id === industry.id ? null : industry,
                   }))
                 }
               />

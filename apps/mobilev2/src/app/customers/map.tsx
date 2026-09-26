@@ -39,12 +39,12 @@ export default function CustomerMapScreen() {
   const [search, setSearch] = useState("");
 
   const state = useAsync(
-    () => source.listCustomers({ search: search || undefined, limit: 100 }),
+    () => source.listAllCustomers(search || undefined),
     [source, search],
   );
 
   const { pinned, unpinned } = useMemo(() => {
-    const rows = state.data?.items ?? [];
+    const rows = state.data ?? [];
     return {
       pinned: rows.filter((c) => c.locationUrl != null),
       unpinned: rows.filter((c) => c.locationUrl == null),
@@ -78,7 +78,7 @@ export default function CustomerMapScreen() {
 
         {state.loading ? (
           <SkeletonList rows={5} />
-        ) : (state.data?.items.length ?? 0) === 0 ? (
+        ) : (state.data?.length ?? 0) === 0 ? (
           <EmptyState
             title="No customers match"
             body="Try a shorter search, or a different spelling."
@@ -88,8 +88,8 @@ export default function CustomerMapScreen() {
           <>
             <Panel style={styles.summary}>
               <Text variant="caption" tone="muted">
-                {pinned.length} of {state.data?.items.length} accounts have a
-                pinned location. Tapping one opens it in your maps app.
+                {pinned.length} of {state.data?.length} accounts have a pinned
+                location. Tapping one opens it in your maps app.
               </Text>
             </Panel>
 
@@ -135,8 +135,8 @@ export default function CustomerMapScreen() {
                   No location pinned
                 </Text>
                 <Text variant="caption" tone="muted">
-                  These accounts cannot be navigated to. Pin them from the web
-                  console.
+                  These accounts cannot be navigated to yet. Open one and pin it
+                  from its Location tab the next time you are there.
                 </Text>
                 {unpinned.map((customer) => (
                   <Card

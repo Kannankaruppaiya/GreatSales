@@ -199,7 +199,7 @@ export default function ProjectionsPage() {
       {isLocked && lock && (
         <div className="rounded-xl border border-amber/40 bg-amber-soft px-3.5 py-2.5 text-xs font-semibold text-amber-900">
           {monthLabel} is locked for reporting — locked by {lock.lockedByName} on{" "}
-          {lock.lockedAt.slice(0, 10)}. Figures are read-only until an
+          {longDate(lock.lockedAt)}. Figures are read-only until an
           administrator unlocks the period on the Data page.
         </div>
       )}

@@ -41,7 +41,6 @@ import {
   Text,
 } from "@/components/ui";
 import { Wordmark } from "@/components/brand/BrandMark";
-import { SyntheticBanner } from "@/components/ui/SyntheticBanner";
 import { useData } from "@/data/provider";
 import { color, icon, radius, space } from "@/design/tokens";
 import { dueLabel, longDate } from "@/lib/format";
@@ -65,7 +64,7 @@ export default function HomeScreen() {
       source.getCurrentUser(),
       source.getHomeSummary(),
       source.listFollowUps({ bucket: "today", limit: 3 }),
-      source.listNotifications({ limit: 50 }),
+      source.listNotifications(),
     ]);
     // "Upcoming" on this screen means the next few things the user has to do:
     // today's list first, topped up from the days ahead when today is clear.
@@ -78,7 +77,7 @@ export default function HomeScreen() {
       user,
       summary,
       upcoming: upcoming.items,
-      unread: notifications.items.filter((n) => !n.read).length,
+      unread: notifications.unread,
     };
   }, [source]);
 
@@ -95,7 +94,11 @@ export default function HomeScreen() {
             onPress={() => router.push("/search")}
             hitSlop={8}
           >
-            <Search size={22} color={color.ink} strokeWidth={icon.strokeWidth} />
+            <Search
+              size={22}
+              color={color.ink}
+              strokeWidth={icon.strokeWidth}
+            />
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -121,8 +124,6 @@ export default function HomeScreen() {
           </Pressable>
         </View>
       </View>
-
-      <SyntheticBanner />
 
       <View style={styles.greeting}>
         <Text variant="body" tone="muted">

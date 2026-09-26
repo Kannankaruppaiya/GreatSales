@@ -99,20 +99,22 @@ that this guard defends against.
   (S3 + CloudFront). This is why it is **not** Next.js.
 - Currently renders deterministic mock data; API wiring is the next milestone.
 
-### Mobile (`apps/mobile`) — Expo / React Native
-- Offline-first salesperson app; sync via **PowerSync** (not a custom engine —
-  the biggest risk deliberately avoided).
+### Mobile (`apps/mobilev2`) — Expo / React Native
+- The salesperson's field app, and the only mobile client. The API admits the
+  `sales` role alone on `client: "mobile"`.
+- Online: every screen reads the API through one `DataSource`
+  (`src/data/api-source.ts`); there is no local database or sync engine.
 - `.npmrc` uses `node-linker=hoisted` for Expo/Metro compatibility.
 
 ### Async work — Redis + BullMQ
 - Queues/jobs (imports, notifications, scheduled reports) run on BullMQ over
   Redis.
 
-## Offline sync (PowerSync)
+## Offline sync — not built
 
-Every tenant-owned table carries `deletedAt` (soft delete) and `updatedAt` for
-sync/conflict handling. The mobile app reads/writes locally and reconciles
-through PowerSync, so field users keep working without connectivity.
+Every tenant-owned table carries `deletedAt` (soft delete) and `updatedAt`, which
+is what an offline sync engine (PowerSync was the one chosen) would reconcile
+on. None is wired: the mobile app is online-only today.
 
 ## Deployment target
 

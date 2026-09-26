@@ -17,16 +17,16 @@ import {
   Card,
   Chip,
   EmptyState,
+  ListFooter,
   Screen,
   SearchBar,
   SkeletonList,
-  SyntheticBanner,
   Text,
 } from "@/components/ui";
 import { useData } from "@/data/provider";
 import { color, radius, space } from "@/design/tokens";
 import { money } from "@/lib/format";
-import { useAsync } from "@/lib/useAsync";
+import { useAsync, usePagedList } from "@/lib/useAsync";
 
 export default function MappingsScreen() {
   const router = useRouter();
@@ -35,39 +35,56 @@ export default function MappingsScreen() {
 
   const [search, setSearch] = useState("");
   const [unpricedOnly, setUnpricedOnly] = useState(false);
-  const [principal, setPrincipal] = useState<string | null>(null);
+  const [principal, setPrincipal] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
-  const state = useAsync(
-    () =>
+  const list = usePagedList(
+    (cursor) =>
       source.listMappings({
         search: search || undefined,
         unpricedOnly: unpricedOnly || undefined,
-        principal: principal ?? undefined,
-        limit: 50,
+        principalId: principal?.id,
+        cursor,
+        limit: 40,
       }),
     [source, search, unpricedOnly, principal],
   );
-
-  // Principals come from the rows on screen: a filter chip for a principal
-  // this salesperson carries nothing from would always return nothing.
-  const principals = useMemo(() => {
-    const names = new Set<string>();
-    for (const row of state.data?.items ?? []) names.add(row.principal);
-    return [...names].sort();
-  }, [state.data]);
-
-  const unpriced = useMemo(
-    () => (state.data?.items ?? []).filter((m) => m.agreedPrice == null).length,
-    [state.data],
+  // Counted by the API, over every mapping — not over the rows loaded so far.
+  const unpricedCount = useAsync(
+    async () =>
+      (await source.listMappings({ unpricedOnly: true, limit: 1 })).total,
+    [source],
   );
 
+  // Principals come from the rows loaded: a filter chip for a principal this
+  // salesperson carries nothing from would always return nothing.
+  const principals = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const row of list.items) byId.set(row.principalId, row.principal);
+    if (principal) byId.set(principal.id, principal.name);
+    return [...byId.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [list.items, principal]);
+
+  const unpriced = unpricedCount.data ?? 0;
+
   return (
-    <Screen onRefresh={state.reload} refreshing={state.refreshing}>
+    <Screen
+      onRefresh={() => {
+        list.reload();
+        unpricedCount.reload();
+      }}
+      refreshing={list.refreshing}
+      error={list.error}
+    >
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
         <View style={styles.headerText}>
           <Text variant="pageTitle">My Mappings</Text>
           <Text variant="caption" tone="muted">
-            {state.data ? `${state.data.total} mapped` : " "}
+            {list.loading ? " " : `${list.total} mapped`}
             {unpriced > 0 ? ` · ${unpriced} unpriced` : ""}
           </Text>
         </View>
@@ -78,8 +95,6 @@ export default function MappingsScreen() {
           onPress={() => router.push("/mappings/new")}
         />
       </View>
-
-      <SyntheticBanner />
 
       <View style={styles.searchRow}>
         <SearchBar
@@ -95,19 +110,19 @@ export default function MappingsScreen() {
           active={unpricedOnly}
           onPress={() => setUnpricedOnly((v) => !v)}
         />
-        {principals.map((name) => (
+        {principals.map((p) => (
           <Chip
-            key={name}
-            label={name}
-            active={principal === name}
-            onPress={() => setPrincipal(principal === name ? null : name)}
+            key={p.id}
+            label={p.name}
+            active={principal?.id === p.id}
+            onPress={() => setPrincipal(principal?.id === p.id ? null : p)}
           />
         ))}
       </View>
 
-      {state.loading ? (
+      {list.loading ? (
         <SkeletonList rows={5} />
-      ) : (state.data?.items.length ?? 0) === 0 ? (
+      ) : list.error ? null : list.items.length === 0 ? (
         <EmptyState
           title={
             search || unpricedOnly || principal
@@ -136,7 +151,7 @@ export default function MappingsScreen() {
         />
       ) : (
         <View style={styles.list}>
-          {state.data?.items.map((mapping) => (
+          {list.items.map((mapping) => (
             <Card
               key={mapping.id}
               onPress={() => router.push(`/mapping/${mapping.id}`)}
@@ -161,18 +176,36 @@ export default function MappingsScreen() {
                 </View>
                 <View style={styles.priceCol}>
                   <Text variant="cardTitle">
-                    {money(mapping.agreedPrice ?? mapping.listPrice)}
+                    {money(mapping.effectivePrice)}
                   </Text>
                   <Text
                     variant="nano"
-                    tone={mapping.agreedPrice != null ? "primaryDark" : "amber"}
+                    tone={
+                      mapping.agreedPrice != null
+                        ? "primaryDark"
+                        : mapping.listPrice != null
+                          ? "amber"
+                          : "redDark"
+                    }
                   >
-                    {mapping.agreedPrice != null ? "Agreed" : "List price"}
+                    {mapping.agreedPrice != null
+                      ? "Agreed"
+                      : mapping.listPrice != null
+                        ? "List price"
+                        : "No price"}
                   </Text>
                 </View>
               </View>
             </Card>
           ))}
+          <ListFooter
+            shown={list.items.length}
+            total={list.total}
+            hasMore={list.hasMore}
+            loadingMore={list.loadingMore}
+            onLoadMore={list.loadMore}
+            noun="mappings"
+          />
         </View>
       )}
     </Screen>

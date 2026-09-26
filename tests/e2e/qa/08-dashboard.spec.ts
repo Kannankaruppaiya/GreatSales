@@ -444,18 +444,28 @@ test.describe("Admin dashboard — scope", () => {
     await expectTile(page, "Total committed", one.body.kpis.totalCommitted);
   });
 
-  test("the dashboard writes nothing — no role gets a create button on it", async ({ page, request }) => {
+  test("the dashboard writes nothing — no role gets a create button on it", async ({ browser, request }) => {
     // This used to be about management specifically: it read the workspace
     // rather than adding to it, so the quick-action bar was hidden from it and
     // drawn for everyone else. The bar is gone for every role now — each of
     // those modals is opened from the page that owns the record — so the
     // assertion holds for an administrator too, and it is worth keeping as the
     // thing that fails if the bar is ever put back.
+    //
+    // One browser context per role, as two people would have two browsers. A
+    // signed-in session is redirected away from every other sign-in door, so
+    // reusing one page meant the second login form never appeared.
     for (const role of ["admin", "mgmt"] as const) {
-      await openDashboard(page, request, role);
-      await expect(page.getByRole("heading", { name: "Executive Overview" })).toBeVisible();
-      for (const label of [/New Sales Lead/i, /Add Customer/i, /Create Order/i]) {
-        await expect(page.getByRole("button", { name: label })).toHaveCount(0);
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      try {
+        await openDashboard(page, request, role);
+        await expect(page.getByRole("heading", { name: "Executive Overview" })).toBeVisible();
+        for (const label of [/New Sales Lead/i, /Add Customer/i, /Create Order/i]) {
+          await expect(page.getByRole("button", { name: label })).toHaveCount(0);
+        }
+      } finally {
+        await context.close();
       }
     }
   });

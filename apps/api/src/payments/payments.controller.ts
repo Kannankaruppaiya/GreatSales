@@ -44,6 +44,20 @@ export class PaymentsController {
   }
 
   /** Create a payment (may be a manual entry with no linked customer). */
+  /** Receivables rolled up by age. Declared before `:id` so it is not read as one. */
+  @Get('summary')
+  @RequirePermissions('payment.read')
+  summary(@CurrentUser() user: RequestUser) {
+    return this.service.summary(user);
+  }
+
+  /** One invoice. 404 outside the caller's scope. */
+  @Get(':id')
+  @RequirePermissions('payment.read')
+  get(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.service.get(user, id);
+  }
+
   @Post()
   @RequirePermissions('payment.write')
   create(

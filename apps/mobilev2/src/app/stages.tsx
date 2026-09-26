@@ -22,7 +22,6 @@ import {
   EmptyState,
   Screen,
   SkeletonList,
-  SyntheticBanner,
   Text,
 } from "@/components/ui";
 import { PromoCard } from "@/components/brand/PromoCard";
@@ -38,9 +37,8 @@ export default function AllStagesScreen() {
   const source = useData();
 
   const state = useAsync(async () => {
-    // `openOnly: false` is what makes this the whole funnel rather than the
-    // rail's open-stages view — the closed stages are the point of the screen.
-    const rows = await source.getPipelineStageCounts({ openOnly: false });
+    // Every stage, closed ones included — they are the point of the screen.
+    const rows = await source.getPipelineStageCounts();
     return { rows, total: rows.reduce((sum, r) => sum + r.count, 0) };
   }, [source]);
 
@@ -49,8 +47,6 @@ export default function AllStagesScreen() {
       <AppBar title="All Stages" />
 
       <View style={styles.body}>
-        <SyntheticBanner />
-
         {state.loading || !state.data ? (
           <SkeletonList rows={6} />
         ) : state.data.total === 0 ? (

@@ -13,12 +13,13 @@ Legend: `[x]` done · `[~]` partially done · `[ ]` not started ·
 1. **No hardcoded business data.** No customer name, opportunity, amount, order
    or invoice is written into a screen. Everything comes from the data source.
    The previous rewrite failed on exactly this point.
-2. **One seam for data.** Screens call `useData()` and nothing else. Flip
-   `dataSource` in `app.json` from `synthetic` to `api` and the same screens
-   read the real backend. No screen imports either implementation.
-3. **Synthetic data is labelled as such.** `SyntheticBanner` is on screen
-   whenever the rows are generated, and disappears on its own when the source
-   is the API.
+2. **One seam for data, and it is the API.** Screens call `useData()` and
+   nothing else; `ApiSource` (`src/data/api-source.ts`) is the only
+   implementation. The synthetic generator was removed on 2026-09-25 — it was
+   dummy data in a production path, and its row shapes had drifted from the
+   API's (a four-value projection status, per-receipt payment records).
+3. **Only a salesperson signs in.** Sign-in sends `client: "mobile"` and the
+   API refuses every other role after checking the password.
 4. **Design values come from Penpot, not from taste.** `src/design/tokens.ts`
    is extracted from the design system page; screens use tokens, never raw
    numbers or hex codes.
@@ -42,24 +43,30 @@ Legend: `[x]` done · `[~]` partially done · `[ ]` not started ·
       StatusDot, Input, SearchBar, Screen, Avatar, EmptyState, Skeleton,
       SectionHeader
 - [x] Brand lockup — AppMark, Wordmark, BrandScript (drawn in code, not bitmaps)
-- [x] Bottom navigation + Quick Actions launcher (the `+`)
-- [x] Synthetic data layer — seeded generator, 12 entity types, contract-typed
-- [x] `DataSource` / `MutableDataSource` interfaces
-- [x] `SyntheticSource` (in-memory, read + write)
-- [x] `ApiSource` (endpoints mapped from `apps/api/src`)
+- [x] Bottom navigation + Quick Actions launcher (the `+`) — drawn once by
+      `AppShell` over **every** signed-in screen, section-highlighted
+- [x] `DataSource` / `MutableDataSource` interfaces, typed to the API's rows
+- [x] `ApiSource` — every method exercised against the live API
+- [x] Auth — sign-in, SecureStore refresh token, single-flight refresh,
+      restore on launch, forced password change, sign-out that revokes
+- [x] Paged lists with "Load more"; a load error shows as an error, not "empty"
 - [x] Domain labels + colour semantics for every wire enum
 - [x] Decorative vectors rebuilt as real SVG (ridges, brand swoosh)
 - [x] Photographs exported from Penpot and wired (`src/lib/photos.ts`)
 - [x] Re-enable `typedRoutes` once every route below exists
-- [ ] Auth / token wiring for `ApiSource`
-- [ ] Component tests for the primitives
+- [ ] Component tests for the primitives — the app has no RN test runner yet;
+      the API behaviour it depends on is pinned by
+      `apps/api/src/common/mobile-reads.spec.ts`
 
 ---
 
 ## 01 — Splash / Login / Entry (5)
 
 - [x] 01 Splash / Welcome — the board's own photograph, brand green if it is absent
-- [x] 01A Login — Google sign-in omitted, the API has password auth only
+- [x] 01A Login — workspace + email + password; Google sign-in omitted, the
+      API has password auth only; "Remember me" decides whether the session
+      is kept on the device
+- [x] Change password — forced after an admin reset, and from My Profile
 - [x] 01B Location permission — the OS prompt and its outcomes are states of this screen
 - [x] 01C Preparing / setting up — steps resolve on real requests, not a timer
 - [x] 01D Session restore — `preparing` routes on to Home when the steps complete
@@ -68,7 +75,8 @@ Legend: `[x]` done · `[~]` partially done · `[ ]` not started ·
 
 - [x] 02E.1 Home screen
 - [x] 02E.2 Quick Actions launcher
-- [x] 02A Sales progress — achievement derived from the period's projections
+- [x] 02A Sales progress — `GET /dashboard` for the month: target, committed,
+      recurring and new-sales achieved, gap to target
 - [x] 02B Actions overview — "Others" row dropped, nothing in the product feeds it
 - [x] 02C Follow-ups overview + 02C.2–02C.4 as bucket filters on one route
 - [x] 02C.5 Follow-up detail — quick actions hidden when their data is missing
@@ -109,6 +117,7 @@ Legend: `[x]` done · `[~]` partially done · `[ ]` not started ·
       not built: every customer readable here is already the signed-in user's.
 - [~] 05D Customer map — built as a pinned-locations list that opens each
       customer in the device maps app. See "Backend gaps" #13.
+- [x] Pin a customer at the salesperson's current location (Location tab)
 - [x] 05E Customer overview (360 header)
 - [x] 05F Contacts
 - [x] 05G Products / assignments
@@ -165,9 +174,8 @@ Legend: `[x]` done · `[~]` partially done · `[ ]` not started ·
 - [x] 08K Status timeline
 - [x] 08L Invoice / print view
 - [x] 08M Fulfilment SLA
-- [!] 08N Order actions — cancel and edit are not offered: the API exposes no
-      order-write method for a salesperson. The status timeline shows a
-      cancelled order; it cannot cause one.
+- [x] 08N Order actions — mark the next fulfilment stage, cancel with a
+      reason, delete while still Created. The ladder is enforced by the API.
 
 ## 09 — Payments / Collection Intelligence (10) — **READ ONLY**
 
@@ -178,7 +186,8 @@ Legend: `[x]` done · `[~]` partially done · `[ ]` not started ·
 - [x] 09D Search / filters
 - [x] 09E Customer outstanding
 - [x] 09F Invoice / payment detail
-- [x] 09G Payment history *(read-only)*
+- [x] 09G Collection log *(read-only)* — the ledger keeps a received total,
+      not receipts, so the history shown is the collection log
 - [x] 09H Collection follow-up information
 - [x] 09I Aging detail
 
@@ -194,7 +203,8 @@ edit payment, delete payment, import payment, send-reminder mutation.
 
 ## 11 — More / Sales Account (6)
 
-- [x] 11 More menu
+- [x] 11 More menu — the front door to Orders, Payments, Projections and
+      Mappings, which have no tab of their own
 - [x] 11A My profile
 - [x] 11B Notifications
 - [~] 11C App settings — theme and date format only, held for the session.
@@ -208,44 +218,48 @@ edit payment, delete payment, import payment, send-reminder mutation.
 
 ## Backend gaps
 
-Checked against `apps/api/src` on 2026-09-18. Recorded rather than worked
-around; each is a decision for the API, not something this app should fake.
+Re-checked against `apps/api/src` on 2026-09-25, when the app moved onto the
+API. Rows marked **closed** were fixed in the API in that change.
 
-| # | Gap | What the app does |
-|---|-----|-------------------|
-| 1 | **No global search endpoint.** There is no search controller; every list endpoint takes its own `search` parameter. | Flow 10 is built as a client-side fan-out across those endpoints. It is not server-side search and will not rank across modules. Flagged in `BACKEND_CAPABILITIES.globalSearch`. |
-| 2 | **No `GET /leads/:id`.** Leads expose list-only. | Detail screens filter a list response. Works, but costs a wider fetch than it should. |
-| 3 | **No `GET /orders/:id`.** Same as above. | Same approach. |
-| 4 | **Activity timeline has no endpoint of its own.** | `listActivities` reads `/remarks`. The design's "activity types" (call, visit, stage change, quotation) are richer than remarks carry. |
-| 5 | **"Scan Bill"** appears in the design's quick actions. No OCR or attachment-scan endpoint exists. | Not built. The fourth quick action is Add Customer instead. |
-| 6 | **"Continue with Google"** is on the login board. The API exposes password sign-in only. | Not rendered. An OAuth button that cannot complete is worse than none. |
-| 7 | **No stored "hot" flag or per-deal probability.** 02D ranks by it, and 03A.2 offers it as a filter. | Derived: open pipeline sorted by value, banded by a probability read off the deal's stage. Named in `STAGE_PROBABILITY`. The 03A.2 "Probability" filter section is **not built** — derived from the stage, it would be the stage filter under a second name. |
-| 8 | **`/leads` takes one stage and no closure-date bound.** 03A.2 filters on several stages at once. | `ApiSource.listLeads` narrows after the fetch, and says so in a comment. Works; costs a wider page than it should. |
-| 9 | **No `GET /remarks/:id`.** 03E.4 opens one activity. | `getActivity` filters a page, like leads and orders. |
-| 10 | **An activity is one text field.** 03E.4 shows From → To stages and a separate "Additional Notes". | Neither is built. A "From" stage would have to be reconstructed from the timeline and shown as a record, and one field under two headings is not two fields. |
-| 11 | **Orders are not timeline events.** 03E.3 offers a "Sales Order Conversion" filter. | Not built; the activity stream reads `/remarks`, which carries no orders. |
-| 12 | **Every record belongs to the signed-in salesperson.** 03A.2 offers "My Deals", 03E.3 offers "Performed By", 05B offers a salesperson filter. | None is built — the filter would never remove a row. |
-| 13 | **No map tiles or geocoding service.** 05D is a map of customer pins. | Built as a list of pinned locations that opens each one in the device maps app. An in-app map needs `react-native-maps`, a key and a tile provider; none is configured, and it has no web target, which would have cost the render checks this app is verified with. |
-| 14 | **No order-write endpoint for a salesperson.** 08N offers edit and cancel. | Not built. `MutableDataSource` has `createOrder` and no order edit or cancel, so the screens cannot offer one. |
-| 15 | **No notification-preference or language store.** 11C offers both. | Not built. Settings holds theme and date format for the session only, and says so on screen. |
-| 16 | **No ticketing backend.** 11D is a support / ticket area. | Help answers the questions this app actually raises and points at the web console. No ticket list, no ticket creation. |
-| 17 | **Notifications are generated, not delivered.** There is no push registration or notification endpoint. | The list reads the synthetic feed and references real records. Nothing registers for push. |
+| # | Gap | Status |
+|---|-----|--------|
+| 1 | **No global search endpoint.** | Open. Flow 10 fans out across each list's own `search`; results rank within a module, not across. |
+| 2 | No `GET /leads/:id` | **Closed** — `GET /leads/:id`, 404 outside the caller's scope. |
+| 3 | No `GET /orders/:id` | **Closed** — likewise for orders, payments, follow-ups, mappings and projection lines. |
+| 4 | Activity timeline has no endpoint | Assembled from real records: remarks, the record's follow-ups, and the lead's move into its current stage. |
+| 5 | "Scan Bill" | Open — no OCR or attachment-scan endpoint. The quick action is Add Customer instead. |
+| 6 | "Continue with Google" | Open — password sign-in only. Not rendered. |
+| 7 | No stored "hot" flag or per-deal probability | Open — derived from stage (`STAGE_PROBABILITY`). |
+| 8 | `/leads` took one stage, no closure bound, id order only | **Closed** — `stages`, `closeBefore`, `sort` (recent, closeDate, value); `GET /leads/stage-summary`. |
+| 9 | Follow-ups had no due window, id order, no record name | **Closed** — `dueFrom` / `dueTo`, `sort` (due, -due), `entityName` on every row. |
+| 10 | An activity is one text field | Open by design — no From → To stage record exists to show. |
+| 11 | Orders are not timeline events | Open — the order shows its own status timeline. |
+| 12 | Every record belongs to the signed-in salesperson | By design — owner filters would never remove a row. |
+| 13 | No map tiles or geocoding | Open — pinned-locations list opening the device maps app. |
+| 14 | ~~No order-write endpoint for a salesperson~~ | **Was wrong** — `PATCH /orders/:id` accepts `order.write`. Status and cancel are built (08N). |
+| 15 | No notification-preference or language store | Open — Settings holds theme and date format for the session. |
+| 16 | No ticketing backend | Open — Help sends the rep to their administrator, or to `extra.supportEmail` when configured. |
+| 17 | Notifications | **Closed** — reads `GET /notifications`; tapping one opens its record. No push registration. |
+| 18 | Receivables summary was computed from one page of rows | **Closed** — `GET /payments/summary`. |
+| 19 | Order codes were minted by each client | **Closed** — the API numbers orders `SO-<year>-<nnnn>`. |
+| 20 | Stored `Payment.status` goes stale | Open — the overdue list uses the derived `overdueDays`; fixing the stored filter is a separate task. |
 
 ## Verified
 
-Every screen renders under Chromium at 376 x 859 with no page or console
-errors (`node scripts/screenshot.mjs <routes>` over the route list, plus a
-drill-through that opens each list's first row). The three create flows were
-driven end to end through the UI — sign in, + launcher, fill, save — and the
-record each one writes was checked afterwards:
+2026-09-25, against the live API with the Promech dataset, as `megala`, in
+Chromium at 375 x 812:
 
-| Flow | Checked |
-|------|---------|
-| Add follow-up | Saved; Today's count 6 → 7 and the list total 29 → 30. |
-| Add customer | Saved; success screen, and the new account opens at `/customer/cust-new-1` with real zeros, not placeholders. |
-| New sales lead | Saved through all five steps with a product line; deal value computed, pipeline 29 → 30. |
-
-That pass is what found the focus bug below.
+- Every route opened with real record ids; no load errors, no failed requests.
+- Sign-in: an administrator is refused with the API's message, a wrong
+  password gets one generic message, a salesperson gets in; a page reload
+  restores the session.
+- Written through the UI and checked in Postgres: follow-up (create, complete,
+  delete), customer (with industry and primary contact; delete), lead (with
+  product line, remark and its single follow-up; stage change; delete),
+  mapping (create, re-price, delete), projection line (quantity, remark),
+  sales order (create; next stage; cancel with reason; delete), roll-forward.
+- Everything written was removed afterwards; the dataset was left as found.
+- `pnpm parity`: nothing a salesperson may do on the web is missing here.
 
 ## Fixed during verification
 

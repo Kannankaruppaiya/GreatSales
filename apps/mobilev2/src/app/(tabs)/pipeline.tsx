@@ -24,13 +24,13 @@ import {
   Card,
   Chip,
   EmptyState,
+  ListFooter,
   Panel,
   Screen,
   SearchBar,
   SkeletonList,
   Text,
 } from "@/components/ui";
-import { SyntheticBanner } from "@/components/ui/SyntheticBanner";
 import {
   PipelineFiltersSheet,
   SortSheet,
@@ -45,7 +45,7 @@ import { useData } from "@/data/provider";
 import { color, space } from "@/design/tokens";
 import { longDate, moneyShort, percent } from "@/lib/format";
 import { DEAL_STAGE_LABELS, DEAL_STAGE_TONES, isOpenStage } from "@/lib/labels";
-import { useAsync } from "@/lib/useAsync";
+import { useAsync, usePagedList } from "@/lib/useAsync";
 import type { DealStageValue } from "@greatsales/shared";
 
 export default function PipelineScreen() {
@@ -67,11 +67,14 @@ export default function PipelineScreen() {
 
   const active = filterCount(filters);
 
-  const state = useAsync(async () => {
-    const [stages, leads] = await Promise.all([
-      // The whole funnel in one call: the rail and the header take the open
-      // slice of it, the filter sheet wants the closed stages too.
-      source.getPipelineStageCounts({ openOnly: false }),
+  // The whole funnel in one call: the rail and the header take the open slice
+  // of it, the filter sheet wants the closed stages too.
+  const state = useAsync(
+    async () => ({ stages: await source.getPipelineStageCounts() }),
+    [source],
+  );
+  const leads = usePagedList(
+    (cursor) =>
       source.listLeads({
         search: search || undefined,
         // The rail picks one stage; the sheet can pick several. When the rail
@@ -84,11 +87,17 @@ export default function PipelineScreen() {
           : undefined,
         openOnly: stage == null && filters.openOnly,
         sort,
-        limit: 30,
+        cursor,
+        // Value order is a ranked top-N with no next page, so it asks for the
+        // most the API will return in one go.
+        limit: sort === "value" ? 100 : 30,
       }),
-    ]);
-    return { stages, leads };
-  }, [source, search, stage, filters, sort]);
+    [source, search, stage, filters, sort],
+  );
+  const reloadAll = () => {
+    state.reload();
+    leads.reload();
+  };
 
   const openStages = useMemo(
     () => state.data?.stages.filter((s) => isOpenStage(s.stage)) ?? [],
@@ -104,7 +113,11 @@ export default function PipelineScreen() {
   );
 
   return (
-    <Screen onRefresh={state.reload} refreshing={state.refreshing}>
+    <Screen
+      onRefresh={reloadAll}
+      refreshing={state.refreshing || leads.refreshing}
+      error={state.error ?? leads.error}
+    >
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
         <View style={styles.headerText}>
           <Text variant="pageTitle">Pipeline</Text>
@@ -121,8 +134,6 @@ export default function PipelineScreen() {
           <ClipboardList size={21} color={color.ink} strokeWidth={2} />
         </Pressable>
       </View>
-
-      <SyntheticBanner />
 
       <View style={styles.searchRow}>
         <SearchBar
@@ -191,11 +202,11 @@ export default function PipelineScreen() {
         <ChevronDown size={14} color={color.muted} strokeWidth={2} />
       </Pressable>
 
-      {state.loading ? (
+      {leads.loading ? (
         <SkeletonList rows={4} />
-      ) : state.data && state.data.leads.items.length > 0 ? (
+      ) : leads.items.length > 0 ? (
         <View style={styles.list}>
-          {state.data.leads.items.map((lead) => (
+          {leads.items.map((lead) => (
             <Card
               key={lead.id}
               onPress={() => router.push(`/lead/${lead.id}`)}
@@ -238,14 +249,16 @@ export default function PipelineScreen() {
             </Card>
           ))}
 
-          {state.data.leads.total > state.data.leads.items.length ? (
-            <Text variant="caption" tone="muted2" align="center">
-              Showing {state.data.leads.items.length} of{" "}
-              {state.data.leads.total}
-            </Text>
-          ) : null}
+          <ListFooter
+            shown={leads.items.length}
+            total={leads.total}
+            hasMore={leads.hasMore}
+            loadingMore={leads.loadingMore}
+            onLoadMore={leads.loadMore}
+            noun={sort === "value" ? "deals, most valuable first" : "deals"}
+          />
         </View>
-      ) : (
+      ) : leads.error ? null : (
         <EmptyState
           title="No opportunities here"
           body={

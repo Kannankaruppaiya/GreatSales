@@ -51,10 +51,6 @@ export interface OrderSalespersonOption {
   name: string;
 }
 
-function defaultCode(): string {
-  return `SO-${Date.now()}`;
-}
-
 export function CreateSalesOrderModal({
   open,
   onClose,
@@ -125,7 +121,8 @@ export function CreateSalesOrderModal({
   const optionsLoading = needsOwnFetch && (customersQuery.isLoading || productsQuery.isLoading);
   const salespeopleLoading = needsOwnSalespeopleFetch && usersQuery.isLoading;
 
-  const [code, setCode] = useState(defaultCode);
+  // Blank means "number it for me": the API assigns the next SO-<year>-<nnnn>.
+  const [code, setCode] = useState("");
   // Nothing falls back to "the first option in the list" — see the reset
   // effect below for why that was the whole bug.
   const [customerId, setCustomerId] = useState(initialCustomerId ?? "");
@@ -176,7 +173,7 @@ export function CreateSalesOrderModal({
    */
   useEffect(() => {
     if (!open) return;
-    setCode(defaultCode());
+    setCode("");
     setCustomerId(initialCustomerId ?? "");
     setProductId(initialProductId ?? "");
     setSalespersonId(isSales ? authUser?.id || "" : "");
@@ -272,7 +269,7 @@ export function CreateSalesOrderModal({
 
   const handleForceClose = () => {
     setShowDiscardConfirm(false);
-    setCode(defaultCode());
+    setCode("");
     setQty(initialQty || 10);
     setDeliveryAddress("");
     setDeliveryMode("TransportLR");
@@ -285,11 +282,11 @@ export function CreateSalesOrderModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!code.trim() || !customerId || !salespersonId || !productId || qty <= 0 || price < 0) return;
+    if (!customerId || !salespersonId || !productId || qty <= 0 || price < 0) return;
 
     try {
       await create.mutateAsync({
-        code: code.trim(),
+        ...(code.trim() ? { code: code.trim() } : {}),
         customerId,
         salespersonId,
         items: [
@@ -369,7 +366,7 @@ export function CreateSalesOrderModal({
               <Button
                 size="sm"
                 onClick={handleSubmit}
-                disabled={!code.trim() || !customerId || !salespersonId || !productId || qty <= 0 || create.isPending}
+                disabled={!customerId || !salespersonId || !productId || qty <= 0 || create.isPending}
                 className="font-bold shadow-xs gap-1.5"
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
@@ -390,14 +387,13 @@ export function CreateSalesOrderModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label htmlFor="so-code" className="text-xs font-semibold text-ink block mb-1.5">
-                  SO Code <span className="text-red">*</span>
+                  SO Code
                 </label>
                 <Input
                   id="so-code"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  required
-                  placeholder="SO-1001"
+                  placeholder="Assigned automatically"
                   className="font-bold h-9"
                   disabled={create.isPending}
                 />

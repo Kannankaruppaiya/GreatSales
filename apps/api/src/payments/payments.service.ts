@@ -12,6 +12,7 @@ import {
   type PaymentListQuery,
   type PaymentListResponse,
   type PaymentRow,
+  type PaymentSummary,
   type PaymentUpdate,
   type ReminderStage,
   type RequestUser,
@@ -214,6 +215,75 @@ export class PaymentsService {
    * entries), but a sales-only caller always owns what they create. The
    * pending/status snapshot is computed from amount/received/dueDate.
    */
+  /** One invoice, or 404 — including one outside the caller's collection scope. */
+  async get(
+    user: RequestUser,
+    id: string,
+    today: string = businessToday(),
+  ): Promise<PaymentRow> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const ownerId = await this.resolveOwnerScope(db, user);
+    const row = await db.payment.findFirst({
+      where: { id, deletedAt: null, ...(ownerId ? ownerWhere(ownerId) : {}) },
+      include: PAYMENT_INCLUDE,
+    });
+    if (!row) throw new NotFoundException('Payment not found');
+    return toRow(row, today);
+  }
+
+  /**
+   * The caller's receivables rolled up by age and overdue state.
+   *
+   * Reads the amount columns and dates only, then runs each invoice through
+   * the same `toRow` derivation the list uses, so "pending", "overdue" and
+   * "age" here are the list's own numbers rather than a second definition.
+   * The set is one salesperson's open ledger (or the tenant's for a manager),
+   * which the list already pages over; it is not materialised per request
+   * anywhere else.
+   */
+  async summary(
+    user: RequestUser,
+    ownerIdFilter?: string,
+    today: string = businessToday(),
+  ): Promise<PaymentSummary> {
+    const db = this.prisma.forTenant(user.tenantId);
+    const ownerId = await this.resolveOwnerScope(db, user, ownerIdFilter);
+    const rows = await db.payment.findMany({
+      where: { deletedAt: null, ...(ownerId ? ownerWhere(ownerId) : {}) },
+      include: PAYMENT_INCLUDE,
+    });
+    const open = rows.map((r) => toRow(r, today)).filter((r) => r.pending > 0);
+
+    const buckets: PaymentSummary['aging'] = [
+      { bucket: '0-30', amount: 0, count: 0 },
+      { bucket: '31-60', amount: 0, count: 0 },
+      { bucket: '61-90', amount: 0, count: 0 },
+      { bucket: '90+', amount: 0, count: 0 },
+    ];
+    let overdue = 0;
+    let overdueCount = 0;
+    let over90Days = 0;
+    for (const r of open) {
+      const age = r.agingDays ?? 0;
+      const slot = age > 90 ? 3 : age > 60 ? 2 : age > 30 ? 1 : 0;
+      buckets[slot].amount += r.pending;
+      buckets[slot].count += 1;
+      if (age > 90) over90Days += r.pending;
+      if ((r.overdueDays ?? 0) > 0) {
+        overdue += r.pending;
+        overdueCount += 1;
+      }
+    }
+    return {
+      totalPending: open.reduce((sum, r) => sum + r.pending, 0),
+      overdue,
+      overdueCount,
+      over90Days,
+      openCount: open.length,
+      aging: buckets,
+    };
+  }
+
   async create(user: RequestUser, body: PaymentCreate): Promise<PaymentRow> {
     const db = this.prisma.forTenant(user.tenantId);
     const salespersonId = (await this.isSalesOnly(db, user.roleId))

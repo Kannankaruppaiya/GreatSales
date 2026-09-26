@@ -11,13 +11,14 @@
  *   node scripts/facts.mjs          # feature matrix + environment
  *   node scripts/facts.mjs --json   # machine-readable
  *   node scripts/facts.mjs --short  # one screen
- *   node scripts/facts.mjs --parity # per feature, what web can do that mobile cannot
+ *   node scripts/facts.mjs --parity # what a salesperson can do on web but not in the sales app
  *   node scripts/facts.mjs --hook   # same, as SessionStart hook JSON
  */
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const args = new Set(process.argv.slice(2));
@@ -58,7 +59,8 @@ const appTsx = read('apps/web/src/App.tsx');
 const routePaths = [...appTsx.matchAll(/<Route\s+[^>]*path=\{?["']([^"']+)["']/g)].map((m) => m[1]);
 const redirects = [...appTsx.matchAll(/<Route[^>]*path="([^"]+)"[^>]*element=\{<Navigate/g)].length;
 const webPages = walk('apps/web/src', (f) => f.endsWith('Page.tsx'));
-const mobileScreens = walk('apps/mobile/src/app', (f) => f.endsWith('.tsx') && !f.endsWith('_layout.tsx'));
+// The salesperson's app. Its routes are files under src/app (expo-router).
+const mobileScreens = walk('apps/mobilev2/src/app', (f) => f.endsWith('.tsx') && !f.endsWith('_layout.tsx'));
 
 // --- endpoints and wiring: reuse the wiring checker rather than re-parsing ---
 let wiring = { endpoints: [], orphanCalls: [] };
@@ -100,48 +102,48 @@ const testsFor = (key) =>
   testFiles.filter((f) => f.toLowerCase().includes(key) || read(f).includes(`/${key}`)).length;
 
 /**
- * The endpoints a feature exposes on web but not on mobile.
- *
- * This is the honest form of "what is missing on the phone": not a hand-written
- * checklist that rots, but the set of calls the web client makes and the mobile
- * client does not, recomputed from the source on every run. A feature with no
- * mobile screen at all reports its whole surface here.
+ * The salesperson's field app (apps/mobilev2) measured against the web, for
+ * the one role it serves. A route the web calls and the sales app does not is
+ * a gap only if the sales role may call it — user admin, role editing, period
+ * locking and payment writes are absent from a sales app on purpose, and
+ * listing them as "missing" would bury the real gaps. The grants come from
+ * ROLE_PERMISSIONS in @greatsales/shared, the same table the API enforces.
  */
-const mobileGapFor = (key) =>
-  endpointsFor(key)
-    .filter((e) => e.wiredBy.includes('web') && !e.wiredBy.includes('mobile'))
-    .map((e) => `${e.method} ${e.path}`);
-
+let salesGrants = new Set();
+try {
+  const shared = createRequire(import.meta.url)(join(ROOT, 'packages/shared/dist/index.js'));
+  salesGrants = new Set(shared.ROLE_PERMISSIONS?.sales ?? []);
+} catch {
+  /* shared not built — every permissioned route then reads as outside the role */
+}
+const salesMay = (e) => (e.permissions ?? []).every((p) => salesGrants.has(p));
 /**
- * Mobile hooks that exist but that no screen ever calls.
- *
- * The wiring report counts an endpoint as reachable on mobile as soon as some
- * file under apps/mobile/src calls it — and a query module counts. That is how
- * a query module counts as a caller. A hook that nothing outside the query
- * layer imports is therefore a hole in the app that the endpoint table reports
- * as a working feature, so it gets named here instead. Everything outside
- * gs/queries counts as a caller, not just screens — shared components such as
- * RemarksPanel are how several hooks legitimately reach the UI.
+ * Open routes the sales app has no use for, each with the reason. They carry
+ * no permission (any signed-in user may read them), so the grant check above
+ * cannot exclude them; the reason is printed, so an entry has to justify
+ * itself to stay.
  */
-// Every identifier that appears anywhere in a screen. Comparing against a set
-// of words avoids a word-boundary regex, which is easy to get subtly wrong and
-// silently reports every hook as dead.
-const screenIdentifiers = new Set(
-  walk('apps/mobile/src', (f) => /\.tsx?$/.test(f) && !f.includes('/gs/queries/')).flatMap(
-    (f) => read(f).match(/[A-Za-z_$][\w$]*/g) ?? [],
-  ),
-);
-/** Query-layer plumbing other query modules build on, not a product surface. */
-const QUERY_HELPER_MODULES = new Set(['cursorList']);
+const SALES_APP_NOT_NEEDED = {
+  'GET /api/v1/users': 'people pickers — the API assigns every sales record to the signed-in rep',
+  'GET /api/v1/users/directory': 'people pickers — as above',
+  'GET /api/v1/roles': 'role administration lives on the web console',
+  'GET /api/v1/permissions': 'role administration lives on the web console',
+};
+const salesAppGap = (key) => {
+  const webOnly = endpointsFor(key).filter(
+    (e) => e.wiredBy.includes('web') && !e.wiredBy.includes('mobilev2'),
+  );
+  const call = (e) => `${e.method} ${e.path}`;
+  return {
+    missing: webOnly.filter((e) => salesMay(e) && !SALES_APP_NOT_NEEDED[call(e)]).map(call),
+    notForSales: webOnly.filter((e) => !salesMay(e)).length,
+    notNeeded: webOnly
+      .filter((e) => SALES_APP_NOT_NEEDED[call(e)])
+      .map((e) => `${call(e)} — ${SALES_APP_NOT_NEEDED[call(e)]}`),
+  };
+};
 
-const deadMobileHooks = walk('apps/mobile/src/gs/queries', (f) => f.endsWith('.ts'))
-  .flatMap((f) =>
-    [...read(f).matchAll(/export function (use[A-Z]\w*)/g)].map((m) => ({
-      hook: m[1],
-      module: f.split('/').pop().replace('.ts', ''),
-    })),
-  )
-  .filter(({ hook, module }) => !QUERY_HELPER_MODULES.has(module) && !screenIdentifiers.has(hook));
+const MOBILE_SCREEN_NAME = { dashboard: 'home', leads: 'pipeline' };
 
 const matrix = features.map((f) => {
   const eps = endpointsFor(f.key);
@@ -149,12 +151,19 @@ const matrix = features.map((f) => {
     ...f,
     page: webPages.some((p) => p.toLowerCase().includes(`/${f.key}/`)),
     route: routePaths.includes(f.key),
-    // The mobile tab bar routes the dashboard at index.tsx rather than dashboard.tsx.
-    mobile: mobileScreens.some((s) => s.endsWith(`/${f.key === 'dashboard' ? 'index' : f.key}.tsx`)),
+    // Where the sales app keeps each feature's list: a tab root or a
+    // section folder. Dashboard is Home, leads are the Pipeline.
+    // Top-level routes only, so a sub-screen such as lead/[id]/products.tsx
+    // is not read as a Products feature.
+    mobile: mobileScreens.some((s) => {
+      const name = MOBILE_SCREEN_NAME[f.key] ?? f.key;
+      const route = s.split(sep).join('/').replace(/^.*\/src\/app\//, '').replace(/^\([^/]+\)\//, '');
+      return route === `${name}.tsx` || route === `${name}/index.tsx`;
+    }),
     endpoints: eps.length,
     wired: eps.filter((e) => e.wiredBy.length > 0).length,
     tests: testsFor(f.key),
-    mobileGap: mobileGapFor(f.key),
+    salesAppGap: salesAppGap(f.key),
   };
 });
 
@@ -203,26 +212,25 @@ const shortText =
   `  unwired: ${matrix.filter((f) => f.endpoints && f.wired < f.endpoints).map((f) => f.key).join(', ') || 'none'}`;
 
 if (parity) {
-  console.log('\nGreatSales — what web can do that mobile cannot, derived from the code\n');
-  const behind = matrix.filter((f) => !f.mobile || f.mobileGap.length > 0);
-  if (behind.length === 0) {
-    console.log('  Nothing. Every endpoint a web page calls, a mobile screen calls too.\n');
+  console.log('\nGreatSales — sales app (apps/mobilev2) against web, for the sales role\n');
+  const salesBehind = matrix.filter((f) => f.salesAppGap.missing.length > 0);
+  if (salesBehind.length === 0) {
+    console.log('  Nothing. Every route a salesperson may call from the web, the sales app calls too.');
   }
-  for (const f of behind) {
-    const head = f.mobile ? `${f.key}` : `${f.key}  (no mobile screen at all)`;
-    console.log(`  ${head}`);
-    for (const call of f.mobileGap) console.log(`      - ${call}`);
-    if (f.mobileGap.length === 0) console.log('      - read-only parity; the screen itself is missing');
-    console.log('');
+  for (const f of salesBehind) {
+    console.log(`  ${f.key}`);
+    for (const call of f.salesAppGap.missing) console.log(`      - ${call}`);
   }
-  if (deadMobileHooks.length > 0) {
-    console.log('  Wired in the mobile data layer, but no mobile screen calls it:');
-    for (const { hook, module } of deadMobileHooks) console.log(`      - ${hook}  (queries/${module}.ts)`);
-    console.log('');
+  const notNeeded = matrix.flatMap((f) => f.salesAppGap.notNeeded);
+  if (notNeeded.length) {
+    console.log('  Not called by the sales app, on purpose:');
+    for (const line of notNeeded) console.log(`      - ${line}`);
   }
+  const outside = matrix.reduce((n, f) => n + f.salesAppGap.notForSales, 0);
+  console.log(
+    `  (${outside} further web route${outside === 1 ? '' : 's'} need a permission the sales role does not hold — absent by design)\n`,
+  );
 
-  const total = matrix.reduce((n, f) => n + f.mobileGap.length, 0);
-  console.log(`  ${total} endpoint${total === 1 ? '' : 's'} reachable on web but not on mobile, across ${behind.length} features\n`);
 } else if (asJson) {
   console.log(JSON.stringify({ totals, features: matrix, env }, null, 2));
 } else if (asHook) {

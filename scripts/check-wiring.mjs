@@ -21,7 +21,8 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url)); // repo root, one le
 const API_SRC = join(ROOT, 'apps/api/src');
 const FRONTENDS = [
   { name: 'web', dir: join(ROOT, 'apps/web/src') },
-  { name: 'mobile', dir: join(ROOT, 'apps/mobile/src') },
+  // The salesperson's field app — the only mobile client.
+  { name: 'mobilev2', dir: join(ROOT, 'apps/mobilev2/src') },
 ];
 const GLOBAL_PREFIX = '/api/v1'; // keep in sync with apps/api/src/main.ts
 
@@ -62,14 +63,23 @@ function collectEndpoints() {
     );
     const base = ctrl ? ctrl[1] : '';
     const routeRe = /@(Get|Post|Put|Patch|Delete)\(\s*(?:['"`]([^'"`]*)['"`])?/g;
-    for (const m of src.matchAll(routeRe)) {
+    const found = [...src.matchAll(routeRe)];
+    found.forEach((m, i) => {
       const [, verb, sub = ''] = m;
+      // The permission keys on THIS handler: the decorators between its route
+      // decorator and the next one. Lets a report ask "may this role call it",
+      // e.g. whether a route the sales app does not call is one it may not.
+      const block = src.slice(m.index, found[i + 1]?.index ?? src.length);
+      const perms = block.match(/@RequirePermissions\(([^)]*)\)/);
       endpoints.push({
         method: verb.toUpperCase(),
         path: joinPath(GLOBAL_PREFIX, base, sub),
         source: `${relative(ROOT, file)}:${lineOf(src, m.index)}`,
+        permissions: perms
+          ? [...perms[1].matchAll(/['"`]([\w.]+)['"`]/g)].map((p) => p[1])
+          : [],
       });
-    }
+    });
   }
   return endpoints.sort(
     (a, b) => a.path.localeCompare(b.path) || a.method.localeCompare(b.method),

@@ -32,9 +32,10 @@ import {
 } from "@/components/ui";
 import { useData } from "@/data/provider";
 import { color, radius, space } from "@/design/tokens";
-import { longDate, timeOfDay } from "@/lib/format";
+import { isDayOnly, longDate, timeOfDay } from "@/lib/format";
 import { ACTIVITY_ICONS, activityGroup } from "@/lib/activity";
 import { useAsync } from "@/lib/useAsync";
+import { leave } from "@/lib/nav";
 
 export default function ActivityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -46,7 +47,7 @@ export default function ActivityDetailScreen() {
     if (!activity) return { activity: null, lead: null, customer: null };
     const [lead, customer] = await Promise.all([
       activity.leadId ? source.getLead(activity.leadId) : null,
-      source.getCustomer(activity.customerId),
+      activity.customerId ? source.getCustomer(activity.customerId) : null,
     ]);
     return { activity, lead, customer };
   }, [source, id]);
@@ -68,7 +69,7 @@ export default function ActivityDetailScreen() {
             title="Activity not found"
             body="It may have been removed since this screen was opened."
             actionLabel="Go back"
-            onAction={() => router.back()}
+            onAction={() => leave(router, "/(tabs)/pipeline")}
           />
         ) : (
           <>
@@ -84,7 +85,10 @@ export default function ActivityDetailScreen() {
                     {activity.kind}
                   </Text>
                   <Text variant="caption" tone="muted">
-                    {longDate(activity.at)}, {timeOfDay(activity.at)}
+                    {longDate(activity.at)}
+                    {isDayOnly(activity.at)
+                      ? ""
+                      : `, ${timeOfDay(activity.at)}`}
                   </Text>
                 </View>
               </View>
@@ -93,19 +97,24 @@ export default function ActivityDetailScreen() {
             <Section title="Description">
               <Panel>
                 <Text variant="body">{activity.summary}</Text>
+                {activity.detail ? (
+                  <Text variant="body" tone="muted">
+                    {activity.detail}
+                  </Text>
+                ) : null}
               </Panel>
             </Section>
 
             <Section title="Performed By">
               <Card style={styles.person}>
                 <View style={styles.personRow}>
-                  <Avatar name={activity.actorName} size={44} />
+                  <Avatar name={activity.actorName ?? "?"} size={44} />
                   <Text
                     variant="cardTitle"
                     numberOfLines={1}
                     style={styles.personName}
                   >
-                    {activity.actorName}
+                    {activity.actorName ?? "Not recorded"}
                   </Text>
                 </View>
               </Card>

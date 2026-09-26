@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CursorSchema, type CursorPage } from "./pagination";
+import { IsoDateSchema } from "./period-range";
 import { ContactsSchema, type ContactRow } from "./contact";
 import {
   CustomerCategorySchema,
@@ -53,6 +54,30 @@ export const LeadListQuerySchema = z.object({
   ownerId: z.string().optional(),
   /** Leads carrying at least one line item for this principal. */
   principalId: z.string().optional(),
+  /**
+   * Several stages at once, comma-separated (`?stages=A,B`). `stage` stays for
+   * the single-stage case; when both are sent a lead must satisfy both.
+   */
+  stages: z
+    .string()
+    .transform((v) =>
+      v
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    )
+    .pipe(z.array(DealStageSchema).min(1))
+    .optional(),
+  /** Expected closure on or before this day. A lead with no date never matches. */
+  closeBefore: IsoDateSchema.optional(),
+  /**
+   * Row order. Omitted keeps the historical id order the console pages by.
+   *
+   * `value` orders by the lead's worth (the sum of its line values), which is
+   * not a column, so it is served as a top-N list: it honours `limit` and
+   * returns no `nextCursor`. Every other order pages normally.
+   */
+  sort: z.enum(["recent", "closeDate", "value"]).optional(),
 });
 export type LeadListQuery = z.infer<typeof LeadListQuerySchema>;
 
@@ -142,3 +167,11 @@ export const LeadUpdateSchema = LeadCreateSchema.partial().refine(
   { message: "At least one field must be provided" },
 );
 export type LeadUpdate = z.infer<typeof LeadUpdateSchema>;
+
+/** GET /leads/stage-summary — count and worth of the caller's leads, per stage. */
+export interface LeadStageSummaryRow {
+  stage: DealStageValue;
+  count: number;
+  /** Sum of `LeadRow.totalValue` over the stage — the same figure the list shows. */
+  value: number;
+}

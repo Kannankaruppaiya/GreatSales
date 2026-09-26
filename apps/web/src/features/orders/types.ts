@@ -108,7 +108,8 @@ export interface OrderListResponse {
 }
 
 export interface OrderCreate {
-  code: string;
+  /** Omit to have the API assign the next SO-<year>-<nnnn>. */
+  code?: string;
   customerId: string;
   salespersonId: string;
   items: OrderItemInput[];

@@ -148,6 +148,12 @@ export class MappingsService {
     };
   }
 
+  /** One mapping, or 404 — including one owned by another salesperson. */
+  async get(user: RequestUser, id: string): Promise<MappingRow> {
+    const db = this.prisma.forTenant(user.tenantId);
+    return toRow(await this.findOwned(db, user, id));
+  }
+
   async create(user: RequestUser, body: MappingCreate): Promise<MappingRow> {
     const db = this.prisma.forTenant(user.tenantId);
     const salespersonId = await this.resolveOwnerAssignment(

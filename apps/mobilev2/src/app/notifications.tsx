@@ -15,13 +15,16 @@ import { useRouter } from "expo-router";
 import {
   Bell,
   CalendarCheck,
+  IndianRupee,
   Info,
   ShoppingCart,
   Target,
+  UserPlus,
 } from "lucide-react-native";
 
 import {
   AppBar,
+  Button,
   Card,
   EmptyState,
   Screen,
@@ -34,34 +37,55 @@ import { color, radius, space } from "@/design/tokens";
 import { longDate, timeOfDay } from "@/lib/format";
 import { useAsync } from "@/lib/useAsync";
 
-const ICONS: Record<AppNotification["kind"], typeof Bell> = {
-  followup: CalendarCheck,
-  lead: Target,
-  order: ShoppingCart,
-  system: Info,
+const ICONS: Record<AppNotification["type"], typeof Bell> = {
+  FollowUpDue: CalendarCheck,
+  PaymentReminder: IndianRupee,
+  LeadAssigned: Target,
+  CustomerAssigned: UserPlus,
+  OrderUpdate: ShoppingCart,
+  System: Info,
 };
+
+/** The screen a notification's record opens on, or null when it names none. */
+function targetOf(row: AppNotification): string | null {
+  if (!row.entityId) {
+    if (row.type === "FollowUpDue") return "/followups";
+    return null;
+  }
+  switch (row.entityType) {
+    case "Customer":
+      return `/customer/${row.entityId}`;
+    case "Lead":
+      return `/lead/${row.entityId}`;
+    case "Order":
+      return `/order/${row.entityId}`;
+    case "Payment":
+      return `/invoice/${row.entityId}`;
+    default:
+      return null;
+  }
+}
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const source = useData();
 
-  const state = useAsync(
-    () => source.listNotifications({ limit: 50 }),
-    [source],
-  );
+  const state = useAsync(() => source.listNotifications(), [source]);
   const rows = state.data?.items ?? [];
-  const unread = rows.filter((row) => !row.read).length;
+  const unread = state.data?.unread ?? 0;
+
+  async function markAll() {
+    await source.markAllNotificationsRead();
+    state.reload();
+  }
 
   async function open(row: AppNotification) {
     if (!row.read) {
       await source.markNotificationRead(row.id);
       state.reload();
     }
-    // Notifications carry no target id, so a tap marks it read and the person
-    // goes where the text points them. Linking blind would guess.
-    if (row.kind === "followup") router.push("/followups");
-    else if (row.kind === "lead") router.push("/(tabs)/pipeline");
-    else if (row.kind === "order") router.push("/orders");
+    const target = targetOf(row);
+    if (target) router.push(target as never);
   }
 
   return (
@@ -85,13 +109,20 @@ export default function NotificationsScreen() {
         ) : (
           <>
             {unread > 0 ? (
-              <Text variant="caption" tone="muted">
-                {unread} unread
-              </Text>
+              <View style={styles.unreadRow}>
+                <Text variant="caption" tone="muted">
+                  {unread} unread
+                </Text>
+                <Button
+                  label="Mark all read"
+                  variant="tertiary"
+                  onPress={markAll}
+                />
+              </View>
             ) : null}
 
             {rows.map((row) => {
-              const Icon = ICONS[row.kind];
+              const Icon = ICONS[row.type] ?? Info;
               return (
                 <Card
                   key={row.id}
@@ -117,9 +148,11 @@ export default function NotificationsScreen() {
                       >
                         {row.title}
                       </Text>
-                      <Text variant="caption" tone="muted" numberOfLines={2}>
-                        {row.body}
-                      </Text>
+                      {row.body ? (
+                        <Text variant="caption" tone="muted" numberOfLines={2}>
+                          {row.body}
+                        </Text>
+                      ) : null}
                       <Text variant="nano" tone="muted2">
                         {longDate(row.at)}, {timeOfDay(row.at)}
                       </Text>
@@ -137,6 +170,11 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
+  unreadRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   body: { paddingHorizontal: space.gutter, gap: space.md },
   row: { paddingVertical: space.md },
   rowInner: { flexDirection: "row", alignItems: "flex-start", gap: space.md },

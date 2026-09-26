@@ -1,10 +1,13 @@
 /**
- * Root layout: fonts, safe area, data source.
+ * Root layout: fonts, safe area, data source, and the signed-in shell.
  *
  * The splash is held until the fonts load, because the whole design is set in
  * Plus Jakarta Sans and a first paint in the system font is a visibly different
  * app for the half-second it lasts.
  */
+// First, before anything else: importing this initialises Sentry, so an error
+// thrown while the first screen is still mounting is caught too.
+import { Sentry } from "@/lib/observability";
 import React, { useEffect } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -21,13 +24,14 @@ import {
 } from "@expo-google-fonts/plus-jakarta-sans";
 import { Caveat_400Regular } from "@expo-google-fonts/caveat";
 
+import { AppShell } from "@/components/nav/AppShell";
 import { color } from "@/design/tokens";
 import { DataProvider } from "@/data/provider";
 import { PreferencesProvider } from "@/lib/preferences";
 
 void SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
@@ -51,15 +55,21 @@ export default function RootLayout() {
         <DataProvider>
           <PreferencesProvider>
             <StatusBar style="dark" />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: color.canvas },
-              }}
-            />
+            <AppShell>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: color.canvas },
+                }}
+              />
+            </AppShell>
           </PreferencesProvider>
         </DataProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
+
+// Sentry.wrap puts an error boundary around the whole tree and ties crash
+// reports to the navigation that led to them.
+export default Sentry.wrap(RootLayout);
