@@ -125,6 +125,24 @@ a.download = 'greatsales-penpot-file.json'; a.click();
 Images are the exception — `/assets/by-file-media-id/<id>` is not behind the challenge, so
 `pull-images.mjs` fetches them straight from Node during the build.
 
+**React Native, for the mobile app — `pnpm design:rn`.** FigmaToCode has no React Native
+generator, which is why the boards above never reached `apps/mobilev2`. `to-react-native.mjs`
+skips FigmaToCode and turns every dump in `design-dumps/` into a `.tsx` under
+`apps/mobilev2/src/design/penpot/` (View, Text, Image, react-native-svg only), and copies the
+boards' images to `apps/mobilev2/assets/penpot/`. Every board in the file is absolutely
+positioned (no Penpot flex layout anywhere), so the output is too, and pixel-faithful at the
+board's width. Run `design:all` first when the Penpot file has changed; `design:rn` alone
+re-emits from the dumps in about a second. The output is committed, because the Penpot file it
+comes from lives in `~/Downloads`, not in this repository.
+
+These are design references with the board's sample copy, not screens. In a dev build, open
+`/penpot` in the app (Expo web: `http://localhost:8082/penpot`, no sign-in needed) to see every
+board rendered natively beside the real screens. The gallery's `require` sits behind `__DEV__`,
+so a release bundle contains none of it. A real screen takes its artwork from the generated code
+— the SVG strings, gradients, sizes and colours — and its data from the API;
+`components/brand/HeaderScenery.tsx` (the Home ridge, lifted from "Screen 01D Sales Home") is
+the pattern.
+
 **One board, live:** run `tools/penpot-to-code/penpot-extract.js` in the Penpot MCP with
 `BOARD_NAME` set, save what it returns as `design-dumps/<board>.json`, then
 `pnpm design:code design-dumps/<board>.json --framework Tailwind --mode jsx -o out.jsx`.

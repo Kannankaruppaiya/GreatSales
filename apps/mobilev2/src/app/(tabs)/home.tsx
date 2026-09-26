@@ -1,8 +1,9 @@
 /**
  * 02 — Home.
  *
- * Built from the Penpot board "02E.1 Home Screen": brand bar, greeting, date
- * and territory chips, Today's Focus KPI tiles, Quick Actions, and the upcoming
+ * Built from the Penpot board "Screen 01D Sales Home" (and "02E.1 Home
+ * Screen"): the ridge scenery behind the brand bar and greeting, the tagline,
+ * the date and territory pills, Today's Focus KPI tiles, Quick Actions, and the upcoming
  * follow-ups stream.
  *
  * Every figure here is derived from the data source's `getHomeSummary()` — none
@@ -30,7 +31,6 @@ import {
 import {
   Avatar,
   Card,
-  Chip,
   CountBadge,
   IconPlate,
   Panel,
@@ -41,8 +41,9 @@ import {
   Text,
 } from "@/components/ui";
 import { Wordmark } from "@/components/brand/BrandMark";
+import { HeaderScenery } from "@/components/brand/HeaderScenery";
 import { useData } from "@/data/provider";
-import { color, icon, radius, space } from "@/design/tokens";
+import { color, font, icon, radius, space } from "@/design/tokens";
 import { dueLabel, longDate } from "@/lib/format";
 import { useAsync } from "@/lib/useAsync";
 
@@ -85,64 +86,71 @@ export default function HomeScreen() {
 
   return (
     <Screen onRefresh={state.reload} refreshing={state.refreshing}>
-      <View style={[styles.brandBar, { paddingTop: insets.top + space.sm }]}>
-        <Wordmark />
-        <View style={styles.brandActions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Search"
-            onPress={() => router.push("/search")}
-            hitSlop={8}
-          >
-            <Search
-              size={22}
-              color={color.ink}
-              strokeWidth={icon.strokeWidth}
-            />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={
-              state.data?.unread
-                ? `Notifications, ${state.data.unread} unread`
-                : "Notifications"
-            }
-            onPress={() => router.push("/notifications")}
-            hitSlop={8}
-          >
-            <Bell size={22} color={color.ink} strokeWidth={icon.strokeWidth} />
-            <View style={styles.bellBadge}>
-              <CountBadge count={state.data?.unread ?? 0} />
-            </View>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="My profile"
-            onPress={() => router.push("/profile")}
-          >
-            <Avatar name={state.data?.user.name ?? ""} size={36} />
-          </Pressable>
+      <View style={styles.header}>
+        <HeaderScenery />
+        <View style={[styles.brandBar, { paddingTop: insets.top + space.sm }]}>
+          <Wordmark />
+          <View style={styles.brandActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Search"
+              onPress={() => router.push("/search")}
+              hitSlop={8}
+            >
+              <Search
+                size={22}
+                color={color.ink}
+                strokeWidth={icon.strokeWidth}
+              />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                state.data?.unread
+                  ? `Notifications, ${state.data.unread} unread`
+                  : "Notifications"
+              }
+              onPress={() => router.push("/notifications")}
+              hitSlop={8}
+            >
+              <Bell
+                size={22}
+                color={color.ink}
+                strokeWidth={icon.strokeWidth}
+              />
+              <View style={styles.bellBadge}>
+                <CountBadge count={state.data?.unread ?? 0} />
+              </View>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="My profile"
+              onPress={() => router.push("/profile")}
+            >
+              <Avatar name={state.data?.user.name ?? ""} size={36} />
+            </Pressable>
+          </View>
         </View>
-      </View>
 
-      <View style={styles.greeting}>
-        <Text variant="body" tone="muted">
-          {greeting(now)}
-        </Text>
-        <Text variant="hero">{state.data?.user.name ?? " "}</Text>
-      </View>
+        <View style={styles.greetingRow}>
+          <View style={styles.greeting}>
+            <Text variant="caption" tone="muted" style={styles.greetingLine}>
+              {greeting(now)}
+            </Text>
+            <Text variant="hero" numberOfLines={1}>
+              {state.data ? `${state.data.user.name.split(" ")[0]} 👋` : " "}
+            </Text>
+          </View>
+          {/* The product's tagline, as the board sets it — brand copy, not data. */}
+          <Text style={styles.tagline}>
+            {"“More conversations.\nMore opportunities.”"}
+          </Text>
+        </View>
 
-      <View style={styles.contextChips}>
-        <Chip
-          label={longDate(now)}
-          tone="neutral"
-          icon={<CalendarDays size={13} color={color.muted} strokeWidth={2} />}
-        />
-        <Chip
-          label="My territory"
-          tone="neutral"
-          icon={<MapPin size={13} color={color.muted} strokeWidth={2} />}
-        />
+        <View style={styles.contextPills}>
+          <Pill label={longDate(now)} Icon={CalendarDays} />
+          <Pill label="My territory" Icon={MapPin} />
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -340,14 +348,23 @@ function KpiTile({
       style={styles.kpiPressable}
     >
       <Panel tone={tone} style={styles.kpiTile}>
-        <Text variant="display" tone={tone === "red" ? "redDark" : "ink"}>
+        <Text
+          variant="display"
+          tone={tone === "red" ? "redDark" : "ink"}
+          align="center"
+        >
           {value}
         </Text>
-        <Text variant="caption" tone="muted">
+        <Text
+          variant="caption"
+          tone="muted"
+          align="center"
+          style={styles.kpiLabel}
+        >
           {label}
         </Text>
         {caption ? (
-          <Text variant="nano" tone="redDark">
+          <Text variant="nano" tone="redDark" align="center">
             {caption}
           </Text>
         ) : null}
@@ -372,17 +389,70 @@ function QuickAction({
       onPress={onPress}
       style={styles.quickAction}
     >
-      <IconPlate size={46}>
-        <Icon size={20} color={color.primaryDark} strokeWidth={2} />
+      <IconPlate size={44}>
+        <Icon size={21} color={color.primaryDark} strokeWidth={2} />
       </IconPlate>
-      <Text variant="caption" tone="muted" align="center">
+      <Text style={styles.quickLabel} align="center">
         {label}
       </Text>
     </Pressable>
   );
 }
 
+/** The board's date / territory pill: white, hairline, 10 radius, 33 tall. */
+function Pill({ label, Icon }: { label: string; Icon: typeof MapPin }) {
+  return (
+    <View style={styles.pill}>
+      <Icon size={14} color={color.muted} strokeWidth={2} />
+      <Text style={styles.pillLabel} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  // Full-bleed, so the scenery reaches both screen edges past the gutter.
+  header: {
+    marginHorizontal: -space.gutter,
+    paddingHorizontal: space.gutter,
+    paddingBottom: space.lg,
+  },
+  greetingRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginTop: space.lg,
+    gap: space.md,
+  },
+  greetingLine: { fontSize: 12.5 },
+  tagline: {
+    fontFamily: font.regular,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#5E7A88",
+    textAlign: "right",
+    marginTop: 2,
+  },
+  contextPills: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: space.lg,
+  },
+  pill: {
+    height: 33,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: space.md,
+    backgroundColor: color.surfaceWhite,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: color.line,
+  },
+  pillLabel: { fontFamily: font.semibold, fontSize: 12, color: color.inkDeep },
+  kpiLabel: { fontFamily: font.medium, fontSize: 12 },
+  quickLabel: { fontFamily: font.medium, fontSize: 11, color: color.inkDeep },
   brandBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -391,12 +461,17 @@ const styles = StyleSheet.create({
   },
   brandActions: { flexDirection: "row", alignItems: "center", gap: space.md },
   bellBadge: { position: "absolute", top: -4, right: -6 },
-  greeting: { marginTop: space.sm, gap: 2 },
-  contextChips: { flexDirection: "row", gap: space.sm, marginTop: space.md },
+  greeting: { flex: 1, gap: 2 },
   section: { marginTop: space.xxl },
   kpiRow: { flexDirection: "row", gap: space.md },
   kpiPressable: { flex: 1 },
-  kpiTile: { gap: 2, minHeight: 92, justifyContent: "center" },
+  kpiTile: {
+    gap: 2,
+    minHeight: 73,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 13,
+  },
   drillList: { gap: space.md },
   drillCard: { padding: space.lg, borderRadius: radius.listCard },
   drillRow: { flexDirection: "row", alignItems: "center", gap: space.md },

@@ -31,7 +31,10 @@
         "--port",
         "8082"
       ],
-      "port": 8082
+      "port": 8082,
+      "env": {
+        "EXPO_NO_DEPENDENCY_VALIDATION": "1"
+      }
     }
   ]
 }

@@ -3,7 +3,8 @@
  * Launcher".
  *
  * Radius 22 at the top, a grabber, a title row with a close button, and the
- * Sheet elevation from the design. The scrim is the design's own ink at 40–45%.
+ * Sheet elevation from the design. Backdrop blur, spring and drag-to-dismiss
+ * come from SheetModal, shared with the Quick Actions launcher.
  *
  * Content is scrollable and the sheet is capped at 85% of the screen, so a long
  * list of options cannot push its confirm button off the bottom — the one way
@@ -11,7 +12,6 @@
  */
 import React from "react";
 import {
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +23,7 @@ import { X } from "lucide-react-native";
 
 import { color, elevation, space } from "@/design/tokens";
 
+import { SheetModal } from "./SheetModal";
 import { Text } from "./Text";
 
 export interface BottomSheetProps {
@@ -45,19 +46,7 @@ export function BottomSheet({
   const { height } = useWindowDimensions();
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <Pressable
-        style={styles.scrim}
-        accessibilityRole="button"
-        accessibilityLabel="Close"
-        onPress={onClose}
-      />
-
+    <SheetModal visible={visible} onClose={onClose}>
       <View style={[styles.sheet, { maxHeight: height * 0.85 }]}>
         <View style={styles.grabber} />
 
@@ -93,12 +82,11 @@ export function BottomSheet({
           <View style={{ height: insets.bottom + space.md }} />
         )}
       </View>
-    </Modal>
+    </SheetModal>
   );
 }
 
 const styles = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: "rgba(22,36,43,0.42)" },
   sheet: {
     backgroundColor: color.surfaceWhite,
     borderTopLeftRadius: 22,

@@ -60,6 +60,13 @@ function RootLayout() {
                 screenOptions={{
                   headerShown: false,
                   contentStyle: { backgroundColor: color.canvas },
+                  // iOS push on both platforms: the new page slides in from the
+                  // right over a parallaxed, dimmed previous page, and a swipe
+                  // from anywhere on the page (not only the edge) goes back.
+                  animation: "ios_from_right",
+                  gestureEnabled: true,
+                  fullScreenGestureEnabled: true,
+                  animationMatchesGesture: true,
                 }}
               />
             </AppShell>

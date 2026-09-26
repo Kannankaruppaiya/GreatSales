@@ -28,7 +28,7 @@ import { BottomNav, type TabKey } from "./BottomNav";
 import { QuickActionsSheet } from "./QuickActionsSheet";
 
 /** Screens a signed-out visitor may see. */
-const PUBLIC = new Set(["", "index", "login"]);
+const PUBLIC = new Set(["", "index", "login", ...(__DEV__ ? ["penpot"] : [])]);
 
 /** Screens that belong to the sign-in flow and carry no navigation. */
 const NO_NAV = new Set([
@@ -37,6 +37,8 @@ const NO_NAV = new Set([
   "login",
   "location-permission",
   "preparing",
+  // The dev-only Penpot gallery: every board draws its own navigation.
+  "penpot",
 ]);
 
 /** The section each screen belongs to, by its first path segment. */

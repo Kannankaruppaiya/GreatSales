@@ -6,7 +6,7 @@
  * how the + turns into the second navigator the design says it must not be.
  */
 import React from "react";
-import { Modal, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -19,6 +19,7 @@ import {
 import { color, elevation, radius, space } from "@/design/tokens";
 
 import { IconPlate } from "../ui/Card";
+import { SheetModal } from "../ui/SheetModal";
 import { Text } from "../ui/Text";
 
 interface Action {
@@ -71,18 +72,7 @@ export function QuickActionsSheet({
   const insets = useSafeAreaInsets();
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <Pressable
-        style={styles.scrim}
-        accessibilityLabel="Close"
-        accessibilityRole="button"
-        onPress={onClose}
-      />
+    <SheetModal visible={visible} onClose={onClose}>
       <View
         style={[styles.sheet, { paddingBottom: insets.bottom + space.section }]}
       >
@@ -122,12 +112,11 @@ export function QuickActionsSheet({
           </Pressable>
         ))}
       </View>
-    </Modal>
+    </SheetModal>
   );
 }
 
 const styles = StyleSheet.create({
-  scrim: { flex: 1, backgroundColor: "rgba(15,50,68,0.35)" },
   sheet: {
     backgroundColor: color.surfaceWhite,
     borderTopLeftRadius: radius.hero + 6,

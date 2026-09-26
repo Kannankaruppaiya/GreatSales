@@ -11,15 +11,11 @@
  * Padding is 16 outer, 12 inner.
  */
 import React from "react";
-import {
-  Pressable,
-  StyleSheet,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { color, elevation, radius, space } from "@/design/tokens";
+
+import { PressScale } from "./PressScale";
 
 export interface CardProps {
   children: React.ReactNode;
@@ -70,15 +66,15 @@ export function Card({
   if (!onPress) return content;
 
   return (
-    <Pressable
+    <PressScale
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      style={({ pressed }) => (pressed ? styles.pressed : null)}
+      scaleTo={0.98}
     >
       {content}
-    </Pressable>
+    </PressScale>
   );
 }
 
@@ -150,5 +146,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  pressed: { opacity: 0.94 },
 });

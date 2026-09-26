@@ -11,7 +11,6 @@
 import React from "react";
 import {
   ActivityIndicator,
-  Pressable,
   StyleSheet,
   View,
   type StyleProp,
@@ -27,6 +26,9 @@ import {
   space,
 } from "@/design/tokens";
 
+import { haptic } from "@/lib/haptics";
+
+import { PressScale } from "./PressScale";
 import { Text } from "./Text";
 
 export type ButtonVariant =
@@ -101,14 +103,22 @@ export function Button({
   const inactive = disabled || loading;
 
   return (
-    <Pressable
+    <PressScale
       testID={testID}
       accessibilityRole="button"
       accessibilityState={{ disabled: inactive, busy: loading }}
       accessibilityLabel={label}
       disabled={inactive}
-      onPress={onPress}
-      style={({ pressed }) => [
+      onPress={
+        onPress
+          ? () => {
+              if (variant === "primary" || variant === "destructive")
+                haptic.light();
+              onPress();
+            }
+          : undefined
+      }
+      style={[
         styles.base,
         {
           height,
@@ -119,9 +129,6 @@ export function Button({
         },
         block && styles.block,
         spec.shadow && !inactive ? spec.shadow : null,
-        // The design's pressed state is the same fill at 92% — no colour change,
-        // which keeps a destructive button unmistakably red while held.
-        pressed && !inactive ? styles.pressed : null,
         inactive ? styles.inactive : null,
         style,
       ]}
@@ -136,7 +143,7 @@ export function Button({
           </Text>
         </View>
       )}
-    </Pressable>
+    </PressScale>
   );
 }
 
@@ -151,6 +158,5 @@ const styles = StyleSheet.create({
   content: { flexDirection: "row", alignItems: "center", gap: space.sm },
   icon: { alignItems: "center", justifyContent: "center" },
   label: { fontFamily: font.bold, fontSize: 13 },
-  pressed: { opacity: 0.92 },
   inactive: { opacity: 0.45 },
 });

@@ -7,12 +7,15 @@
  * selected tab does not change.
  */
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Home, LayoutGrid, Plus, Users, Ellipsis } from "lucide-react-native";
 
 import { color, elevation, font, nav, radius } from "@/design/tokens";
 
+import { haptic } from "@/lib/haptics";
+
+import { PressScale } from "../ui/PressScale";
 import { Text } from "../ui/Text";
 
 export type TabKey = "home" | "pipeline" | "customers" | "more";
@@ -47,16 +50,20 @@ function Tab({
 }) {
   const tint = active ? color.primary : color.muted2;
   return (
-    <Pressable
+    <PressScale
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
       accessibilityLabel={label}
-      onPress={onPress}
+      onPress={() => {
+        if (!active) haptic.selection();
+        onPress();
+      }}
+      scaleTo={0.9}
       style={styles.tab}
     >
       <Icon size={nav.iconSize} color={tint} strokeWidth={2} />
       <Text style={[styles.tabLabel, { color: tint }]}>{label}</Text>
-    </Pressable>
+    </PressScale>
   );
 }
 
@@ -90,19 +97,19 @@ export function BottomNav({ active, onSelect, onCreate }: BottomNavProps) {
         ))}
       </View>
 
-      <Pressable
+      <PressScale
         accessibilityRole="button"
         accessibilityLabel="Create"
         accessibilityHint="Opens new lead, customer, order and follow-up"
-        onPress={onCreate}
-        style={({ pressed }) => [
-          styles.fab,
-          { bottom: insets.bottom + nav.fabRaise },
-          pressed ? styles.fabPressed : null,
-        ]}
+        onPress={() => {
+          haptic.medium();
+          onCreate();
+        }}
+        scaleTo={0.88}
+        style={[styles.fab, { bottom: insets.bottom + nav.fabRaise }]}
       >
         <Plus size={26} color={color.surfaceWhite} strokeWidth={2.5} />
-      </Pressable>
+      </PressScale>
     </View>
   );
 }
@@ -139,5 +146,4 @@ const styles = StyleSheet.create({
     borderColor: color.surfaceWhite,
     ...elevation.fab,
   },
-  fabPressed: { opacity: 0.92 },
 });

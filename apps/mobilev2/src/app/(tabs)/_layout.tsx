@@ -11,7 +11,12 @@ import { Tabs } from "expo-router";
 
 export default function TabsLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: false }} tabBar={() => null}>
+    <Tabs
+      // A short crossfade between roots, as iOS tab switches read — a tab is
+      // not a push, so it must not slide like one.
+      screenOptions={{ headerShown: false, animation: "fade" }}
+      tabBar={() => null}
+    >
       <Tabs.Screen name="home" options={{ title: "Home" }} />
       <Tabs.Screen name="pipeline" options={{ title: "Pipeline" }} />
       <Tabs.Screen name="customers" options={{ title: "Customers" }} />
