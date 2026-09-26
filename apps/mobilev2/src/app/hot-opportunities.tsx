@@ -9,14 +9,12 @@
  * Deriving it means the count in the tile and the rows below always agree.
  */
 import React, { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Flame, IndianRupee } from "lucide-react-native";
 
 import {
   AppBar,
-  Avatar,
-  Card,
   Chip,
   EmptyState,
   Panel,
@@ -24,10 +22,10 @@ import {
   SkeletonList,
   Text,
 } from "@/components/ui";
+import { DealRow } from "@/components/ui/DealRow";
 import { useData } from "@/data/provider";
 import { color, font, space } from "@/design/tokens";
-import { moneyShort, shortDate } from "@/lib/format";
-import { DEAL_STAGE_LABELS, DEAL_STAGE_TONES } from "@/lib/labels";
+import { moneyShort } from "@/lib/format";
 import { useAsync } from "@/lib/useAsync";
 
 type Band = "all" | "high" | "medium" | "low";
@@ -155,62 +153,16 @@ export default function HotOpportunitiesScreen() {
         {state.loading ? (
           <SkeletonList rows={5} />
         ) : shown.length > 0 ? (
-          <Card flush style={styles.listCard}>
-            {shown.map((entry, i) => (
-              <React.Fragment key={entry.lead.id}>
-                {i > 0 ? <View style={styles.divider} /> : null}
-                {/* A Pressable, not a Card: the design forbids a card inside a
-                    card ("never a shadow inside a shadow"). */}
-                <Pressable
-                  onPress={() => router.push(`/lead/${entry.lead.id}`)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${entry.lead.customerName}, ${moneyShort(entry.lead.totalValue)}`}
-                  style={({ pressed }) => [
-                    styles.entry,
-                    pressed ? styles.entryPressed : null,
-                  ]}
-                >
-                  <View style={styles.entryHead}>
-                    <Avatar name={entry.lead.customerName} size={39} />
-                    <View style={styles.entryText}>
-                      <Text variant="cardTitle" numberOfLines={1}>
-                        {entry.lead.customerName}
-                      </Text>
-                      <Text variant="secondary" tone="muted" numberOfLines={1}>
-                        {entry.lead.products[0]?.productName ??
-                          "No products yet"}
-                      </Text>
-                    </View>
-                    <Text style={styles.entryValue}>
-                      {moneyShort(entry.lead.totalValue)}
-                    </Text>
-                  </View>
-                  <View style={styles.entryChips}>
-                    <Chip
-                      label={`${entry.probability}%`}
-                      tone={
-                        entry.band === "high"
-                          ? "red"
-                          : entry.band === "medium"
-                            ? "amber"
-                            : "neutral"
-                      }
-                    />
-                    <Chip
-                      label={DEAL_STAGE_LABELS[entry.lead.stage]}
-                      tone={DEAL_STAGE_TONES[entry.lead.stage]}
-                    />
-                    {entry.lead.expClose ? (
-                      <Chip
-                        label={shortDate(entry.lead.expClose)}
-                        tone="neutral"
-                      />
-                    ) : null}
-                  </View>
-                </Pressable>
-              </React.Fragment>
+          <View style={styles.list}>
+            {shown.map((entry) => (
+              <DealRow
+                key={entry.lead.id}
+                lead={entry.lead}
+                probability={entry.probability}
+                onPress={() => router.push(`/lead/${entry.lead.id}`)}
+              />
             ))}
-          </Card>
+          </View>
         ) : (
           <EmptyState
             title="No opportunities in this band"
@@ -225,6 +177,7 @@ export default function HotOpportunitiesScreen() {
 }
 
 const styles = StyleSheet.create({
+  list: { gap: 14 },
   body: { paddingHorizontal: space.gutter },
   stats: { flexDirection: "row", gap: space.md, marginTop: space.md },
   stat: { flex: 1 },
@@ -240,16 +193,4 @@ const styles = StyleSheet.create({
   statPlateLight: { backgroundColor: color.surfaceWhite },
   statValue: { fontFamily: font.extrabold, fontSize: 19, color: color.ink },
   chipRail: { gap: space.sm, paddingVertical: space.xl },
-  listCard: { padding: space.xs },
-  divider: {
-    height: 1,
-    backgroundColor: color.lineSoft,
-    marginHorizontal: space.md,
-  },
-  entry: { padding: space.md, gap: space.sm },
-  entryPressed: { opacity: 0.9 },
-  entryHead: { flexDirection: "row", alignItems: "center", gap: space.md },
-  entryText: { flex: 1, gap: 2 },
-  entryValue: { fontFamily: font.extrabold, fontSize: 14, color: color.ink },
-  entryChips: { flexDirection: "row", gap: space.sm, flexWrap: "wrap" },
 });

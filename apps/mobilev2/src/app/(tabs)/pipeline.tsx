@@ -12,20 +12,19 @@
 import React, { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
+  BarChart3,
   ChevronDown,
   ClipboardList,
   SlidersHorizontal,
+  Target,
 } from "lucide-react-native";
 
 import {
-  Avatar,
-  Card,
+  AppBar,
   Chip,
   EmptyState,
   ListFooter,
-  Panel,
   Screen,
   SearchBar,
   SearchBarButton,
@@ -43,8 +42,9 @@ import {
   type PipelineFilters,
 } from "@/components/modals";
 import { useData } from "@/data/provider";
-import { color, space } from "@/design/tokens";
-import { longDate, moneyShort, percent } from "@/lib/format";
+import { DealRow } from "@/components/ui/DealRow";
+import { color, font, space } from "@/design/tokens";
+import { moneyShort, percent } from "@/lib/format";
 import { DEAL_STAGE_LABELS, DEAL_STAGE_TONES, isOpenStage } from "@/lib/labels";
 import { useAsync, usePagedList } from "@/lib/useAsync";
 import type { DealStageValue } from "@greatsales/shared";
@@ -52,7 +52,6 @@ import type { DealStageValue } from "@greatsales/shared";
 export default function PipelineScreen() {
   const router = useRouter();
   const source = useData();
-  const insets = useSafeAreaInsets();
 
   // 03.2 routes here with a stage already chosen, so the rail opens on it.
   const params = useLocalSearchParams<{ stage?: string }>();
@@ -119,21 +118,21 @@ export default function PipelineScreen() {
       refreshing={state.refreshing || leads.refreshing}
       error={state.error ?? leads.error}
     >
-      <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
-        <View style={styles.headerText}>
-          <Text variant="pageTitle">Pipeline</Text>
-          <Text variant="caption" tone="muted">
-            {totalOpen} open · {moneyShort(totalValue)}
-          </Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="All stages"
-          onPress={() => router.push("/stages")}
-          hitSlop={12}
-        >
-          <ClipboardList size={21} color={color.ink} strokeWidth={2} />
-        </Pressable>
+      <View style={styles.bleed}>
+        <AppBar
+          title="Pipeline"
+          showBack={false}
+          action={
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="All stages"
+              onPress={() => router.push("/stages")}
+              hitSlop={12}
+            >
+              <ClipboardList size={22} color={color.ink} strokeWidth={2} />
+            </Pressable>
+          }
+        />
       </View>
 
       <View style={styles.searchRow}>
@@ -188,18 +187,27 @@ export default function PipelineScreen() {
           ))}
       </ScrollView>
 
+      {/* Board 03.1: the two headline figures of the open pipeline. */}
+      <View style={styles.stats}>
+        <Stat
+          Icon={Target}
+          value={moneyShort(totalValue)}
+          label="Total Value"
+        />
+        <Stat
+          Icon={BarChart3}
+          value={String(totalOpen)}
+          label="Opportunities"
+        />
+      </View>
+
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Sorted by ${SORT_LABELS[sort]}. Tap to change.`}
         onPress={() => setSortOpen(true)}
         style={styles.sortRow}
       >
-        <Text variant="caption" tone="muted">
-          Sorted by:
-        </Text>
-        <Text variant="secondary" style={styles.sortValue}>
-          {SORT_LABELS[sort]}
-        </Text>
+        <Text style={styles.sortText}>Sort: {SORT_LABELS[sort]}</Text>
         <ChevronDown size={14} color={color.muted} strokeWidth={2} />
       </Pressable>
 
@@ -208,46 +216,11 @@ export default function PipelineScreen() {
       ) : leads.items.length > 0 ? (
         <View style={styles.list}>
           {leads.items.map((lead) => (
-            <Card
+            <DealRow
               key={lead.id}
+              lead={lead}
               onPress={() => router.push(`/lead/${lead.id}`)}
-              accessibilityLabel={`${lead.customerName}, ${moneyShort(lead.totalValue)}`}
-            >
-              <View style={styles.cardHead}>
-                <Avatar name={lead.customerName} size={38} />
-                <View style={styles.cardHeadText}>
-                  <Text variant="cardTitle" numberOfLines={1}>
-                    {lead.customerName}
-                  </Text>
-                  <Text variant="caption" tone="muted" numberOfLines={1}>
-                    {lead.products[0]?.productName ??
-                      lead.area ??
-                      "No products yet"}
-                  </Text>
-                </View>
-                <Chip
-                  label={DEAL_STAGE_LABELS[lead.stage]}
-                  tone={DEAL_STAGE_TONES[lead.stage]}
-                />
-              </View>
-
-              <View style={styles.panelRow}>
-                <Panel style={styles.panel}>
-                  <Text variant="nano" tone="muted">
-                    Deal Value
-                  </Text>
-                  <Text variant="cardTitle">{moneyShort(lead.totalValue)}</Text>
-                </Panel>
-                <Panel style={styles.panel}>
-                  <Text variant="nano" tone="muted">
-                    Expected Close
-                  </Text>
-                  <Text variant="cardTitle">
-                    {lead.expClose ? longDate(lead.expClose) : "Not set"}
-                  </Text>
-                </Panel>
-              </View>
-            </Card>
+            />
           ))}
 
           <ListFooter
@@ -299,29 +272,72 @@ export default function PipelineScreen() {
   );
 }
 
+/** A headline figure on a mint tile, with its icon on a white plate (03.1). */
+function Stat({
+  Icon,
+  value,
+  label,
+}: {
+  Icon: typeof Target;
+  value: string;
+  label: string;
+}) {
+  return (
+    <View style={styles.stat}>
+      <View style={styles.statPlate}>
+        <Icon size={16} color={color.primary} strokeWidth={2.2} />
+      </View>
+      <View style={styles.statText}>
+        <Text style={styles.statValue} numberOfLines={1}>
+          {value}
+        </Text>
+        <Text style={styles.statLabel}>{label}</Text>
+      </View>
+    </View>
+  );
+}
+
 /** Kept for the detail screens that show a probability against a deal. */
 export const formatProbability = percent;
 
 const styles = StyleSheet.create({
-  header: {
+  bleed: { marginHorizontal: -space.gutter },
+  stats: { flexDirection: "row", gap: space.sm },
+  stat: {
+    flex: 1,
+    height: 62,
     flexDirection: "row",
-    alignItems: "flex-end",
-    paddingBottom: space.sm,
-    gap: space.md,
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#DCEFE4",
+    backgroundColor: color.mintTint,
   },
-  headerText: { flex: 1, gap: 2 },
+  statPlate: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: "#DCEFE4",
+    backgroundColor: color.surfaceWhite,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statText: { flex: 1 },
+  statValue: { fontFamily: font.extrabold, fontSize: 16, color: color.ink },
+  statLabel: { fontFamily: font.semibold, fontSize: 10, color: color.muted },
   sortRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: space.sm,
-    paddingBottom: space.lg,
+    justifyContent: "flex-end",
+    gap: 6,
+    paddingTop: space.md,
+    paddingBottom: space.md,
   },
-  sortValue: { flex: 1 },
+  sortText: { fontFamily: font.semibold, fontSize: 11, color: color.muted },
   searchRow: { marginTop: space.md },
-  stageRail: { gap: space.sm, paddingTop: space.xl, paddingBottom: space.lg },
-  list: { gap: space.xl },
-  cardHead: { flexDirection: "row", alignItems: "center", gap: space.md },
-  cardHeadText: { flex: 1, gap: 2 },
-  panelRow: { flexDirection: "row", gap: space.md, marginTop: space.lg },
-  panel: { flex: 1, gap: 2 },
+  stageRail: { gap: space.sm, paddingVertical: space.lg },
+  list: { gap: 14 },
 });

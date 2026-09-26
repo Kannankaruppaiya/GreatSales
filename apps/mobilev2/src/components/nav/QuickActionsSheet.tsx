@@ -14,11 +14,12 @@ import {
   ShoppingCart,
   UserPlus,
   Target,
+  X,
 } from "lucide-react-native";
 
-import { color, elevation, radius, space } from "@/design/tokens";
+import { color, elevation, font, radius, space } from "@/design/tokens";
 
-import { IconPlate } from "../ui/Card";
+import { PressScale } from "../ui/PressScale";
 import { SheetModal } from "../ui/SheetModal";
 import { Text } from "../ui/Text";
 
@@ -34,21 +35,21 @@ const ACTIONS: Action[] = [
   {
     key: "lead",
     label: "New Sales Lead",
-    hint: "Capture an opportunity while you are with the customer",
+    hint: "Add a new lead to your pipeline",
     href: "/lead/new",
     Icon: Target,
   },
   {
     key: "customer",
     label: "Add Customer",
-    hint: "Create an account you have just met",
+    hint: "Create a new customer record",
     href: "/customer/new",
     Icon: UserPlus,
   },
   {
     key: "order",
-    label: "Create Order",
-    hint: "Turn an agreed deal into a sales order",
+    label: "Create Sales Order",
+    hint: "Raise an order for a customer",
     href: "/order/new",
     Icon: ShoppingCart,
   },
@@ -77,40 +78,48 @@ export function QuickActionsSheet({
         style={[styles.sheet, { paddingBottom: insets.bottom + space.section }]}
       >
         <View style={styles.grabber} />
-        <Text variant="section" style={styles.title}>
-          Quick Actions
-        </Text>
-
-        {ACTIONS.map((action) => (
+        <View style={styles.header}>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>Quick Actions</Text>
+            <Text style={styles.subtitle}>
+              Create and keep your sales moving.
+            </Text>
+          </View>
           <Pressable
-            key={action.key}
             accessibilityRole="button"
-            accessibilityLabel={action.label}
-            accessibilityHint={action.hint}
-            onPress={() => {
-              onClose();
-              router.push(action.href as never);
-            }}
-            style={({ pressed }) => [
-              styles.row,
-              pressed ? styles.pressed : null,
-            ]}
+            accessibilityLabel="Close"
+            onPress={onClose}
+            hitSlop={12}
           >
-            <IconPlate size={38}>
-              <action.Icon
-                size={19}
-                color={color.primaryDark}
-                strokeWidth={2}
-              />
-            </IconPlate>
-            <View style={styles.rowText}>
-              <Text variant="cardTitle">{action.label}</Text>
-              <Text variant="caption" tone="muted">
+            <X size={18} color={color.muted} strokeWidth={2.2} />
+          </Pressable>
+        </View>
+
+        <View style={styles.grid}>
+          {ACTIONS.map((action) => (
+            <PressScale
+              key={action.key}
+              accessibilityRole="button"
+              accessibilityLabel={action.label}
+              accessibilityHint={action.hint}
+              onPress={() => {
+                onClose();
+                router.push(action.href as never);
+              }}
+              style={styles.card}
+            >
+              <View style={styles.plate}>
+                <action.Icon size={22} color={color.primary} strokeWidth={2} />
+              </View>
+              <Text style={styles.cardTitle} numberOfLines={1}>
+                {action.label}
+              </Text>
+              <Text style={styles.cardHint} numberOfLines={2}>
                 {action.hint}
               </Text>
-            </View>
-          </Pressable>
-        ))}
+            </PressScale>
+          ))}
+        </View>
       </View>
     </SheetModal>
   );
@@ -119,11 +128,10 @@ export function QuickActionsSheet({
 const styles = StyleSheet.create({
   sheet: {
     backgroundColor: color.surfaceWhite,
-    borderTopLeftRadius: radius.hero + 6,
-    borderTopRightRadius: radius.hero + 6,
-    paddingHorizontal: space.gutter,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    paddingHorizontal: 26,
     paddingTop: space.md,
-    gap: space.xs,
     ...elevation.sheet,
   },
   grabber: {
@@ -132,15 +140,50 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: color.line,
     alignSelf: "center",
-    marginBottom: space.md,
   },
-  title: { marginBottom: space.sm },
-  row: {
+  header: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: space.md,
-    paddingVertical: space.md,
+    alignItems: "flex-start",
+    marginTop: space.xl,
+    marginBottom: space.lg,
   },
-  rowText: { flex: 1, gap: 2 },
-  pressed: { opacity: 0.85 },
+  headerText: { flex: 1, gap: 2 },
+  title: { fontFamily: font.extrabold, fontSize: 20, color: color.ink },
+  subtitle: { fontFamily: font.medium, fontSize: 12, color: color.muted },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  card: {
+    width: "47.5%",
+    minHeight: 150,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#DFF0E7",
+    backgroundColor: color.mintTint,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    paddingVertical: space.lg,
+    gap: 4,
+  },
+  plate: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    backgroundColor: color.surfaceWhite,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: space.sm,
+  },
+  cardTitle: {
+    fontFamily: font.extrabold,
+    fontSize: 13,
+    color: color.ink,
+    textAlign: "center",
+  },
+  cardHint: {
+    fontFamily: font.medium,
+    fontSize: 11,
+    lineHeight: 15,
+    color: color.muted,
+    textAlign: "center",
+  },
 });
