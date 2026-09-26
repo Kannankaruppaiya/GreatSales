@@ -11,7 +11,8 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "production",
-        "EXPO_PUBLIC_API_URL": "https://greatworksapp.in/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://greatworksapp.in/api/v1",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
     "production": {
@@ -21,7 +22,8 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "production",
-        "EXPO_PUBLIC_API_URL": "https://greatworksapp.in/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://greatworksapp.in/api/v1",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     }
   }
