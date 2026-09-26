@@ -134,6 +134,7 @@ export default function LoginScreen() {
 
         <View style={styles.form}>
           <Input
+            size="large"
             label="Workspace"
             placeholder="Your company's workspace code"
             value={workspace}
@@ -144,6 +145,7 @@ export default function LoginScreen() {
           />
 
           <Input
+            size="large"
             label="Email"
             placeholder="you@company.com"
             value={identifier}
@@ -156,6 +158,7 @@ export default function LoginScreen() {
           />
 
           <Input
+            size="large"
             label="Password"
             placeholder="Enter your password"
             value={password}
@@ -218,11 +221,12 @@ export default function LoginScreen() {
                 <Check size={14} color={color.surfaceWhite} strokeWidth={3} />
               ) : null}
             </View>
-            <Text variant="body">Remember me</Text>
+            <Text style={styles.remember}>Remember me</Text>
           </Pressable>
 
           <Button
             label="Sign In"
+            size="hero"
             block
             onPress={submit}
             disabled={!canSubmit}
@@ -264,10 +268,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: space.xxl,
   },
-  subheading: { marginTop: space.sm, paddingHorizontal: space.xxl },
-  form: { marginTop: space.xxl, gap: space.xl },
+  subheading: {
+    marginTop: space.sm,
+    paddingHorizontal: 36,
+    fontFamily: font.regular,
+    fontSize: 16,
+    lineHeight: 24.8,
+  },
+  remember: { fontFamily: font.medium, fontSize: 14, color: color.ink },
+  form: { marginTop: 40, gap: space.xl },
   forgotRow: { alignSelf: "flex-end", marginTop: -space.sm },
-  forgot: { fontFamily: font.semibold },
+  forgot: { fontFamily: font.semibold, fontSize: 14 },
   rememberRow: { flexDirection: "row", alignItems: "center", gap: space.md },
   checkbox: {
     width: 20,

@@ -11,48 +11,29 @@
  * as separate routes — the OS sheet is not ours to draw.
  */
 import React, { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   CircleAlert,
   MapPin,
-  Navigation,
-  Route,
   ShieldCheck,
-  Users,
 } from "lucide-react-native";
 
 import { Button, Card, Text } from "@/components/ui";
 import { OnboardingBackdrop } from "@/components/brand/Decor";
-import { color, radius, space } from "@/design/tokens";
+import LocationIllustration from "@/components/penpot-parts/LocationIllustration";
+import LocationRetryIllustration from "@/components/penpot-parts/LocationRetryIllustration";
+import { color, font, space } from "@/design/tokens";
 
 type PermissionState = "asking" | "denied";
-
-const BADGES = [
-  { key: "track", label: "Track Visits", Icon: MapPin, top: 0, left: 8 },
-  {
-    key: "nearby",
-    label: "Nearby\nCustomers",
-    Icon: Users,
-    top: -34,
-    right: 8,
-  },
-  { key: "plan", label: "Plan Better", Icon: Route, top: 135, left: 13 },
-  {
-    key: "reports",
-    label: "Accurate\nReports",
-    Icon: Navigation,
-    top: 119,
-    right: 13,
-  },
-] as const;
 
 export default function LocationPermissionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [state, setState] = useState<PermissionState>("asking");
   const [busy, setBusy] = useState(false);
+  const { width } = useWindowDimensions();
 
   async function request() {
     setBusy(true);
@@ -88,37 +69,13 @@ export default function LocationPermissionScreen() {
           },
         ]}
       >
+        {/* Straight from the Penpot boards 01B (asking) and 01B-D (retry). */}
         <View style={styles.illustration}>
-          <View style={styles.ringOuter} />
-          <View style={styles.ringInner} />
-          <View style={styles.phone}>
-            <MapPin size={34} color={color.primary} strokeWidth={2} />
-          </View>
-
-          {BADGES.map((badge) => (
-            <View
-              key={badge.key}
-              style={[
-                styles.badge,
-                {
-                  top: badge.top,
-                  ...("left" in badge ? { left: badge.left } : {}),
-                  ...("right" in badge ? { right: badge.right } : {}),
-                },
-              ]}
-            >
-              <View style={styles.badgeCircle}>
-                <badge.Icon
-                  size={22}
-                  color={color.primaryDark}
-                  strokeWidth={2}
-                />
-              </View>
-              <Text variant="caption" align="center" style={styles.badgeLabel}>
-                {badge.label}
-              </Text>
-            </View>
-          ))}
+          {state === "denied" ? (
+            <LocationRetryIllustration />
+          ) : (
+            <LocationIllustration width={Math.min(width - space.gutter * 2, 340)} />
+          )}
         </View>
 
         <Text style={styles.heading} align="center" variant="hero">
@@ -147,6 +104,7 @@ export default function LocationPermissionScreen() {
             icon={
               <MapPin size={19} color={color.surfaceWhite} strokeWidth={2} />
             }
+            size="hero"
             block
             loading={busy}
             onPress={request}
@@ -154,6 +112,7 @@ export default function LocationPermissionScreen() {
           <Button
             label={state === "denied" ? "Continue Without Location" : "Not Now"}
             variant="ghost"
+            size="hero"
             block
             onPress={() => router.replace("/preparing")}
           />
@@ -175,54 +134,19 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: color.surfaceWhite },
   content: { flex: 1, paddingHorizontal: space.gutter },
   illustration: {
-    height: 250,
-    marginTop: space.section,
+    minHeight: 250,
+    marginTop: space.xxl,
     alignItems: "center",
     justifyContent: "center",
   },
-  ringOuter: {
-    position: "absolute",
-    width: 229,
-    height: 229,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: color.line,
-  },
-  ringInner: {
-    position: "absolute",
-    width: 165,
-    height: 165,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: color.lineSoft,
-  },
-  phone: {
-    width: 86,
-    height: 140,
-    borderRadius: radius.hero,
-    backgroundColor: color.mintTint,
-    borderWidth: 1,
-    borderColor: color.line,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badge: {
-    position: "absolute",
-    width: 104,
-    alignItems: "center",
-    gap: space.sm,
-  },
-  badgeCircle: {
-    width: 55,
-    height: 55,
-    borderRadius: radius.pill,
-    backgroundColor: color.mintSurface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeLabel: { lineHeight: 15 },
   heading: { marginTop: space.xxl },
-  body: { marginTop: space.md, paddingHorizontal: space.md },
+  body: {
+    marginTop: space.md,
+    paddingHorizontal: space.md,
+    fontFamily: font.regular,
+    fontSize: 15,
+    lineHeight: 24,
+  },
   deniedCard: { marginTop: space.xl },
   deniedRow: { flexDirection: "row", gap: space.sm },
   deniedText: { flex: 1, lineHeight: 16 },

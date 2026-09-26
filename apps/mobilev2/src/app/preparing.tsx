@@ -15,7 +15,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Check } from "lucide-react-native";
 
 import { Text } from "@/components/ui";
-import { BrandSwoosh, OnboardingBackdrop } from "@/components/brand/Decor";
+import { OnboardingBackdrop } from "@/components/brand/Decor";
+import HandwrittenSwoosh from "@/components/penpot-parts/HandwrittenSwoosh";
+import PreparingIllustration from "@/components/penpot-parts/PreparingIllustration";
 import { useData } from "@/data/provider";
 import { color, font, radius, space } from "@/design/tokens";
 
@@ -106,6 +108,11 @@ export default function PreparingScreen() {
           },
         ]}
       >
+        {/* The paper-plane scene, straight from the Penpot board 01C. */}
+        <View style={styles.illustration}>
+          <PreparingIllustration />
+        </View>
+
         <View style={styles.headingBlock}>
           <Text style={styles.heading}>Setting up</Text>
           <Text style={styles.heading}>your workspace...</Text>
@@ -172,7 +179,7 @@ export default function PreparingScreen() {
           <Text style={styles.quote}>A bigger tomorrow</Text>
           <Text style={styles.quote}>begins with the next visit.</Text>
           <View style={styles.quoteSwoosh}>
-            <BrandSwoosh width={130} />
+            <HandwrittenSwoosh />
           </View>
         </View>
       </View>
@@ -183,7 +190,8 @@ export default function PreparingScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#FBFDFC" },
   content: { flex: 1, paddingHorizontal: space.gutter },
-  headingBlock: { marginTop: 220, alignItems: "center" },
+  illustration: { alignItems: "center", marginTop: space.lg },
+  headingBlock: { marginTop: space.xl, alignItems: "center" },
   heading: {
     fontFamily: font.extrabold,
     fontSize: 25,

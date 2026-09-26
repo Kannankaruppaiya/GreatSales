@@ -14,7 +14,15 @@
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { SlidersHorizontal } from "lucide-react-native";
+import {
+  AlarmClock,
+  CalendarDays,
+  CalendarRange,
+  ChevronRight,
+  SlidersHorizontal,
+} from "lucide-react-native";
+
+import { SearchBarButton } from "@/components/ui/SearchBar";
 
 import {
   AppBar,
@@ -26,14 +34,13 @@ import {
   Screen,
   SearchBar,
   SkeletonList,
-  StatusDot,
   Text,
 } from "@/components/ui";
 import { QuoteBand } from "@/components/brand/QuoteBand";
 import { useData } from "@/data/provider";
 import type { FollowUpBucket } from "@/data/source";
-import { color, space } from "@/design/tokens";
-import { daysOverdue, dueLabel } from "@/lib/format";
+import { color, font, space } from "@/design/tokens";
+import { daysOverdue, dueLabel, moneyShort } from "@/lib/format";
 import { useAsync, usePagedList } from "@/lib/useAsync";
 
 /** The three that are work waiting. "completed" is on the rail but not summarised. */
@@ -109,7 +116,7 @@ export default function FollowUpsScreen() {
       error={state.error ?? list.error}
       bleed
     >
-      <AppBar title="Follow-ups Due" showBack={false} />
+      <AppBar title="Follow-ups Due" />
 
       <View style={styles.body}>
         <View style={styles.searchRow}>
@@ -118,20 +125,18 @@ export default function FollowUpsScreen() {
             onChangeText={setSearch}
             placeholder="Search customers or follow-ups"
             trailing={
-              <Chip
-                label={sort === "latest" ? "Latest" : "Soonest"}
-                tone="neutral"
+              <SearchBarButton
+                accessibilityLabel={`Sort: ${sort === "latest" ? "latest first" : "soonest first"}. Tap to change.`}
                 onPress={() =>
                   setSort(sort === "latest" ? "soonest" : "latest")
                 }
-                icon={
-                  <SlidersHorizontal
-                    size={13}
-                    color={color.muted}
-                    strokeWidth={2}
-                  />
-                }
-              />
+              >
+                <SlidersHorizontal
+                  size={19}
+                  color={color.inkDeep}
+                  strokeWidth={2}
+                />
+              </SearchBarButton>
             }
           />
         </View>
@@ -180,6 +185,7 @@ export default function FollowUpsScreen() {
                 accessibilityLabel={`${b.label}, ${data.counts[b.key]}`}
               >
                 <View style={styles.summaryRow}>
+                  <BucketIcon bucket={b.key} />
                   <View style={styles.summaryText}>
                     <Text
                       variant="cardTitle"
@@ -206,6 +212,11 @@ export default function FollowUpsScreen() {
                   >
                     {data.counts[b.key]}
                   </Text>
+                  <ChevronRight
+                    size={16}
+                    color={color.muted2}
+                    strokeWidth={2}
+                  />
                 </View>
               </Card>
             ))}
@@ -222,31 +233,86 @@ export default function FollowUpsScreen() {
                   accessibilityLabel={`${followUp.customerName}, ${followUp.purpose}`}
                   style={styles.rowCard}
                 >
+                  {/* Board 02C.2: avatar, name, the second line, a status pill,
+                      the amount top-right, and the task under a hairline. */}
                   <View style={styles.row}>
-                    <View style={styles.when}>
-                      <StatusDot tone={late > 0 ? "red" : "mint"} />
-                      <Text
-                        variant="micro"
-                        tone={late > 0 ? "redDark" : "muted"}
-                      >
-                        {dueLabel(followUp.dueAt)}
-                      </Text>
-                      {late > 0 ? (
-                        <Text variant="nano" tone="redDark">
-                          {late}d late
+                    <Avatar name={followUp.customerName} size={39} />
+                    <View style={styles.rowText}>
+                      <View style={styles.titleRow}>
+                        <Text
+                          variant="cardTitle"
+                          numberOfLines={1}
+                          style={styles.flex}
+                        >
+                          {followUp.customerName}
                         </Text>
-                      ) : followUp.done ? (
-                        <Text variant="nano" tone="primaryDark">
-                          Done
+                        {followUp.amount != null ? (
+                          <Text style={styles.amount}>
+                            {moneyShort(followUp.amount)}
+                          </Text>
+                        ) : null}
+                        <ChevronRight
+                          size={16}
+                          color={color.muted2}
+                          strokeWidth={2}
+                        />
+                      </View>
+                      {followUp.subtitle ? (
+                        <Text
+                          variant="secondary"
+                          tone="muted"
+                          numberOfLines={1}
+                        >
+                          {followUp.subtitle}
                         </Text>
                       ) : null}
-                    </View>
-                    <Avatar name={followUp.customerName} size={36} />
-                    <View style={styles.rowText}>
-                      <Text variant="cardTitle" numberOfLines={1}>
-                        {followUp.customerName}
-                      </Text>
-                      <Text variant="caption" tone="muted" numberOfLines={1}>
+                      <View
+                        style={[
+                          styles.pill,
+                          late > 0
+                            ? styles.pillLate
+                            : followUp.done
+                              ? styles.pillDone
+                              : styles.pillDue,
+                        ]}
+                      >
+                        {late > 0 ? (
+                          <AlarmClock
+                            size={12}
+                            color={color.red}
+                            strokeWidth={2.2}
+                          />
+                        ) : (
+                          <CalendarDays
+                            size={12}
+                            color={
+                              followUp.done ? color.primaryDark : color.steel
+                            }
+                            strokeWidth={2.2}
+                          />
+                        )}
+                        <Text
+                          style={[
+                            styles.pillText,
+                            {
+                              color:
+                                late > 0
+                                  ? color.red
+                                  : followUp.done
+                                    ? color.primaryDark
+                                    : color.steel,
+                            },
+                          ]}
+                        >
+                          {late > 0
+                            ? `${late} ${late === 1 ? "day" : "days"} overdue`
+                            : followUp.done
+                              ? "Done"
+                              : dueLabel(followUp.dueAt)}
+                        </Text>
+                      </View>
+                      <View style={styles.hairline} />
+                      <Text variant="secondary" tone="muted" numberOfLines={2}>
                         {followUp.purpose}
                       </Text>
                     </View>
@@ -282,16 +348,51 @@ export default function FollowUpsScreen() {
   );
 }
 
+/** The bucket rows' leading icons, in each bucket's own colour (02C.1). */
+function BucketIcon({ bucket }: { bucket: VisibleBucket }) {
+  if (bucket === "overdue")
+    return <AlarmClock size={24} color={color.red} strokeWidth={2} />;
+  if (bucket === "today")
+    return <CalendarDays size={24} color={color.amber} strokeWidth={2} />;
+  return <CalendarRange size={24} color={color.primary} strokeWidth={2} />;
+}
+
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  amount: { fontFamily: font.extrabold, fontSize: 14, color: color.ink },
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    alignSelf: "flex-start",
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 8,
+    marginTop: 6,
+  },
+  pillLate: { backgroundColor: "#FDEDED" },
+  pillDue: { backgroundColor: color.steelSoft },
+  pillDone: { backgroundColor: color.mintSurface },
+  pillText: { fontFamily: font.bold, fontSize: 11 },
+  hairline: {
+    height: 1,
+    backgroundColor: color.lineSoft,
+    marginVertical: space.sm,
+  },
   body: { paddingHorizontal: space.gutter },
   searchRow: { marginTop: space.md },
   chipRail: { gap: space.sm, paddingVertical: space.xl },
   summary: { gap: space.md },
-  summaryRow: { flexDirection: "row", alignItems: "center", gap: space.md },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 13,
+    minHeight: 41,
+  },
   summaryText: { flex: 1, gap: 2 },
   list: { gap: space.md },
   rowCard: { padding: space.lg },
-  row: { flexDirection: "row", alignItems: "center", gap: space.md },
-  when: { width: 62, gap: 3 },
+  row: { flexDirection: "row", alignItems: "flex-start", gap: space.md },
   rowText: { flex: 1, gap: 2 },
 });

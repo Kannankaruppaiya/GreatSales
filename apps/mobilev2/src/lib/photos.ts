@@ -1,9 +1,10 @@
 /**
- * The photographs exported from Penpot, resolved so a missing file cannot
+ * The photographs from the Penpot file, resolved so a missing file cannot
  * break the bundle.
  *
- * Each is a `require` inside a try/catch: the files are exported by hand from
- * the design (see `assets/README.md`), and a screen must degrade to its flat
+ * `pnpm design:rn` copies them into `assets/penpot/` under the names the
+ * board's image fills use, so a photo changed in Penpot reaches the app on the
+ * next run. Each is a `require` inside a try/catch: a screen must degrade to its flat
  * brand surface when one is absent rather than fail to build — or, worse, show
  * an invented illustration in its place.
  */
@@ -12,7 +13,7 @@
 export function splashPhoto(): number | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require("@/assets/images/splash-bg.jpg") as number;
+    return require("@/assets/penpot/splash-bg.jpg") as number;
   } catch {
     return null;
   }
@@ -22,7 +23,7 @@ export function splashPhoto(): number | null {
 export function followUpsPhoto(): number | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require("@/assets/images/followups-hero.jpg") as number;
+    return require("@/assets/penpot/02c-road.jpg") as number;
   } catch {
     return null;
   }
@@ -32,7 +33,7 @@ export function followUpsPhoto(): number | null {
 export function promoArt(): number | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require("@/assets/images/promo-art.jpg") as number;
+    return require("@/assets/penpot/var0.jpg") as number;
   } catch {
     return null;
   }

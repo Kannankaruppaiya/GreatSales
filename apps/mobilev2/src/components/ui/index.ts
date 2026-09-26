@@ -24,7 +24,11 @@ export { Avatar, initialsOf, type AvatarProps } from "./Avatar";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { Skeleton, SkeletonList, type SkeletonProps } from "./Skeleton";
 export { Input, type InputProps } from "./Input";
-export { SearchBar, type SearchBarProps } from "./SearchBar";
+export {
+  SearchBar,
+  SearchBarButton,
+  type SearchBarProps,
+} from "./SearchBar";
 export { SectionHeader, type SectionHeaderProps } from "./SectionHeader";
 export { AppBar, type AppBarProps } from "./AppBar";
 export { KeyValueRow, RowDivider, type KeyValueRowProps } from "./KeyValueRow";

@@ -22,6 +22,7 @@ import {
   ListFooter,
   Screen,
   SearchBar,
+  SearchBarButton,
   SkeletonList,
   Text,
 } from "@/components/ui";
@@ -98,25 +99,25 @@ export default function CustomersScreen() {
           placeholder="Name, contact or phone"
           trailing={
             <>
-              <Chip
-                label="Map"
-                tone="neutral"
+              <SearchBarButton
+                accessibilityLabel="Customer map"
                 onPress={() => router.push("/customers/map")}
-                icon={<Map size={13} color={color.muted} strokeWidth={2} />}
-              />
-              <Chip
-                label={active > 0 ? `Filters (${active})` : "Filters"}
-                tone="neutral"
-                active={active > 0}
-                onPress={() => setFiltersOpen(true)}
-                icon={
-                  <SlidersHorizontal
-                    size={13}
-                    color={active > 0 ? color.surfaceWhite : color.muted}
-                    strokeWidth={2}
-                  />
+              >
+                <Map size={19} color={color.inkDeep} strokeWidth={2} />
+              </SearchBarButton>
+              <SearchBarButton
+                accessibilityLabel={
+                  active > 0 ? `Filters, ${active} applied` : "Filters"
                 }
-              />
+                onPress={() => setFiltersOpen(true)}
+                badge={active}
+              >
+                <SlidersHorizontal
+                  size={19}
+                  color={color.inkDeep}
+                  strokeWidth={2}
+                />
+              </SearchBarButton>
             </>
           }
         />

@@ -4,7 +4,7 @@
  * reference, not a screen.
  */
 import React from "react";
-import { StyleSheet, View, Text } from "react-native";
+import { View, Text } from "react-native";
 import { SvgXml } from "react-native-svg";
 
 export const size = { width: 880, height: 730 } as const;

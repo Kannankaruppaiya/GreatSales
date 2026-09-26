@@ -28,6 +28,7 @@ import {
   Panel,
   Screen,
   SearchBar,
+  SearchBarButton,
   SkeletonList,
   Text,
 } from "@/components/ui";
@@ -141,19 +142,19 @@ export default function PipelineScreen() {
           onChangeText={setSearch}
           placeholder="Search opportunities"
           trailing={
-            <Chip
-              label={active > 0 ? `Filters (${active})` : "Filters"}
-              tone="neutral"
-              active={active > 0}
-              onPress={() => setFiltersOpen(true)}
-              icon={
-                <SlidersHorizontal
-                  size={13}
-                  color={active > 0 ? color.surfaceWhite : color.muted}
-                  strokeWidth={2}
-                />
+            <SearchBarButton
+              accessibilityLabel={
+                active > 0 ? `Filters, ${active} applied` : "Filters"
               }
-            />
+              onPress={() => setFiltersOpen(true)}
+              badge={active}
+            >
+              <SlidersHorizontal
+                size={19}
+                color={color.inkDeep}
+                strokeWidth={2}
+              />
+            </SearchBarButton>
           }
         />
       </View>

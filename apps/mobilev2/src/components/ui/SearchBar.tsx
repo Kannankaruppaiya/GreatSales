@@ -1,12 +1,16 @@
 /**
  * The search field that heads the list screens.
  *
- * A filled pill rather than the bordered Input: the design uses it as a surface
- * on the canvas, not as a form control inside a card.
+ * A filled field rather than the bordered Input: the design uses it as a
+ * surface on the canvas, not as a form control inside a card. Sizes are the
+ * list boards' (02C.1, 03A.1): 42 tall, radius 13, #EFF5F8 fill, 14/500 text.
  */
 import React from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Search, X } from "lucide-react-native";
+
+import { PressScale } from "./PressScale";
+import { Text } from "./Text";
 
 import { color, font, icon, radius, space } from "@/design/tokens";
 
@@ -59,6 +63,37 @@ export function SearchBar({
   );
 }
 
+/** The square sort / filter button the boards put beside the search field. */
+export function SearchBarButton({
+  accessibilityLabel,
+  onPress,
+  children,
+  badge,
+}: {
+  accessibilityLabel: string;
+  onPress: () => void;
+  children: React.ReactNode;
+  /** How many filters are applied; a green count on the corner when > 0. */
+  badge?: number;
+}) {
+  return (
+    <PressScale
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      scaleTo={0.92}
+      style={styles.button}
+    >
+      {children}
+      {badge ? (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{badge}</Text>
+        </View>
+      ) : null}
+    </PressScale>
+  );
+}
+
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: space.sm },
   field: {
@@ -67,11 +102,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: space.sm,
     height: 42,
-    borderRadius: radius.input,
-    backgroundColor: color.surfaceWhite,
+    borderRadius: 13,
+    backgroundColor: "#EFF5F8",
     borderWidth: 1,
     borderColor: color.line,
     paddingHorizontal: space.md,
   },
-  input: { flex: 1, fontFamily: font.medium, fontSize: 13, color: color.ink },
+  input: { flex: 1, fontFamily: font.medium, fontSize: 14, color: color.ink },
+  badge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: color.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: { fontFamily: font.bold, fontSize: 10, color: color.surfaceWhite },
+  button: {
+    width: 39,
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: color.surfaceWhite,
+    borderWidth: 1,
+    borderColor: color.line,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

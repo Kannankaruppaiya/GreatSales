@@ -1,0 +1,67 @@
+[
+  {
+    "component": "LocationIllustration",
+    "board": "screen-01b-location",
+    "layers": [
+      "rings",
+      "phone-illus",
+      "bdg-*"
+    ]
+  },
+  {
+    "component": "LocationOffIllustration",
+    "board": "01b-screen-01b-c",
+    "layers": [
+      "disc",
+      "cloud-l",
+      "cloud-r",
+      "pin"
+    ]
+  },
+  {
+    "component": "LocationRetryIllustration",
+    "board": "01b-screen-01b-d",
+    "layers": [
+      "rings",
+      "pin",
+      "dot-*"
+    ]
+  },
+  {
+    "component": "LocationEnabledIllustration",
+    "board": "01b-screen-01b-e",
+    "layers": [
+      "sky",
+      "scene",
+      "disc",
+      "confetti",
+      "check-circle",
+      "check"
+    ]
+  },
+  {
+    "component": "PreparingIllustration",
+    "board": "screen-01c-preparing",
+    "layers": [
+      "moon",
+      "cloud-*",
+      "spark-*",
+      "trail",
+      "plane"
+    ]
+  },
+  {
+    "component": "HandwrittenSwoosh",
+    "board": "screen-01c-preparing",
+    "layers": [
+      "q-swoosh"
+    ]
+  },
+  {
+    "component": "MountainFooter",
+    "board": "02b-1-actions-overview",
+    "layers": [
+      "mountains"
+    ]
+  }
+]

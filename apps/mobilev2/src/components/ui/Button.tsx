@@ -2,7 +2,8 @@
  * Button, per the Penpot board "08 — Buttons".
  *
  * Variants: primary, secondary, tertiary, destructive, mint, ghost.
- * Sizes: large 46, medium 40, small 32 — all at least the 44px touch target
+ * Sizes: hero 49 (the entry screens' gradient CTA, from "Screen 01A Login"),
+ * large 46, medium 40, small 32 — all at least the 44px touch target
  * when they are the screen's main action. Labels are 13/700, Title Case.
  *
  * The board's rule "one primary action per screen" is a design rule, not one
@@ -26,6 +27,8 @@ import {
   space,
 } from "@/design/tokens";
 
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+
 import { haptic } from "@/lib/haptics";
 
 import { PressScale } from "./PressScale";
@@ -39,7 +42,7 @@ export type ButtonVariant =
   | "mint"
   | "ghost";
 
-export type ButtonSize = "large" | "medium" | "small";
+export type ButtonSize = "hero" | "large" | "medium" | "small";
 
 export interface ButtonProps {
   label: string;
@@ -54,9 +57,12 @@ export interface ButtonProps {
   block?: boolean;
   style?: StyleProp<ViewStyle>;
   testID?: string;
+  /** Hero only: the boards set the CTA label anywhere from 15 to 20. */
+  labelSize?: number;
 }
 
 const HEIGHTS: Record<ButtonSize, number> = {
+  hero: 49,
   large: control.heightLarge,
   medium: control.heightMedium,
   small: control.heightSmall,
@@ -97,6 +103,7 @@ export function Button({
   block = false,
   style,
   testID,
+  labelSize,
 }: ButtonProps) {
   const spec = VARIANTS[variant];
   const height = HEIGHTS[size];
@@ -128,17 +135,36 @@ export function Button({
           paddingHorizontal: size === "small" ? space.md : space.xl,
         },
         block && styles.block,
+        size === "hero" ? styles.hero : null,
         spec.shadow && !inactive ? spec.shadow : null,
         inactive ? styles.inactive : null,
         style,
       ]}
     >
+      {size === "hero" && variant === "primary" ? (
+        <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
+          <Defs>
+            <LinearGradient id="btnHero" x1="0" y1="0.5" x2="1" y2="0.5">
+              <Stop offset={0} stopColor={color.primaryDark} />
+              <Stop offset={1} stopColor="#1BA560" />
+            </LinearGradient>
+          </Defs>
+          <Rect width="100%" height="100%" fill="url(#btnHero)" />
+        </Svg>
+      ) : null}
       {loading ? (
         <ActivityIndicator size="small" color={color[spec.label]} />
       ) : (
         <View style={styles.content}>
           {icon ? <View style={styles.icon}>{icon}</View> : null}
-          <Text style={[styles.label, { color: color[spec.label] }]}>
+          <Text
+            style={[
+              styles.label,
+              size === "hero" ? styles.heroLabel : null,
+              labelSize ? { fontSize: labelSize } : null,
+              { color: color[spec.label] },
+            ]}
+          >
             {label}
           </Text>
         </View>
@@ -158,5 +184,9 @@ const styles = StyleSheet.create({
   content: { flexDirection: "row", alignItems: "center", gap: space.sm },
   icon: { alignItems: "center", justifyContent: "center" },
   label: { fontFamily: font.bold, fontSize: 13 },
+  hero: { borderRadius: 12, overflow: "hidden" },
+  // The boards set 18 (01B) and 20 (01A); one size keeps the entry screens
+  // consistent with each other.
+  heroLabel: { fontSize: 18 },
   inactive: { opacity: 0.45 },
 });

@@ -10,7 +10,7 @@ import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ArrowLeft } from "lucide-react-native";
+import { ChevronLeft } from "lucide-react-native";
 
 import { color, icon, space } from "@/design/tokens";
 
@@ -53,8 +53,9 @@ export function AppBar({
             }
             hitSlop={12}
           >
-            <ArrowLeft
-              size={22}
+            <ChevronLeft
+              // Every screen board draws back as a chevron, 27px.
+              size={27}
               color={color.ink}
               strokeWidth={icon.strokeWidth}
             />

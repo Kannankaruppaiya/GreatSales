@@ -16,7 +16,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Redirect } from "expo-router";
+import { Redirect, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PenpotBoard } from "@/components/penpot/PenpotBoard";
@@ -30,7 +30,13 @@ const BOARDS: PenpotBoardEntry[] = __DEV__
 
 export default function PenpotGallery() {
   const insets = useSafeAreaInsets();
-  const [index, setIndex] = useState<number | null>(null);
+  // ?b=<slug> opens one board directly, so a board can be linked beside the
+  // screen built from it.
+  const { b } = useLocalSearchParams<{ b?: string }>();
+  const [index, setIndex] = useState<number | null>(() => {
+    const i = BOARDS.findIndex((x) => x.slug === b);
+    return i === -1 ? null : i;
+  });
   const loaded = useMemo(
     () => (index === null ? null : BOARDS[index].load()),
     [index],

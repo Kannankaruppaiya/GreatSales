@@ -38,6 +38,7 @@
     "design:code": "npx --yes tsx tools/penpot-to-code/render.mjs",
     "design:all": "npx --yes tsx tools/penpot-to-code/build-all.mjs",
     "design:rn": "node tools/penpot-to-code/to-react-native.mjs",
+    "design:inspect": "node tools/penpot-to-code/inspect.mjs",
     "backup:drill": "node scripts/backup-drill.mjs",
     "apk": "pnpm --filter @greatsales/mobilev2 exec npx eas build --platform android --profile preview"
   },

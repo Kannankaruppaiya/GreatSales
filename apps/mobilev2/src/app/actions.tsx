@@ -10,10 +10,16 @@
  * permanently reading 0 teaches the user to ignore the screen.
  */
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
 import {
   CalendarClock,
+  ChevronRight,
   FileText,
   Target,
   TriangleAlert,
@@ -24,11 +30,12 @@ import {
   AppBar,
   Card,
   Chip,
-  IconPlate,
   Screen,
   SkeletonList,
   Text,
 } from "@/components/ui";
+import HandwrittenSwoosh from "@/components/penpot-parts/HandwrittenSwoosh";
+import MountainFooter from "@/components/penpot-parts/MountainFooter";
 import { useData } from "@/data/provider";
 import { color, font, space } from "@/design/tokens";
 import { useAsync } from "@/lib/useAsync";
@@ -39,6 +46,7 @@ export default function ActionsScreen() {
   const router = useRouter();
   const source = useData();
   const [filter, setFilter] = useState<Filter>("all");
+  const { width } = useWindowDimensions();
 
   const state = useAsync(async () => {
     const [overdue, payments, leads, proposals] = await Promise.all([
@@ -136,7 +144,12 @@ export default function ActionsScreen() {
         ) : (
           <>
             {data.overdue > 0 ? (
-              <Card tone="red" style={styles.alert}>
+              <Card
+                tone="red"
+                style={styles.alert}
+                onPress={() => router.push("/followups")}
+                accessibilityLabel="Open overdue follow-ups"
+              >
                 <View style={styles.alertRow}>
                   <TriangleAlert
                     size={19}
@@ -148,10 +161,15 @@ export default function ActionsScreen() {
                       {data.overdue}{" "}
                       {data.overdue === 1 ? "item is" : "items are"} overdue
                     </Text>
-                    <Text variant="secondary" tone="redDark">
+                    <Text variant="secondary" style={styles.alertSub}>
                       Take action to keep your pipeline healthy.
                     </Text>
                   </View>
+                  <ChevronRight
+                    size={17}
+                    color={color.redDark}
+                    strokeWidth={2}
+                  />
                 </View>
               </Card>
             ) : null}
@@ -165,13 +183,7 @@ export default function ActionsScreen() {
                   style={styles.rowCard}
                 >
                   <View style={styles.row}>
-                    <IconPlate size={38}>
-                      <row.Icon
-                        size={18}
-                        color={color.primaryDark}
-                        strokeWidth={2}
-                      />
-                    </IconPlate>
+                    <row.Icon size={23} color={color.primary} strokeWidth={2} />
                     <View style={styles.rowText}>
                       <Text variant="cardTitle">{row.label}</Text>
                       <Text variant="secondary" tone="muted">
@@ -184,6 +196,11 @@ export default function ActionsScreen() {
                     >
                       {row.count}
                     </Text>
+                    <ChevronRight
+                      size={16}
+                      color={color.muted2}
+                      strokeWidth={2}
+                    />
                   </View>
                 </Card>
               ))}
@@ -196,9 +213,15 @@ export default function ActionsScreen() {
               <Text style={styles.quoteLine} align="center">
                 create bigger opportunities.”
               </Text>
+              <View style={styles.swoosh}>
+                <HandwrittenSwoosh width={81} />
+              </View>
             </View>
           </>
         )}
+      </View>
+      <View style={styles.footer}>
+        <MountainFooter width={width} />
       </View>
     </Screen>
   );
@@ -207,15 +230,23 @@ export default function ActionsScreen() {
 const styles = StyleSheet.create({
   body: { paddingHorizontal: space.gutter },
   chipRail: { gap: space.sm, paddingVertical: space.xl },
-  alert: { marginBottom: space.xl },
+  alert: { marginBottom: space.xl, borderWidth: 1, borderColor: "#F7D6D6" },
+  alertSub: { color: "#A86063" },
   alertRow: { flexDirection: "row", alignItems: "center", gap: space.md },
   alertText: { flex: 1, gap: 2 },
   rows: { gap: space.md },
-  rowCard: { padding: space.lg },
-  row: { flexDirection: "row", alignItems: "center", gap: space.md },
+  rowCard: {
+    paddingVertical: space.lg,
+    paddingHorizontal: space.lg,
+    minHeight: 65,
+    justifyContent: "center",
+  },
+  row: { flexDirection: "row", alignItems: "center", gap: 13 },
   rowText: { flex: 1, gap: 2 },
   count: { fontFamily: font.extrabold, fontSize: 22 },
   quote: { marginTop: space.xxl },
+  swoosh: { alignItems: "center", marginTop: space.xs },
+  footer: { marginTop: space.xl },
   quoteLine: {
     fontFamily: font.script,
     fontSize: 20,

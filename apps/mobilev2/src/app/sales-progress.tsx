@@ -10,13 +10,19 @@
  * calculation, not three numbers.
  */
 import React, { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
 import { useRouter } from "expo-router";
 import {
   ArrowRight,
+  BarChart3,
   CalendarDays,
+  ChevronDown,
+  ClipboardCheck,
+  Layers,
+  Target,
   TrendingDown,
   TrendingUp,
+  UserPlus,
 } from "lucide-react-native";
 
 import {
@@ -28,6 +34,9 @@ import {
   SkeletonList,
   Text,
 } from "@/components/ui";
+import { GaugeArc } from "@/components/ui/GaugeArc";
+import HandwrittenSwoosh from "@/components/penpot-parts/HandwrittenSwoosh";
+import MountainFooter from "@/components/penpot-parts/MountainFooter";
 import { useData } from "@/data/provider";
 import { color, font, space } from "@/design/tokens";
 import { OptionSheet } from "@/components/form";
@@ -41,6 +50,7 @@ export default function SalesProgressScreen() {
   const source = useData();
   const [period, setPeriod] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const { width } = useWindowDimensions();
 
   const state = useAsync(async () => {
     const periods = await source.listProjectionPeriods();
@@ -107,21 +117,24 @@ export default function SalesProgressScreen() {
                 <Text variant="cardTitle" style={styles.periodLabel}>
                   {periodLabel(data.active)}
                 </Text>
+                <ChevronDown size={16} color={color.muted} strokeWidth={2} />
               </View>
             </Card>
 
             <View style={styles.achievement}>
-              <Text variant="caption" tone="muted" align="center">
-                {data.progress.target != null
-                  ? "Achievement against target"
-                  : "Achievement against commitment · no target set"}
-              </Text>
-              <Text style={styles.achievementValue} align="center">
-                {percent(data.achievement)}
-              </Text>
-              <Text variant="cardTitle" tone="primaryDark" align="center">
-                {moneyShort(data.achieved)} / {moneyShort(data.base)}
-              </Text>
+              <GaugeArc value={data.achievement / 100}>
+                <Text variant="caption" tone="muted" align="center">
+                  {data.progress.target != null
+                    ? "Achievement against target"
+                    : "Achievement against commitment · no target set"}
+                </Text>
+                <Text style={styles.achievementValue} align="center">
+                  {percent(data.achievement)}
+                </Text>
+                <Text variant="cardTitle" tone="primaryDark" align="center">
+                  {moneyShort(data.achieved)} / {moneyShort(data.base)}
+                </Text>
+              </GaugeArc>
               {data.gap > 0 ? (
                 <Text variant="caption" tone="muted" align="center">
                   {moneyShort(data.gap)} to go
@@ -167,31 +180,39 @@ export default function SalesProgressScreen() {
                     : "Not set"
                 }
                 label="Target"
+                Icon={Target}
               />
               <Tile
                 value={moneyShort(data.progress.totalCommitted)}
                 label="Committed"
+                Icon={ClipboardCheck}
               />
               <Tile
                 value={moneyShort(data.progress.recurringAchieved)}
                 label="Recurring Achieved"
+                Icon={BarChart3}
               />
               <Tile
                 value={moneyShort(data.progress.newSalesAchieved)}
                 label="New Sales Won"
+                Icon={UserPlus}
               />
               <Tile
                 value={moneyShort(data.pipelineValue)}
                 label={`Pipeline · ${data.openOpportunities} open`}
+                Icon={Layers}
               />
               <Tile
                 value={String(data.followUpsThisWeek)}
                 label="Follow-ups This Week"
+                Icon={CalendarDays}
               />
             </View>
 
             <Button
               label="View Detailed Breakdown"
+              size="hero"
+              labelSize={15}
               block
               icon={
                 <ArrowRight
@@ -211,9 +232,15 @@ export default function SalesProgressScreen() {
               <Text style={styles.quoteLine} align="center">
                 create extraordinary results.”
               </Text>
+              <View style={styles.swoosh}>
+                <HandwrittenSwoosh width={125} />
+              </View>
             </View>
           </>
         )}
+      </View>
+      <View style={styles.footer}>
+        <MountainFooter width={width} />
       </View>
       <OptionSheet
         visible={pickerOpen}
@@ -230,13 +257,27 @@ export default function SalesProgressScreen() {
   );
 }
 
-function Tile({ value, label }: { value: string; label: string }) {
+/** Board 02A.1 tile: a 23px icon beside a 16/800 value and a 10px label. */
+function Tile({
+  value,
+  label,
+  Icon,
+}: {
+  value: string;
+  label: string;
+  Icon: typeof Target;
+}) {
   return (
     <Panel tone="mint" style={styles.tile}>
-      <Text variant="section">{value}</Text>
-      <Text variant="caption" tone="muted">
-        {label}
-      </Text>
+      <Icon size={22} color={color.primary} strokeWidth={2.2} />
+      <View style={styles.tileText}>
+        <Text style={styles.tileValue} numberOfLines={1}>
+          {value}
+        </Text>
+        <Text style={styles.tileLabel} numberOfLines={2}>
+          {label}
+        </Text>
+      </View>
     </Panel>
   );
 }
@@ -246,7 +287,7 @@ const styles = StyleSheet.create({
   periodCard: { marginTop: space.sm, paddingVertical: space.lg },
   periodRow: { flexDirection: "row", alignItems: "center", gap: space.md },
   periodLabel: { flex: 1 },
-  achievement: { marginTop: space.xxl, gap: space.xs },
+  achievement: { marginTop: space.xl, alignItems: "center" },
   achievementValue: {
     fontSize: 34,
     lineHeight: 42,
@@ -267,9 +308,26 @@ const styles = StyleSheet.create({
     marginTop: space.xl,
   },
   // Two per row, accounting for the gap between them.
-  tile: { width: "47.5%", gap: 2, minHeight: 78, justifyContent: "center" },
+  tile: {
+    width: "47.5%",
+    minHeight: 78,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    backgroundColor: "#EFF8F3",
+  },
+  tileText: { flex: 1, gap: 2 },
+  tileValue: { fontFamily: font.extrabold, fontSize: 16, color: color.ink },
+  tileLabel: {
+    fontFamily: font.regular,
+    fontSize: 10,
+    lineHeight: 13,
+    color: color.muted,
+  },
   cta: { marginTop: space.xl },
   quote: { marginTop: space.xxl },
+  swoosh: { alignItems: "center", marginTop: space.xs },
+  footer: { marginTop: space.xl },
   quoteLine: {
     fontFamily: font.script,
     fontSize: 18,
