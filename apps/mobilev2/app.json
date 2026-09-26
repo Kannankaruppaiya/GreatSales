@@ -2,7 +2,7 @@
   "expo": {
     "name": "GreatSales",
     "slug": "greatsales",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "orientation": "portrait",
     "scheme": "greatsales",
     "userInterfaceStyle": "light",
@@ -10,7 +10,7 @@
     "primaryColor": "#17A45E",
     "android": {
       "package": "com.greatsales.crm",
-      "versionCode": 2,
+      "versionCode": 3,
       "predictiveBackGestureEnabled": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
